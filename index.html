@@ -47,8 +47,13 @@
 
       <div class="purchase-section location-section">
         <h3><span>1</span> Choose a location</h3>
-        <p class="step" id="selectionStatus">Click any available hexagon on the globe.</p>
-        <small>Drag the globe to move around. Scroll to see individual hexagons.</small>
+        <small>First position the globe, then lock it while you select.</small>
+        <div class="interaction-toggle" aria-label="Choose how to interact with the globe">
+          <button type="button" id="moveGlobeMode" aria-pressed="true"><b>Move globe</b><span>Drag and zoom</span></button>
+          <button type="button" id="selectHexMode" aria-pressed="false"><b>Select hexagons</b><span>Click or paint</span></button>
+        </div>
+        <div class="availability-key" aria-label="Hexagon availability key"><span><i class="available"></i>Available</span><span><i class="purchased"></i>Purchased</span><span><i class="chosen"></i>Selected</span></div>
+        <p class="step" id="selectionStatus">Move the globe to the area you want, then choose Select hexagons.</p>
       </div>
 
       <div class="purchase-section">
