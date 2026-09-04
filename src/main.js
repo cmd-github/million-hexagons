@@ -364,6 +364,72 @@ document.querySelector('#logoText').addEventListener('input', (event) => {
   if (!uploadedLogo) document.querySelector('#logoPreview').innerHTML = `<span>${event.target.value.trim().toUpperCase() || 'YOUR LOGO'}</span>`;
 });
 document.querySelector('#brandColor').addEventListener('input', renderSelectionPreview);
+
+function rgbToHex(red, green, blue) {
+  return `#${[red, green, blue].map((value) => value.toString(16).padStart(2, '0')).join('')}`;
+}
+
+function logoColours(image) {
+  const sample = document.createElement('canvas');
+  sample.width = 96;
+  sample.height = 96;
+  const sampleContext = sample.getContext('2d', { willReadFrequently: true });
+  sampleContext.clearRect(0, 0, 96, 96);
+  const scale = Math.min(88 / image.naturalWidth, 88 / image.naturalHeight);
+  const width = image.naturalWidth * scale;
+  const height = image.naturalHeight * scale;
+  sampleContext.drawImage(image, (96 - width) / 2, (96 - height) / 2, width, height);
+  const pixels = sampleContext.getImageData(0, 0, 96, 96).data;
+  const buckets = new Map();
+  for (let index = 0; index < pixels.length; index += 16) {
+    if (pixels[index + 3] < 90) continue;
+    const red = Math.min(255, Math.round(pixels[index] / 24) * 24);
+    const green = Math.min(255, Math.round(pixels[index + 1] / 24) * 24);
+    const blue = Math.min(255, Math.round(pixels[index + 2] / 24) * 24);
+    const maximum = Math.max(red, green, blue);
+    const minimum = Math.min(red, green, blue);
+    const saturation = maximum ? (maximum - minimum) / maximum : 0;
+    const key = `${red},${green},${blue}`;
+    const current = buckets.get(key) || { red, green, blue, count: 0, saturation };
+    current.count += 1;
+    buckets.set(key, current);
+  }
+  const ranked = [...buckets.values()].sort((a, b) => b.count * (.15 + b.saturation * 2) - a.count * (.15 + a.saturation * 2));
+  const vivid = ranked.filter((colour) => colour.saturation > .22 && (colour.red + colour.green + colour.blue) / 3 > 28);
+  const ordered = [...vivid, ...ranked.filter((colour) => !vivid.includes(colour))];
+  const selected = [];
+  for (const colour of ordered) {
+    if (selected.every((item) => Math.hypot(item.red - colour.red, item.green - colour.green, item.blue - colour.blue) > 54)) selected.push(colour);
+    if (selected.length === 6) break;
+  }
+  return selected.map(({ red, green, blue }) => rgbToHex(red, green, blue));
+}
+
+function showLogoPalette(colours) {
+  const palette = document.querySelector('#logoPalette');
+  const swatches = document.querySelector('#logoSwatches');
+  swatches.replaceChildren();
+  colours.forEach((colour, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.style.background = colour;
+    button.title = `Use ${colour}`;
+    button.setAttribute('aria-label', `Use detected logo colour ${colour}`);
+    button.classList.toggle('active', index === 0);
+    button.addEventListener('click', () => {
+      document.querySelector('#brandColor').value = colour;
+      swatches.querySelectorAll('button').forEach((item) => item.classList.toggle('active', item === button));
+      renderSelectionPreview();
+    });
+    swatches.append(button);
+  });
+  palette.hidden = !colours.length;
+  if (colours[0]) {
+    document.querySelector('#brandColor').value = colours[0];
+    renderSelectionPreview();
+  }
+}
+
 document.querySelector('#logoUpload').addEventListener('change', (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
@@ -379,6 +445,7 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
     const preview = document.querySelector('#logoPreview');
     preview.innerHTML = '';
     preview.style.backgroundImage = `url(${url})`;
+    showLogoPalette(logoColours(image));
     showUploadMessage('Logo ready. It will be fitted without cropping.');
     refreshSelection();
   };

@@ -25,6 +25,6 @@ await page.selectOption('#logoTreatment', 'span');
 await page.mouse.click(760, 450);
 await page.click('#previewPurchase');
 await page.waitForTimeout(300);
-console.log(JSON.stringify({ panel: await page.locator('#buyPanel').getAttribute('aria-hidden'), sold: await page.locator('#soldCount').textContent(), toast: await page.locator('#toast').isVisible(), uploadAccepted: (await page.locator('#logoPreview').getAttribute('style'))?.includes('background-image'), errors }));
+console.log(JSON.stringify({ panel: await page.locator('#buyPanel').getAttribute('aria-hidden'), sold: await page.locator('#soldCount').textContent(), toast: await page.locator('#toast').isVisible(), uploadAccepted: (await page.locator('#logoPreview').getAttribute('style'))?.includes('background-image'), detectedColours: await page.locator('#logoSwatches button').count(), errors }));
 await browser.close();
 if (errors.length) process.exit(1);
