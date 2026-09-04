@@ -39,7 +39,7 @@ function makeCampaignAtlas() {
       const campaign = campaigns[(col * 7 + row * 11) % campaigns.length];
       ctx.fillStyle = campaign[1];
       ctx.globalAlpha = .72 + hash * .28;
-      ctx.fillRect(col * cellW + 1, row * cellH + 1, cellW - 2, cellH - 2);
+      ctx.fillRect(col * cellW, row * cellH, cellW + .5, cellH + .5);
       if ((col + row) % 13 === 0) {
         ctx.fillStyle = '#07131b';
         ctx.globalAlpha = .9;
@@ -85,13 +85,19 @@ globeMaterial.onBeforeCompile = (shader) => {
           cellAddress = vec2(column, row);
         }
       }
+      vec2 cellCentreUv = vec2(
+        (cellAddress.x * 1.7320508 + mod(cellAddress.y, 2.0) * 0.8660254) / 2165.0635,
+        (cellAddress.y * 1.5) / 1200.0
+      );
+      vec3 cellArtwork = texture2D(map, clamp(cellCentreUv, vec2(0.0001), vec2(0.9999))).rgb;
+      diffuseColor.rgb = cellArtwork;
       vec2 absoluteHex = abs(localHex);
       float hexDistance = max(absoluteHex.x / 0.8660254, absoluteHex.y + absoluteHex.x * 0.5773503);
       float cellPixels = 1.0 / max(fwidth(gridPoint.x) / 1.7320508, fwidth(gridPoint.y) / 1.5);
       float detailVisibility = smoothstep(1.6, 4.5, cellPixels);
       float edgeWidth = max(fwidth(hexDistance) * 1.15, 0.002);
       float hexEdge = 1.0 - smoothstep(0.0, edgeWidth, 1.0 - hexDistance);
-      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.16, hexEdge * detailVisibility * 0.78);
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.62, hexEdge * detailVisibility * 0.26);
 
       // At close range each occupied hex resolves to a small brand glyph.
       // The same campaign colour resolves to the same symbol on every owned cell.
