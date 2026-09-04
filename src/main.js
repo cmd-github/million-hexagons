@@ -64,20 +64,52 @@ globeMaterial.onBeforeCompile = (shader) => {
     '#include <map_fragment>',
     `#include <map_fragment>
     #ifdef USE_MAP
-      vec2 hexPoint = vMapUv * vec2(1000.0, 1000.0);
-      vec2 hexRatio = vec2(1.0, 1.7320508);
-      vec2 cellA = mod(hexPoint, hexRatio) - hexRatio * 0.5;
-      vec2 cellB = mod(hexPoint - hexRatio * 0.5, hexRatio) - hexRatio * 0.5;
-      vec2 localHex = dot(cellA, cellA) < dot(cellB, cellB) ? cellA : cellB;
+      // One thousand staggered columns by one thousand rows: one million logical cells.
+      vec2 gridPoint = vMapUv * vec2(1732.0508, 1500.0);
+      float baseRow = floor(gridPoint.y / 1.5 + 0.5);
+      vec2 localHex = vec2(10.0);
+      vec2 cellAddress = vec2(0.0);
+      float nearestCell = 100.0;
+      for (int rowOffset = -1; rowOffset <= 1; rowOffset++) {
+        float row = baseRow + float(rowOffset);
+        float offsetX = mod(row, 2.0) * 0.8660254;
+        float column = floor((gridPoint.x - offsetX) / 1.7320508 + 0.5);
+        vec2 centre = vec2(column * 1.7320508 + offsetX, row * 1.5);
+        vec2 candidate = gridPoint - centre;
+        float distanceSquared = dot(candidate, candidate);
+        if (distanceSquared < nearestCell) {
+          nearestCell = distanceSquared;
+          localHex = candidate;
+          cellAddress = vec2(column, row);
+        }
+      }
       vec2 absoluteHex = abs(localHex);
-      float edgeDistance = 0.5 - max(absoluteHex.x * 0.8660254 + absoluteHex.y * 0.5, absoluteHex.x);
-      float edgeWidth = max(fwidth(edgeDistance) * 1.15, 0.004);
-      float hexEdge = 1.0 - smoothstep(0.0, edgeWidth, edgeDistance);
-      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.22, hexEdge * 0.82);
+      float hexDistance = max(absoluteHex.x / 0.8660254, absoluteHex.y + absoluteHex.x * 0.5773503);
+      float cellPixels = 1.0 / max(fwidth(gridPoint.x) / 1.7320508, fwidth(gridPoint.y) / 1.5);
+      float detailVisibility = smoothstep(1.6, 4.5, cellPixels);
+      float edgeWidth = max(fwidth(hexDistance) * 1.15, 0.002);
+      float hexEdge = 1.0 - smoothstep(0.0, edgeWidth, 1.0 - hexDistance);
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.16, hexEdge * detailVisibility * 0.78);
+
+      // At close range each occupied hex resolves to a small brand glyph.
+      // The same campaign colour resolves to the same symbol on every owned cell.
+      float brandHash = fract(sin(dot(floor(diffuseColor.rg * 31.0), vec2(12.9898, 78.233))) * 43758.5453);
+      vec2 glyphPoint = localHex / vec2(0.8660254, 1.0);
+      float glyphCircle = 1.0 - smoothstep(0.045, 0.09, abs(length(glyphPoint) - 0.31));
+      float glyphDiamond = 1.0 - smoothstep(0.28, 0.34, abs(glyphPoint.x) + abs(glyphPoint.y));
+      float glyphPlus = max(
+        (1.0 - smoothstep(0.07, 0.11, abs(glyphPoint.x))) * (1.0 - smoothstep(0.31, 0.36, abs(glyphPoint.y))),
+        (1.0 - smoothstep(0.07, 0.11, abs(glyphPoint.y))) * (1.0 - smoothstep(0.31, 0.36, abs(glyphPoint.x)))
+      );
+      float glyph = brandHash < 0.33 ? glyphCircle : (brandHash < 0.66 ? glyphDiamond : glyphPlus);
+      float colourEnergy = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
+      float occupiedCell = smoothstep(0.09, 0.2, colourEnergy);
+      float glyphVisibility = smoothstep(7.0, 13.0, cellPixels) * occupiedCell;
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.025, 0.05, 0.065), glyph * glyphVisibility * 0.7);
     #endif`
   );
 };
-globeMaterial.customProgramCacheKey = () => 'million-hexagons-hd-v1';
+globeMaterial.customProgramCacheKey = () => 'million-hexagons-hd-v2';
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 192, 128), globeMaterial);
 sphere.receiveShadow = true;
 globe.add(sphere);
@@ -232,13 +264,13 @@ document.querySelector('#homeView').addEventListener('click', () => {
 
 const amountInput = document.querySelector('#hexAmount');
 amountInput.addEventListener('input', () => {
-  const value = Math.max(100, Math.min(10000, Number(amountInput.value) || 100));
+  const value = Math.max(1, Math.min(10000, Number(amountInput.value) || 1));
   document.querySelector('#price').textContent = `$${value.toLocaleString()}`;
 });
 
 function paintPlacement() {
   if (!selectedUV) return;
-  const amount = Math.max(100, Math.min(10000, Number(amountInput.value) || 100));
+  const amount = Math.max(1, Math.min(10000, Number(amountInput.value) || 1));
   const x = selectedUV.x * atlas.width;
   const y = (1 - selectedUV.y) * atlas.height;
   const aspect = 2.35;
@@ -286,6 +318,7 @@ function animate() {
   requestAnimationFrame(animate);
   controls.target.set(0, 0, 0);
   controls.update();
+  document.body.classList.toggle('detail-view', camera.position.length() < globeFitDistance() * .72);
   atmosphere.material.opacity = .075 + Math.sin(clock.getElapsedTime() * .7) * .012;
   renderer.render(scene, camera);
 }
