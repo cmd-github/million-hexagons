@@ -16,8 +16,8 @@ scene.fog = new THREE.FogExp2(0x050b14, .018);
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .1, 100);
 
 const atlas = document.createElement('canvas');
-atlas.width = 2048;
-atlas.height = 1024;
+atlas.width = Math.min(4096, renderer.capabilities.maxTextureSize);
+atlas.height = atlas.width / 2;
 const ctx = atlas.getContext('2d');
 const campaigns = [
   ['NORTHSTAR', '#3cd6d0'], ['ARC & PIXEL', '#ff665f'], ['FIELD/MAIN', '#f5c95c'], ['NOVA', '#815bff'],
@@ -65,6 +65,7 @@ globeMaterial.onBeforeCompile = (shader) => {
     '#include <map_fragment>',
     `#include <map_fragment>
     #ifdef USE_MAP
+      vec3 smoothArtwork = diffuseColor.rgb;
       // 1,250 staggered columns by 800 rows: exactly one million logical cells,
       // with a substantially more regular on-sphere aspect ratio near the equator.
       vec2 gridPoint = vMapUv * vec2(2165.0635, 1200.0);
@@ -90,10 +91,11 @@ globeMaterial.onBeforeCompile = (shader) => {
         (cellAddress.y * 1.5) / 1200.0
       );
       vec3 cellArtwork = texture2D(map, clamp(cellCentreUv, vec2(0.0001), vec2(0.9999))).rgb;
-      diffuseColor.rgb = cellArtwork;
       vec2 absoluteHex = abs(localHex);
       float hexDistance = max(absoluteHex.x / 0.8660254, absoluteHex.y + absoluteHex.x * 0.5773503);
       float cellPixels = 1.0 / max(fwidth(gridPoint.x) / 1.7320508, fwidth(gridPoint.y) / 1.5);
+      float artworkSnap = smoothstep(5.0, 10.0, cellPixels);
+      diffuseColor.rgb = mix(smoothArtwork, cellArtwork, artworkSnap);
       float detailVisibility = smoothstep(1.6, 4.5, cellPixels);
       float edgeWidth = max(fwidth(hexDistance) * 1.15, 0.002);
       float hexEdge = 1.0 - smoothstep(0.0, edgeWidth, 1.0 - hexDistance);
