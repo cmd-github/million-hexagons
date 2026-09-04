@@ -1,6 +1,18 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import adidasSvg from 'simple-icons/icons/adidas.svg?raw';
+import appleSvg from 'simple-icons/icons/apple.svg?raw';
+import cocaColaSvg from 'simple-icons/icons/cocacola.svg?raw';
+import googleSvg from 'simple-icons/icons/google.svg?raw';
+import ikeaSvg from 'simple-icons/icons/ikea.svg?raw';
+import mastercardSvg from 'simple-icons/icons/mastercard.svg?raw';
+import mcdonaldsSvg from 'simple-icons/icons/mcdonalds.svg?raw';
+import netflixSvg from 'simple-icons/icons/netflix.svg?raw';
+import nikeSvg from 'simple-icons/icons/nike.svg?raw';
+import samsungSvg from 'simple-icons/icons/samsung.svg?raw';
+import spotifySvg from 'simple-icons/icons/spotify.svg?raw';
+import youtubeSvg from 'simple-icons/icons/youtube.svg?raw';
 import './style.css';
 
 const canvas = document.querySelector('#world');
@@ -19,37 +31,180 @@ const atlas = document.createElement('canvas');
 atlas.width = Math.min(4096, renderer.capabilities.maxTextureSize);
 atlas.height = atlas.width / 2;
 const ctx = atlas.getContext('2d');
-const campaigns = [
-  ['NORTHSTAR', '#3cd6d0'], ['ARC & PIXEL', '#ff665f'], ['FIELD/MAIN', '#f5c95c'], ['NOVA', '#815bff'],
-  ['GOOD CO.', '#d7ff55'], ['ORBITAL', '#ef7bbb'], ['MONO', '#f0eee3'], ['KINETIC', '#ff8a42'],
-  ['STUDIO 27', '#45a9ee'], ['FUTURE', '#35c47c'], ['HELLO', '#e7acff'], ['MADE HERE', '#ef564f'],
+
+const iconPath = (svg) => new Path2D(svg.match(/<path d="([^"]+)"/)?.[1] || '');
+const brands = {
+  adidas: { name: 'adidas', bg: '#08090b', fg: '#ffffff', path: iconPath(adidasSvg) },
+  apple: { name: 'Apple', bg: '#f4f4f1', fg: '#111214', path: iconPath(appleSvg) },
+  cocaCola: { name: 'Coca-Cola', bg: '#f40009', fg: '#ffffff', path: iconPath(cocaColaSvg), markOnly: true, wide: true },
+  google: { name: 'Google', bg: '#f7f7f3', fg: '#4285f4', path: iconPath(googleSvg) },
+  ikea: { name: 'IKEA', bg: '#0058a3', fg: '#ffda1a', path: iconPath(ikeaSvg), markOnly: true, wide: true },
+  mastercard: { name: 'mastercard', bg: '#f2f0eb', fg: '#111111', path: iconPath(mastercardSvg) },
+  mcdonalds: { name: "McDonald's", bg: '#da291c', fg: '#ffc72c', path: iconPath(mcdonaldsSvg) },
+  netflix: { name: 'NETFLIX', bg: '#090909', fg: '#e50914', path: iconPath(netflixSvg) },
+  nike: { name: 'NIKE', bg: '#f3f1eb', fg: '#111111', path: iconPath(nikeSvg) },
+  samsung: { name: 'SAMSUNG', bg: '#1428a0', fg: '#ffffff', path: iconPath(samsungSvg), markOnly: true, wide: true },
+  spotify: { name: 'Spotify', bg: '#1ed760', fg: '#111111', path: iconPath(spotifySvg) },
+  youtube: { name: 'YouTube', bg: '#ffffff', fg: '#ff0000', path: iconPath(youtubeSvg) },
+};
+
+const heroCampaigns = [
+  { brand: 'nike', x: .015, y: .035, w: .245, h: .205, seed: 2 },
+  { brand: 'cocaCola', x: .292, y: .025, w: .29, h: .19, seed: 5 },
+  { brand: 'apple', x: .625, y: .04, w: .15, h: .205, seed: 8 },
+  { brand: 'spotify', x: .815, y: .055, w: .17, h: .16, seed: 11 },
+  { brand: 'google', x: .045, y: .315, w: .285, h: .17, seed: 14 },
+  { brand: 'mcdonalds', x: .375, y: .28, w: .155, h: .205, seed: 17 },
+  { brand: 'youtube', x: .575, y: .305, w: .255, h: .175, seed: 20 },
+  { brand: 'nike', x: .865, y: .305, w: .12, h: .15, seed: 23, compact: true },
+  { brand: 'adidas', x: .015, y: .56, w: .19, h: .185, seed: 26 },
+  { brand: 'netflix', x: .245, y: .535, w: .14, h: .225, seed: 29 },
+  { brand: 'mastercard', x: .425, y: .56, w: .17, h: .18, seed: 32 },
+  { brand: 'ikea', x: .635, y: .535, w: .255, h: .185, seed: 35 },
+  { brand: 'spotify', x: .915, y: .555, w: .075, h: .155, seed: 38, compact: true },
+  { brand: 'samsung', x: .06, y: .82, w: .285, h: .15, seed: 41 },
+  { brand: 'apple', x: .39, y: .805, w: .12, h: .16, seed: 44, compact: true },
+  { brand: 'youtube', x: .555, y: .82, w: .175, h: .145, seed: 47 },
+  { brand: 'google', x: .78, y: .815, w: .195, h: .15, seed: 50 },
 ];
+
+function campaignPath({ x, y, w, h, seed }) {
+  const px = x * atlas.width;
+  const py = y * atlas.height;
+  const width = w * atlas.width;
+  const height = h * atlas.height;
+  const jitter = (index) => ((Math.sin(seed * 19.17 + index * 8.31) + 1) * .5 - .5);
+  const path = new Path2D();
+  const points = [
+    [.05 + jitter(0) * .025, 0], [.72 + jitter(1) * .08, .015], [1, .16 + jitter(2) * .035],
+    [.985, .76 + jitter(3) * .08], [.82 + jitter(4) * .07, 1], [.19 + jitter(5) * .07, .975],
+    [0, .79 + jitter(6) * .055], [.015, .2 + jitter(7) * .06],
+  ];
+  path.moveTo(px + points[0][0] * width, py + points[0][1] * height);
+  points.slice(1).forEach(([pointX, pointY]) => path.lineTo(px + pointX * width, py + pointY * height));
+  path.closePath();
+  return path;
+}
+
+function drawBrandMark(context, brand, x, y, width, height, compact = false) {
+  const markSize = brand.wide
+    ? Math.min(height * 1.2, width * .7)
+    : Math.min(height * (compact || brand.markOnly ? .62 : .48), width * (compact ? .72 : .28));
+  const hasLabel = !compact && !brand.markOnly && width > height * 1.35;
+  const markX = hasLabel ? x + width * .2 : x + width * .5;
+  const markY = hasLabel ? y + height * .48 : y + height * .5;
+  context.save();
+  context.translate(markX - markSize / 2, markY - markSize / 2);
+  context.scale(markSize / 24, markSize / 24);
+  context.fillStyle = brand.fg;
+  context.fill(brand.path);
+  context.restore();
+  if (!hasLabel) return;
+  context.save();
+  context.fillStyle = brand.fg;
+  context.font = `800 ${Math.max(22, Math.floor(height * .21))}px Arial`;
+  context.textAlign = 'left';
+  context.textBaseline = 'middle';
+  context.fillText(brand.name, x + width * .36, y + height * .5, width * .58);
+  context.restore();
+}
+
+function drawHeroCampaign(campaign) {
+  const brand = brands[campaign.brand];
+  const path = campaignPath(campaign);
+  const x = campaign.x * atlas.width;
+  const y = campaign.y * atlas.height;
+  const width = campaign.w * atlas.width;
+  const height = campaign.h * atlas.height;
+  ctx.save();
+  ctx.clip(path);
+  ctx.fillStyle = brand.bg;
+  ctx.fillRect(x, y, width, height);
+  const sheen = ctx.createLinearGradient(x, y, x + width, y + height);
+  sheen.addColorStop(0, 'rgba(255,255,255,.12)');
+  sheen.addColorStop(.52, 'rgba(255,255,255,0)');
+  sheen.addColorStop(1, 'rgba(0,0,0,.12)');
+  ctx.fillStyle = sheen;
+  ctx.fillRect(x, y, width, height);
+  drawBrandMark(ctx, brand, x, y, width, height, campaign.compact);
+  ctx.restore();
+}
+
+function seededRandom(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+}
+
+function connectedCells(startColumn, startRow, count, random) {
+  const cells = new Map();
+  const key = (column, row) => `${column},${row}`;
+  cells.set(key(startColumn, startRow), { column: startColumn, row: startRow });
+  while (cells.size < count) {
+    const existing = [...cells.values()][Math.floor(random() * cells.size)];
+    const neighbours = existing.row % 2
+      ? [[1, 0], [-1, 0], [0, 1], [1, 1], [0, -1], [1, -1]]
+      : [[1, 0], [-1, 0], [-1, 1], [0, 1], [-1, -1], [0, -1]];
+    const [columnStep, rowStep] = neighbours[Math.floor(random() * neighbours.length)];
+    const column = THREE.MathUtils.clamp(existing.column + columnStep, 2, 1247);
+    const row = THREE.MathUtils.clamp(existing.row + rowStep, 2, 797);
+    cells.set(key(column, row), { column, row });
+  }
+  return [...cells.values()];
+}
+
+function drawSmallOwners() {
+  const random = seededRandom(7331);
+  const ownerColours = ['#ff7657', '#69d7ff', '#f8d849', '#ad85ff', '#f18ec4', '#54d89b', '#f3f0de'];
+  const ownerNames = ['AK', 'JS', 'M+M', 'RB', 'LO', 'TQ', 'HEY', '44'];
+  const cellWidth = atlas.width / 1250;
+  const cellHeight = atlas.height / 800;
+  let drawn = 0;
+  let attempts = 0;
+  while (drawn < 54 && attempts < 800) {
+    attempts += 1;
+    const column = Math.floor(18 + random() * 1214);
+    const row = Math.floor(15 + random() * 770);
+    const u = column / 1250;
+    const v = row / 800;
+    if (heroCampaigns.some((campaign) => u > campaign.x - .018 && u < campaign.x + campaign.w + .018 && v > campaign.y - .025 && v < campaign.y + campaign.h + .025)) continue;
+    const count = 20 + Math.floor(random() * 31);
+    const cells = connectedCells(column, row, count, random);
+    const minColumn = Math.min(...cells.map((cell) => cell.column));
+    const maxColumn = Math.max(...cells.map((cell) => cell.column));
+    const minRow = Math.min(...cells.map((cell) => cell.row));
+    const maxRow = Math.max(...cells.map((cell) => cell.row));
+    const mask = new Path2D();
+    cells.forEach((cell) => {
+      const centreX = ((cell.column + (cell.row % 2) * .5) / 1250) * atlas.width;
+      const centreY = (cell.row / 800) * atlas.height;
+      mask.rect(centreX - cellWidth * .56, centreY - cellHeight * .56, cellWidth * 1.12, cellHeight * 1.12);
+    });
+    ctx.save();
+    ctx.clip(mask);
+    ctx.fillStyle = ownerColours[drawn % ownerColours.length];
+    ctx.fillRect(0, 0, atlas.width, atlas.height);
+    const left = (minColumn / 1250) * atlas.width;
+    const top = (minRow / 800) * atlas.height;
+    const width = Math.max(cellWidth * 4, ((maxColumn - minColumn + 1) / 1250) * atlas.width);
+    const height = Math.max(cellHeight * 4, ((maxRow - minRow + 1) / 800) * atlas.height);
+    ctx.fillStyle = '#07131b';
+    ctx.font = `900 ${Math.floor(Math.min(height * .58, width * .32))}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(ownerNames[drawn % ownerNames.length], left + width / 2, top + height / 2, width * .84);
+    ctx.restore();
+    drawn += 1;
+  }
+}
 
 function makeCampaignAtlas() {
   ctx.fillStyle = '#102631';
   ctx.fillRect(0, 0, atlas.width, atlas.height);
-  const cols = 48;
-  const rows = 24;
-  const cellW = atlas.width / cols;
-  const cellH = atlas.height / rows;
-  for (let row = 0; row < rows; row += 1) {
-    for (let col = 0; col < cols; col += 1) {
-      const hash = Math.abs(Math.sin(col * 91.17 + row * 47.71) * 43758.5453) % 1;
-      if (hash > .5) continue;
-      const campaign = campaigns[(col * 7 + row * 11) % campaigns.length];
-      ctx.fillStyle = campaign[1];
-      ctx.globalAlpha = .72 + hash * .28;
-      ctx.fillRect(col * cellW, row * cellH, cellW + .5, cellH + .5);
-      if ((col + row) % 13 === 0) {
-        ctx.fillStyle = '#07131b';
-        ctx.globalAlpha = .9;
-        ctx.font = `800 ${Math.floor(cellH * .25)}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.fillText(campaign[0].slice(0, 8), (col + .5) * cellW, (row + .57) * cellH);
-      }
-    }
-  }
-  ctx.globalAlpha = 1;
+  heroCampaigns.forEach(drawHeroCampaign);
+  drawSmallOwners();
 }
 makeCampaignAtlas();
 const globeTexture = new THREE.CanvasTexture(atlas);
@@ -100,26 +255,10 @@ globeMaterial.onBeforeCompile = (shader) => {
       float edgeWidth = max(fwidth(hexDistance) * 1.15, 0.002);
       float hexEdge = 1.0 - smoothstep(0.0, edgeWidth, 1.0 - hexDistance);
       diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.62, hexEdge * detailVisibility * 0.26);
-
-      // At close range each occupied hex resolves to a small brand glyph.
-      // The same campaign colour resolves to the same symbol on every owned cell.
-      float brandHash = fract(sin(dot(floor(diffuseColor.rg * 31.0), vec2(12.9898, 78.233))) * 43758.5453);
-      vec2 glyphPoint = localHex / vec2(0.8660254, 1.0);
-      float glyphCircle = 1.0 - smoothstep(0.045, 0.09, abs(length(glyphPoint) - 0.31));
-      float glyphDiamond = 1.0 - smoothstep(0.28, 0.34, abs(glyphPoint.x) + abs(glyphPoint.y));
-      float glyphPlus = max(
-        (1.0 - smoothstep(0.07, 0.11, abs(glyphPoint.x))) * (1.0 - smoothstep(0.31, 0.36, abs(glyphPoint.y))),
-        (1.0 - smoothstep(0.07, 0.11, abs(glyphPoint.y))) * (1.0 - smoothstep(0.31, 0.36, abs(glyphPoint.x)))
-      );
-      float glyph = brandHash < 0.33 ? glyphCircle : (brandHash < 0.66 ? glyphDiamond : glyphPlus);
-      float colourEnergy = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
-      float occupiedCell = smoothstep(0.09, 0.2, colourEnergy);
-      float glyphVisibility = smoothstep(7.0, 13.0, cellPixels) * occupiedCell;
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.025, 0.05, 0.065), glyph * glyphVisibility * 0.7);
     #endif`
   );
 };
-globeMaterial.customProgramCacheKey = () => 'million-hexagons-hd-v2';
+globeMaterial.customProgramCacheKey = () => 'million-hexagons-brands-v3';
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 192, 128), globeMaterial);
 sphere.receiveShadow = true;
 globe.add(sphere);
