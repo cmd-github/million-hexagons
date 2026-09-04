@@ -13,7 +13,6 @@ renderer.toneMappingExposure = 1.15;
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x050b14, .018);
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .1, 100);
-camera.position.set(0, .25, 12.8);
 
 const atlas = document.createElement('canvas');
 atlas.width = 2048;
@@ -50,26 +49,6 @@ function makeCampaignAtlas() {
     }
   }
   ctx.globalAlpha = 1;
-  // Dense honeycomb detail. It remains sharp on approach without creating a million meshes.
-  const radius = 3.25;
-  const hexW = Math.sqrt(3) * radius;
-  const rowH = radius * 1.5;
-  ctx.strokeStyle = 'rgba(4,13,19,.42)';
-  ctx.lineWidth = .72;
-  for (let y = -radius; y < atlas.height + radius; y += rowH) {
-    const row = Math.round(y / rowH);
-    for (let x = -hexW; x < atlas.width + hexW; x += hexW) {
-      const cx = x + (row & 1 ? hexW / 2 : 0);
-      ctx.beginPath();
-      for (let side = 0; side < 6; side += 1) {
-        const angle = Math.PI / 3 * side - Math.PI / 6;
-        const px = cx + Math.cos(angle) * radius;
-        const py = y + Math.sin(angle) * radius;
-        if (!side) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-      }
-      ctx.closePath(); ctx.stroke();
-    }
-  }
 }
 makeCampaignAtlas();
 const globeTexture = new THREE.CanvasTexture(atlas);
@@ -79,10 +58,27 @@ globeTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
 const globe = new THREE.Group();
 scene.add(globe);
 const radius = 4;
-const sphere = new THREE.Mesh(
-  new THREE.SphereGeometry(radius, 160, 96),
-  new THREE.MeshStandardMaterial({ map: globeTexture, roughness: .57, metalness: .04 })
-);
+const globeMaterial = new THREE.MeshStandardMaterial({ map: globeTexture, roughness: .57, metalness: .04 });
+globeMaterial.onBeforeCompile = (shader) => {
+  shader.fragmentShader = shader.fragmentShader.replace(
+    '#include <map_fragment>',
+    `#include <map_fragment>
+    #ifdef USE_MAP
+      vec2 hexPoint = vMapUv * vec2(1000.0, 1000.0);
+      vec2 hexRatio = vec2(1.0, 1.7320508);
+      vec2 cellA = mod(hexPoint, hexRatio) - hexRatio * 0.5;
+      vec2 cellB = mod(hexPoint - hexRatio * 0.5, hexRatio) - hexRatio * 0.5;
+      vec2 localHex = dot(cellA, cellA) < dot(cellB, cellB) ? cellA : cellB;
+      vec2 absoluteHex = abs(localHex);
+      float edgeDistance = 0.5 - max(absoluteHex.x * 0.8660254 + absoluteHex.y * 0.5, absoluteHex.x);
+      float edgeWidth = max(fwidth(edgeDistance) * 1.15, 0.004);
+      float hexEdge = 1.0 - smoothstep(0.0, edgeWidth, edgeDistance);
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.22, hexEdge * 0.82);
+    #endif`
+  );
+};
+globeMaterial.customProgramCacheKey = () => 'million-hexagons-hd-v1';
+const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 192, 128), globeMaterial);
 sphere.receiveShadow = true;
 globe.add(sphere);
 
@@ -97,24 +93,6 @@ const atmosphere = new THREE.Mesh(
   new THREE.MeshBasicMaterial({ color: 0x51d6eb, transparent: true, opacity: .085, side: THREE.BackSide, blending: THREE.AdditiveBlending })
 );
 globe.add(atmosphere);
-
-// Euler's topology requires twelve pentagons. Place them at the twelve icosahedral vertices.
-const ico = new THREE.IcosahedronGeometry(1, 0);
-const unique = [];
-for (let i = 0; i < ico.attributes.position.count; i += 1) {
-  const vertex = new THREE.Vector3().fromBufferAttribute(ico.attributes.position, i).normalize();
-  if (!unique.some((item) => item.distanceTo(vertex) < .01)) unique.push(vertex);
-}
-unique.slice(0, 12).forEach((normal, index) => {
-  const pentagon = new THREE.Mesh(
-    new THREE.CircleGeometry(.072, 5),
-    new THREE.MeshStandardMaterial({ color: index < 6 ? 0xffd65c : 0xd7ff55, emissive: 0x554c10, emissiveIntensity: .55, roughness: .4 })
-  );
-  pentagon.position.copy(normal.clone().multiplyScalar(radius + .025));
-  pentagon.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
-  pentagon.userData.pentagon = index + 1;
-  globe.add(pentagon);
-});
 
 scene.add(new THREE.HemisphereLight(0xe8fbff, 0x07121c, 2.7));
 const key = new THREE.DirectionalLight(0xffffff, 3.6);
@@ -139,12 +117,26 @@ const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = .055;
 controls.enablePan = false;
-controls.minDistance = 5.1;
-controls.maxDistance = 18;
+controls.minDistance = radius + 1.25;
 controls.rotateSpeed = .42;
 controls.zoomSpeed = .72;
 controls.autoRotate = true;
 controls.autoRotateSpeed = .22;
+
+function globeFitDistance() {
+  const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+  const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
+  return (radius + .24) / Math.sin(Math.min(verticalFov, horizontalFov) / 2);
+}
+
+function frameGlobe(reset = false) {
+  const fit = globeFitDistance();
+  controls.maxDistance = fit * 1.08;
+  controls.target.set(0, 0, 0);
+  if (reset) camera.position.set(0, fit * .018, fit);
+  else if (camera.position.length() > controls.maxDistance) camera.position.setLength(controls.maxDistance);
+}
+frameGlobe(true);
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -225,6 +217,18 @@ document.querySelector('#randomButton').addEventListener('click', () => {
   controls.autoRotate = false;
   globe.rotation.set((Math.random() - .5) * 1.8, Math.random() * Math.PI * 2, 0);
 });
+document.querySelector('#zoomIn').addEventListener('click', () => {
+  camera.position.setLength(Math.max(controls.minDistance, camera.position.length() * .78));
+});
+document.querySelector('#zoomOut').addEventListener('click', () => {
+  camera.position.setLength(Math.min(controls.maxDistance, camera.position.length() * 1.24));
+});
+document.querySelector('#homeView').addEventListener('click', () => {
+  controls.autoRotate = false;
+  const fit = globeFitDistance();
+  camera.position.set(0, fit * .018, fit);
+  controls.target.set(0, 0, 0);
+});
 
 const amountInput = document.querySelector('#hexAmount');
 amountInput.addEventListener('input', () => {
@@ -273,12 +277,14 @@ function resize() {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  frameGlobe(false);
 }
 addEventListener('resize', resize);
 
 const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
+  controls.target.set(0, 0, 0);
   controls.update();
   atmosphere.material.opacity = .075 + Math.sin(clock.getElapsedTime() * .7) * .012;
   renderer.render(scene, camera);

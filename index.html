@@ -18,7 +18,7 @@
       <p class="eyebrow">THE INTERNET, REMAPPED</p>
       <h1>One world.<br><em>One million</em> places.</h1>
       <p>Buy a permanent piece of the globe for <b>$1 per hexagon</b>. Colour it, shape it into your logo and link it to anywhere.</p>
-      <div class="facts"><span><b>999,988</b> hexagons</span><span><b>12</b> pentagons</span><span><b>$1</b> each</span></div>
+      <div class="facts"><span><b>1,000,000</b> hexagons</span><span><b>50%</b> available</span><span><b>$1</b> each</span></div>
       <button class="secondary" id="exploreButton">Explore the globe</button>
     </aside>
 
@@ -31,6 +31,11 @@
     </aside>
 
     <div class="hint" id="hint"><span>DRAG TO ROTATE</span><i></i><span>SCROLL TO ZOOM</span><i></i><span>CLICK A TILE</span></div>
+    <nav class="globe-controls glass" aria-label="Globe controls">
+      <button id="zoomIn" aria-label="Zoom in">+</button>
+      <button id="zoomOut" aria-label="Zoom out">−</button>
+      <button id="homeView" aria-label="Re-centre globe">⌂</button>
+    </nav>
     <div class="cell-tooltip glass" id="cellTooltip"><span id="cellId">HEX #000000</span><b id="cellOwner">Available</b><small id="cellPosition">0.00° N · 0.00° E</small></div>
 
     <section class="buy-panel glass" id="buyPanel" aria-hidden="true">
