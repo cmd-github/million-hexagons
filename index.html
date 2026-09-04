@@ -41,20 +41,43 @@
 
     <section class="buy-panel glass" id="buyPanel" aria-hidden="true">
       <button class="close" id="closeBuy" aria-label="Close">×</button>
-      <p class="eyebrow">CREATE YOUR TERRITORY</p>
-      <h2>Claim your place</h2>
-      <p class="step" id="selectionStatus"><b>1</b> Click an available place on the globe.</p>
-      <label>Company or logo text<input id="logoText" maxlength="16" value="YOUR LOGO" /></label>
-      <label>Upload logo <span class="optional">PNG, JPG, WebP or SVG</span><input id="logoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
-      <div class="logo-preview" id="logoPreview"><span>YOUR LOGO</span></div>
-      <div class="logo-palette" id="logoPalette" hidden><span>Colours detected in your logo</span><div id="logoSwatches"></div></div>
-      <div class="field-row"><label>Brand colour<input id="brandColor" type="color" value="#ff5c70" /></label><label>Hexagons<input id="hexAmount" type="number" min="1" max="10000" step="1" value="1000" /></label></div>
-      <div class="field-row"><label>Selection shape<select id="selectionShape"><option value="logo">Match uploaded logo</option><option value="compact">Compact cluster</option><option value="row">Horizontal row</option><option value="column">Vertical column</option><option value="custom">Choose each hex</option></select></label><label>Logo treatment<select id="logoTreatment"><option value="span">One logo across area</option><option value="repeat">Logo in every hex</option></select></label></div>
-      <label>Artwork fit<select id="logoFit"><option value="cover">Fill the purchased territory</option><option value="contain">Fit the entire logo</option></select></label>
-      <small class="pattern-note" id="patternNote">The territory will follow your uploaded logo's proportions to minimise cropping and empty space.</small>
-      <label>Website<input id="website" type="url" placeholder="https://yourcompany.com" /></label>
-      <div class="price"><span>Total</span><b id="price">$1,000</b><small>$1 per hexagon · one-time</small></div>
-      <button class="primary full" id="previewPurchase" disabled>Preview placement</button>
+      <p class="eyebrow">BUY HEXAGONS</p>
+      <h2>Create your space</h2>
+      <p class="panel-intro">Choose a place, add your logo, then decide how much space you want.</p>
+
+      <div class="purchase-section location-section">
+        <h3><span>1</span> Choose a location</h3>
+        <p class="step" id="selectionStatus">Click any available hexagon on the globe.</p>
+        <small>Drag the globe to move around. Scroll to see individual hexagons.</small>
+      </div>
+
+      <div class="purchase-section">
+        <h3><span>2</span> Add your logo</h3>
+        <label>Upload your logo <span class="optional">PNG, JPG, WebP or SVG</span><input id="logoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
+        <div class="logo-preview" id="logoPreview"><span>YOUR LOGO</span></div>
+        <label class="text-fallback">No logo file? Type a name<input id="logoText" maxlength="16" value="YOUR LOGO" /></label>
+        <div class="logo-palette" id="logoPalette" hidden><span>Choose a background colour from your logo</span><div id="logoSwatches"></div></div>
+        <div class="field-row">
+          <label>Background colour<input id="brandColor" type="color" value="#ff5c70" /></label>
+          <label>Logo direction<select id="logoOrientation"><option value="0">Upright</option><option value="90">Turn right</option><option value="-90">Turn left</option><option value="180">Upside down</option></select></label>
+        </div>
+      </div>
+
+      <div class="purchase-section">
+        <h3><span>3</span> Choose your coverage</h3>
+        <label>How many hexagons?<input id="hexAmount" type="number" min="1" max="10000" step="1" value="50" /></label>
+        <label>Area shape<select id="selectionShape"><option value="logo">Fit the shape to my logo</option><option value="compact">Simple compact patch</option><option value="row">Single horizontal row</option><option value="column">Single vertical column</option><option value="custom">I will pick every hexagon</option></select></label>
+        <small class="pattern-note" id="patternNote">We will create one connected area shaped to suit your uploaded logo.</small>
+        <details class="advanced-settings">
+          <summary>More logo options</summary>
+          <label>Logo layout<select id="logoTreatment"><option value="span">One logo across the whole area</option><option value="repeat">Repeat the logo in every hexagon</option></select></label>
+          <label>Image fit<select id="logoFit"><option value="contain">Show my whole logo</option><option value="cover">Fill the area (may crop edges)</option></select></label>
+        </details>
+        <label>Website to open when clicked <span class="optional">Optional</span><input id="website" type="url" placeholder="https://yourcompany.com" /></label>
+      </div>
+
+      <div class="price"><span>Total</span><b id="price">$50</b><small>$1 per hexagon · one-time</small></div>
+      <button class="primary full" id="previewPurchase" disabled>Add this preview to the globe</button>
       <small class="mock-note">Prototype checkout — no payment will be taken. Displayed brands are visual examples only.</small>
     </section>
 

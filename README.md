@@ -20,3 +20,5 @@ The seeded marketplace preview uses recognisable brand marks from Simple Icons a
 Logo placement accepts PNG, JPG, WebP and SVG files up to 4 MB. Small campaigns use high-resolution hex-clipped meshes rather than the coarse world atlas, allowing a logo to fit inside one cell without texture bloom. Buyers can create compact clusters, horizontal rows, vertical columns or click-built custom patterns, then span one logo across the territory or repeat it in every cell.
 
 Uploaded artwork defaults to filling the complete purchased territory. Buyers can switch to a contain mode to preserve the entire logo, or use the logo-proportioned selection mode to generate a connected territory matching the artwork's aspect ratio. Purchased territories are merged into one draw call so even hundreds of image-mapped cells remain efficient.
+
+Buying mode moves into a close selection distance and uses an adaptive light/dark high-contrast grid over every campaign colour. Uploaded artwork is aligned to geographic north so its default orientation stays upright around the globe, with manual quarter-turn and upside-down controls when needed.

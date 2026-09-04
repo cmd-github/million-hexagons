@@ -214,8 +214,11 @@ globeTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
 const globe = new THREE.Group();
 scene.add(globe);
 const radius = 4;
+const selectionModeUniform = { value: 0 };
 const globeMaterial = new THREE.MeshStandardMaterial({ map: globeTexture, roughness: .57, metalness: .04 });
 globeMaterial.onBeforeCompile = (shader) => {
+  shader.uniforms.selectionMode = selectionModeUniform;
+  shader.fragmentShader = `uniform float selectionMode;\n${shader.fragmentShader}`;
   shader.fragmentShader = shader.fragmentShader.replace(
     '#include <map_fragment>',
     `#include <map_fragment>
@@ -255,10 +258,17 @@ globeMaterial.onBeforeCompile = (shader) => {
       float edgeWidth = max(fwidth(hexDistance) * 1.15, 0.002);
       float hexEdge = 1.0 - smoothstep(0.0, edgeWidth, 1.0 - hexDistance);
       diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.62, hexEdge * detailVisibility * 0.26);
+
+      // Buying mode prioritises legibility over the subtle browse-mode grid.
+      float selectionGrid = hexEdge * selectionMode * smoothstep(0.8, 2.2, cellPixels);
+      float artworkLightness = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+      vec3 selectionInk = artworkLightness > 0.46 ? vec3(0.015, 0.055, 0.075) : vec3(0.84, 1.0, 0.35);
+      diffuseColor.rgb = mix(diffuseColor.rgb, selectionInk, selectionGrid * 0.82);
+      diffuseColor.rgb += vec3(0.018, 0.03, 0.032) * selectionMode;
     #endif`
   );
 };
-globeMaterial.customProgramCacheKey = () => 'million-hexagons-brands-v3';
+globeMaterial.customProgramCacheKey = () => 'million-hexagons-selection-v4';
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 192, 128), globeMaterial);
 sphere.receiveShadow = true;
 globe.add(sphere);
@@ -282,6 +292,9 @@ scene.add(key);
 const rim = new THREE.DirectionalLight(0x4fe8ff, 2.4);
 rim.position.set(8, 0, -8);
 scene.add(rim);
+const southFill = new THREE.DirectionalLight(0x78dce9, 1.35);
+southFill.position.set(1, -9, 5);
+scene.add(southFill);
 
 const stars = [];
 for (let i = 0; i < 950; i += 1) {
@@ -336,6 +349,7 @@ let selectedNormal = null;
 let selectedCells = [];
 let uploadedLogo = null;
 let sold = 500000;
+let cameraDistanceTarget = null;
 
 function hashCell(id) {
   const value = Math.sin(id * 12.9898) * 43758.5453;
@@ -406,8 +420,8 @@ function refreshSelection() {
   if (selectedCell && shape !== 'custom') selectedCells = connectedPattern(selectedCell, amount, shape);
   const count = selectedCells.length;
   document.querySelector('#selectionStatus').innerHTML = count
-    ? `<b>✓</b> ${count.toLocaleString()} connected hexagon${count === 1 ? '' : 's'} selected.`
-    : '<b>1</b> Click an available place on the globe.';
+    ? `<b>✓</b> ${count.toLocaleString()} connected hexagon${count === 1 ? '' : 's'} selected. Click elsewhere to move it.`
+    : 'Click any available hexagon on the globe.';
   document.querySelector('#previewPurchase').disabled = !count;
   renderSelectionPreview();
 }
@@ -418,7 +432,7 @@ function renderSelectionPreview() {
   const previewGeometry = new THREE.CircleGeometry(.01048, 6);
   previewGeometry.rotateZ(Math.PI / 6);
   previewGeometry.scale(1.106, 1, 1);
-  const previewMaterial = new THREE.MeshBasicMaterial({ color: document.querySelector('#brandColor').value, transparent: true, opacity: .58, depthWrite: false, wireframe: true });
+  const previewMaterial = new THREE.MeshBasicMaterial({ color: 0xd4ff58, transparent: true, opacity: .96, depthWrite: false, wireframe: true });
   selectedCells.slice(0, 300).forEach((cell) => {
     const normal = normalForCell(cell);
     const tile = new THREE.Mesh(previewGeometry, previewMaterial);
@@ -453,19 +467,27 @@ canvas.addEventListener('click', (event) => {
 
 function openBuy() {
   selecting = true;
+  selectionModeUniform.value = 1;
+  controls.autoRotate = false;
+  const selectionDistance = Math.max(controls.minDistance + .25, radius + 1.35);
+  cameraDistanceTarget = Math.min(camera.position.length(), selectionDistance);
   selectedUV = null;
   selectedCell = null;
   selectedNormal = null;
   selectedCells = [];
   document.body.classList.add('selecting');
-  document.querySelector('#buyPanel').classList.add('open');
-  document.querySelector('#buyPanel').setAttribute('aria-hidden', 'false');
-  document.querySelector('#selectionStatus').innerHTML = '<b>1</b> Click an available place on the globe.';
+  const panel = document.querySelector('#buyPanel');
+  panel.classList.add('open');
+  panel.setAttribute('aria-hidden', 'false');
+  panel.scrollTop = 0;
+  document.querySelector('#selectionStatus').textContent = 'Click any available hexagon on the globe.';
   document.querySelector('#previewPurchase').disabled = true;
   document.querySelector('#hint').innerHTML = '<span>CLICK THE GLOBE TO CHOOSE A LOCATION</span>';
 }
 function closeBuy() {
   selecting = false;
+  selectionModeUniform.value = 0;
+  cameraDistanceTarget = null;
   document.body.classList.remove('selecting');
   document.querySelector('#buyPanel').classList.remove('open');
   document.querySelector('#buyPanel').setAttribute('aria-hidden', 'true');
@@ -511,6 +533,12 @@ document.querySelector('#logoText').addEventListener('input', (event) => {
   if (!uploadedLogo) document.querySelector('#logoPreview').innerHTML = `<span>${event.target.value.trim().toUpperCase() || 'YOUR LOGO'}</span>`;
 });
 document.querySelector('#brandColor').addEventListener('input', renderSelectionPreview);
+
+function updateLogoPreviewOrientation() {
+  const degrees = Number(document.querySelector('#logoOrientation').value) || 0;
+  document.querySelector('#logoPreview').style.setProperty('--logo-rotation', `${degrees}deg`);
+}
+document.querySelector('#logoOrientation').addEventListener('change', updateLogoPreviewOrientation);
 
 function rgbToHex(red, green, blue) {
   return `#${[red, green, blue].map((value) => value.toString(16).padStart(2, '0')).join('')}`;
@@ -590,8 +618,11 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
   image.onload = () => {
     uploadedLogo = image;
     const preview = document.querySelector('#logoPreview');
-    preview.innerHTML = '';
-    preview.style.backgroundImage = `url(${url})`;
+    const previewImage = document.createElement('img');
+    previewImage.src = url;
+    previewImage.alt = 'Uploaded logo preview';
+    preview.replaceChildren(previewImage);
+    updateLogoPreviewOrientation();
     showLogoPalette(logoColours(image));
     showUploadMessage('Logo ready. It will be fitted without cropping.');
     refreshSelection();
@@ -644,7 +675,16 @@ function makeTerritoryTexture(color, aspect) {
   const texture = new THREE.CanvasTexture(territoryCanvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  texture.center.set(.5, .5);
+  texture.rotation = THREE.MathUtils.degToRad(Number(document.querySelector('#logoOrientation').value) || 0);
   return texture;
+}
+
+function tangentQuaternion(normal) {
+  const east = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), normal);
+  if (east.lengthSq() < .001) east.set(1, 0, 0); else east.normalize();
+  const north = new THREE.Vector3().crossVectors(normal, east).normalize();
+  return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(east, north, normal));
 }
 
 function normalForCell(cell) {
@@ -691,7 +731,7 @@ function addHighResolutionPlacement(color, treatment) {
     const normal = normalForCell(cell);
     const matrix = new THREE.Matrix4().compose(
       normal.clone().multiplyScalar(radius + .022),
-      new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal),
+      tangentQuaternion(normal),
       new THREE.Vector3(1, 1, 1)
     );
     geometry.applyMatrix4(matrix);
@@ -734,6 +774,11 @@ function animate() {
   requestAnimationFrame(animate);
   controls.target.set(0, 0, 0);
   controls.update();
+  if (cameraDistanceTarget !== null) {
+    const distance = THREE.MathUtils.lerp(camera.position.length(), cameraDistanceTarget, .12);
+    camera.position.setLength(distance);
+    if (Math.abs(distance - cameraDistanceTarget) < .005) cameraDistanceTarget = null;
+  }
   document.body.classList.toggle('detail-view', camera.position.length() < globeFitDistance() * .72);
   atmosphere.material.opacity = .075 + Math.sin(clock.getElapsedTime() * .7) * .012;
   renderer.render(scene, camera);
