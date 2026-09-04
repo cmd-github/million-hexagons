@@ -63,7 +63,7 @@
         <label class="text-fallback">No logo file? Type a name<input id="logoText" maxlength="16" value="YOUR LOGO" /></label>
         <div class="logo-palette" id="logoPalette" hidden><span>Choose a background colour from your logo</span><div id="logoSwatches"></div></div>
         <div class="field-row">
-          <label>Background colour<input id="brandColor" type="color" value="#ff5c70" /></label>
+          <label><span id="brandColourLabel">Background colour</span><input id="brandColor" type="color" value="#ff5c70" /></label>
           <label>Logo direction<select id="logoOrientation"><option value="0">Upright</option><option value="90">Turn right</option><option value="-90">Turn left</option><option value="180">Upside down</option></select></label>
         </div>
       </div>
@@ -71,9 +71,14 @@
       <div class="purchase-section">
         <h3><span>3</span> Choose your coverage</h3>
         <label>How many hexagons?<input id="hexAmount" type="number" min="1" max="10000" step="1" value="50" /></label>
-        <label>Area shape<select id="selectionShape"><option value="logo">Fit the shape to my logo</option><option value="compact">Simple compact patch</option><option value="row">Single horizontal row</option><option value="column">Single vertical column</option><option value="custom">I will pick every hexagon</option></select></label>
+        <label>Area shape<select id="selectionShape"><option value="logo">Fit the shape to my logo</option><option value="compact">Simple compact patch</option><option value="row">Single horizontal row</option><option value="column">Single vertical column</option><option value="custom">Paint individual hexagons (multi-colour)</option></select></label>
         <small class="pattern-note" id="patternNote">We will create one connected area shaped to suit your uploaded logo.</small>
-        <details class="advanced-settings">
+        <div class="custom-paint-tools" id="customPaintTools" hidden>
+          <span>Individual-hex painting</span>
+          <div><button type="button" id="paintCells" aria-pressed="true"><i id="paintColourChip"></i>Paint chosen colour</button><button type="button" id="eraseCells" aria-pressed="false">Erase</button></div>
+          <small>Change the paint colour above whenever you like. Existing hexagons keep their colours and form the finished mosaic.</small>
+        </div>
+        <details class="advanced-settings" id="advancedLogoOptions">
           <summary>More logo options</summary>
           <label>Logo layout<select id="logoTreatment"><option value="span">One logo across the whole area</option><option value="repeat">Repeat the logo in every hexagon</option></select></label>
           <label>Image fit<select id="logoFit"><option value="contain">Show my whole logo</option><option value="cover">Fill the area (may crop edges)</option></select></label>

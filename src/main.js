@@ -229,6 +229,18 @@ occupancyTexture.minFilter = THREE.NearestFilter;
 occupancyTexture.magFilter = THREE.NearestFilter;
 occupancyTexture.generateMipmaps = false;
 occupancyTexture.needsUpdate = true;
+const selectionColourData = new Uint8Array(logicalColumns * logicalRows * 4);
+const purchasedColourData = new Uint8Array(logicalColumns * logicalRows * 4);
+function makeCellColourTexture(data) {
+  const texture = new THREE.DataTexture(data, logicalColumns, logicalRows, THREE.RGBAFormat, THREE.UnsignedByteType);
+  texture.minFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.NearestFilter;
+  texture.generateMipmaps = false;
+  texture.needsUpdate = true;
+  return texture;
+}
+const selectionColourTexture = makeCellColourTexture(selectionColourData);
+const purchasedColourTexture = makeCellColourTexture(purchasedColourData);
 const globeTexture = new THREE.CanvasTexture(atlas);
 globeTexture.colorSpace = THREE.SRGBColorSpace;
 globeTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -237,11 +249,15 @@ const globe = new THREE.Group();
 scene.add(globe);
 const radius = 4;
 const selectionModeUniform = { value: 0 };
+const hoverCellUniform = { value: new THREE.Vector2(-2, -2) };
 const globeMaterial = new THREE.MeshStandardMaterial({ map: globeTexture, roughness: .57, metalness: .04 });
 globeMaterial.onBeforeCompile = (shader) => {
   shader.uniforms.selectionMode = selectionModeUniform;
+  shader.uniforms.hoverCell = hoverCellUniform;
   shader.uniforms.occupancyMap = { value: occupancyTexture };
-  shader.fragmentShader = `uniform float selectionMode;\nuniform sampler2D occupancyMap;\n${shader.fragmentShader}`;
+  shader.uniforms.selectionColourMap = { value: selectionColourTexture };
+  shader.uniforms.purchasedColourMap = { value: purchasedColourTexture };
+  shader.fragmentShader = `uniform float selectionMode;\nuniform vec2 hoverCell;\nuniform sampler2D occupancyMap;\nuniform sampler2D selectionColourMap;\nuniform sampler2D purchasedColourMap;\n${shader.fragmentShader}`;
   shader.fragmentShader = shader.fragmentShader.replace(
     '#include <map_fragment>',
     `#include <map_fragment>
@@ -274,11 +290,14 @@ globeMaterial.onBeforeCompile = (shader) => {
       vec3 cellArtwork = texture2D(map, clamp(cellCentreUv, vec2(0.0001), vec2(0.9999))).rgb;
       vec2 occupancyUv = vec2((cellAddress.x + 0.5) / 1250.0, (cellAddress.y + 0.5) / 800.0);
       float availableCell = 1.0 - step(0.5, texture2D(occupancyMap, clamp(occupancyUv, vec2(0.0001), vec2(0.9999))).r);
+      vec4 selectedColour = texture2D(selectionColourMap, clamp(occupancyUv, vec2(0.0001), vec2(0.9999)));
+      vec4 purchasedColour = texture2D(purchasedColourMap, clamp(occupancyUv, vec2(0.0001), vec2(0.9999)));
       vec2 absoluteHex = abs(localHex);
       float hexDistance = max(absoluteHex.x / 0.8660254, absoluteHex.y + absoluteHex.x * 0.5773503);
       float cellPixels = 1.0 / max(fwidth(gridPoint.x) / 1.7320508, fwidth(gridPoint.y) / 1.5);
       float artworkSnap = smoothstep(5.0, 10.0, cellPixels);
       diffuseColor.rgb = mix(smoothArtwork, cellArtwork, artworkSnap);
+      diffuseColor.rgb = mix(diffuseColor.rgb, purchasedColour.rgb, purchasedColour.a);
       float detailVisibility = smoothstep(1.6, 4.5, cellPixels);
       float edgeWidth = max(fwidth(hexDistance) * 1.15, 0.002);
       float hexEdge = 1.0 - smoothstep(0.0, edgeWidth, 1.0 - hexDistance);
@@ -289,13 +308,17 @@ globeMaterial.onBeforeCompile = (shader) => {
       vec3 availableFill = vec3(0.055, 0.32, 0.285);
       vec3 selectionFill = mix(purchasedFill, availableFill, availableCell);
       diffuseColor.rgb = mix(diffuseColor.rgb, selectionFill, selectionMode * 0.68);
+      diffuseColor.rgb = mix(diffuseColor.rgb, selectedColour.rgb, selectedColour.a * selectionMode * 0.94);
       float selectionGrid = hexEdge * selectionMode * smoothstep(0.8, 2.2, cellPixels);
       vec3 selectionInk = mix(vec3(0.38, 0.46, 0.48), vec3(0.01, 0.075, 0.07), availableCell);
       diffuseColor.rgb = mix(diffuseColor.rgb, selectionInk, selectionGrid * 0.94);
+      float hoveredCell = (1.0 - step(0.1, abs(cellAddress.x - hoverCell.x) + abs(cellAddress.y - hoverCell.y))) * selectionMode;
+      vec3 hoverInk = mix(vec3(0.65), vec3(0.96), availableCell);
+      diffuseColor.rgb = mix(diffuseColor.rgb, hoverInk, hexEdge * hoveredCell * 0.82);
     #endif`
   );
 };
-globeMaterial.customProgramCacheKey = () => 'million-hexagons-paint-selection-v5';
+globeMaterial.customProgramCacheKey = () => 'million-hexagons-exact-colour-selection-v6';
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 192, 128), globeMaterial);
 sphere.receiveShadow = true;
 globe.add(sphere);
@@ -363,17 +386,7 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const tooltip = document.querySelector('#cellTooltip');
 const placementLayers = new THREE.Group();
-const selectionPreview = new THREE.Group();
 globe.add(placementLayers);
-globe.add(selectionPreview);
-const hoverGeometry = new THREE.CircleGeometry(.01135, 6);
-hoverGeometry.rotateZ(Math.PI / 6);
-hoverGeometry.scale(1.106, 1, 1);
-const hoverMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .98, depthWrite: false, wireframe: true });
-const hoverTile = new THREE.Mesh(hoverGeometry, hoverMaterial);
-hoverTile.visible = false;
-hoverTile.renderOrder = 10;
-globe.add(hoverTile);
 let selecting = false;
 let selectedUV = null;
 let selectedCell = null;
@@ -384,9 +397,33 @@ let sold = occupiedCells.reduce((total, value) => total + (value ? 1 : 0), 0);
 let cameraDistanceTarget = null;
 let buyInteractionMode = 'move';
 let painting = false;
-let paintOperation = 'add';
+let paintAction = 'paint';
 let lastPaintedCellId = null;
 let selectionError = '';
+const selectedCellColours = new Map();
+
+function writeCellColour(data, cell, colour, selected = true) {
+  const offset = (cell.id - 1) * 4;
+  if (!selected) {
+    data[offset + 3] = 0;
+    return;
+  }
+  const linearColour = new THREE.Color(colour);
+  data[offset] = Math.round(linearColour.r * 255);
+  data[offset + 1] = Math.round(linearColour.g * 255);
+  data[offset + 2] = Math.round(linearColour.b * 255);
+  data[offset + 3] = 255;
+}
+
+function clearSelectionColours() {
+  selectedCellColours.clear();
+  selectionColourData.fill(0);
+  selectionColourTexture.needsUpdate = true;
+}
+
+function clearHover() {
+  hoverCellUniform.value.set(-2, -2);
+}
 
 function updateInventoryDisplay() {
   document.querySelector('#soldCount').textContent = sold.toLocaleString();
@@ -481,9 +518,13 @@ function refreshSelection() {
   }
   const count = selectedCells.length;
   const status = document.querySelector('#selectionStatus');
+  const colourCount = shape === 'custom' ? new Set(selectedCells.map((cell) => selectedCellColours.get(cell.id)).filter(Boolean)).size : 0;
+  const selectedSummary = shape === 'custom'
+    ? `<b>✓</b> ${count.toLocaleString()} hexagon${count === 1 ? '' : 's'} selected · ${colourCount} colour${colourCount === 1 ? '' : 's'}.`
+    : `<b>✓</b> ${count.toLocaleString()} available hexagon${count === 1 ? '' : 's'} selected.`;
   status.classList.toggle('error', Boolean(selectionError));
   status.innerHTML = selectionError || (count
-    ? `<b>✓</b> ${count.toLocaleString()} available hexagon${count === 1 ? '' : 's'} selected.`
+    ? selectedSummary
     : buyInteractionMode === 'move'
       ? 'Move the globe to the area you want, then choose Select hexagons.'
       : shape === 'custom' ? 'Click and drag across teal hexagons to paint your selection.' : 'Click a teal available hexagon to place your area.');
@@ -492,45 +533,20 @@ function refreshSelection() {
 }
 
 function renderSelectionPreview() {
-  while (selectionPreview.children.length) {
-    const child = selectionPreview.children[0];
-    selectionPreview.remove(child);
-    child.material.dispose();
+  if (document.querySelector('#selectionShape').value !== 'custom') {
+    selectionColourData.fill(0);
+    const colour = document.querySelector('#brandColor').value;
+    selectedCells.forEach((cell) => writeCellColour(selectionColourData, cell, colour));
   }
-  if (selectionPreview.userData.geometry) selectionPreview.userData.geometry.dispose();
-  if (!selectedNormal || !selectedCells.length) return;
-  const geometries = selectedCells.slice(0, 300).map((cell) => {
-    const geometry = new THREE.CircleGeometry(.01048, 6);
-    geometry.rotateZ(Math.PI / 6);
-    geometry.scale(1.106, 1, 1);
-    const normal = normalForCell(cell);
-    geometry.applyMatrix4(new THREE.Matrix4().compose(
-      normal.clone().multiplyScalar(radius + .034),
-      tangentQuaternion(normal),
-      new THREE.Vector3(1, 1, 1)
-    ));
-    return geometry;
-  });
-  const mergedGeometry = mergeGeometries(geometries, false);
-  geometries.forEach((geometry) => geometry.dispose());
-  selectionPreview.userData.geometry = mergedGeometry;
-  const fill = new THREE.Mesh(mergedGeometry, new THREE.MeshBasicMaterial({ color: document.querySelector('#brandColor').value, transparent: true, opacity: .7, depthWrite: false }));
-  fill.renderOrder = 8;
-  const outline = new THREE.Mesh(mergedGeometry, new THREE.MeshBasicMaterial({ color: 0xd4ff58, transparent: true, opacity: 1, depthWrite: false, wireframe: true }));
-  outline.renderOrder = 9;
-  selectionPreview.add(fill, outline);
+  selectionColourTexture.needsUpdate = true;
 }
 
 function updateHover(hit, cell) {
   if (!selecting || buyInteractionMode !== 'select') {
-    hoverTile.visible = false;
+    clearHover();
     return;
   }
-  const normal = globe.worldToLocal(hit.point.clone()).normalize();
-  hoverTile.position.copy(normal.clone().multiplyScalar(radius + .043));
-  hoverTile.quaternion.copy(tangentQuaternion(normal));
-  hoverMaterial.color.setHex(cell.occupied ? 0x849398 : 0xffffff);
-  hoverTile.visible = true;
+  hoverCellUniform.value.set(cell.col, cell.row);
 }
 
 function choosePatternOrigin(hit, cell) {
@@ -554,7 +570,7 @@ function paintCustomCell(hit, cell) {
   if (cell.id === lastPaintedCellId) return;
   lastPaintedCellId = cell.id;
   const existing = selectedCells.findIndex((selected) => selected.id === cell.id);
-  if (paintOperation === 'add') {
+  if (paintAction === 'paint') {
     if (cell.occupied) {
       selectionError = 'Purchased hexagons are dark and cannot be selected.';
       refreshSelection();
@@ -568,8 +584,13 @@ function paintCustomCell(hit, cell) {
       }
       selectedCells.push(cell);
     }
+    const colour = document.querySelector('#brandColor').value;
+    selectedCellColours.set(cell.id, colour);
+    writeCellColour(selectionColourData, cell, colour);
   } else if (existing >= 0) {
     selectedCells.splice(existing, 1);
+    selectedCellColours.delete(cell.id);
+    writeCellColour(selectionColourData, cell, '#000000', false);
     if (!selectedCells.length) {
       selectedUV = null;
       selectedCell = null;
@@ -591,7 +612,6 @@ canvas.addEventListener('pointerdown', (event) => {
   const shape = document.querySelector('#selectionShape').value;
   if (shape === 'custom') {
     painting = true;
-    paintOperation = selectedCells.some((selected) => selected.id === cell.id) ? 'remove' : 'add';
     lastPaintedCellId = null;
     canvas.setPointerCapture(event.pointerId);
     paintCustomCell(hit, cell);
@@ -603,14 +623,14 @@ canvas.addEventListener('pointerdown', (event) => {
 canvas.addEventListener('pointermove', (event) => {
   const hit = intersect(event);
   if (!hit?.uv) {
-    hoverTile.visible = false;
+    clearHover();
     tooltip.classList.remove('show');
     return;
   }
   const cell = cellFromUV(hit.uv);
   if (!selecting) return updateTooltip(event, cell);
   if (buyInteractionMode !== 'select') {
-    hoverTile.visible = false;
+    clearHover();
     tooltip.classList.remove('show');
     return;
   }
@@ -626,7 +646,7 @@ function stopPainting(event) {
 }
 canvas.addEventListener('pointerup', stopPainting);
 canvas.addEventListener('pointercancel', stopPainting);
-canvas.addEventListener('pointerleave', () => { if (!painting) hoverTile.visible = false; tooltip.classList.remove('show'); });
+canvas.addEventListener('pointerleave', () => { if (!painting) clearHover(); tooltip.classList.remove('show'); });
 
 function setBuyInteractionMode(mode) {
   buyInteractionMode = mode;
@@ -635,7 +655,7 @@ function setBuyInteractionMode(mode) {
   document.body.classList.toggle('buy-selecting', mode === 'select');
   document.querySelector('#moveGlobeMode').setAttribute('aria-pressed', String(mode === 'move'));
   document.querySelector('#selectHexMode').setAttribute('aria-pressed', String(mode === 'select'));
-  hoverTile.visible = false;
+  clearHover();
   tooltip.classList.remove('show');
   selectionError = '';
   document.querySelector('#hint').innerHTML = mode === 'move'
@@ -654,6 +674,7 @@ function openBuy() {
   selectedCell = null;
   selectedNormal = null;
   selectedCells = [];
+  clearSelectionColours();
   document.body.classList.add('selecting');
   setBuyInteractionMode('move');
   const panel = document.querySelector('#buyPanel');
@@ -670,17 +691,26 @@ function closeBuy() {
   document.body.classList.remove('buy-moving', 'buy-selecting');
   controls.enableRotate = true;
   stopPainting();
-  hoverTile.visible = false;
+  clearHover();
   tooltip.classList.remove('show');
   document.querySelector('#buyPanel').classList.remove('open');
   document.querySelector('#buyPanel').setAttribute('aria-hidden', 'true');
-  while (selectionPreview.children.length) selectionPreview.remove(selectionPreview.children[0]);
+  clearSelectionColours();
   document.querySelector('#hint').innerHTML = '<span>DRAG TO ROTATE</span><i></i><span>SCROLL TO ZOOM</span><i></i><span>CLICK A TILE</span>';
 }
 document.querySelector('#claimButton').addEventListener('click', openBuy);
 document.querySelector('#closeBuy').addEventListener('click', closeBuy);
 document.querySelector('#moveGlobeMode').addEventListener('click', () => setBuyInteractionMode('move'));
 document.querySelector('#selectHexMode').addEventListener('click', () => setBuyInteractionMode('select'));
+function setPaintAction(action) {
+  paintAction = action;
+  document.querySelector('#paintCells').setAttribute('aria-pressed', String(action === 'paint'));
+  document.querySelector('#eraseCells').setAttribute('aria-pressed', String(action === 'erase'));
+  selectionError = '';
+  refreshSelection();
+}
+document.querySelector('#paintCells').addEventListener('click', () => setPaintAction('paint'));
+document.querySelector('#eraseCells').addEventListener('click', () => setPaintAction('erase'));
 document.querySelector('#exploreButton').addEventListener('click', () => { controls.autoRotate = !controls.autoRotate; });
 document.querySelector('#randomButton').addEventListener('click', () => {
   controls.autoRotate = false;
@@ -707,17 +737,22 @@ amountInput.addEventListener('input', () => {
 });
 document.querySelector('#selectionShape').addEventListener('change', (event) => {
   selectedCells = [];
+  clearSelectionColours();
   const custom = event.target.value === 'custom';
   amountInput.disabled = custom;
+  document.querySelector('#customPaintTools').hidden = !custom;
+  document.querySelector('#advancedLogoOptions').hidden = custom;
+  document.querySelector('#brandColourLabel').textContent = custom ? 'Paint colour' : 'Background colour';
   if (custom) {
     selectedUV = null;
     selectedCell = null;
     selectedNormal = null;
     amountInput.value = 0;
     document.querySelector('#price').textContent = '$0';
+    setPaintAction('paint');
   }
   document.querySelector('#patternNote').textContent = custom
-    ? 'In Select hexagons mode, click and drag to paint your own shape. Start on a selected hexagon to erase.'
+    ? 'Choose a colour, then click or drag across hexagons. Switch to Erase when you need to remove cells.'
     : `Your selected quantity will form a connected ${event.target.options[event.target.selectedIndex].text.toLowerCase()}.`;
   refreshSelection();
 });
@@ -725,7 +760,12 @@ document.querySelector('#selectionShape').addEventListener('change', (event) => 
 document.querySelector('#logoText').addEventListener('input', (event) => {
   if (!uploadedLogo) document.querySelector('#logoPreview').innerHTML = `<span>${event.target.value.trim().toUpperCase() || 'YOUR LOGO'}</span>`;
 });
-document.querySelector('#brandColor').addEventListener('input', renderSelectionPreview);
+function updatePaintColour() {
+  document.querySelector('#paintColourChip').style.background = document.querySelector('#brandColor').value;
+  renderSelectionPreview();
+}
+document.querySelector('#brandColor').addEventListener('input', updatePaintColour);
+updatePaintColour();
 
 function updateLogoPreviewOrientation() {
   const degrees = Number(document.querySelector('#logoOrientation').value) || 0;
@@ -787,14 +827,14 @@ function showLogoPalette(colours) {
     button.addEventListener('click', () => {
       document.querySelector('#brandColor').value = colour;
       swatches.querySelectorAll('button').forEach((item) => item.classList.toggle('active', item === button));
-      renderSelectionPreview();
+      updatePaintColour();
     });
     swatches.append(button);
   });
   palette.hidden = !colours.length;
   if (colours[0]) {
     document.querySelector('#brandColor').value = colours[0];
-    renderSelectionPreview();
+    updatePaintColour();
   }
 }
 
@@ -942,7 +982,13 @@ function paintPlacement() {
   const amount = selectedCells.length;
   const color = document.querySelector('#brandColor').value;
   const treatment = document.querySelector('#logoTreatment').value;
-  addHighResolutionPlacement(color, treatment);
+  const custom = document.querySelector('#selectionShape').value === 'custom';
+  if (custom) {
+    selectedCells.forEach((cell) => writeCellColour(purchasedColourData, cell, selectedCellColours.get(cell.id) || color));
+    purchasedColourTexture.needsUpdate = true;
+  } else {
+    addHighResolutionPlacement(color, treatment);
+  }
   selectedCells.forEach((cell) => { occupiedCells[cell.id - 1] = 255; });
   occupancyTexture.needsUpdate = true;
   sold = Math.min(1000000, sold + amount);
