@@ -48,8 +48,9 @@
       <label>Upload logo <span class="optional">PNG, JPG, WebP or SVG</span><input id="logoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
       <div class="logo-preview" id="logoPreview"><span>YOUR LOGO</span></div>
       <div class="field-row"><label>Brand colour<input id="brandColor" type="color" value="#ff5c70" /></label><label>Hexagons<input id="hexAmount" type="number" min="1" max="10000" step="1" value="1000" /></label></div>
-      <div class="field-row"><label>Selection shape<select id="selectionShape"><option value="compact">Compact cluster</option><option value="row">Horizontal row</option><option value="column">Vertical column</option><option value="custom">Choose each hex</option></select></label><label>Logo treatment<select id="logoTreatment"><option value="span">One logo across area</option><option value="repeat">Logo in every hex</option></select></label></div>
-      <small class="pattern-note" id="patternNote">Your selected quantity will form one compact connected territory.</small>
+      <div class="field-row"><label>Selection shape<select id="selectionShape"><option value="logo">Match uploaded logo</option><option value="compact">Compact cluster</option><option value="row">Horizontal row</option><option value="column">Vertical column</option><option value="custom">Choose each hex</option></select></label><label>Logo treatment<select id="logoTreatment"><option value="span">One logo across area</option><option value="repeat">Logo in every hex</option></select></label></div>
+      <label>Artwork fit<select id="logoFit"><option value="cover">Fill the purchased territory</option><option value="contain">Fit the entire logo</option></select></label>
+      <small class="pattern-note" id="patternNote">The territory will follow your uploaded logo's proportions to minimise cropping and empty space.</small>
       <label>Website<input id="website" type="url" placeholder="https://yourcompany.com" /></label>
       <div class="price"><span>Total</span><b id="price">$1,000</b><small>$1 per hexagon · one-time</small></div>
       <button class="primary full" id="previewPurchase" disabled>Preview placement</button>

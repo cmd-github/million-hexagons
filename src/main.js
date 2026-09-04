@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import './style.css';
 
 const canvas = document.querySelector('#world');
@@ -236,9 +237,13 @@ function connectedPattern(origin, amount, shape) {
   } else {
     const reach = Math.ceil(Math.sqrt(amount)) + 2;
     const candidates = [];
+    const imageAspect = shape === 'logo' && uploadedLogo ? uploadedLogo.naturalWidth / uploadedLogo.naturalHeight : 1.25;
+    const targetGridRatio = Math.max(.25, Math.min(4, imageAspect * .8));
+    const horizontalWeight = 1 / Math.sqrt(targetGridRatio);
+    const verticalWeight = Math.sqrt(targetGridRatio);
     for (let rowOffset = -reach; rowOffset <= reach; rowOffset += 1) {
       for (let colOffset = -reach; colOffset <= reach; colOffset += 1) {
-        candidates.push({ col: origin.col + colOffset, row: origin.row + rowOffset, distance: Math.hypot(colOffset + (rowOffset % 2 ? .5 : 0), rowOffset * .88) });
+        candidates.push({ col: origin.col + colOffset, row: origin.row + rowOffset, distance: Math.hypot((colOffset + (rowOffset % 2 ? .5 : 0)) * horizontalWeight, rowOffset * .88 * verticalWeight) });
       }
     }
     candidates.sort((a, b) => a.distance - b.distance);
@@ -263,7 +268,9 @@ function refreshSelection() {
 function renderSelectionPreview() {
   while (selectionPreview.children.length) selectionPreview.remove(selectionPreview.children[0]);
   if (!selectedNormal || !selectedCells.length) return;
-  const previewGeometry = new THREE.CircleGeometry(.0116, 6);
+  const previewGeometry = new THREE.CircleGeometry(.01048, 6);
+  previewGeometry.rotateZ(Math.PI / 6);
+  previewGeometry.scale(1.106, 1, 1);
   const previewMaterial = new THREE.MeshBasicMaterial({ color: document.querySelector('#brandColor').value, transparent: true, opacity: .58, depthWrite: false, wireframe: true });
   selectedCells.slice(0, 300).forEach((cell) => {
     const normal = normalForCell(cell);
@@ -373,6 +380,7 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
     preview.innerHTML = '';
     preview.style.backgroundImage = `url(${url})`;
     showUploadMessage('Logo ready. It will be fitted without cropping.');
+    refreshSelection();
   };
   image.onerror = () => showUploadMessage('That image could not be read. Try PNG, JPG, WebP or SVG.');
   image.src = url;
@@ -389,10 +397,13 @@ function drawLogo(context, width, height, color, transparent = false) {
     context.fillRect(0, 0, width, height);
   }
   if (uploadedLogo) {
-    const padding = Math.min(width, height) * .16;
+    const fit = document.querySelector('#logoFit').value;
+    const padding = fit === 'contain' ? Math.min(width, height) * .08 : 0;
     const availableWidth = width - padding * 2;
     const availableHeight = height - padding * 2;
-    const scale = Math.min(availableWidth / uploadedLogo.naturalWidth, availableHeight / uploadedLogo.naturalHeight);
+    const scale = fit === 'cover'
+      ? Math.max(availableWidth / uploadedLogo.naturalWidth, availableHeight / uploadedLogo.naturalHeight)
+      : Math.min(availableWidth / uploadedLogo.naturalWidth, availableHeight / uploadedLogo.naturalHeight);
     const drawWidth = uploadedLogo.naturalWidth * scale;
     const drawHeight = uploadedLogo.naturalHeight * scale;
     context.drawImage(uploadedLogo, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
@@ -406,26 +417,17 @@ function drawLogo(context, width, height, color, transparent = false) {
   }
 }
 
-function makeLogoTexture(color, hexClipped = true) {
-  const logoCanvas = document.createElement('canvas');
-  logoCanvas.width = 512;
-  logoCanvas.height = hexClipped ? 512 : 256;
-  const logoContext = logoCanvas.getContext('2d');
-  if (hexClipped) {
-    logoContext.save();
-    logoContext.beginPath();
-    for (let side = 0; side < 6; side += 1) {
-      const angle = side * Math.PI / 3;
-      const x = 256 + Math.cos(angle) * 250;
-      const y = 256 + Math.sin(angle) * 250;
-      if (!side) logoContext.moveTo(x, y); else logoContext.lineTo(x, y);
-    }
-    logoContext.closePath();
-    logoContext.clip();
-    drawLogo(logoContext, 512, 512, color, false);
-    logoContext.restore();
-  } else drawLogo(logoContext, 512, 256, color, true);
-  const texture = new THREE.CanvasTexture(logoCanvas);
+function makeTerritoryTexture(color, aspect) {
+  const territoryCanvas = document.createElement('canvas');
+  if (aspect >= 1) {
+    territoryCanvas.width = 1024;
+    territoryCanvas.height = Math.max(256, Math.round(1024 / Math.min(aspect, 4)));
+  } else {
+    territoryCanvas.height = 1024;
+    territoryCanvas.width = Math.max(256, Math.round(1024 * Math.max(aspect, .25)));
+  }
+  drawLogo(territoryCanvas.getContext('2d'), territoryCanvas.width, territoryCanvas.height, color, false);
+  const texture = new THREE.CanvasTexture(territoryCanvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   return texture;
@@ -435,7 +437,7 @@ function normalForCell(cell) {
   const east = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), selectedNormal);
   if (east.lengthSq() < .001) east.set(1, 0, 0); else east.normalize();
   const north = new THREE.Vector3().crossVectors(selectedNormal, east).normalize();
-  const colOffset = cell.col - selectedCell.col + ((cell.row - selectedCell.row) % 2) * .5;
+  const colOffset = cell.col - selectedCell.col + ((cell.row % 2) - (selectedCell.row % 2)) * .5;
   const rowOffset = cell.row - selectedCell.row;
   return selectedNormal.clone()
     .add(east.multiplyScalar(colOffset * .00502))
@@ -443,55 +445,49 @@ function normalForCell(cell) {
     .normalize();
 }
 
-function paintSelectedHexagons(color) {
-  ctx.fillStyle = color;
-  const cellWidth = atlas.width / logicalColumns;
-  const cellHeight = atlas.height / logicalRows;
-  selectedCells.forEach((cell) => {
-    const x = (cell.col + (cell.row % 2) * .5 + .5) / logicalColumns * atlas.width;
-    const y = (cell.row + .5) / logicalRows * atlas.height;
-    ctx.beginPath();
-    for (let side = 0; side < 6; side += 1) {
-      const angle = side * Math.PI / 3;
-      const px = x + Math.cos(angle) * cellWidth * .59;
-      const py = y + Math.sin(angle) * cellHeight * .72;
-      if (!side) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-    }
-    ctx.closePath(); ctx.fill();
-  });
-}
-
 function addHighResolutionPlacement(color, treatment) {
   if (!selectedNormal || !selectedCell || !selectedCells.length) return;
-  const cellGeometry = new THREE.CircleGeometry(.01135, 6);
-  const logoTexture = makeLogoTexture(color, true);
-  const repeatedMaterial = new THREE.MeshBasicMaterial({ map: logoTexture, transparent: true, alphaTest: .08, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
-  const colourMaterial = new THREE.MeshBasicMaterial({ color, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
-  const visibleCells = selectedCells.slice(0, 400);
-  visibleCells.forEach((cell) => {
+  const gridColumns = selectedCells.map((cell) => cell.col + (cell.row % 2) * .5);
+  const rows = selectedCells.map((cell) => cell.row);
+  const minColumn = Math.min(...gridColumns);
+  const maxColumn = Math.max(...gridColumns);
+  const minRow = Math.min(...rows);
+  const maxRow = Math.max(...rows);
+  const columnSpan = maxColumn - minColumn + 1;
+  const rowSpan = maxRow - minRow + 1;
+  const territoryAspect = columnSpan * .01965 / (rowSpan * .0157);
+  const texture = treatment === 'repeat' || selectedCells.length === 1
+    ? makeTerritoryTexture(color, 1.15)
+    : makeTerritoryTexture(color, territoryAspect);
+  const material = new THREE.MeshBasicMaterial({ map: texture, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+  const geometries = selectedCells.map((cell) => {
+    const geometry = new THREE.CircleGeometry(.01048, 6);
+    geometry.rotateZ(Math.PI / 6);
+    geometry.scale(1.106, 1, 1);
+    if (treatment === 'span' && selectedCells.length > 1) {
+      const uvs = geometry.attributes.uv;
+      const gridColumn = cell.col + (cell.row % 2) * .5;
+      for (let index = 0; index < uvs.count; index += 1) {
+        const localU = uvs.getX(index);
+        const localV = uvs.getY(index);
+        uvs.setXY(index, (gridColumn - minColumn + localU) / columnSpan, 1 - (cell.row - minRow + 1 - localV) / rowSpan);
+      }
+      uvs.needsUpdate = true;
+    }
     const normal = normalForCell(cell);
-    const showLogo = treatment === 'repeat' || selectedCells.length === 1;
-    const tile = new THREE.Mesh(cellGeometry, showLogo ? repeatedMaterial : colourMaterial);
-    tile.position.copy(normal.clone().multiplyScalar(radius + .022));
-    tile.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
-    tile.renderOrder = 5;
-    placementLayers.add(tile);
-  });
-  if (treatment === 'span' && selectedCells.length > 1) {
-    const columns = selectedCells.map((cell) => cell.col);
-    const rows = selectedCells.map((cell) => cell.row);
-    const columnSpan = Math.max(...columns) - Math.min(...columns) + 1;
-    const rowSpan = Math.max(...rows) - Math.min(...rows) + 1;
-    const spanTexture = makeLogoTexture(color, false);
-    const plane = new THREE.Mesh(
-      new THREE.PlaneGeometry(Math.max(.026, columnSpan * .017), Math.max(.018, rowSpan * .012)),
-      new THREE.MeshBasicMaterial({ map: spanTexture, transparent: true, alphaTest: .04, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -5 })
+    const matrix = new THREE.Matrix4().compose(
+      normal.clone().multiplyScalar(radius + .022),
+      new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal),
+      new THREE.Vector3(1, 1, 1)
     );
-    plane.position.copy(selectedNormal.clone().multiplyScalar(radius + .027));
-    plane.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), selectedNormal);
-    plane.renderOrder = 6;
-    placementLayers.add(plane);
-  }
+    geometry.applyMatrix4(matrix);
+    return geometry;
+  });
+  const mergedGeometry = mergeGeometries(geometries, false);
+  geometries.forEach((geometry) => geometry.dispose());
+  const territory = new THREE.Mesh(mergedGeometry, material);
+  territory.renderOrder = 6;
+  placementLayers.add(territory);
 }
 
 function paintPlacement() {
@@ -499,10 +495,6 @@ function paintPlacement() {
   const amount = selectedCells.length;
   const color = document.querySelector('#brandColor').value;
   const treatment = document.querySelector('#logoTreatment').value;
-  if (amount > 400) {
-    paintSelectedHexagons(color);
-    globeTexture.needsUpdate = true;
-  }
   addHighResolutionPlacement(color, treatment);
   sold = Math.min(1000000, sold + amount);
   document.querySelector('#soldCount').textContent = sold.toLocaleString();
