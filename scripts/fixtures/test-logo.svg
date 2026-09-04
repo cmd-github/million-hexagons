@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 120">
+  <rect width="240" height="120" rx="24" fill="#07121c"/>
+  <path d="M42 85 72 30l30 55h-18l-5-11H63l-5 11Z" fill="#d4ff58"/>
+  <text x="112" y="73" fill="white" font-family="Arial" font-size="34" font-weight="800">CODEX</text>
+</svg>

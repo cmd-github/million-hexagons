@@ -64,8 +64,9 @@ globeMaterial.onBeforeCompile = (shader) => {
     '#include <map_fragment>',
     `#include <map_fragment>
     #ifdef USE_MAP
-      // One thousand staggered columns by one thousand rows: one million logical cells.
-      vec2 gridPoint = vMapUv * vec2(1732.0508, 1500.0);
+      // 1,250 staggered columns by 800 rows: exactly one million logical cells,
+      // with a substantially more regular on-sphere aspect ratio near the equator.
+      vec2 gridPoint = vMapUv * vec2(2165.0635, 1200.0);
       float baseRow = floor(gridPoint.y / 1.5 + 0.5);
       vec2 localHex = vec2(10.0);
       vec2 cellAddress = vec2(0.0);
@@ -149,7 +150,7 @@ const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = .055;
 controls.enablePan = false;
-controls.minDistance = radius + 1.25;
+controls.minDistance = radius + .22;
 controls.rotateSpeed = .42;
 controls.zoomSpeed = .72;
 controls.autoRotate = true;
@@ -174,8 +175,18 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const tooltip = document.querySelector('#cellTooltip');
 const owners = ['Northstar', 'Arc & Pixel', 'Field & Main', 'Nova Labs', 'Good Company', 'Orbital', 'Studio 27'];
+const logicalColumns = 1250;
+const logicalRows = 800;
+const placementLayers = new THREE.Group();
+const selectionPreview = new THREE.Group();
+globe.add(placementLayers);
+globe.add(selectionPreview);
 let selecting = false;
 let selectedUV = null;
+let selectedCell = null;
+let selectedNormal = null;
+let selectedCells = [];
+let uploadedLogo = null;
 let sold = 500000;
 
 function hashCell(id) {
@@ -184,9 +195,9 @@ function hashCell(id) {
 }
 
 function cellFromUV(uv) {
-  const col = Math.min(999, Math.floor(uv.x * 1000));
-  const row = Math.min(999, Math.floor((1 - uv.y) * 1000));
-  const id = row * 1000 + col + 1;
+  const row = THREE.MathUtils.clamp(Math.floor((1 - uv.y) * logicalRows), 0, logicalRows - 1);
+  const col = THREE.MathUtils.clamp(Math.floor(uv.x * logicalColumns - (row % 2) * .5), 0, logicalColumns - 1);
+  const id = row * logicalColumns + col + 1;
   const longitude = uv.x * 360 - 180;
   const latitude = uv.y * 180 - 90;
   const occupied = hashCell(id) < .5;
@@ -215,19 +226,83 @@ canvas.addEventListener('pointermove', (event) => {
   updateTooltip(event, cellFromUV(hit.uv));
 });
 canvas.addEventListener('pointerleave', () => tooltip.classList.remove('show'));
+function connectedPattern(origin, amount, shape) {
+  const cells = [];
+  if (shape === 'row' || shape === 'column') {
+    const start = -Math.floor((amount - 1) / 2);
+    for (let index = 0; index < amount; index += 1) {
+      cells.push({ col: origin.col + (shape === 'row' ? start + index : 0), row: origin.row + (shape === 'column' ? start + index : 0) });
+    }
+  } else {
+    const reach = Math.ceil(Math.sqrt(amount)) + 2;
+    const candidates = [];
+    for (let rowOffset = -reach; rowOffset <= reach; rowOffset += 1) {
+      for (let colOffset = -reach; colOffset <= reach; colOffset += 1) {
+        candidates.push({ col: origin.col + colOffset, row: origin.row + rowOffset, distance: Math.hypot(colOffset + (rowOffset % 2 ? .5 : 0), rowOffset * .88) });
+      }
+    }
+    candidates.sort((a, b) => a.distance - b.distance);
+    cells.push(...candidates.slice(0, amount));
+  }
+  return cells.filter((cell) => cell.col >= 0 && cell.col < logicalColumns && cell.row >= 0 && cell.row < logicalRows)
+    .map((cell) => ({ ...cell, id: cell.row * logicalColumns + cell.col + 1 }));
+}
+
+function refreshSelection() {
+  const shape = document.querySelector('#selectionShape').value;
+  const amount = Math.max(1, Math.min(10000, Number(document.querySelector('#hexAmount').value) || 1));
+  if (selectedCell && shape !== 'custom') selectedCells = connectedPattern(selectedCell, amount, shape);
+  const count = selectedCells.length;
+  document.querySelector('#selectionStatus').innerHTML = count
+    ? `<b>✓</b> ${count.toLocaleString()} connected hexagon${count === 1 ? '' : 's'} selected.`
+    : '<b>1</b> Click an available place on the globe.';
+  document.querySelector('#previewPurchase').disabled = !count;
+  renderSelectionPreview();
+}
+
+function renderSelectionPreview() {
+  while (selectionPreview.children.length) selectionPreview.remove(selectionPreview.children[0]);
+  if (!selectedNormal || !selectedCells.length) return;
+  const previewGeometry = new THREE.CircleGeometry(.0116, 6);
+  const previewMaterial = new THREE.MeshBasicMaterial({ color: document.querySelector('#brandColor').value, transparent: true, opacity: .58, depthWrite: false, wireframe: true });
+  selectedCells.slice(0, 300).forEach((cell) => {
+    const normal = normalForCell(cell);
+    const tile = new THREE.Mesh(previewGeometry, previewMaterial);
+    tile.position.copy(normal.clone().multiplyScalar(radius + .032));
+    tile.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+    tile.renderOrder = 8;
+    selectionPreview.add(tile);
+  });
+}
+
 canvas.addEventListener('click', (event) => {
   const hit = intersect(event);
   if (!hit?.uv) return;
   if (!selecting) return updateTooltip(event, cellFromUV(hit.uv));
-  selectedUV = hit.uv.clone();
-  document.querySelector('#selectionStatus').innerHTML = '<b>✓</b> Location selected. Customise your placement.';
-  document.querySelector('#previewPurchase').disabled = false;
+  const clickedCell = cellFromUV(hit.uv);
+  const shape = document.querySelector('#selectionShape').value;
+  if (!selectedCell || shape !== 'custom') {
+    selectedUV = hit.uv.clone();
+    selectedCell = clickedCell;
+    selectedNormal = globe.worldToLocal(hit.point.clone()).normalize();
+  }
+  if (shape === 'custom') {
+    const existing = selectedCells.findIndex((cell) => cell.id === clickedCell.id);
+    if (existing >= 0) selectedCells.splice(existing, 1);
+    else selectedCells.push(clickedCell);
+    amountInput.value = selectedCells.length || 1;
+    document.querySelector('#price').textContent = `$${selectedCells.length.toLocaleString()}`;
+  }
+  refreshSelection();
   controls.autoRotate = false;
 });
 
 function openBuy() {
   selecting = true;
   selectedUV = null;
+  selectedCell = null;
+  selectedNormal = null;
+  selectedCells = [];
   document.body.classList.add('selecting');
   document.querySelector('#buyPanel').classList.add('open');
   document.querySelector('#buyPanel').setAttribute('aria-hidden', 'false');
@@ -240,6 +315,7 @@ function closeBuy() {
   document.body.classList.remove('selecting');
   document.querySelector('#buyPanel').classList.remove('open');
   document.querySelector('#buyPanel').setAttribute('aria-hidden', 'true');
+  while (selectionPreview.children.length) selectionPreview.remove(selectionPreview.children[0]);
   document.querySelector('#hint').innerHTML = '<span>DRAG TO ROTATE</span><i></i><span>SCROLL TO ZOOM</span><i></i><span>CLICK A TILE</span>';
 }
 document.querySelector('#claimButton').addEventListener('click', openBuy);
@@ -266,34 +342,168 @@ const amountInput = document.querySelector('#hexAmount');
 amountInput.addEventListener('input', () => {
   const value = Math.max(1, Math.min(10000, Number(amountInput.value) || 1));
   document.querySelector('#price').textContent = `$${value.toLocaleString()}`;
+  refreshSelection();
+});
+document.querySelector('#selectionShape').addEventListener('change', (event) => {
+  selectedCells = [];
+  const custom = event.target.value === 'custom';
+  document.querySelector('#patternNote').textContent = custom
+    ? 'Click individual hexagons to build any pattern. Click a selected hexagon again to remove it.'
+    : `Your selected quantity will form a connected ${event.target.options[event.target.selectedIndex].text.toLowerCase()}.`;
+  refreshSelection();
 });
 
-function paintPlacement() {
-  if (!selectedUV) return;
-  const amount = Math.max(1, Math.min(10000, Number(amountInput.value) || 1));
-  const x = selectedUV.x * atlas.width;
-  const y = (1 - selectedUV.y) * atlas.height;
-  const aspect = 2.35;
-  const areaScale = Math.sqrt(amount / 1000);
-  const width = 115 * areaScale;
-  const height = width / aspect;
-  const color = document.querySelector('#brandColor').value;
-  const logo = document.querySelector('#logoText').value.trim().toUpperCase() || 'YOUR LOGO';
-  ctx.save();
-  ctx.translate(x, y);
+document.querySelector('#logoText').addEventListener('input', (event) => {
+  if (!uploadedLogo) document.querySelector('#logoPreview').innerHTML = `<span>${event.target.value.trim().toUpperCase() || 'YOUR LOGO'}</span>`;
+});
+document.querySelector('#brandColor').addEventListener('input', renderSelectionPreview);
+document.querySelector('#logoUpload').addEventListener('change', (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (file.size > 4 * 1024 * 1024) {
+    showUploadMessage('Logo must be smaller than 4 MB.');
+    event.target.value = '';
+    return;
+  }
+  const image = new Image();
+  const url = URL.createObjectURL(file);
+  image.onload = () => {
+    uploadedLogo = image;
+    const preview = document.querySelector('#logoPreview');
+    preview.innerHTML = '';
+    preview.style.backgroundImage = `url(${url})`;
+    showUploadMessage('Logo ready. It will be fitted without cropping.');
+  };
+  image.onerror = () => showUploadMessage('That image could not be read. Try PNG, JPG, WebP or SVG.');
+  image.src = url;
+});
+
+function showUploadMessage(message) {
+  document.querySelector('#patternNote').textContent = message;
+}
+
+function drawLogo(context, width, height, color, transparent = false) {
+  context.clearRect(0, 0, width, height);
+  if (!transparent) {
+    context.fillStyle = color;
+    context.fillRect(0, 0, width, height);
+  }
+  if (uploadedLogo) {
+    const padding = Math.min(width, height) * .16;
+    const availableWidth = width - padding * 2;
+    const availableHeight = height - padding * 2;
+    const scale = Math.min(availableWidth / uploadedLogo.naturalWidth, availableHeight / uploadedLogo.naturalHeight);
+    const drawWidth = uploadedLogo.naturalWidth * scale;
+    const drawHeight = uploadedLogo.naturalHeight * scale;
+    context.drawImage(uploadedLogo, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+  } else {
+    const logo = document.querySelector('#logoText').value.trim().toUpperCase() || 'YOUR LOGO';
+    context.fillStyle = transparent ? color : '#061119';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.font = `900 ${Math.floor(Math.min(height * .42, width / Math.max(2.2, logo.length * .58)))}px Arial`;
+    context.fillText(logo.slice(0, 16), width / 2, height / 2, width * .82);
+  }
+}
+
+function makeLogoTexture(color, hexClipped = true) {
+  const logoCanvas = document.createElement('canvas');
+  logoCanvas.width = 512;
+  logoCanvas.height = hexClipped ? 512 : 256;
+  const logoContext = logoCanvas.getContext('2d');
+  if (hexClipped) {
+    logoContext.save();
+    logoContext.beginPath();
+    for (let side = 0; side < 6; side += 1) {
+      const angle = side * Math.PI / 3;
+      const x = 256 + Math.cos(angle) * 250;
+      const y = 256 + Math.sin(angle) * 250;
+      if (!side) logoContext.moveTo(x, y); else logoContext.lineTo(x, y);
+    }
+    logoContext.closePath();
+    logoContext.clip();
+    drawLogo(logoContext, 512, 512, color, false);
+    logoContext.restore();
+  } else drawLogo(logoContext, 512, 256, color, true);
+  const texture = new THREE.CanvasTexture(logoCanvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  return texture;
+}
+
+function normalForCell(cell) {
+  const east = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), selectedNormal);
+  if (east.lengthSq() < .001) east.set(1, 0, 0); else east.normalize();
+  const north = new THREE.Vector3().crossVectors(selectedNormal, east).normalize();
+  const colOffset = cell.col - selectedCell.col + ((cell.row - selectedCell.row) % 2) * .5;
+  const rowOffset = cell.row - selectedCell.row;
+  return selectedNormal.clone()
+    .add(east.multiplyScalar(colOffset * .00502))
+    .add(north.multiplyScalar(-rowOffset * .00393))
+    .normalize();
+}
+
+function paintSelectedHexagons(color) {
   ctx.fillStyle = color;
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.roundRect(-width / 2, -height / 2, width, height, 10);
-  ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#061119';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = `900 ${Math.max(12, height * .34)}px Arial`;
-  ctx.fillText(logo.slice(0, 16), 0, 1, width * .88);
-  ctx.restore();
-  globeTexture.needsUpdate = true;
+  const cellWidth = atlas.width / logicalColumns;
+  const cellHeight = atlas.height / logicalRows;
+  selectedCells.forEach((cell) => {
+    const x = (cell.col + (cell.row % 2) * .5 + .5) / logicalColumns * atlas.width;
+    const y = (cell.row + .5) / logicalRows * atlas.height;
+    ctx.beginPath();
+    for (let side = 0; side < 6; side += 1) {
+      const angle = side * Math.PI / 3;
+      const px = x + Math.cos(angle) * cellWidth * .59;
+      const py = y + Math.sin(angle) * cellHeight * .72;
+      if (!side) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill();
+  });
+}
+
+function addHighResolutionPlacement(color, treatment) {
+  if (!selectedNormal || !selectedCell || !selectedCells.length) return;
+  const cellGeometry = new THREE.CircleGeometry(.01135, 6);
+  const logoTexture = makeLogoTexture(color, true);
+  const repeatedMaterial = new THREE.MeshBasicMaterial({ map: logoTexture, transparent: true, alphaTest: .08, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+  const colourMaterial = new THREE.MeshBasicMaterial({ color, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+  const visibleCells = selectedCells.slice(0, 400);
+  visibleCells.forEach((cell) => {
+    const normal = normalForCell(cell);
+    const showLogo = treatment === 'repeat' || selectedCells.length === 1;
+    const tile = new THREE.Mesh(cellGeometry, showLogo ? repeatedMaterial : colourMaterial);
+    tile.position.copy(normal.clone().multiplyScalar(radius + .022));
+    tile.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+    tile.renderOrder = 5;
+    placementLayers.add(tile);
+  });
+  if (treatment === 'span' && selectedCells.length > 1) {
+    const columns = selectedCells.map((cell) => cell.col);
+    const rows = selectedCells.map((cell) => cell.row);
+    const columnSpan = Math.max(...columns) - Math.min(...columns) + 1;
+    const rowSpan = Math.max(...rows) - Math.min(...rows) + 1;
+    const spanTexture = makeLogoTexture(color, false);
+    const plane = new THREE.Mesh(
+      new THREE.PlaneGeometry(Math.max(.026, columnSpan * .017), Math.max(.018, rowSpan * .012)),
+      new THREE.MeshBasicMaterial({ map: spanTexture, transparent: true, alphaTest: .04, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -5 })
+    );
+    plane.position.copy(selectedNormal.clone().multiplyScalar(radius + .027));
+    plane.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), selectedNormal);
+    plane.renderOrder = 6;
+    placementLayers.add(plane);
+  }
+}
+
+function paintPlacement() {
+  if (!selectedUV || !selectedCells.length) return;
+  const amount = selectedCells.length;
+  const color = document.querySelector('#brandColor').value;
+  const treatment = document.querySelector('#logoTreatment').value;
+  if (amount > 400) {
+    paintSelectedHexagons(color);
+    globeTexture.needsUpdate = true;
+  }
+  addHighResolutionPlacement(color, treatment);
   sold = Math.min(1000000, sold + amount);
   document.querySelector('#soldCount').textContent = sold.toLocaleString();
   document.querySelector('#availableCount').textContent = (1000000 - sold).toLocaleString();
