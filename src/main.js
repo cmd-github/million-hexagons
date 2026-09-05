@@ -407,6 +407,7 @@ let fixedArtworkMode = 'colour';
 let creationType = null;
 let buyInteractionMode = 'move';
 let designCells = [];
+let logoCells = null;
 let editorPainting = false;
 const selectedCellColours = new Map();
 const sessionPlacements = new Map();
@@ -781,7 +782,35 @@ function previewCells() {
   if (creationType === 'paint') return designCells;
   const aspect = creationType === 'logo' && uploadedLogo
     ? (uploadedLogoCrop?.width || uploadedLogo.naturalWidth) / (uploadedLogoCrop?.height || uploadedLogo.naturalHeight) : 1.25;
+  if (creationType === 'logo' && logoCells) return logoCells;
   return compactFootprint(placementCount(), aspect);
+}
+
+function adjacentLogoCandidates(cells) {
+  const active = new Set(cells.map((cell) => `${cell.col},${cell.row}`));
+  const candidates = new Map();
+  cells.forEach((cell) => {
+    for (let row = cell.row - 1; row <= cell.row + 1; row += 1) for (let col = cell.col - 1; col <= cell.col + 1; col += 1) {
+      const key = `${col},${row}`;
+      if (active.has(key)) continue;
+      if (Math.hypot(centre({ col, row }).x - centre(cell).x, centre({ col, row }).y - centre(cell).y) < 1.8) candidates.set(key, { col, row, guide: true });
+    }
+  });
+  return [...candidates.values()];
+}
+
+function isConnectedFootprint(cells) {
+  if (!cells.length) return false;
+  const pending = [cells[0]];
+  const visited = new Set([`${cells[0].col},${cells[0].row}`]);
+  while (pending.length) {
+    const current = pending.pop();
+    cells.forEach((cell) => {
+      const key = `${cell.col},${cell.row}`;
+      if (!visited.has(key) && Math.hypot(centre(cell).x - centre(current).x, centre(cell).y - centre(current).y) < 1.8) { visited.add(key); pending.push(cell); }
+    });
+  }
+  return visited.size === cells.length;
 }
 
 function hexPath(context, x, y, size, append = false) {
@@ -797,7 +826,7 @@ function hexPath(context, x, y, size, append = false) {
 
 function drawDesignPreview(target = document.querySelector('#designCanvas')) {
   if (!target) return;
-  if (creationType !== 'paint' || target.id === 'reviewCanvas') {
+  if ((creationType !== 'paint' && creationType !== 'logo') || target.id === 'reviewCanvas') {
     const ctx = target.getContext('2d');
     ctx.clearRect(0, 0, target.width, target.height);
     const cells = previewCells();
@@ -806,6 +835,26 @@ function drawDesignPreview(target = document.querySelector('#designCanvas')) {
       const scale = Math.min((target.width - 64) / art.width, (target.height - 48) / art.height);
       ctx.drawImage(art, (target.width-art.width*scale)/2, (target.height-art.height*scale)/2, art.width*scale, art.height*scale);
     }
+    document.querySelector('#editorEmpty').hidden = Boolean(cells.length);
+    return;
+  }
+  if (creationType === 'logo') {
+    const context = target.getContext('2d');
+    context.clearRect(0, 0, target.width, target.height);
+    context.fillStyle = '#071722'; context.fillRect(0, 0, target.width, target.height);
+    const cells = previewCells();
+    const guides = adjacentLogoCandidates(cells);
+    const displayBounds = footprintBounds([...cells, ...guides]);
+    const scale = Math.min((target.width - 44) / displayBounds.width, (target.height - 36) / displayBounds.height);
+    const offsetX = (target.width - displayBounds.width * scale) / 2;
+    const offsetY = (target.height - displayBounds.height * scale) / 2;
+    const point = (cell) => { const p = centre(cell); return { x: offsetX + (p.x - displayBounds.left) * scale, y: offsetY + (p.y - displayBounds.top) * scale }; };
+    const bounds = footprintBounds(cells);
+    const art = renderArtwork(cells);
+    context.drawImage(art, offsetX + (bounds.left - displayBounds.left) * scale, offsetY + (bounds.top - displayBounds.top) * scale, bounds.width * scale, bounds.height * scale);
+    editorHitRegions = [...cells, ...guides].map((cell) => ({ ...cell, ...point(cell), size: scale }));
+    guides.forEach((cell) => { const p = point(cell); hexPath(context, p.x, p.y, scale * .91); context.fillStyle='rgba(14,39,49,.72)'; context.fill(); context.strokeStyle='rgba(212,255,88,.38)'; context.setLineDash([4,4]); context.stroke(); context.setLineDash([]); });
+    cells.forEach((cell) => { const p = point(cell); hexPath(context, p.x, p.y, scale * .94); context.strokeStyle='rgba(220,255,245,.34)'; context.lineWidth=1.2; context.stroke(); });
     document.querySelector('#editorEmpty').hidden = Boolean(cells.length);
     return;
   }
@@ -861,12 +910,26 @@ function drawDesignPreview(target = document.querySelector('#designCanvas')) {
 }
 
 function paintEditorAt(event) {
-  if (creationType !== 'paint') return;
+  if (creationType !== 'paint' && creationType !== 'logo') return;
   const rect = event.currentTarget.getBoundingClientRect();
   const x = (event.clientX - rect.left) * event.currentTarget.width / rect.width;
   const y = (event.clientY - rect.top) * event.currentTarget.height / rect.height;
   const hit = editorHitRegions.reduce((nearest, cell) => Math.hypot(cell.x - x, cell.y - y) < Math.hypot(nearest.x - x, nearest.y - y) ? cell : nearest, editorHitRegions[0]);
   if (!hit || Math.hypot(hit.x - x, hit.y - y) > hit.size) return;
+  if (creationType === 'logo') {
+    const cells = previewCells();
+    const index = cells.findIndex((cell) => cell.col === hit.col && cell.row === hit.row);
+    if (index < 0) logoCells = [...cells, { col: hit.col, row: hit.row }];
+    else {
+      const reduced = cells.filter((_, cellIndex) => cellIndex !== index);
+      if (!isConnectedFootprint(reduced)) { updateLogoGuidance('Keep at least one connected hexagon. Remove a different edge hexagon.'); return; }
+      logoCells = reduced;
+    }
+    amountInput.value = logoCells.length;
+    selectedCell = null; selectedCells = [];
+    drawDesignPreview(); updateTotals();
+    return;
+  }
   const index = designCells.findIndex((cell) => cell.col === hit.col && cell.row === hit.row);
   if (paintAction === 'erase') {
     if (index >= 0) designCells.splice(index, 1);
@@ -887,6 +950,7 @@ function configureCreation(type) {
   document.querySelector('#logoOptions').hidden = type !== 'logo';
   document.querySelector('#colourControls').hidden = type === 'logo';
   document.querySelector('#customPaintTools').hidden = type !== 'paint';
+  document.querySelector('#logoFootprintHelp').hidden = type !== 'logo';
   document.querySelector('#sizeControls').hidden = type === 'paint';
   if (type === 'logo') amountInput.value = 150;
   if (type === 'colour') amountInput.value = 50;
@@ -993,9 +1057,9 @@ document.querySelector('#toReview').addEventListener('click', () => {
   addHighResolutionPlacement(document.querySelector('#brandColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
 });
 document.querySelector('#backToPlacement').addEventListener('click', () => { clearPlacementPreview(); showFlowStep('place'); setInteractionMode('move'); refreshSelection(); });
-document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); }));
+document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size; logoCells = null; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); }));
 amountInput.addEventListener('change', () => { amountInput.value = placementCount(); });
-amountInput.addEventListener('input', () => { selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); });
+amountInput.addEventListener('input', () => { logoCells = null; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); });
 document.querySelectorAll('[data-treatment]').forEach((button) => button.addEventListener('click', () => { document.querySelector('#logoTreatment').value = button.dataset.treatment; document.querySelectorAll('[data-treatment]').forEach((item) => item.classList.toggle('active', item === button)); drawDesignPreview(); updateLogoGuidance(); }));
 document.querySelector('#logoScale').addEventListener('input', () => drawDesignPreview());
 document.querySelector('#logoOrientation').addEventListener('change', () => { updateLogoPreviewOrientation(); drawDesignPreview(); });
@@ -1003,7 +1067,7 @@ document.querySelector('#resetLogo').addEventListener('click', () => { document.
 document.querySelector('#clearPaint').addEventListener('click', () => { rememberPaint(); designCells = []; amountInput.value = 0; drawDesignPreview(); updateTotals(); });
 const designCanvas = document.querySelector('#designCanvas');
 designCanvas.addEventListener('pointerdown', (event) => { if(creationType === 'paint') rememberPaint(); editorPainting = true; designCanvas.setPointerCapture(event.pointerId); paintEditorAt(event); });
-designCanvas.addEventListener('pointermove', (event) => { if (editorPainting) paintEditorAt(event); });
+designCanvas.addEventListener('pointermove', (event) => { if (editorPainting && creationType === 'paint') paintEditorAt(event); });
 designCanvas.addEventListener('pointerup', () => { editorPainting = false; });
 designCanvas.addEventListener('pointercancel', () => { editorPainting = false; });
 updatePaintColour();
@@ -1202,6 +1266,38 @@ function drawLogo(context, width, height, color, transparent = false, offsetX = 
   }
 }
 
+function largestLogoRect(cells, bounds, aspect, width, height) {
+  const active = new Set(cells.map((cell) => `${cell.col},${cell.row}`));
+  const contains = (x, y) => {
+    const approximateRow = Math.round(y / 1.5);
+    for (let row = approximateRow - 1; row <= approximateRow + 1; row += 1) {
+      const approximateCol = Math.round(x / Math.sqrt(3) - (((row % 2) + 2) % 2) / 2);
+      for (let col = approximateCol - 1; col <= approximateCol + 1; col += 1) {
+        if (!active.has(`${col},${row}`)) continue;
+        const p = centre({ col, row }), dx = Math.abs(x - p.x), dy = Math.abs(y - p.y);
+        if (dy <= .98 && dx <= Math.sqrt(3) * (.98 - dy / 2)) return true;
+      }
+    }
+    return false;
+  };
+  const middleX = bounds.left + bounds.width / 2, middleY = bounds.top + bounds.height / 2;
+  const fits = (candidateHeight) => {
+    const candidateWidth = candidateHeight * aspect;
+    const step = .28;
+    for (let y = middleY - candidateHeight / 2; y <= middleY + candidateHeight / 2; y += step) {
+      for (let x = middleX - candidateWidth / 2; x <= middleX + candidateWidth / 2; x += step) if (!contains(x, y)) return false;
+    }
+    return true;
+  };
+  let low = .05, high = Math.min(bounds.height, bounds.width / aspect), best = .05;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const candidate = (low + high) / 2;
+    if (fits(candidate)) { best = candidate; low = candidate; } else high = candidate;
+  }
+  const safeHeight = Math.max(.05, best - .12), safeWidth = safeHeight * aspect;
+  return { x: (middleX - safeWidth / 2 - bounds.left) / bounds.width * width, y: (middleY - safeHeight / 2 - bounds.top) / bounds.height * height, width: safeWidth / bounds.width * width, height: safeHeight / bounds.height * height };
+}
+
 function renderArtwork(cells) {
   const bounds = footprintBounds(cells);
   const art = document.createElement('canvas');
@@ -1222,7 +1318,9 @@ function renderArtwork(cells) {
   const point = (cell) => { const p = centre(cell); return { x: (p.x - bounds.left)*px, y: (p.y-bounds.top)*py }; };
   cells.forEach((cell) => {
     const p = point(cell);
-    hexPath(context, p.x, p.y, unit * .98);
+    // Slightly overlap texture fills so antialiased seams do not become holes in
+    // the artwork-safe area. The globe geometry still supplies the visible seams.
+    hexPath(context, p.x, p.y, unit * 1.01);
     context.fillStyle = cell.color || document.querySelector('#brandColor').value; context.fill();
   });
   if (creationType === 'logo' && uploadedLogo) {
@@ -1230,8 +1328,14 @@ function renderArtwork(cells) {
     cells.forEach((cell) => { const p = point(cell); hexPath(context,p.x,p.y,unit*.98,true); });
     context.clip();
     if (document.querySelector('#logoTreatment').value === 'repeat') {
-      cells.forEach((cell) => { const p = point(cell); context.save(); hexPath(context,p.x,p.y,unit*.98); context.clip(); drawRotated(p.x-unit*.78,p.y-unit*.78,unit*1.56,unit*1.56); context.restore(); });
-    } else drawRotated(art.width*.12,art.height*.12,art.width*.76,art.height*.76);
+      cells.forEach((cell) => { const p = point(cell); context.save(); hexPath(context,p.x,p.y,unit*.98); context.clip(); drawRotated(p.x-unit*.525,p.y-unit*.525,unit*1.05,unit*1.05); context.restore(); });
+    } else {
+      const source = uploadedLogoCrop || { width: uploadedLogo.naturalWidth, height: uploadedLogo.naturalHeight };
+      const rotation = Math.abs(Number(document.querySelector('#logoOrientation').value) || 0);
+      const sourceAspect = source.width / source.height;
+      const safeRect = largestLogoRect(cells, bounds, rotation === 90 ? 1 / sourceAspect : sourceAspect, art.width, art.height);
+      drawRotated(safeRect.x, safeRect.y, safeRect.width, safeRect.height);
+    }
     context.restore();
   }
   return art;

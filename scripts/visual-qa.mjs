@@ -18,18 +18,36 @@ try {
   const prefix=mobile?'mobile':'desktop';
   await page.screenshot({path:`artifacts/visual-qa/${prefix}-explore.png`});
   for(const type of ['logo','colour','paint']) {
-   for(const count of type==='paint'?[2]:[50,150,400]) {
+   for(const count of type==='paint'?[2]:type==='logo'?[1,50,150,400,500]:[50,150,400]) {
     await page.locator('#claimButton').click();
     await page.locator(`#${type}Artwork`).click();
     if(type==='logo') {
       await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');
       await page.locator('#toPlacement').waitFor({state:'visible'});
       if (!(await page.locator('#logoOptions').evaluate(el=>el.open))) await page.locator('#logoOptions summary').click();
-      await page.selectOption('#logoOrientation',count===50?'0':count===150?'90':'180');
+      await page.selectOption('#logoOrientation',count===150?'90':count===400?'180':'0');
       await page.locator(`[data-treatment="${count===400?'repeat':'span'}"]`).click();
     }
-    if(type!=='paint') await page.locator(`[data-size="${count}"]`).click();
-    else {
+    if(type!=='paint') {
+      const preset=page.locator(`[data-size="${count}"]`);
+      if(await preset.count()) await preset.click();
+      else {
+        if (!(await page.locator('.custom-options').evaluate(el=>el.open))) await page.locator('.custom-options summary').click();
+        await page.locator('#hexAmount').fill(String(count));
+      }
+    }
+    if(type==='logo' && count===50) {
+      const before=await page.locator('#designCount').textContent();
+      const editor=page.locator('#designCanvas');
+      const box=await editor.boundingBox();
+      for(const [x,y] of [[.5,.16],[.18,.5],[.82,.5],[.5,.84],[.3,.25],[.7,.25]]) {
+        await page.mouse.click(box.x+box.width*x,box.y+box.height*y);
+        if(await page.locator('#designCount').textContent()!==before) break;
+      }
+      assert.notEqual(await page.locator('#designCount').textContent(),before,'Logo footprint canvas did not add or remove a hexagon');
+      await page.locator('[data-size="50"]').click();
+    }
+    if(type==='paint') {
       const rect=await page.locator('#designCanvas').boundingBox();
       await page.mouse.click(rect.x+rect.width*.48,rect.y+rect.height*.48);
       await page.locator('#brandColor').fill('#ff4d6d');
