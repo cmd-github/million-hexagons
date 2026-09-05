@@ -15,7 +15,9 @@ npm run dev
 
 ## Placement studio and visual checks
 
-The purchase prototype keeps Design → Place → Review. Logo is the recommended starting path; custom sizes and artwork adjustments expand when needed. Place suggests an available footprint automatically, with Find another spot and separate Move/Place controls. Paint includes undo/redo. Review keeps its edit routes, validates optional HTTP(S) destinations, and adds a session preview without taking payment. Click a committed session placement to reopen its website action. Refresh still resets these previews; this is not durable ownership or real checkout.
+The purchase prototype keeps Design → Place → Review. Logo is the recommended starting path; custom sizes and artwork adjustments expand when needed. Place suggests an available footprint automatically, with Find another spot and separate Move/Place controls. Paint includes undo/redo. Review and the globe now consume the same frozen artwork rendition and the camera frames the complete selected footprint. Review keeps its edit routes, validates optional HTTP(S) destinations, and adds a session preview without taking payment. Click a committed session placement to reopen its website action. Refresh still resets these previews; this is not durable ownership or real checkout.
+
+In normal globe exploration, the discreet search control accepts a cell reference such as `#1` or `500000` and centres that logical hexagon. The control is intentionally separate from the placement studio and leaves room for named brand/location discovery later.
 
 On mobile, exploration gives the globe its own region below the introduction. Place and Review reserve a separate canvas area above a scrollable bottom sheet; pointer coordinates and the camera use that actual canvas size. Desktop uses a separate studio sidebar. The grid is quieter during placement and the old decorative triangular wireframe has been removed.
 

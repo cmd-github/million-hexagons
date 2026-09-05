@@ -33,7 +33,13 @@
     </aside>
 
     <div class="hint" id="hint"><span>DRAG TO ROTATE</span><i></i><span>SCROLL TO ZOOM</span><i></i><span>CLICK A TILE</span></div>
-    <nav class="globe-controls glass" aria-label="Globe controls"><button id="zoomIn" aria-label="Zoom in">+</button><button id="zoomOut" aria-label="Zoom out">−</button><button id="homeView" aria-label="Re-centre globe">⌂</button></nav>
+    <nav class="globe-controls glass" aria-label="Globe controls">
+      <form class="hex-search" id="hexSearch" role="search">
+        <button type="button" id="toggleHexSearch" aria-label="Find a hexagon" aria-expanded="false">⌕</button>
+        <div id="hexSearchPanel" hidden><label for="hexSearchInput">Find a hexagon</label><span><input id="hexSearchInput" inputmode="numeric" autocomplete="off" placeholder="#1" aria-describedby="hexSearchStatus"><button type="submit" aria-label="Go to hexagon">Go</button></span><small id="hexSearchStatus" role="status">Enter a number from 1 to 1,000,000.</small></div>
+      </form>
+      <button id="zoomIn" aria-label="Zoom in">+</button><button id="zoomOut" aria-label="Zoom out">−</button><button id="homeView" aria-label="Re-centre globe">⌂</button>
+    </nav>
     <div class="cell-tooltip glass" id="cellTooltip"><span id="cellId">HEX #000000</span><b id="cellOwner">Available</b><small id="cellPosition">0.00° N · 0.00° E</small></div>
 
     <section class="buy-panel glass" id="buyPanel" aria-hidden="true" inert aria-label="Placement studio">

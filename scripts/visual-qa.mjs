@@ -17,9 +17,16 @@ try {
   await page.waitForTimeout(500);
   const prefix=mobile?'mobile':'desktop';
   await page.screenshot({path:`artifacts/visual-qa/${prefix}-explore.png`});
+  await page.locator('#toggleHexSearch').click();
+  await page.locator('#hexSearchInput').fill('#1');
+  await page.locator('#hexSearch').evaluate(form=>form.requestSubmit());
+  assert.equal(await page.locator('#hexSearchStatus').textContent(),'Centred on hex #1.');
+  await page.screenshot({path:`artifacts/visual-qa/${prefix}-explore-hex-1.png`});
+  await page.locator('#toggleHexSearch').click();
   for(const type of ['logo','colour','paint']) {
    for(const count of type==='paint'?[2]:type==='logo'?[1,50,150,400,500]:[50,150,400]) {
     await page.locator('#claimButton').click();
+    assert.equal(await page.locator('#toggleHexSearch').isVisible(),false);
     await page.locator(`#${type}Artwork`).click();
     if(type==='logo') {
       await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');

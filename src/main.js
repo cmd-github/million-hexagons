@@ -408,6 +408,7 @@ let creationType = null;
 let buyInteractionMode = 'move';
 let designCells = [];
 let logoCells = null;
+let draftArtwork = null;
 let editorPainting = false;
 const selectedCellColours = new Map();
 const sessionPlacements = new Map();
@@ -719,6 +720,37 @@ document.querySelector('#homeView').addEventListener('click', () => {
   controls.target.set(0, 0, 0);
 });
 
+const hexSearch = document.querySelector('#hexSearch');
+const hexSearchPanel = document.querySelector('#hexSearchPanel');
+const hexSearchInput = document.querySelector('#hexSearchInput');
+const hexSearchStatus = document.querySelector('#hexSearchStatus');
+function showHexSearch(open) {
+  hexSearchPanel.hidden = !open;
+  document.querySelector('#toggleHexSearch').setAttribute('aria-expanded', String(open));
+  if (open) hexSearchInput.focus();
+}
+document.querySelector('#toggleHexSearch').addEventListener('click', () => showHexSearch(hexSearchPanel.hidden));
+hexSearch.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const match = hexSearchInput.value.trim().match(/^#?([0-9]{1,7})$/);
+  const id = match ? Number(match[1]) : 0;
+  if (id < 1 || id > logicalColumns * logicalRows) {
+    hexSearchStatus.textContent = 'Use a hex number from 1 to 1,000,000.';
+    hexSearchInput.setAttribute('aria-invalid', 'true');
+    return;
+  }
+  const cell = { id, row: Math.floor((id - 1) / logicalColumns), col: (id - 1) % logicalColumns };
+  controls.autoRotate = false;
+  cameraDistanceTarget = null;
+  const direction = globe.localToWorld(spherePointForGrid(cell, 0, 0)).normalize();
+  camera.position.copy(direction.multiplyScalar(radius + .82));
+  controls.target.set(0, 0, 0);
+  controls.update();
+  hoverCellUniform.value.set(cell.col, cell.row);
+  hexSearchInput.removeAttribute('aria-invalid');
+  hexSearchStatus.textContent = `Centred on hex #${id.toLocaleString()}.`;
+});
+
 const amountInput = document.querySelector('#hexAmount');
 function updateLogoGuidance(message) {
   const amount = Math.max(0, Number(amountInput.value) || 0);
@@ -826,12 +858,13 @@ function hexPath(context, x, y, size, append = false) {
 
 function drawDesignPreview(target = document.querySelector('#designCanvas')) {
   if (!target) return;
+  if (target.id === 'designCanvas') draftArtwork = null;
   if ((creationType !== 'paint' && creationType !== 'logo') || target.id === 'reviewCanvas') {
     const ctx = target.getContext('2d');
     ctx.clearRect(0, 0, target.width, target.height);
     const cells = previewCells();
     if (cells.length) {
-      const art = renderArtwork(cells);
+      const art = target.id === 'reviewCanvas' && draftArtwork ? draftArtwork : renderArtwork(cells);
       const scale = Math.min((target.width - 64) / art.width, (target.height - 48) / art.height);
       ctx.drawImage(art, (target.width-art.width*scale)/2, (target.height-art.height*scale)/2, art.width*scale, art.height*scale);
     }
@@ -971,6 +1004,7 @@ function setInteractionMode(mode) {
 }
 
 function enterPlacement() {
+  draftArtwork = renderArtwork(previewCells());
   selecting = true;
   selectionModeUniform.value = 1;
   document.body.classList.add('selecting');
@@ -990,10 +1024,18 @@ function enterPlacement() {
 function focusSelection() {
   if(!selectedCells.length) return;
   const middle=selectedCells.reduce((sum,c)=>sum.add(spherePointForGrid(c,0,0)),new THREE.Vector3()).normalize();
-  const bounds=footprintBounds(selectedCells);
+  const halfVertical=THREE.MathUtils.degToRad(camera.fov)/2;
+  const halfHorizontal=Math.atan(Math.tan(halfVertical)*camera.aspect);
+  const limitingFov=Math.min(halfVertical,halfHorizontal);
+  const corners=[[0,1],[.8660254,.5],[.8660254,-.5],[0,-1],[-.8660254,-.5],[-.8660254,.5]];
+  let distance=radius+.35;
+  selectedCells.forEach((cell)=>corners.forEach(([x,y])=>{
+    const point=spherePointForGrid(cell,x,y);
+    const depth=point.dot(middle);
+    const perpendicular=point.clone().addScaledVector(middle,-depth).length();
+    distance=Math.max(distance,depth+perpendicular/Math.tan(limitingFov)*1.12);
+  }));
   cameraDistanceTarget=null;
-  const vertical=THREE.MathUtils.degToRad(camera.fov)/2;
-  const distance=radius+Math.max(.55, Math.max(bounds.height*.0157, bounds.width*.013) / (2*Math.tan(vertical)*Math.min(1,camera.aspect)) * 1.8);
   camera.position.copy(globe.localToWorld(middle.multiplyScalar(distance)));
   controls.update();
 }
@@ -1390,7 +1432,7 @@ function clearPlacementPreview() {
 function addHighResolutionPlacement(color, treatment, targetLayer = placementLayers) {
   if (!selectedCell || !selectedCells.length) return;
   const bounds = footprintBounds(selectedCells);
-  const texture = new THREE.CanvasTexture(renderArtwork(previewCells()));
+  const texture = new THREE.CanvasTexture(draftArtwork || renderArtwork(previewCells()));
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   const material = new THREE.MeshBasicMaterial({ map: texture, toneMapped: false, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
