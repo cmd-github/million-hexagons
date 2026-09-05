@@ -295,7 +295,26 @@ globeMaterial.onBeforeCompile = (shader) => {
       vec4 purchasedColour = texture2D(purchasedColourMap, clamp(occupancyUv, vec2(0.0001), vec2(0.9999)));
       float cellPixels = 1.0 / max(fwidth(gridPoint.x) / 1.7320508, fwidth(gridPoint.y) / 1.5);
       float detailVisibility = smoothstep(1.6, 4.5, cellPixels);
-      // Available inventory uses stable, individually plated midnight-blue cells.
+      // Group neighbouring inventory into stable larger hexagonal plates.
+      vec2 cellGridCentre = vec2(
+        cellAddress.x * 1.7320508 + mod(cellAddress.y, 2.0) * 0.8660254,
+        cellAddress.y * 1.5
+      );
+      vec2 macroPoint = cellGridCentre / 12.0;
+      float macroBaseRow = floor(macroPoint.y / 1.5 + 0.5);
+      vec2 macroAddress = vec2(0.0);
+      float nearestMacro = 100.0;
+      for (int macroRowOffset = -1; macroRowOffset <= 1; macroRowOffset++) {
+        float macroRow = macroBaseRow + float(macroRowOffset);
+        float macroOffsetX = mod(macroRow, 2.0) * 0.8660254;
+        float macroColumn = floor((macroPoint.x - macroOffsetX) / 1.7320508 + 0.5);
+        vec2 macroCentre = vec2(macroColumn * 1.7320508 + macroOffsetX, macroRow * 1.5);
+        float macroDistance = dot(macroPoint - macroCentre, macroPoint - macroCentre);
+        if (macroDistance < nearestMacro) {
+          nearestMacro = macroDistance;
+          macroAddress = vec2(macroColumn, macroRow);
+        }
+      }
       // Purchased artwork is deliberately left untouched.
       // Keep the highlight fixed to the camera instead of letting it rotate with map UVs.
       vec3 fixedOceanLight = normalize(vec3(-0.32, 0.34, 1.0));
@@ -305,13 +324,14 @@ globeMaterial.onBeforeCompile = (shader) => {
       float southPoleLift = smoothstep(0.72, 1.0, vMapUv.y);
       float globeFacing = clamp(dot(normalize(vNormal), normalize(vViewPosition)), 0.0, 1.0);
       float attachedRim = pow(1.0 - globeFacing, 35.0);
-      float plateSeed = fract(sin(dot(cellAddress, vec2(127.1, 311.7))) * 43758.5453);
+      float plateSeed = fract(sin(dot(macroAddress, vec2(127.1, 311.7))) * 43758.5453);
       float plateBand = floor(plateSeed * 4.0) / 3.0;
-      float plateAccent = step(0.96, fract(sin(dot(cellAddress, vec2(269.5, 183.3))) * 43758.5453));
+      float plateAccent = step(0.96, fract(sin(dot(macroAddress, vec2(269.5, 183.3))) * 43758.5453));
+      float macroVisibility = smoothstep(0.25, 1.15, cellPixels);
       vec3 farOcean = vec3(0.0015, 0.007, 0.025);
-      vec3 platedOcean = mix(vec3(0.001, 0.004, 0.014), vec3(0.0025, 0.010, 0.028), plateBand);
-      platedOcean += plateAccent * vec3(0.0005, 0.003, 0.008);
-      vec3 oceanColour = mix(farOcean, platedOcean, detailVisibility);
+      vec3 platedOcean = mix(vec3(0.001, 0.004, 0.014), vec3(0.002, 0.008, 0.021), plateBand);
+      platedOcean += plateAccent * vec3(0.0003, 0.0015, 0.004);
+      vec3 oceanColour = mix(farOcean, platedOcean, macroVisibility);
       oceanColour += oceanHotspot * vec3(0.0, 0.012, 0.038);
       oceanColour += southPoleLift * vec3(0.0, 0.006, 0.016);
       vec2 absoluteHex = abs(localHex);
@@ -347,7 +367,7 @@ globeMaterial.onBeforeCompile = (shader) => {
     totalEmissiveRadiance += vec3(0.01, 0.24, 0.78) * attachedRim * 0.28;`
   );
 };
-globeMaterial.customProgramCacheKey = () => 'million-hexagons-midnight-plates-v12';
+globeMaterial.customProgramCacheKey = () => 'million-hexagons-midnight-macro-plates-v13';
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 192, 128), globeMaterial);
 sphere.receiveShadow = true;
 globe.add(sphere);
