@@ -293,7 +293,9 @@ globeMaterial.onBeforeCompile = (shader) => {
       float availableCell = 1.0 - step(0.5, texture2D(occupancyMap, clamp(occupancyUv, vec2(0.0001), vec2(0.9999))).r);
       vec4 selectedColour = texture2D(selectionColourMap, clamp(occupancyUv, vec2(0.0001), vec2(0.9999)));
       vec4 purchasedColour = texture2D(purchasedColourMap, clamp(occupancyUv, vec2(0.0001), vec2(0.9999)));
-      // Available inventory carries the richer cobalt/cyan globe treatment.
+      float cellPixels = 1.0 / max(fwidth(gridPoint.x) / 1.7320508, fwidth(gridPoint.y) / 1.5);
+      float detailVisibility = smoothstep(1.6, 4.5, cellPixels);
+      // Available inventory uses stable, individually plated midnight-blue cells.
       // Purchased artwork is deliberately left untouched.
       // Keep the highlight fixed to the camera instead of letting it rotate with map UVs.
       vec3 fixedOceanLight = normalize(vec3(-0.32, 0.34, 1.0));
@@ -301,22 +303,25 @@ globeMaterial.onBeforeCompile = (shader) => {
       float oceanHotspot = pow(oceanFacing, 4.6);
       // Lift the geographic south pole separately, while keeping it below the hotspot.
       float southPoleLift = smoothstep(0.72, 1.0, vMapUv.y);
-      float oceanLight = clamp(0.085 + oceanHotspot * 0.50 + southPoleLift * 0.20, 0.0, 1.0);
       float globeFacing = clamp(dot(normalize(vNormal), normalize(vViewPosition)), 0.0, 1.0);
       float attachedRim = pow(1.0 - globeFacing, 35.0);
-      vec3 oceanDeep = vec3(0.0015, 0.009, 0.045);
-      vec3 oceanBright = vec3(0.0, 0.045, 0.16);
-      vec3 oceanColour = mix(oceanDeep, oceanBright, oceanLight);
+      float plateSeed = fract(sin(dot(cellAddress, vec2(127.1, 311.7))) * 43758.5453);
+      float plateBand = floor(plateSeed * 4.0) / 3.0;
+      float plateAccent = step(0.96, fract(sin(dot(cellAddress, vec2(269.5, 183.3))) * 43758.5453));
+      vec3 farOcean = vec3(0.0015, 0.007, 0.025);
+      vec3 platedOcean = mix(vec3(0.001, 0.004, 0.014), vec3(0.0025, 0.010, 0.028), plateBand);
+      platedOcean += plateAccent * vec3(0.0005, 0.003, 0.008);
+      vec3 oceanColour = mix(farOcean, platedOcean, detailVisibility);
+      oceanColour += oceanHotspot * vec3(0.0, 0.012, 0.038);
+      oceanColour += southPoleLift * vec3(0.0, 0.006, 0.016);
       vec2 absoluteHex = abs(localHex);
       float hexDistance = max(absoluteHex.x / 0.8660254, absoluteHex.y + absoluteHex.x * 0.5773503);
-      float cellPixels = 1.0 / max(fwidth(gridPoint.x) / 1.7320508, fwidth(gridPoint.y) / 1.5);
       float artworkSnap = smoothstep(5.0, 10.0, cellPixels);
       // Resolve artwork first, then restore every available cell to the ocean
       // material so filtered campaign pixels cannot bleed into its neighbours.
       diffuseColor.rgb = mix(smoothArtwork, cellArtwork, artworkSnap);
       diffuseColor.rgb = mix(diffuseColor.rgb, oceanColour, availableCell * 0.98);
       diffuseColor.rgb = mix(diffuseColor.rgb, purchasedColour.rgb, purchasedColour.a);
-      float detailVisibility = smoothstep(1.6, 4.5, cellPixels);
       float edgeWidth = max(fwidth(hexDistance) * 1.15, 0.002);
       float hexEdge = 1.0 - smoothstep(0.0, edgeWidth, 1.0 - hexDistance);
       diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.62, hexEdge * detailVisibility * 0.26);
@@ -342,7 +347,7 @@ globeMaterial.onBeforeCompile = (shader) => {
     totalEmissiveRadiance += vec3(0.01, 0.24, 0.78) * attachedRim * 0.28;`
   );
 };
-globeMaterial.customProgramCacheKey = () => 'million-hexagons-midnight-cobalt-v11';
+globeMaterial.customProgramCacheKey = () => 'million-hexagons-midnight-plates-v12';
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 192, 128), globeMaterial);
 sphere.receiveShadow = true;
 globe.add(sphere);
