@@ -4,6 +4,8 @@ A performance-first prototype of a globe containing exactly 1,000,000 logical he
 
 The agreed product direction, staged purchase experience, technical rules, roadmap, and acceptance criteria live in [docs/PRODUCT-DELIVERY-PLAN.md](docs/PRODUCT-DELIVERY-PLAN.md). Treat that document as the source of truth for subsequent product work.
 
+The [5 September 2026 release audit](docs/RELEASE-AUDIT-2026-09-05.md) records commercial and implementation blockers. The agreed plan now prioritises a low-friction purchase journey, exact preview/price integrity, usable mobile placement, and durable linked placements before a paid launch. These are delivery requirements; the current application remains a non-payment prototype.
+
 ## Run
 
 ```bash

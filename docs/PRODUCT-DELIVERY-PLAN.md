@@ -9,6 +9,23 @@ Million Hexagons is an advertising product first and a 3D globe second. The glob
 
 The first objective is to prove that visitors understand the proposition, enjoy exploring the world, and are willing to create a placement. Account systems, real payments, auctions, campaign analytics, and enterprise sales tooling come only after that behaviour is validated.
 
+## Agreed commercial release direction — 5 September 2026
+
+The objective is a polished product that earns revenue by delivering a useful, trustworthy advertising placement with an exceptionally easy purchase journey. The [release audit](RELEASE-AUDIT-2026-09-05.md) records the starting evidence, implementation gaps, and detailed acceptance checks. Its recommendations below are now part of the agreed direction; the audit remains a dated assessment, not a claim that fixes have shipped.
+
+- Preserve Design → Place → Review. The main business-buyer path is upload logo, choose a priced size, accept a suggested available location, review artwork and destination, pay, then receive a durable placement and management/share link. Retain Solid Colour, Paint, and manual location choice; make advanced artwork controls secondary.
+- Keep the offer and one-time price visible on mobile. During Place, use a compact panel that leaves the globe accessible. Provide a suggested valid location and an easy way to find another without manual trial and error.
+- Make one canonical footprint and artwork transform authoritative for the flat preview, globe preview, and committed placement. Requested, selected, reviewed, billed, and committed quantities must match; never silently trim a design at boundaries.
+- Label sample brands and inventory clearly in the prototype. Production inventory and sales claims must come from real records. A paid placement must retain its artwork and working advertiser destination after reload.
+- Add draft recovery, paint undo/redo, accessible navigation, clear conflict recovery, and a direct Edit design route from review. Avoid an unnecessary account-creation detour; choose a secure, low-friction ownership/recovery mechanism during transactional design.
+- Include basic placement pages, globe-focus sharing links, visitor discovery, and destination-click measurement in the transactional MVP. Full campaign dashboards and richer social launch assets remain later work.
+- After payment, provide a persistent confirmation, receipt, publication status, placement link, secure management access, and support route. Clearly distinguish payment received from published when moderation applies.
+- Validate the offer with a focused buyer community, measured funnel events, and observed usability sessions before expanding the commercial scope. Keep the $1-per-cell validation price. Treat audience value and willingness to pay as hypotheses to prove, not consequences of attractive graphics.
+- Treat the fixed inventory as a finite gross revenue opportunity with ongoing operating costs. Define the service commitment behind “permanent”, customer terms, and operating responsibilities before charging buyers; do not promise unmeasured traffic.
+- Do not launch paid purchases until the audit's P0 blockers are resolved and transactional release gates pass: durable ownership, authoritative inventory, atomic reservations, idempotent payment fulfillment, safe destinations, moderation, receipts, and recoverable failure/refund handling.
+
+Execution order: resolve rendering/count integrity, mobile placement, review state, and demo disclosure; complete artwork and accessibility QA with draft/undo recovery; instrument and validate demand; then implement and verify the transactional MVP. A passing build or smoke test alone does not establish release readiness.
+
 ## Governing experience principles
 
 1. Design artwork on a flat hex canvas; use the globe to choose location.
@@ -225,6 +242,8 @@ Goal: safely sell real inventory.
 - Store original and processed artwork in managed object storage.
 - Add URL validation, content moderation, abuse reporting, and takedown controls.
 - Add an operations view for placements, payments, moderation, and inventory.
+- Add durable placement pages, globe-focus sharing links, basic visitor discovery, and destination-click measurement.
+- Provide persistent confirmation, publication status, receipts, secure owner access, destination correction, and support.
 
 Exit criteria:
 
@@ -240,7 +259,7 @@ Goal: make the world attractive to larger brands and repeat buyers.
 - Introduce curated landmark zones and premium pricing only after demand data supports it.
 - Add verified business profiles and campaign scheduling.
 - Add impression/click analytics with transparent methodology.
-- Add shareable placement links, social previews, and campaign launch assets.
+- Extend basic placement sharing with richer social previews and campaign launch assets.
 - Add managed-service creation for large buyers.
 - Add brand-safety, legal, invoicing, and enterprise approval capabilities.
 
