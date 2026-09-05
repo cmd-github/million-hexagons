@@ -8,26 +8,27 @@
     <title>Million Hexagons — Own a piece of the world</title>
   </head>
   <body>
-    <canvas id="world"></canvas>
+    <canvas id="world" aria-label="Interactive advertising globe. Drag to rotate; use the zoom controls to explore."></canvas>
+    <div class="demo-badge">EXPERIENCE PREVIEW <span>No payments &middot; sample brands</span></div>
     <header class="topbar">
       <a class="brand" href="#" aria-label="Million Hexagons home"><span class="mark">MH</span><span><b>MILLION</b><strong>HEXAGONS</strong></span></a>
-      <div class="inventory"><div><span id="soldCount">500,000</span> sold</div><div class="meter"><i id="soldMeter"></i></div><small><span id="availableCount">500,000</span> still available</small></div>
-      <button class="primary" id="claimButton">Claim hexagons <span>＋</span></button>
+      <div class="inventory"><div><span id="soldCount">500,000</span> demo hexagons</div><div class="meter"><i id="soldMeter"></i></div><small><span id="availableCount">500,000</span> available to preview</small></div>
+      <button class="primary" id="claimButton">Create a placement <span>&#8599;</span></button>
     </header>
 
     <aside class="intro glass">
-      <p class="eyebrow">THE INTERNET, REMAPPED</p>
-      <h1>One world.<br><em>One million</em> places.</h1>
-      <p>Buy a permanent piece of the globe for <b>$1 per hexagon</b>. Colour it, shape it into your logo and link it anywhere.</p>
-      <div class="facts"><span><b>1,000,000</b> hexagons</span><span><b>50%</b> available</span><span><b>$1</b> each</span></div>
+      <p class="eyebrow">A SMALL SPACE. A WORLD OF POSSIBILITY.</p>
+      <h1>Your brand.<br><em>Part of<br>the world.</em></h1>
+      <p>One million hexagons. A place for your story.<br>Create a logo, colour or original design.<br><b>$1 per hexagon. One-time pricing.</b></p>
+      <div class="facts"><span><b>1,000,000</b> hexagons</span><span><b>Yours</b> to design</span><span><b>$1</b> each</span></div>
       <button class="secondary" id="exploreButton">Explore the globe</button>
     </aside>
 
     <aside class="activity glass">
-      <div class="panel-title"><span>LIVE ON THE GLOBE</span><i></i></div>
-      <div class="ad-card"><span class="ad-logo coral">N</span><div><b>Nike</b><small>Featured global campaign</small></div></div>
-      <div class="ad-card"><span class="ad-logo blue">G</span><div><b>Google</b><small>Featured global campaign</small></div></div>
-      <div class="ad-card"><span class="ad-logo gold">AK</span><div><b>Independent buyer</b><small>32 connected hexagons</small></div></div>
+      <div class="panel-title"><span>DISCOVER THE POSSIBILITIES</span><i></i></div>
+      <div class="ad-card"><span class="ad-logo coral">N</span><div><b>Nike</b><small>Example brand placement</small></div></div>
+      <div class="ad-card"><span class="ad-logo blue">G</span><div><b>Google</b><small>Example brand placement</small></div></div>
+      <div class="ad-card"><span class="ad-logo gold">AK</span><div><b>Independent creativity</b><small>32 connected hexagons</small></div></div>
       <button class="text-button" id="randomButton">Take me somewhere ↗</button>
     </aside>
 
@@ -35,16 +36,16 @@
     <nav class="globe-controls glass" aria-label="Globe controls"><button id="zoomIn" aria-label="Zoom in">+</button><button id="zoomOut" aria-label="Zoom out">−</button><button id="homeView" aria-label="Re-centre globe">⌂</button></nav>
     <div class="cell-tooltip glass" id="cellTooltip"><span id="cellId">HEX #000000</span><b id="cellOwner">Available</b><small id="cellPosition">0.00° N · 0.00° E</small></div>
 
-    <section class="buy-panel glass" id="buyPanel" aria-hidden="true">
+    <section class="buy-panel glass" id="buyPanel" aria-hidden="true" inert aria-label="Placement studio">
       <button class="close" id="closeBuy" aria-label="Close">×</button>
-      <p class="eyebrow">CREATE A PLACEMENT</p>
+      <p class="eyebrow">PLACEMENT STUDIO</p>
       <div class="flow-progress" aria-label="Creation progress"><i class="active">1</i><span></span><i>2</i><span></span><i>3</i><small>Design</small><small>Place</small><small>Review</small></div>
 
       <div class="flow-screen active" id="typeStep">
-        <h2>What are you creating?</h2>
-        <p class="panel-intro">Choose one. We’ll only show the controls you need.</p>
+        <h2>Make your mark.</h2>
+        <p class="panel-intro">Start with your artwork. We will help you find its place in the world.</p>
         <div class="creation-types">
-          <button type="button" id="logoArtwork"><i>◎</i><b>Logo or image</b><span>Upload artwork and spread it across a compact area</span></button>
+          <button type="button" id="logoArtwork"><i>◎</i><b>Logo or image <em>START HERE</em></b><span>The easiest way to put your brand on the globe</span></button>
           <button type="button" id="colourArtwork"><i>■</i><b>Solid colour</b><span>Create a clean block of connected hexagons</span></button>
           <button type="button" id="paintArtwork"><i>✦</i><b>Paint hexagons</b><span>Make a multicolour design, hex by hex</span></button>
         </div>
@@ -58,60 +59,60 @@
 
         <div class="logo-controls" id="logoControls" hidden>
           <label class="upload-zone">Logo image <span>PNG, JPG, WebP or SVG · up to 4 MB</span><input id="logoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
-          <div class="logo-preview" id="logoPreview"><span>UPLOAD YOUR LOGO</span></div>
+          <p id="uploadStatus" role="status" aria-live="polite">Your artwork stays on this device.</p><div class="logo-preview" id="logoPreview"><span>UPLOAD YOUR LOGO</span></div>
           <div class="logo-palette" id="logoPalette" hidden><span>Colours detected in your logo</span><div id="logoSwatches"></div></div>
         </div>
 
         <div id="sizeControls">
           <span class="field-label">Choose a size</span>
           <div class="size-presets"><button type="button" data-size="50">Small<b>50 · $50</b></button><button type="button" data-size="150" class="active">Medium<b>150 · $150</b></button><button type="button" data-size="400">Large<b>400 · $400</b></button></div>
-          <label class="custom-size">Custom number of hexagons<input id="hexAmount" type="number" min="1" max="10000" step="1" value="150" /></label>
+          <details class="custom-options"><summary>Choose a custom size</summary><label class="custom-size">Custom number of hexagons<input id="hexAmount" type="number" min="1" max="10000" step="1" value="150" /></label></details>
         </div>
 
         <div class="colour-controls" id="colourControls" hidden><label><span id="brandColourLabel">Placement colour</span><input id="brandColor" type="color" value="#5967b0" /></label></div>
         <div class="custom-paint-tools" id="customPaintTools" hidden>
-          <div><button type="button" id="paintCells" aria-pressed="true"><i id="paintColourChip"></i>Paint</button><button type="button" id="eraseCells" aria-pressed="false">Erase</button><button type="button" id="clearPaint">Clear</button></div>
+          <div><button type="button" id="paintCells" aria-pressed="true"><i id="paintColourChip"></i>Paint</button><button type="button" id="eraseCells" aria-pressed="false">Erase</button><button type="button" id="clearPaint">Clear</button><button type="button" id="undoPaint" disabled aria-label="Undo painting">Undo</button><button type="button" id="redoPaint" disabled aria-label="Redo painting">Redo</button></div>
           <small>Choose a colour, then click or drag over the flat hex canvas.</small>
         </div>
 
         <div class="hex-editor"><canvas id="designCanvas" width="680" height="400"></canvas><span id="editorEmpty">Your placement preview</span></div>
 
-        <div class="logo-options" id="logoOptions" hidden>
+        <details class="logo-options" id="logoOptions" hidden><summary>Fine-tune your artwork</summary>
           <div class="segmented"><button type="button" data-treatment="span" class="active">One logo across area</button><button type="button" data-treatment="repeat">Repeat in each hex</button></div>
           <select id="logoTreatment" hidden><option value="span">span</option><option value="repeat">repeat</option></select>
           <div class="field-row"><label>Scale<input id="logoScale" type="range" min="65" max="140" value="100" /></label><label>Direction<select id="logoOrientation"><option value="0">Upright</option><option value="90">Turn right</option><option value="-90">Turn left</option><option value="180">Upside down</option></select></label></div>
           <select id="logoFit" hidden><option value="contain">contain</option></select>
           <button class="text-button reset-logo" type="button" id="resetLogo">Reset logo</button>
           <small class="logo-guidance" id="logoGuidance">Upload a logo to see its true hex-mosaic preview.</small>
-        </div>
-        <div class="design-footer"><div class="mini-price"><span id="designCount">150 hexagons</span><b id="price">$150</b></div><button class="primary" id="toPlacement" disabled>Choose its location →</button></div>
+        </details>
+        <div class="design-footer"><div class="mini-price"><span id="designCount">150 hexagons</span><b id="price">$150</b></div><button class="primary" id="toPlacement" disabled>Find my spot &rarr;</button></div>
       </div>
 
       <div class="flow-screen" id="placeStep" hidden>
         <button class="back-link" type="button" id="backToDesign">← Edit design</button>
         <h2>Choose its location</h2>
-        <p class="panel-intro">Move the globe, then switch to Place and click an available area.</p>
-        <div class="interaction-modes"><button type="button" id="moveGlobeMode" class="active"><b>✥ Move globe</b><span>Drag to rotate</span></button><button type="button" id="placeDesignMode"><b>⬡ Place design</b><span>Click a location</span></button></div>
+        <p class="panel-intro">We found a space for your design. Keep it, find another, or place it yourself.</p>
+        <button class="secondary" id="suggestLocation">Find another spot</button><div class="interaction-modes"><button type="button" id="moveGlobeMode" class="active"><b>✥ Move globe</b><span>Drag to rotate</span></button><button type="button" id="placeDesignMode"><b>⬡ Place design</b><span>Click a location</span></button></div>
         <div class="availability-key" aria-label="Hexagon availability key"><span><i class="available"></i>Available</span><span><i class="purchased"></i>Purchased</span><span><i class="chosen"></i>Your design</span></div>
-        <p class="step" id="selectionStatus">Move the globe to find the right location.</p>
+        <p class="step" id="selectionStatus" role="status" aria-live="polite">Move the globe to find the right location.</p>
         <div class="place-summary"><span id="placeCount">150 hexagons</span><b id="placePrice">$150</b></div>
         <button class="primary full" id="toReview" disabled>Review placement →</button>
       </div>
 
       <div class="flow-screen" id="reviewStep" hidden>
         <button class="back-link" type="button" id="backToPlacement">← Change location</button>
-        <h2>Review your placement</h2>
-        <p class="panel-intro">This is exactly how it will appear on the globe.</p>
+        <h2>Looking good?</h2>
+        <p class="panel-intro">Your exact design, in its chosen place. Take a look around before adding it.</p>
         <div class="review-card"><canvas id="reviewCanvas" width="680" height="400"></canvas><div><span id="reviewKind">Logo placement</span><b id="reviewCount">150 hexagons</b></div></div>
-        <p class="review-warning" id="reviewWarning" hidden></p>
+        <button class="text-button" id="reviewEditDesign">Edit artwork &amp; size</button><p class="review-warning" id="reviewWarning" hidden></p>
         <label>Website to open when clicked <span class="optional">Optional</span><input id="website" type="url" placeholder="https://yourcompany.com" /></label>
-        <div class="price review-price"><span>Total</span><b id="reviewPrice">$150</b><small>$1 per hexagon · one-time</small></div>
+        <p id="websiteError" role="alert" hidden></p><div class="review-footer"><div class="price review-price"><span>Total</span><b id="reviewPrice">$150</b><small>$1 per hexagon · one-time</small></div>
         <button class="primary full" id="previewPurchase">Add this preview to the globe</button>
-        <small class="mock-note">Prototype checkout — no payment will be taken.</small>
+        <small class="mock-note">Prototype checkout — no payment will be taken.</small></div>
       </div>
     </section>
 
-    <div class="toast glass" id="toast"><b>Placement added</b><span>Your campaign is now previewing on the globe.</span></div>
+    <div class="toast glass" id="toast" role="status"><b>Welcome to the world.</b><span>Your preview is on the globe for this session.</span><a id="placementWebsite" hidden target="_blank" rel="noopener noreferrer">Visit website</a><button id="dismissToast" aria-label="Dismiss confirmation">&times;</button></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

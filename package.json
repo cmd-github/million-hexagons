@@ -7,7 +7,9 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node scripts/smoke.mjs"
+    "test": "node scripts/smoke.mjs",
+    "test:geometry": "node --test scripts/geometry.test.mjs",
+    "test:visual": "node scripts/visual-qa.mjs"
   },
   "dependencies": {
     "simple-icons": "^16.29.0",

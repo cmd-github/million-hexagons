@@ -65,3 +65,58 @@ body.detail-view:not(.selecting) .intro{opacity:0;transform:translateX(-35px);po
 .review-card{overflow:hidden;border:1px solid var(--line);border-radius:15px;background:#071722}.review-card canvas{display:block;width:100%;height:190px;object-fit:cover}.review-card>div{display:flex;justify-content:space-between;padding:12px 14px;background:#0d222d}.review-card span{color:#83999e;font-size:9px}.review-card b{font-size:10px}.review-warning{padding:10px 12px;border:1px solid rgba(255,190,74,.25);border-radius:10px;background:rgba(255,190,74,.08);color:#dfbe7e;font-size:9px;line-height:1.5}.review-price{margin-top:15px}
 body.selecting:not(.placing-design) #world{cursor:grab}body.selecting:not(.placing-design) #world:active{cursor:grabbing}body.placing-design #world{cursor:crosshair}
 @media(max-width:620px){.buy-panel{top:82px;bottom:8px;right:8px;width:calc(100% - 16px);padding:21px}.flow-progress{margin-right:38px}.hex-editor{height:210px}.design-footer{margin-inline:-21px;padding-inline:21px}}
+/* Studio redesign: the globe and controls occupy separate, usable regions. */
+:root{--lime:#d5fa77;--line:rgba(190,214,213,.18)}
+.topbar{height:88px;padding:20px 32px}.brand{letter-spacing:.045em}.mark{border-radius:50%;transform:none}.primary{box-shadow:none;border-radius:12px}.primary:hover{background:#e1ff9b}.secondary:hover{background:rgba(255,255,255,.06)}
+button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--lime);outline-offset:4px}h2:focus{outline:none}
+.demo-badge{position:fixed;z-index:6;bottom:28px;left:32px;color:#c8dfcf;font:10px Manrope,sans-serif;letter-spacing:.12em}.demo-badge span{display:block;margin-top:6px;color:#81969b;letter-spacing:0}
+.inventory{display:none}.intro{top:24%;left:4%;width:340px;background:transparent;border:0;box-shadow:none;backdrop-filter:none;padding:0}.intro h1{font-size:62px;line-height:1.02;letter-spacing:-.06em}.intro .eyebrow{font-size:9px;line-height:1.6;max-width:240px}.intro>p:not(.eyebrow){font-size:14px;line-height:1.8}.intro .facts{margin:24px 0}.intro .secondary{width:auto;padding:13px 24px}.activity{top:auto;bottom:70px;right:32px;width:240px;background:rgba(8,22,34,.65)}.activity .ad-card{display:none}.activity .panel-title{margin-bottom:0}.activity .text-button{padding-top:10px}.hint{bottom:30px}.globe-controls{right:24px}
+.creating .intro,.creating .activity{opacity:0;visibility:hidden}.creating .demo-badge{display:none}.creating #claimButton{visibility:hidden}.creating .hint{left:calc((100% - 490px)/2)}.creating .globe-controls{right:510px}
+.buy-panel{top:16px;right:16px;bottom:16px;width:458px;border-radius:24px;padding:28px;background:#0d1b24;box-shadow:0 20px 80px #0005}.buy-panel .close{width:40px;height:40px;top:18px;right:18px}.buy-panel>.eyebrow{font-size:10px;margin-bottom:22px}.flow-progress{margin-bottom:26px}.flow-progress small{font-size:10px;color:#b0c0c3}.flow-screen h2{font-size:32px;line-height:1.1}.flow-screen .panel-intro{font-size:13px;color:#9fb1b6;line-height:1.6;margin:12px 0 20px}.creation-types{gap:12px;margin-top:28px}.creation-types button{padding:22px 16px;min-height:95px}.creation-types button>b{font-size:15px}.creation-types button>span{font-size:12px;line-height:1.5}.creation-types em{font:normal 8px Manrope;color:var(--lime);margin-left:5px}.creation-types #logoArtwork{border-color:#d5fa7766;background:linear-gradient(135deg,#21352b,#10232a)}
+label,.field-label{font-size:12px;color:#bdcdcf}.upload-zone{padding:16px;margin-top:0;background:#142730}.upload-zone>span{float:none;display:block;margin-top:6px;font-size:10px;color:#a0b5bb}input[type=file]{font-size:12px}.logo-preview{display:none}.logo-palette{padding:8px 0;background:none}.logo-palette>span{font-size:10px}.logo-palette button{width:30px;height:30px}.size-presets button{font-size:12px;min-height:64px}.size-presets button b{font-size:11px;margin-top:8px;color:#a9bec1}.custom-options{margin-top:14px}summary{cursor:pointer;color:#a7bec0;font-size:12px;padding:8px 0}.custom-options input{font-size:14px}.hex-editor{height:auto;aspect-ratio:1.7;background:radial-gradient(ellipse at center,#233b46,#0a1720);border-color:#8caaa033;box-shadow:none;margin:20px 0}.hex-editor canvas{object-fit:contain}.hex-editor>span{font-size:12px}.logo-options{border-top:1px solid var(--line);padding-top:4px}.logo-options summary{padding:12px 0}.segmented button{font-size:11px;min-height:44px}.design-footer{bottom:-22px;margin:22px -28px -22px;padding:18px 28px;background:#0d1b24}.mini-price span{font-size:10px}.mini-price b{font-size:24px}.design-footer .primary{font-size:12px;min-height:48px}.back-link{font-size:12px;min-height:30px;margin-bottom:8px}.interaction-modes button{min-height:62px}.interaction-modes b{font-size:12px}.interaction-modes span{font-size:10px}.availability-key{font-size:10px}.step{font-size:12px;line-height:1.5}.place-summary{font-size:13px}.place-summary b{font-size:22px}.review-card canvas{height:auto;aspect-ratio:1.7;object-fit:contain}.review-card span,.review-card b{font-size:12px}.review-warning{font-size:11px}.mock-note{font-size:11px;color:#9bafb3;line-height:1.5}.price small{font-size:11px}.price{margin-bottom:16px}.custom-paint-tools button{min-height:44px;font-size:11px;padding:6px}.custom-paint-tools small{font-size:11px}.toast{bottom:30px;max-width:calc(100% - 32px);padding-right:50px}.toast a{display:block;color:var(--lime);margin-top:10px;font-size:13px}.toast button{position:absolute;right:12px;top:12px;background:none;border:0;color:white;font-size:24px}.toast span{line-height:1.5}#websiteError{color:#ffb7b7;font-size:12px}
+@media(min-width:1100px){body:not(.creating) #world{left:120px}}
+@media(max-width:700px), (max-width:900px) and (orientation:portrait){
+ .topbar{height:68px;padding:12px 16px}.mark{width:36px;height:36px}.topbar .primary{padding:11px 13px;font-size:11px}.brand b,.brand strong{font-size:10px}.intro{top:82px;left:22px;width:calc(100% - 44px);pointer-events:none}.intro h1{font-size:34px;line-height:1.03}.intro h1 br:nth-of-type(2){display:none}.intro .eyebrow{display:none}.intro>p:not(.eyebrow){display:block;font-size:12px;line-height:1.5;max-width:260px;margin-top:10px}.intro .facts,.intro .secondary,.activity{display:none}.demo-badge{left:20px;bottom:20px;font-size:8px}.demo-badge span{font-size:10px}.globe-controls{right:12px;top:auto;bottom:18px;transform:none;display:flex}.globe-controls button{width:44px;height:44px}.hint{display:none}
+ .buy-panel{inset:72px 8px 8px;width:auto;padding:22px;border-radius:22px;transform:translateY(calc(100% + 90px))}.buy-panel.open{transform:none}.buy-panel>.eyebrow{display:none}.flow-progress{margin:0 54px 20px 0}.flow-screen h2{font-size:27px}.flow-screen .panel-intro{font-size:12px}.creation-types{margin-top:20px}.creation-types button{min-height:88px}.design-footer{margin-inline:-22px;padding-inline:22px}.hex-editor{margin:14px 0}.creating .globe-controls{right:12px;bottom:auto;top:76px}.creating .topbar{pointer-events:none}.creating .topbar .brand{pointer-events:none}.creating .intro{display:none}
+ body[data-flow=place] .buy-panel,body[data-flow=review] .buy-panel{inset:auto 0 0;height:min(320px,48dvh);border-radius:22px 22px 0 0;padding:14px 18px 12px;transform:none;border-bottom:0}
+ body[data-flow=review] .buy-panel{height:55dvh}
+ body[data-flow=place] .flow-progress,body[data-flow=review] .flow-progress{display:none}
+ body[data-flow=place] .buy-panel .close,body[data-flow=review] .buy-panel .close{top:8px;right:12px;width:36px;height:36px}
+ body[data-flow=place] #placeStep{display:grid;grid-template-columns:1fr 1fr;column-gap:10px}
+ body[data-flow=place] #backToDesign{grid-column:1;margin:0;justify-self:start;min-height:28px}
+ body[data-flow=place] #placeStep h2{font-size:20px;grid-column:1/-1;margin:3px 0 8px}
+ body[data-flow=place] #placeStep>.panel-intro,body[data-flow=place] .availability-key{display:none}
+ body[data-flow=place] #suggestLocation{grid-column:2;grid-row:1;padding:3px;font-size:11px;border:0;min-height:28px;margin-right:28px;width:auto;color:var(--lime)}
+ body[data-flow=place] .interaction-modes{grid-column:1/-1;margin:0 0 8px}
+ body[data-flow=place] .interaction-modes button{padding:8px;min-height:48px}
+ body[data-flow=place] #selectionStatus{grid-column:1/-1;padding:8px 10px;font-size:11px;min-height:35px}
+ body[data-flow=place] .place-summary{border:0;margin:8px 0 0;padding:0;display:block;align-self:center;font-size:10px}
+ body[data-flow=place] .place-summary b{display:block;font-size:20px}
+ body[data-flow=place] #toReview{font-size:12px;min-height:46px;padding:10px;margin-top:8px}
+ body[data-flow=review] .review-card{max-width:210px;margin:auto}body[data-flow=review] .review-card canvas{max-height:112px}body[data-flow=review] .panel-intro{margin:6px 0 10px}body[data-flow=review] .review-card>div{padding:8px}.review-card b,.review-card span{font-size:10px}
+ body[data-flow=type] #world,body[data-flow=design] #world{opacity:.22;pointer-events:none}
+}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+.buy-panel{transition:transform .25s ease}
+@media(max-width:700px), (max-width:900px) and (orientation:portrait){body[data-flow=place] .buy-panel,body[data-flow=review] .buy-panel{transition:none}}
+#uploadStatus{font-size:11px;line-height:1.5;color:#a8bec1;margin:10px 0}.creating .topbar{z-index:4}
+@media(max-width:700px), (max-width:900px) and (orientation:portrait){body[data-flow=review] #previewPurchase{position:sticky;bottom:0;z-index:2;box-shadow:0 -10px 20px #0d1b24}.buy-panel{scroll-padding-bottom:70px}}
+@media(max-width:700px), (max-width:900px) and (orientation:portrait){
+ body[data-flow=review] .review-footer{position:sticky;bottom:-12px;background:#0d1b24;padding:10px 0 12px;z-index:3;border-top:1px solid var(--line)}
+ body[data-flow=review] .review-footer .price{display:flex;align-items:center;gap:8px;border:0;padding:0;margin:0 0 10px}
+ body[data-flow=review] .review-footer .price b{margin-left:auto;font-size:22px;order:3}
+ body[data-flow=review] .review-footer .price small{font-size:9px}
+ body[data-flow=review] #previewPurchase{position:static;box-shadow:none;min-height:46px;padding:12px;font-size:12px}
+ body[data-flow=review] .mock-note{font-size:9px;margin-top:6px}
+}
+@media(max-width:700px), (max-width:900px) and (orientation:portrait){
+ body[data-flow=review] .panel-intro{display:none}
+ body[data-flow=review] .flow-screen h2{font-size:24px;margin-bottom:10px}
+ body[data-flow=review] .review-card{max-width:180px}
+ body[data-flow=review] .review-card canvas{height:66px;aspect-ratio:auto;object-fit:contain}
+ body[data-flow=review] .review-card>div{padding:6px 8px}
+ body[data-flow=review] #reviewEditDesign{padding:8px 0;font-size:11px}
+ body[data-flow=review] .review-warning{font-size:10px;margin:4px 0;padding:7px 9px}
+ body[data-flow=review] label{margin-top:8px;font-size:11px}
+ body[data-flow=review] #website{padding:10px;font-size:14px;margin-top:5px}
+}

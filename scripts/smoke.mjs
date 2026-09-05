@@ -12,6 +12,8 @@ page.on('console', (message) => { if (message.type() === 'error') errors.push(me
 
 const globePoints = [[720, 450], [620, 430], [820, 430], [550, 520], [850, 520], [650, 330], [780, 600], [470, 390]];
 async function placeAvailableArea() {
+  await page.click('#suggestLocation');
+  if (await page.locator('#toReview').isEnabled()) return;
   for (const [x, y] of globePoints) {
     await page.mouse.click(x, y);
     if (await page.locator('#toReview').isEnabled()) return;
@@ -28,6 +30,7 @@ await page.click('#logoArtwork');
 if (!(await page.locator('#designStep').isVisible())) errors.push('Logo design step did not open');
 if (await page.locator('#toPlacement').isEnabled()) errors.push('Logo placement enabled before upload');
 await page.setInputFiles('#logoUpload', 'scripts/fixtures/test-logo.svg');
+await page.locator('#logoOptions summary').click();
 await page.selectOption('#logoOrientation', '180');
 const logoRotation = await page.locator('#logoPreview').evaluate((element) => getComputedStyle(element).getPropertyValue('--logo-rotation').trim());
 if (logoRotation !== '180deg') errors.push(`Logo rotation preview was ${logoRotation || 'not set'}`);

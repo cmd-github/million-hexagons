@@ -87,6 +87,8 @@ The finished placement becomes a preview that the buyer positions on the globe.
 - In Place design mode, click or tap positions the complete design and wheel or pinch still zooms.
 - Use a prominent Move globe / Place design segmented control.
 - On desktop, holding Space may temporarily activate Move globe as a power-user shortcut.
+- Suggest a complete available footprint on entering Place. Keep Move globe as the default and offer Find another spot before requiring manual positioning.
+- On mobile, reserve separate vertical regions for the globe and the placement/review sheet. Resize the camera and picking coordinates to the visible canvas; controls must not cover the central placement surface.
 - Automatically keep uploaded artwork geographically upright; retain manual rotation controls in the design step.
 - Reject locations that overlap purchased inventory and explain why.
 - Show the full proposed footprint before review.
@@ -204,7 +206,7 @@ Goal: make the current concept trustworthy enough for hands-on evaluation.
 - [ ] Complete human visual QA of every step at desktop and mobile sizes.
 - [ ] Test the supplied Birdcage logo at 50, 150, and 400 hexagons.
 - [ ] Fix any remaining discrepancy between flat preview, placement preview, and committed result.
-- [ ] Add lightweight undo/redo to the paint editor.
+- [x] Add lightweight undo/redo to the paint editor.
 
 Exit criteria:
 
@@ -275,10 +277,13 @@ Goal: make the world attractive to larger brands and repeat buyers.
 
 ## Validation checklist
 
+The studio redesign and its recorded browser checks are described in [PURCHASE-REDESIGN-QA.md](PURCHASE-REDESIGN-QA.md). These agent-driven checks do not replace observed first-time-user sessions or the outstanding Birdcage artwork review.
+
 For every meaningful purchase-flow change:
 
 - Run `npm run build`.
 - Run the browser smoke journey in `scripts/smoke.mjs` against the active local server.
+- Run `npm run test:geometry` for footprint changes and `npm run test:visual` for the desktop/mobile journey and screenshot matrix. Set `SMOKE_URL` to the active server URL.
 - Check Logo, Solid Colour, and Paint paths separately.
 - Check 50, 150, and 400-cell placements.
 - Check an occupied-area conflict and a valid placement.

@@ -13,7 +13,29 @@ npm install
 npm run dev
 ```
 
-## Prototype architecture
+## Placement studio and visual checks
+
+The purchase prototype keeps Design → Place → Review. Logo is the recommended starting path; custom sizes and artwork adjustments expand when needed. Place suggests an available footprint automatically, with Find another spot and separate Move/Place controls. Paint includes undo/redo. Review keeps its edit routes, validates optional HTTP(S) destinations, and adds a session preview without taking payment. Click a committed session placement to reopen its website action. Refresh still resets these previews; this is not durable ownership or real checkout.
+
+On mobile, exploration gives the globe its own region below the introduction. Place and Review reserve a separate canvas area above a scrollable bottom sheet; pointer coordinates and the camera use that actual canvas size. Desktop uses a separate studio sidebar. The grid is quieter during placement and the old decorative triangular wireframe has been removed.
+
+`src/placements/geometry.js` defines shared compact footprints and parity-safe hex translation. Flat previews and globe territories use the same raster artwork routine in `src/main.js`, including repeat and quarter-turn transforms. Committed and preview territories use an unlit, non-tone-mapped material to preserve advertiser colours. SVG uploads are rasterized before crop calculations to avoid browser source-rectangle inconsistencies.
+
+Validation (start a dev/preview server first):
+
+```powershell
+npm run build
+npm run preview -- --port 4181
+# In another terminal:
+$env:SMOKE_URL = 'http://127.0.0.1:4181'
+npm test
+npm run test:geometry
+npm run test:visual
+```
+
+The visual journey runner writes screenshots to ignored `artifacts/visual-qa/` for inspection. It uses installed Chrome or Edge on Windows, falling back to Playwright's Chromium if available. Screenshots require human/agent review; passing navigation assertions does not itself establish visual quality. See [the redesign verification notes](docs/PURCHASE-REDESIGN-QA.md) for coverage and remaining release work.
+
+## Rendering architecture
 
 The million cells are logical addresses, not one million DOM or Three.js objects. A campaign atlas supplies the advertising artwork while a procedural GPU shader draws resolution-independent hexagon edges. Pointer coordinates map deterministically to cell IDs. Because this is a mapped interactive surface rather than a literal geodesic polyhedron, no visible pentagonal correction faces are needed.
 
