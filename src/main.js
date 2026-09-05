@@ -295,13 +295,14 @@ globeMaterial.onBeforeCompile = (shader) => {
       vec4 purchasedColour = texture2D(purchasedColourMap, clamp(occupancyUv, vec2(0.0001), vec2(0.9999)));
       // Available inventory carries the richer cobalt/cyan globe treatment.
       // Purchased artwork is deliberately left untouched.
+      float oceanFacing = clamp(dot(normalize(vNormal), normalize(vViewPosition)), 0.0, 1.0);
       float oceanLatitude = 1.0 - min(1.0, abs(vMapUv.y - 0.48) * 1.65);
       float oceanVariation = sin(vMapUv.x * 17.0 + vMapUv.y * 9.0) * 0.5 + 0.5;
-      float oceanLight = clamp(0.28 + oceanLatitude * 0.34 + oceanVariation * 0.10, 0.0, 1.0);
-      vec3 oceanDeep = vec3(0.004, 0.026, 0.115);
-      vec3 oceanBright = vec3(0.006, 0.245, 0.72);
+      float oceanLight = clamp(0.22 + oceanFacing * 0.52 + oceanLatitude * 0.12 + oceanVariation * 0.08, 0.0, 1.0);
+      vec3 oceanDeep = vec3(0.003, 0.035, 0.18);
+      vec3 oceanBright = vec3(0.0, 0.38, 0.98);
       vec3 oceanColour = mix(oceanDeep, oceanBright, oceanLight);
-      diffuseColor.rgb = mix(diffuseColor.rgb, oceanColour, availableCell * 0.94);
+      diffuseColor.rgb = mix(diffuseColor.rgb, oceanColour, availableCell * 0.98);
       vec2 absoluteHex = abs(localHex);
       float hexDistance = max(absoluteHex.x / 0.8660254, absoluteHex.y + absoluteHex.x * 0.5773503);
       float cellPixels = 1.0 / max(fwidth(gridPoint.x) / 1.7320508, fwidth(gridPoint.y) / 1.5);
@@ -327,8 +328,13 @@ globeMaterial.onBeforeCompile = (shader) => {
       diffuseColor.rgb = mix(diffuseColor.rgb, hoverInk, hexEdge * hoveredCell * 0.82);
     #endif`
   );
+  shader.fragmentShader = shader.fragmentShader.replace(
+    '#include <emissivemap_fragment>',
+    `#include <emissivemap_fragment>
+    totalEmissiveRadiance += oceanColour * availableCell * (0.18 + oceanFacing * 0.16);`
+  );
 };
-globeMaterial.customProgramCacheKey = () => 'million-hexagons-cobalt-globe-v7';
+globeMaterial.customProgramCacheKey = () => 'million-hexagons-luminous-cobalt-v8';
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 192, 128), globeMaterial);
 sphere.receiveShadow = true;
 globe.add(sphere);
@@ -341,7 +347,26 @@ globe.add(wire);
 
 const atmosphere = new THREE.Mesh(
   new THREE.SphereGeometry(radius + .19, 96, 64),
-  new THREE.MeshBasicMaterial({ color: 0x168dff, transparent: true, opacity: .15, side: THREE.BackSide, blending: THREE.AdditiveBlending })
+  new THREE.ShaderMaterial({
+    uniforms: { glowStrength: { value: .72 } },
+    vertexShader: `varying vec3 viewNormal;
+      void main(){
+        viewNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `uniform float glowStrength;
+      varying vec3 viewNormal;
+      void main(){
+        float fresnel = pow(1.0 - abs(viewNormal.z), 2.35);
+        vec3 glow = mix(vec3(0.0, 0.22, 0.9), vec3(0.05, 0.75, 1.0), fresnel);
+        gl_FragColor = vec4(glow, fresnel * glowStrength);
+      }`,
+    transparent: true,
+    side: THREE.BackSide,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    toneMapped: false,
+  })
 );
 globe.add(atmosphere);
 
@@ -1518,7 +1543,7 @@ function animate() {
     if (Math.abs(distance - cameraDistanceTarget) < .005) cameraDistanceTarget = null;
   }
   document.body.classList.toggle('detail-view', camera.position.length() < globeFitDistance() * .72);
-  atmosphere.material.opacity = .14 + Math.sin(clock.getElapsedTime() * .7) * .014;
+  atmosphere.material.uniforms.glowStrength.value = .70 + Math.sin(clock.getElapsedTime() * .7) * .035;
   renderer.render(scene, camera);
 }
 animate();
