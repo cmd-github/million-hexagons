@@ -43,7 +43,7 @@ The million cells are logical addresses, not one million DOM or Three.js objects
 
 The renderer uses distance-based detail: the micro-grid is suppressed when its cells would be smaller than a screen pixel, eliminating full-globe shimmer, then fades into a connected HD honeycomb while zooming. Individual occupied cells resolve to consistent campaign marks, while purchased territories can carry one logo continuously across many cells.
 
-Available inventory uses an almost-black midnight-blue globe treatment with a restrained, camera-fixed cobalt hotspot, a gently lifted south pole, and a narrow but visible electric-blue Fresnel edge. This is a material and lighting treatment only: it does not add continent geometry or recolour advertiser artwork, purchased placements, or placement-state overlays.
+Available inventory uses an almost-black midnight-blue globe treatment with a restrained, camera-fixed cobalt hotspot, a gently lifted south pole, and an electric-blue Fresnel light attached directly to the globe surface. Available cells are restored after artwork sampling so neighbouring advertiser colours cannot bleed across territory boundaries. This treatment does not add continent geometry or recolour advertiser artwork, purchased placements, or placement-state overlays.
 
 The seeded marketplace preview uses recognisable brand marks from Simple Icons alongside repeated placements and deterministic connected clusters of 20–50 cells. These brands are visual examples only and do not imply participation or endorsement.
 

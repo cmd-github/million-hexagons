@@ -302,15 +302,19 @@ globeMaterial.onBeforeCompile = (shader) => {
       // Lift the geographic south pole separately, while keeping it below the hotspot.
       float southPoleLift = smoothstep(0.72, 1.0, vMapUv.y);
       float oceanLight = clamp(0.085 + oceanHotspot * 0.50 + southPoleLift * 0.20, 0.0, 1.0);
+      float globeFacing = clamp(dot(normalize(vNormal), normalize(vViewPosition)), 0.0, 1.0);
+      float attachedRim = pow(1.0 - globeFacing, 35.0);
       vec3 oceanDeep = vec3(0.0015, 0.009, 0.045);
-      vec3 oceanBright = vec3(0.0, 0.16, 0.56);
+      vec3 oceanBright = vec3(0.0, 0.045, 0.16);
       vec3 oceanColour = mix(oceanDeep, oceanBright, oceanLight);
-      diffuseColor.rgb = mix(diffuseColor.rgb, oceanColour, availableCell * 0.98);
       vec2 absoluteHex = abs(localHex);
       float hexDistance = max(absoluteHex.x / 0.8660254, absoluteHex.y + absoluteHex.x * 0.5773503);
       float cellPixels = 1.0 / max(fwidth(gridPoint.x) / 1.7320508, fwidth(gridPoint.y) / 1.5);
       float artworkSnap = smoothstep(5.0, 10.0, cellPixels);
+      // Resolve artwork first, then restore every available cell to the ocean
+      // material so filtered campaign pixels cannot bleed into its neighbours.
       diffuseColor.rgb = mix(smoothArtwork, cellArtwork, artworkSnap);
+      diffuseColor.rgb = mix(diffuseColor.rgb, oceanColour, availableCell * 0.98);
       diffuseColor.rgb = mix(diffuseColor.rgb, purchasedColour.rgb, purchasedColour.a);
       float detailVisibility = smoothstep(1.6, 4.5, cellPixels);
       float edgeWidth = max(fwidth(hexDistance) * 1.15, 0.002);
@@ -334,10 +338,11 @@ globeMaterial.onBeforeCompile = (shader) => {
   shader.fragmentShader = shader.fragmentShader.replace(
     '#include <emissivemap_fragment>',
     `#include <emissivemap_fragment>
-    totalEmissiveRadiance += oceanColour * availableCell * oceanHotspot * 0.075;`
+    totalEmissiveRadiance += oceanColour * availableCell * oceanHotspot * 0.075;
+    totalEmissiveRadiance += vec3(0.01, 0.24, 0.78) * attachedRim * 0.28;`
   );
 };
-globeMaterial.customProgramCacheKey = () => 'million-hexagons-midnight-cobalt-v10';
+globeMaterial.customProgramCacheKey = () => 'million-hexagons-midnight-cobalt-v11';
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 192, 128), globeMaterial);
 sphere.receiveShadow = true;
 globe.add(sphere);
@@ -347,31 +352,6 @@ const wire = new THREE.Mesh(
   new THREE.MeshBasicMaterial({ color: 0xb9f8ed, wireframe: true, transparent: true, opacity: 0 })
 );
 globe.add(wire);
-
-const atmosphere = new THREE.Mesh(
-  new THREE.SphereGeometry(radius + .045, 96, 64),
-  new THREE.ShaderMaterial({
-    uniforms: { glowStrength: { value: 1.65 } },
-    vertexShader: `varying vec3 viewNormal;
-      void main(){
-        viewNormal = normalize(normalMatrix * normal);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }`,
-    fragmentShader: `uniform float glowStrength;
-      varying vec3 viewNormal;
-      void main(){
-        float fresnel = pow(1.0 - abs(viewNormal.z), 6.8);
-        vec3 glow = mix(vec3(0.0, 0.16, 0.72), vec3(0.03, 0.62, 1.0), fresnel);
-        gl_FragColor = vec4(glow, fresnel * glowStrength);
-      }`,
-    transparent: true,
-    side: THREE.BackSide,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    toneMapped: false,
-  })
-);
-globe.add(atmosphere);
 
 scene.add(new THREE.HemisphereLight(0xe8fbff, 0x07121c, 2.7));
 const key = new THREE.DirectionalLight(0xffffff, 3.6);
@@ -1546,7 +1526,6 @@ function animate() {
     if (Math.abs(distance - cameraDistanceTarget) < .005) cameraDistanceTarget = null;
   }
   document.body.classList.toggle('detail-view', camera.position.length() < globeFitDistance() * .72);
-  atmosphere.material.uniforms.glowStrength.value = 1.63 + Math.sin(clock.getElapsedTime() * .7) * .02;
   renderer.render(scene, camera);
 }
 animate();
