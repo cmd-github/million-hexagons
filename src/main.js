@@ -324,18 +324,18 @@ globeMaterial.onBeforeCompile = (shader) => {
       float southPoleLift = smoothstep(0.72, 1.0, vMapUv.y);
       float globeFacing = clamp(dot(normalize(vNormal), normalize(vViewPosition)), 0.0, 1.0);
       float attachedRim = pow(1.0 - globeFacing, 35.0);
+      vec2 absoluteHex = abs(localHex);
+      float hexDistance = max(absoluteHex.x / 0.8660254, absoluteHex.y + absoluteHex.x * 0.5773503);
       float plateSeed = fract(sin(dot(macroAddress, vec2(127.1, 311.7))) * 43758.5453);
       float plateBand = floor(plateSeed * 4.0) / 3.0;
-      float plateAccent = step(0.96, fract(sin(dot(macroAddress, vec2(269.5, 183.3))) * 43758.5453));
       float macroVisibility = smoothstep(0.25, 1.15, cellPixels);
-      vec3 farOcean = vec3(0.0015, 0.007, 0.025);
-      vec3 platedOcean = mix(vec3(0.001, 0.004, 0.014), vec3(0.002, 0.008, 0.021), plateBand);
-      platedOcean += plateAccent * vec3(0.0003, 0.0015, 0.004);
+      vec3 farOcean = vec3(0.0013, 0.006, 0.019);
+      vec3 platedOcean = mix(vec3(0.0012, 0.0055, 0.017), vec3(0.0015, 0.0065, 0.020), plateBand);
       vec3 oceanColour = mix(farOcean, platedOcean, macroVisibility);
       oceanColour += oceanHotspot * vec3(0.0, 0.012, 0.038);
       oceanColour += southPoleLift * vec3(0.0, 0.006, 0.016);
-      vec2 absoluteHex = abs(localHex);
-      float hexDistance = max(absoluteHex.x / 0.8660254, absoluteHex.y + absoluteHex.x * 0.5773503);
+      float plateFace = 1.0 - smoothstep(0.18, 0.9, hexDistance);
+      oceanColour += plateFace * detailVisibility * vec3(0.0004, 0.0018, 0.0055);
       float artworkSnap = smoothstep(5.0, 10.0, cellPixels);
       // Resolve artwork first, then restore every available cell to the ocean
       // material so filtered campaign pixels cannot bleed into its neighbours.
@@ -344,7 +344,7 @@ globeMaterial.onBeforeCompile = (shader) => {
       diffuseColor.rgb = mix(diffuseColor.rgb, purchasedColour.rgb, purchasedColour.a);
       float edgeWidth = max(fwidth(hexDistance) * 1.15, 0.002);
       float hexEdge = 1.0 - smoothstep(0.0, edgeWidth, 1.0 - hexDistance);
-      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.62, hexEdge * detailVisibility * 0.26);
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.58, hexEdge * detailVisibility * 0.34);
 
       // Buying mode uses unmistakably different fills for available and sold cells.
       vec3 purchasedFill = diffuseColor.rgb * 0.34 + vec3(0.012, 0.018, 0.022);
@@ -367,7 +367,7 @@ globeMaterial.onBeforeCompile = (shader) => {
     totalEmissiveRadiance += vec3(0.01, 0.24, 0.78) * attachedRim * 0.28;`
   );
 };
-globeMaterial.customProgramCacheKey = () => 'million-hexagons-midnight-macro-plates-v13';
+globeMaterial.customProgramCacheKey = () => 'million-hexagons-unified-midnight-plates-v14';
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 192, 128), globeMaterial);
 sphere.receiveShadow = true;
 globe.add(sphere);
