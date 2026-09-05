@@ -13,6 +13,18 @@ npm install
 npm run dev
 ```
 
+`npm run dev` serves the live working copy locally; Firebase deployment does not change or replace this workflow.
+
+## Firebase Hosting
+
+The production build is hosted by the dedicated Firebase project `million-hexagons`. To publish the current working tree:
+
+```bash
+npm run deploy
+```
+
+This builds the app into the ignored `dist/` directory, then deploys only that generated directory. Firebase rewrites browser routes to `index.html`, avoids caching the HTML shell, and caches Vite's content-hashed assets. The custom production domains are `millionhexagons.com` and `www.millionhexagons.com`; DNS is managed at Hostinger.
+
 ## Placement studio and visual checks
 
 The purchase prototype keeps Design → Place → Review. Logo is the recommended starting path; custom sizes and artwork adjustments expand when needed. Place suggests an available footprint automatically, with Find another spot and separate Move/Place controls. Paint includes undo/redo. Review and the globe now consume the same frozen artwork rendition and the camera frames the complete selected footprint. Review keeps its edit routes, validates optional HTTP(S) destinations, and adds a session preview without taking payment. Click a committed session placement to reopen its website action. Refresh still resets these previews; this is not durable ownership or real checkout.
