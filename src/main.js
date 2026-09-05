@@ -387,19 +387,26 @@ const pointer = new THREE.Vector2();
 const tooltip = document.querySelector('#cellTooltip');
 const placementLayers = new THREE.Group();
 globe.add(placementLayers);
+const previewPlacementLayers = new THREE.Group();
+globe.add(previewPlacementLayers);
 let selecting = false;
 let selectedUV = null;
 let selectedCell = null;
 let selectedNormal = null;
 let selectedCells = [];
 let uploadedLogo = null;
+let uploadedLogoCrop = null;
 let sold = occupiedCells.reduce((total, value) => total + (value ? 1 : 0), 0);
 let cameraDistanceTarget = null;
-let buyInteractionMode = 'move';
 let painting = false;
 let paintAction = 'paint';
 let lastPaintedCellId = null;
 let selectionError = '';
+let fixedArtworkMode = 'colour';
+let creationType = null;
+let buyInteractionMode = 'move';
+let designCells = [];
+let editorPainting = false;
 const selectedCellColours = new Map();
 
 function writeCellColour(data, cell, colour, selected = true) {
@@ -478,6 +485,16 @@ function updateTooltip(event, cell) {
 
 function connectedPattern(origin, amount, shape) {
   const cells = [];
+  if (shape === 'painted') {
+    if (!designCells.length) return cells;
+    const centreColumn = designCells.reduce((sum, cell) => sum + cell.col, 0) / designCells.length;
+    const centreRow = designCells.reduce((sum, cell) => sum + cell.row, 0) / designCells.length;
+    return designCells.map((cell) => {
+      const row = origin.row + Math.round(cell.row - centreRow);
+      const col = origin.col + Math.round(cell.col - centreColumn);
+      return { col, row, id: row * logicalColumns + col + 1, color: cell.color };
+    }).filter((cell) => cell.col >= 0 && cell.col < logicalColumns && cell.row >= 0 && cell.row < logicalRows);
+  }
   if (shape === 'row' || shape === 'column') {
     const start = -Math.floor((amount - 1) / 2);
     for (let index = 0; index < amount; index += 1) {
@@ -486,7 +503,9 @@ function connectedPattern(origin, amount, shape) {
   } else {
     const reach = Math.ceil(Math.sqrt(amount)) + 2;
     const candidates = [];
-    const imageAspect = shape === 'logo' && uploadedLogo ? uploadedLogo.naturalWidth / uploadedLogo.naturalHeight : 1.25;
+    const imageAspect = shape === 'logo' && uploadedLogo
+      ? (uploadedLogoCrop?.width || uploadedLogo.naturalWidth) / (uploadedLogoCrop?.height || uploadedLogo.naturalHeight)
+      : 1.25;
     const targetGridRatio = Math.max(.25, Math.min(4, imageAspect * .8));
     const horizontalWeight = 1 / Math.sqrt(targetGridRatio);
     const verticalWeight = Math.sqrt(targetGridRatio);
@@ -504,8 +523,8 @@ function connectedPattern(origin, amount, shape) {
 
 function refreshSelection() {
   const shape = document.querySelector('#selectionShape').value;
-  const amount = Math.max(1, Math.min(10000, Number(document.querySelector('#hexAmount').value) || 1));
-  if (selectedCell && shape !== 'custom') {
+  const amount = shape === 'painted' ? designCells.length : Math.max(1, Math.min(10000, Number(document.querySelector('#hexAmount').value) || 1));
+  if (selectedCell) {
     const candidateCells = connectedPattern(selectedCell, amount, shape);
     const blocked = candidateCells.find((cell) => occupiedCells[cell.id - 1]);
     if (blocked) {
@@ -518,17 +537,16 @@ function refreshSelection() {
   }
   const count = selectedCells.length;
   const status = document.querySelector('#selectionStatus');
-  const colourCount = shape === 'custom' ? new Set(selectedCells.map((cell) => selectedCellColours.get(cell.id)).filter(Boolean)).size : 0;
-  const selectedSummary = shape === 'custom'
+  const colourCount = shape === 'painted' ? new Set(selectedCells.map((cell) => cell.color).filter(Boolean)).size : new Set(selectedCells.map((cell) => selectedCellColours.get(cell.id)).filter(Boolean)).size;
+  const selectedSummary = shape === 'custom' || shape === 'painted'
     ? `<b>✓</b> ${count.toLocaleString()} hexagon${count === 1 ? '' : 's'} selected · ${colourCount} colour${colourCount === 1 ? '' : 's'}.`
     : `<b>✓</b> ${count.toLocaleString()} available hexagon${count === 1 ? '' : 's'} selected.`;
   status.classList.toggle('error', Boolean(selectionError));
   status.innerHTML = selectionError || (count
     ? selectedSummary
-    : buyInteractionMode === 'move'
-      ? 'Move the globe to the area you want, then choose Select hexagons.'
-      : shape === 'custom' ? 'Click and drag across teal hexagons to paint your selection.' : 'Click a teal available hexagon to place your area.');
-  document.querySelector('#previewPurchase').disabled = !count;
+    : 'Switch to Place design, then click a teal available area.');
+  const artworkReady = fixedArtworkMode === 'colour' || Boolean(uploadedLogo);
+  document.querySelector('#previewPurchase').disabled = !count || !artworkReady;
   renderSelectionPreview();
 }
 
@@ -536,13 +554,13 @@ function renderSelectionPreview() {
   if (document.querySelector('#selectionShape').value !== 'custom') {
     selectionColourData.fill(0);
     const colour = document.querySelector('#brandColor').value;
-    selectedCells.forEach((cell) => writeCellColour(selectionColourData, cell, colour));
+    selectedCells.forEach((cell) => writeCellColour(selectionColourData, cell, cell.color || colour));
   }
   selectionColourTexture.needsUpdate = true;
 }
 
 function updateHover(hit, cell) {
-  if (!selecting || buyInteractionMode !== 'select') {
+  if (!selecting) {
     clearHover();
     return;
   }
@@ -564,6 +582,7 @@ function choosePatternOrigin(hit, cell) {
   selectedNormal = globe.worldToLocal(hit.point.clone()).normalize();
   selectionError = '';
   refreshSelection();
+  document.querySelector('#toReview').disabled = !selectedCells.length;
 }
 
 function paintCustomCell(hit, cell) {
@@ -604,7 +623,7 @@ function paintCustomCell(hit, cell) {
 }
 
 canvas.addEventListener('pointerdown', (event) => {
-  if (!selecting || buyInteractionMode !== 'select' || event.button !== 0) return;
+  if (!selecting || buyInteractionMode !== 'place' || event.button !== 0) return;
   const hit = intersect(event);
   if (!hit?.uv) return;
   event.preventDefault();
@@ -629,7 +648,7 @@ canvas.addEventListener('pointermove', (event) => {
   }
   const cell = cellFromUV(hit.uv);
   if (!selecting) return updateTooltip(event, cell);
-  if (buyInteractionMode !== 'select') {
+  if (buyInteractionMode !== 'place') {
     clearHover();
     tooltip.classList.remove('show');
     return;
@@ -648,47 +667,28 @@ canvas.addEventListener('pointerup', stopPainting);
 canvas.addEventListener('pointercancel', stopPainting);
 canvas.addEventListener('pointerleave', () => { if (!painting) clearHover(); tooltip.classList.remove('show'); });
 
-function setBuyInteractionMode(mode) {
-  buyInteractionMode = mode;
-  controls.enableRotate = mode === 'move';
-  document.body.classList.toggle('buy-moving', mode === 'move');
-  document.body.classList.toggle('buy-selecting', mode === 'select');
-  document.querySelector('#moveGlobeMode').setAttribute('aria-pressed', String(mode === 'move'));
-  document.querySelector('#selectHexMode').setAttribute('aria-pressed', String(mode === 'select'));
-  clearHover();
-  tooltip.classList.remove('show');
-  selectionError = '';
-  document.querySelector('#hint').innerHTML = mode === 'move'
-    ? '<span>DRAG TO POSITION</span><i></i><span>SCROLL TO ZOOM</span><i></i><span>THEN CHOOSE SELECT HEXAGONS</span>'
-    : '<span>GLOBE LOCKED</span><i></i><span>CLICK OR DRAG TO SELECT</span><i></i><span>CHOOSE MOVE GLOBE TO REPOSITION</span>';
-  refreshSelection();
-}
-
 function openBuy() {
-  selecting = true;
-  selectionModeUniform.value = 1;
+  selecting = false;
+  selectionModeUniform.value = 0;
   controls.autoRotate = false;
-  const selectionDistance = Math.max(controls.minDistance + .25, radius + 1.35);
-  cameraDistanceTarget = Math.min(camera.position.length(), selectionDistance);
   selectedUV = null;
   selectedCell = null;
   selectedNormal = null;
   selectedCells = [];
   clearSelectionColours();
-  document.body.classList.add('selecting');
-  setBuyInteractionMode('move');
+  document.body.classList.add('creating');
+  controls.enableRotate = true;
   const panel = document.querySelector('#buyPanel');
   panel.classList.add('open');
   panel.setAttribute('aria-hidden', 'false');
   panel.scrollTop = 0;
-  document.querySelector('#previewPurchase').disabled = true;
+  showFlowStep('type');
 }
 function closeBuy() {
   selecting = false;
   selectionModeUniform.value = 0;
   cameraDistanceTarget = null;
-  document.body.classList.remove('selecting');
-  document.body.classList.remove('buy-moving', 'buy-selecting');
+  document.body.classList.remove('selecting', 'creating', 'placing-design');
   controls.enableRotate = true;
   stopPainting();
   clearHover();
@@ -696,12 +696,11 @@ function closeBuy() {
   document.querySelector('#buyPanel').classList.remove('open');
   document.querySelector('#buyPanel').setAttribute('aria-hidden', 'true');
   clearSelectionColours();
+  clearPlacementPreview();
   document.querySelector('#hint').innerHTML = '<span>DRAG TO ROTATE</span><i></i><span>SCROLL TO ZOOM</span><i></i><span>CLICK A TILE</span>';
 }
 document.querySelector('#claimButton').addEventListener('click', openBuy);
 document.querySelector('#closeBuy').addEventListener('click', closeBuy);
-document.querySelector('#moveGlobeMode').addEventListener('click', () => setBuyInteractionMode('move'));
-document.querySelector('#selectHexMode').addEventListener('click', () => setBuyInteractionMode('select'));
 function setPaintAction(action) {
   paintAction = action;
   document.querySelector('#paintCells').setAttribute('aria-pressed', String(action === 'paint'));
@@ -730,48 +729,235 @@ document.querySelector('#homeView').addEventListener('click', () => {
 });
 
 const amountInput = document.querySelector('#hexAmount');
-amountInput.addEventListener('input', () => {
-  const value = Math.max(1, Math.min(10000, Number(amountInput.value) || 1));
-  document.querySelector('#price').textContent = `$${value.toLocaleString()}`;
-  refreshSelection();
-});
-document.querySelector('#selectionShape').addEventListener('change', (event) => {
-  selectedCells = [];
-  clearSelectionColours();
-  const custom = event.target.value === 'custom';
-  amountInput.disabled = custom;
-  document.querySelector('#customPaintTools').hidden = !custom;
-  document.querySelector('#advancedLogoOptions').hidden = custom;
-  document.querySelector('#brandColourLabel').textContent = custom ? 'Paint colour' : 'Background colour';
-  if (custom) {
-    selectedUV = null;
-    selectedCell = null;
-    selectedNormal = null;
-    amountInput.value = 0;
-    document.querySelector('#price').textContent = '$0';
-    setPaintAction('paint');
-  }
-  document.querySelector('#patternNote').textContent = custom
-    ? 'Choose a colour, then click or drag across hexagons. Switch to Erase when you need to remove cells.'
-    : `Your selected quantity will form a connected ${event.target.options[event.target.selectedIndex].text.toLowerCase()}.`;
-  refreshSelection();
-});
+function updateLogoGuidance(message) {
+  const amount = Math.max(0, Number(amountInput.value) || 0);
+  const guidance = document.querySelector('#logoGuidance');
+  guidance.textContent = message || (document.querySelector('#logoTreatment').value === 'span' && amount < 200
+    ? `This detailed logo only has ${amount} hexagons to display in. Try 200 or more for a much clearer result.`
+    : 'Your logo will be rendered across the exact selected hexagon boundaries.');
+}
 
-document.querySelector('#logoText').addEventListener('input', (event) => {
-  if (!uploadedLogo) document.querySelector('#logoPreview').innerHTML = `<span>${event.target.value.trim().toUpperCase() || 'YOUR LOGO'}</span>`;
-});
+function setFixedArtworkMode(mode) {
+  fixedArtworkMode = mode;
+  updateLogoGuidance();
+  refreshSelection();
+}
 function updatePaintColour() {
   document.querySelector('#paintColourChip').style.background = document.querySelector('#brandColor').value;
   renderSelectionPreview();
+  drawDesignPreview();
 }
 document.querySelector('#brandColor').addEventListener('input', updatePaintColour);
-updatePaintColour();
 
 function updateLogoPreviewOrientation() {
   const degrees = Number(document.querySelector('#logoOrientation').value) || 0;
   document.querySelector('#logoPreview').style.setProperty('--logo-rotation', `${degrees}deg`);
 }
 document.querySelector('#logoOrientation').addEventListener('change', updateLogoPreviewOrientation);
+
+const flowScreens = { type: document.querySelector('#typeStep'), design: document.querySelector('#designStep'), place: document.querySelector('#placeStep'), review: document.querySelector('#reviewStep') };
+function showFlowStep(step) {
+  Object.entries(flowScreens).forEach(([name, screen]) => { screen.hidden = name !== step; screen.classList.toggle('active', name === step); });
+  const progress = [...document.querySelectorAll('.flow-progress i')];
+  const stepNumber = step === 'review' ? 3 : step === 'place' ? 2 : 1;
+  progress.forEach((item, index) => item.classList.toggle('active', index < stepNumber));
+  document.querySelector('#buyPanel').scrollTop = 0;
+}
+
+function placementCount() {
+  return creationType === 'paint' ? designCells.length : Math.max(1, Math.min(10000, Number(amountInput.value) || 1));
+}
+
+function updateTotals() {
+  const count = placementCount();
+  const countText = `${count.toLocaleString()} hexagon${count === 1 ? '' : 's'}`;
+  const priceText = `$${count.toLocaleString()}`;
+  document.querySelector('#designCount').textContent = countText;
+  document.querySelector('#price').textContent = priceText;
+  document.querySelector('#placeCount').textContent = countText;
+  document.querySelector('#placePrice').textContent = priceText;
+  document.querySelector('#reviewCount').textContent = countText;
+  document.querySelector('#reviewPrice').textContent = priceText;
+  document.querySelector('#toPlacement').disabled = !count || (creationType === 'logo' && !uploadedLogo);
+  document.querySelectorAll('.size-presets button').forEach((button) => button.classList.toggle('active', Number(button.dataset.size) === count));
+  updateLogoGuidance();
+}
+
+let editorHitRegions = [];
+function previewCells() {
+  if (creationType === 'paint') return designCells;
+  const amount = placementCount();
+  const aspect = creationType === 'logo' && uploadedLogo
+    ? (uploadedLogoCrop?.width || uploadedLogo.naturalWidth) / (uploadedLogoCrop?.height || uploadedLogo.naturalHeight)
+    : 1.25;
+  const reach = Math.ceil(Math.sqrt(amount)) + 5;
+  const ratio = Math.max(.35, Math.min(3, aspect * .82));
+  const candidates = [];
+  for (let row = -reach; row <= reach; row += 1) {
+    for (let col = -reach; col <= reach; col += 1) candidates.push({ col, row, distance: Math.hypot((col + (row % 2 ? .5 : 0)) / Math.sqrt(ratio), row * .88 * Math.sqrt(ratio)) });
+  }
+  return candidates.sort((a, b) => a.distance - b.distance).slice(0, amount);
+}
+
+function hexPath(context, x, y, size, append = false) {
+  if (!append) context.beginPath();
+  for (let corner = 0; corner < 6; corner += 1) {
+    const angle = Math.PI / 3 * corner - Math.PI / 2;
+    const px = x + Math.cos(angle) * size;
+    const py = y + Math.sin(angle) * size;
+    if (!corner) context.moveTo(px, py); else context.lineTo(px, py);
+  }
+  context.closePath();
+}
+
+function drawDesignPreview(target = document.querySelector('#designCanvas')) {
+  if (!target) return;
+  const context = target.getContext('2d');
+  const width = target.width;
+  const height = target.height;
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = '#071722';
+  context.fillRect(0, 0, width, height);
+  const cells = previewCells();
+  const editingGrid = creationType === 'paint';
+  const displayCells = editingGrid
+    ? Array.from({ length: 135 }, (_, index) => ({ col: index % 15, row: Math.floor(index / 15), guide: true }))
+    : cells;
+  const minCol = Math.min(...displayCells.map((cell) => cell.col), 0);
+  const maxCol = Math.max(...displayCells.map((cell) => cell.col), 1);
+  const minRow = Math.min(...displayCells.map((cell) => cell.row), 0);
+  const maxRow = Math.max(...displayCells.map((cell) => cell.row), 1);
+  const size = Math.min(22, (width - 56) / ((maxCol - minCol + 1.5) * 1.732), (height - 46) / ((maxRow - minRow + 1.35) * 1.5));
+  const gridWidth = (maxCol - minCol + 1.5) * 1.732 * size;
+  const gridHeight = (maxRow - minRow + 1.35) * 1.5 * size;
+  const originX = (width - gridWidth) / 2 - minCol * 1.732 * size + size;
+  const originY = (height - gridHeight) / 2 - minRow * 1.5 * size + size;
+  const point = (cell) => ({ x: originX + (cell.col + (cell.row % 2) * .5) * 1.732 * size, y: originY + cell.row * 1.5 * size });
+  editorHitRegions = displayCells.map((cell) => ({ ...cell, ...point(cell), size }));
+  const activeMap = new Map(cells.map((cell) => [`${cell.col},${cell.row}`, cell]));
+
+  displayCells.forEach((cell) => {
+    const active = activeMap.get(`${cell.col},${cell.row}`);
+    const position = point(cell);
+    hexPath(context, position.x, position.y, size * .96);
+    context.fillStyle = active?.color || (active ? document.querySelector('#brandColor').value : '#102a35');
+    context.fill();
+    context.strokeStyle = active ? 'rgba(220,255,245,.34)' : 'rgba(125,174,181,.16)';
+    context.lineWidth = active ? 1.6 : 1;
+    context.stroke();
+  });
+
+  if (creationType === 'logo' && uploadedLogo && cells.length) {
+    context.save();
+    context.beginPath();
+    cells.forEach((cell) => { const p = point(cell); hexPath(context, p.x, p.y, size * .94, true); });
+    context.clip();
+    context.translate(width / 2, height / 2);
+    context.rotate(THREE.MathUtils.degToRad(Number(document.querySelector('#logoOrientation').value) || 0));
+    context.translate(-width / 2, -height / 2);
+    if (document.querySelector('#logoTreatment').value === 'repeat') {
+      cells.forEach((cell) => { const p = point(cell); context.save(); hexPath(context, p.x, p.y, size * .9); context.clip(); drawLogo(context, size * 1.55, size * 1.55, document.querySelector('#brandColor').value, true, p.x - size * .775, p.y - size * .775); context.restore(); });
+    } else drawLogo(context, width, height, document.querySelector('#brandColor').value, true);
+    context.restore();
+  }
+  document.querySelector('#editorEmpty').hidden = Boolean(cells.length);
+}
+
+function paintEditorAt(event) {
+  if (creationType !== 'paint') return;
+  const rect = event.currentTarget.getBoundingClientRect();
+  const x = (event.clientX - rect.left) * event.currentTarget.width / rect.width;
+  const y = (event.clientY - rect.top) * event.currentTarget.height / rect.height;
+  const hit = editorHitRegions.reduce((nearest, cell) => Math.hypot(cell.x - x, cell.y - y) < Math.hypot(nearest.x - x, nearest.y - y) ? cell : nearest, editorHitRegions[0]);
+  if (!hit || Math.hypot(hit.x - x, hit.y - y) > hit.size) return;
+  const index = designCells.findIndex((cell) => cell.col === hit.col && cell.row === hit.row);
+  if (paintAction === 'erase') {
+    if (index >= 0) designCells.splice(index, 1);
+  } else if (index >= 0) designCells[index].color = document.querySelector('#brandColor').value;
+  else designCells.push({ col: hit.col, row: hit.row, color: document.querySelector('#brandColor').value });
+  amountInput.value = designCells.length;
+  drawDesignPreview();
+  updateTotals();
+}
+
+function configureCreation(type) {
+  creationType = type;
+  fixedArtworkMode = type === 'logo' ? 'logo' : 'colour';
+  document.querySelector('#selectionShape').value = type === 'logo' ? 'logo' : type === 'paint' ? 'painted' : 'compact';
+  document.querySelector('#designTitle').textContent = type === 'logo' ? 'Make your logo look great' : type === 'paint' ? 'Paint your design' : 'Choose your colour and size';
+  document.querySelector('#designIntro').textContent = type === 'paint' ? 'Every coloured hexagon becomes part of your placement.' : 'This is a true hex-mosaic preview of your placement.';
+  document.querySelector('#logoControls').hidden = type !== 'logo';
+  document.querySelector('#logoOptions').hidden = type !== 'logo';
+  document.querySelector('#colourControls').hidden = type === 'logo';
+  document.querySelector('#customPaintTools').hidden = type !== 'paint';
+  document.querySelector('#sizeControls').hidden = type === 'paint';
+  if (type === 'logo') amountInput.value = 150;
+  if (type === 'colour') amountInput.value = 50;
+  if (type === 'paint' && !designCells.length) amountInput.value = 0;
+  showFlowStep('design');
+  drawDesignPreview();
+  updateTotals();
+}
+
+function setInteractionMode(mode) {
+  buyInteractionMode = mode;
+  document.querySelector('#moveGlobeMode').classList.toggle('active', mode === 'move');
+  document.querySelector('#placeDesignMode').classList.toggle('active', mode === 'place');
+  document.body.classList.toggle('placing-design', mode === 'place');
+  controls.enableRotate = mode === 'move';
+  document.querySelector('#selectionStatus').textContent = mode === 'move' ? 'Drag the globe to find the right location.' : 'Click a teal available area to place your design.';
+  document.querySelector('#hint').innerHTML = mode === 'move' ? '<span>DRAG TO ROTATE</span><i></i><span>SCROLL TO ZOOM</span>' : '<span>CLICK TO PLACE</span><i></i><span>SCROLL TO ZOOM</span>';
+}
+
+function enterPlacement() {
+  selecting = true;
+  selectionModeUniform.value = 1;
+  document.body.classList.add('selecting');
+  selectedUV = null;
+  selectedCell = null;
+  selectedCells = [];
+  clearSelectionColours();
+  const selectionDistance = Math.max(controls.minDistance + .25, radius + 1.35);
+  cameraDistanceTarget = Math.min(camera.position.length(), selectionDistance);
+  showFlowStep('place');
+  setInteractionMode('move');
+  document.querySelector('#toReview').disabled = true;
+}
+
+document.querySelector('#logoArtwork').addEventListener('click', () => configureCreation('logo'));
+document.querySelector('#colourArtwork').addEventListener('click', () => configureCreation('colour'));
+document.querySelector('#paintArtwork').addEventListener('click', () => configureCreation('paint'));
+document.querySelector('#backToType').addEventListener('click', () => showFlowStep('type'));
+document.querySelector('#toPlacement').addEventListener('click', enterPlacement);
+document.querySelector('#backToDesign').addEventListener('click', () => { selecting = false; selectionModeUniform.value = 0; document.body.classList.remove('selecting', 'placing-design'); controls.enableRotate = true; showFlowStep('design'); });
+document.querySelector('#moveGlobeMode').addEventListener('click', () => setInteractionMode('move'));
+document.querySelector('#placeDesignMode').addEventListener('click', () => setInteractionMode('place'));
+document.querySelector('#toReview').addEventListener('click', () => {
+  showFlowStep('review');
+  setInteractionMode('move');
+  document.querySelector('#reviewKind').textContent = creationType === 'logo' ? 'Logo placement' : creationType === 'paint' ? 'Painted placement' : 'Colour placement';
+  const reviewCanvas = document.querySelector('#reviewCanvas');
+  reviewCanvas.getContext('2d').drawImage(document.querySelector('#designCanvas'), 0, 0);
+  const warning = document.querySelector('#reviewWarning');
+  warning.hidden = !(creationType === 'logo' && placementCount() < 100);
+  warning.textContent = 'This detailed logo may be difficult to read at this size. Consider using at least 150 hexagons.';
+  clearPlacementPreview();
+  if (creationType === 'logo') addHighResolutionPlacement(document.querySelector('#brandColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
+});
+document.querySelector('#backToPlacement').addEventListener('click', () => { clearPlacementPreview(); showFlowStep('place'); setInteractionMode('place'); });
+document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); }));
+amountInput.addEventListener('input', () => { amountInput.value = Math.max(1, Math.min(10000, Number(amountInput.value) || 1)); selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); });
+document.querySelectorAll('[data-treatment]').forEach((button) => button.addEventListener('click', () => { document.querySelector('#logoTreatment').value = button.dataset.treatment; document.querySelectorAll('[data-treatment]').forEach((item) => item.classList.toggle('active', item === button)); drawDesignPreview(); updateLogoGuidance(); }));
+document.querySelector('#logoScale').addEventListener('input', drawDesignPreview);
+document.querySelector('#logoOrientation').addEventListener('change', () => { updateLogoPreviewOrientation(); drawDesignPreview(); });
+document.querySelector('#resetLogo').addEventListener('click', () => { document.querySelector('#logoScale').value = 100; document.querySelector('#logoOrientation').value = '0'; updateLogoPreviewOrientation(); drawDesignPreview(); });
+document.querySelector('#clearPaint').addEventListener('click', () => { designCells = []; amountInput.value = 0; drawDesignPreview(); updateTotals(); });
+const designCanvas = document.querySelector('#designCanvas');
+designCanvas.addEventListener('pointerdown', (event) => { editorPainting = true; designCanvas.setPointerCapture(event.pointerId); paintEditorAt(event); });
+designCanvas.addEventListener('pointermove', (event) => { if (editorPainting) paintEditorAt(event); });
+designCanvas.addEventListener('pointerup', () => { editorPainting = false; });
+designCanvas.addEventListener('pointercancel', () => { editorPainting = false; });
+updatePaintColour();
 
 function rgbToHex(red, green, blue) {
   return `#${[red, green, blue].map((value) => value.toString(16).padStart(2, '0')).join('')}`;
@@ -813,6 +999,62 @@ function logoColours(image) {
   return selected.map(({ red, green, blue }) => rgbToHex(red, green, blue));
 }
 
+function findLogoContentBounds(image) {
+  const longestSide = 256;
+  const scale = Math.min(1, longestSide / Math.max(image.naturalWidth, image.naturalHeight));
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const sample = document.createElement('canvas');
+  sample.width = width;
+  sample.height = height;
+  const context = sample.getContext('2d', { willReadFrequently: true });
+  context.drawImage(image, 0, 0, width, height);
+  const pixels = context.getImageData(0, 0, width, height).data;
+  const cornerIndexes = [0, width - 1, (height - 1) * width, height * width - 1];
+  const background = cornerIndexes.reduce((total, index) => {
+    total.r += pixels[index * 4];
+    total.g += pixels[index * 4 + 1];
+    total.b += pixels[index * 4 + 2];
+    return total;
+  }, { r: 0, g: 0, b: 0 });
+  background.r /= 4;
+  background.g /= 4;
+  background.b /= 4;
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      const alpha = pixels[offset + 3];
+      const colourDistance = Math.hypot(
+        pixels[offset] - background.r,
+        pixels[offset + 1] - background.g,
+        pixels[offset + 2] - background.b,
+      );
+      if (alpha > 20 && (alpha < 245 || colourDistance > 38)) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+  if (maxX < minX || maxY < minY) return null;
+  const padding = Math.max(2, Math.round(Math.max(maxX - minX, maxY - minY) * .04));
+  minX = Math.max(0, minX - padding);
+  minY = Math.max(0, minY - padding);
+  maxX = Math.min(width - 1, maxX + padding);
+  maxY = Math.min(height - 1, maxY + padding);
+  return {
+    x: minX / scale,
+    y: minY / scale,
+    width: (maxX - minX + 1) / scale,
+    height: (maxY - minY + 1) / scale,
+  };
+}
+
 function showLogoPalette(colours) {
   const palette = document.querySelector('#logoPalette');
   const swatches = document.querySelector('#logoSwatches');
@@ -850,6 +1092,7 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
   const url = URL.createObjectURL(file);
   image.onload = () => {
     uploadedLogo = image;
+    uploadedLogoCrop = findLogoContentBounds(image);
     const preview = document.querySelector('#logoPreview');
     const previewImage = document.createElement('img');
     previewImage.src = url;
@@ -857,7 +1100,11 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
     preview.replaceChildren(previewImage);
     updateLogoPreviewOrientation();
     showLogoPalette(logoColours(image));
-    showUploadMessage('Logo ready. It will be fitted without cropping.');
+    showUploadMessage(uploadedLogoCrop
+      ? 'Logo ready. Empty outer margins were trimmed automatically so the mark uses the available space.'
+      : 'Logo ready. It will be fitted inside the selected area.');
+    drawDesignPreview();
+    updateTotals();
     refreshSelection();
   };
   image.onerror = () => showUploadMessage('That image could not be read. Try PNG, JPG, WebP or SVG.');
@@ -865,33 +1112,28 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
 });
 
 function showUploadMessage(message) {
-  document.querySelector('#patternNote').textContent = message;
+  updateLogoGuidance(message);
 }
 
-function drawLogo(context, width, height, color, transparent = false) {
-  context.clearRect(0, 0, width, height);
+function drawLogo(context, width, height, color, transparent = false, offsetX = 0, offsetY = 0) {
+  if (!transparent) context.clearRect(offsetX, offsetY, width, height);
   if (!transparent) {
     context.fillStyle = color;
-    context.fillRect(0, 0, width, height);
+    context.fillRect(offsetX, offsetY, width, height);
   }
   if (uploadedLogo) {
+    const source = uploadedLogoCrop || { x: 0, y: 0, width: uploadedLogo.naturalWidth, height: uploadedLogo.naturalHeight };
     const fit = document.querySelector('#logoFit').value;
     const padding = fit === 'contain' ? Math.min(width, height) * .08 : 0;
     const availableWidth = width - padding * 2;
     const availableHeight = height - padding * 2;
-    const scale = fit === 'cover'
-      ? Math.max(availableWidth / uploadedLogo.naturalWidth, availableHeight / uploadedLogo.naturalHeight)
-      : Math.min(availableWidth / uploadedLogo.naturalWidth, availableHeight / uploadedLogo.naturalHeight);
-    const drawWidth = uploadedLogo.naturalWidth * scale;
-    const drawHeight = uploadedLogo.naturalHeight * scale;
-    context.drawImage(uploadedLogo, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
-  } else {
-    const logo = document.querySelector('#logoText').value.trim().toUpperCase() || 'YOUR LOGO';
-    context.fillStyle = transparent ? color : '#061119';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.font = `900 ${Math.floor(Math.min(height * .42, width / Math.max(2.2, logo.length * .58)))}px Arial`;
-    context.fillText(logo.slice(0, 16), width / 2, height / 2, width * .82);
+    const userScale = document.querySelector('#logoScale') ? Number(document.querySelector('#logoScale').value) / 100 : 1;
+    const scale = (fit === 'cover'
+      ? Math.max(availableWidth / source.width, availableHeight / source.height)
+      : Math.min(availableWidth / source.width, availableHeight / source.height)) * userScale;
+    const drawWidth = source.width * scale;
+    const drawHeight = source.height * scale;
+    context.drawImage(uploadedLogo, source.x, source.y, source.width, source.height, offsetX + (width - drawWidth) / 2, offsetY + (height - drawHeight) / 2, drawWidth, drawHeight);
   }
 }
 
@@ -913,27 +1155,53 @@ function makeTerritoryTexture(color, aspect) {
   return texture;
 }
 
-function tangentQuaternion(normal) {
-  const east = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), normal);
-  if (east.lengthSq() < .001) east.set(1, 0, 0); else east.normalize();
-  const north = new THREE.Vector3().crossVectors(normal, east).normalize();
-  return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(east, north, normal));
+function spherePointForGrid(cell, localX, localY) {
+  const gridX = cell.col * 1.7320508 + (cell.row % 2) * .8660254 + localX;
+  const gridY = cell.row * 1.5 + localY;
+  const u = gridX / 2165.0635;
+  const v = gridY / 1200;
+  const phi = u * Math.PI * 2;
+  const theta = (1 - v) * Math.PI;
+  const surfaceRadius = radius + .022;
+  return new THREE.Vector3(
+    -surfaceRadius * Math.cos(phi) * Math.sin(theta),
+    surfaceRadius * Math.cos(theta),
+    surfaceRadius * Math.sin(phi) * Math.sin(theta)
+  );
 }
 
-function normalForCell(cell) {
-  const east = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), selectedNormal);
-  if (east.lengthSq() < .001) east.set(1, 0, 0); else east.normalize();
-  const north = new THREE.Vector3().crossVectors(selectedNormal, east).normalize();
-  const colOffset = cell.col - selectedCell.col + ((cell.row % 2) - (selectedCell.row % 2)) * .5;
-  const rowOffset = cell.row - selectedCell.row;
-  return selectedNormal.clone()
-    .add(east.multiplyScalar(colOffset * .00502))
-    .add(north.multiplyScalar(rowOffset * .00393))
-    .normalize();
+function exactHexGeometry(cell, textureCoordinates) {
+  const corners = [[0, 1], [.8660254, .5], [.8660254, -.5], [0, -1], [-.8660254, -.5], [-.8660254, .5]];
+  const positions = [];
+  const uvs = [];
+  const addVertex = ([localX, localY]) => {
+    const position = spherePointForGrid(cell, localX, localY);
+    positions.push(position.x, position.y, position.z);
+    const [u, v] = textureCoordinates(localX, localY);
+    uvs.push(u, v);
+  };
+  for (let corner = 0; corner < corners.length; corner += 1) {
+    addVertex([0, 0]);
+    addVertex(corners[(corner + 1) % corners.length]);
+    addVertex(corners[corner]);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
-function addHighResolutionPlacement(color, treatment) {
-  if (!selectedNormal || !selectedCell || !selectedCells.length) return;
+function clearPlacementPreview() {
+  previewPlacementLayers.children.splice(0).forEach((child) => {
+    child.geometry?.dispose();
+    child.material?.map?.dispose();
+    child.material?.dispose();
+  });
+}
+
+function addHighResolutionPlacement(color, treatment, targetLayer = placementLayers) {
+  if (!selectedCell || !selectedCells.length) return;
   const gridColumns = selectedCells.map((cell) => cell.col + (cell.row % 2) * .5);
   const rows = selectedCells.map((cell) => cell.row);
   const minColumn = Math.min(...gridColumns);
@@ -948,33 +1216,21 @@ function addHighResolutionPlacement(color, treatment) {
     : makeTerritoryTexture(color, territoryAspect);
   const material = new THREE.MeshBasicMaterial({ map: texture, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
   const geometries = selectedCells.map((cell) => {
-    const geometry = new THREE.CircleGeometry(.01048, 6);
-    geometry.rotateZ(Math.PI / 6);
-    geometry.scale(1.106, 1, 1);
-    if (treatment === 'span' && selectedCells.length > 1) {
-      const uvs = geometry.attributes.uv;
-      const gridColumn = cell.col + (cell.row % 2) * .5;
-      for (let index = 0; index < uvs.count; index += 1) {
-        const localU = uvs.getX(index);
-        const localV = uvs.getY(index);
-        uvs.setXY(index, (gridColumn - minColumn + localU) / columnSpan, (cell.row - minRow + localV) / rowSpan);
-      }
-      uvs.needsUpdate = true;
-    }
-    const normal = normalForCell(cell);
-    const matrix = new THREE.Matrix4().compose(
-      normal.clone().multiplyScalar(radius + .022),
-      tangentQuaternion(normal),
-      new THREE.Vector3(1, 1, 1)
-    );
-    geometry.applyMatrix4(matrix);
-    return geometry;
+    const gridColumn = cell.col + (cell.row % 2) * .5;
+    return exactHexGeometry(cell, (localX, localY) => {
+      const localU = .5 + localX / 1.7320508;
+      const localV = .5 + localY / 2;
+      return treatment === 'span' && selectedCells.length > 1
+        ? [(gridColumn - minColumn + localU) / columnSpan, (cell.row - minRow + localV) / rowSpan]
+        : [localU, localV];
+    });
   });
   const mergedGeometry = mergeGeometries(geometries, false);
   geometries.forEach((geometry) => geometry.dispose());
   const territory = new THREE.Mesh(mergedGeometry, material);
   territory.renderOrder = 6;
-  placementLayers.add(territory);
+  targetLayer.add(territory);
+  return territory;
 }
 
 function paintPlacement() {
@@ -983,10 +1239,11 @@ function paintPlacement() {
   const color = document.querySelector('#brandColor').value;
   const treatment = document.querySelector('#logoTreatment').value;
   const custom = document.querySelector('#selectionShape').value === 'custom';
-  if (custom) {
-    selectedCells.forEach((cell) => writeCellColour(purchasedColourData, cell, selectedCellColours.get(cell.id) || color));
+  if (fixedArtworkMode === 'colour') {
+    selectedCells.forEach((cell) => writeCellColour(purchasedColourData, cell, cell.color || (custom ? selectedCellColours.get(cell.id) : null) || color));
     purchasedColourTexture.needsUpdate = true;
   } else {
+    clearPlacementPreview();
     addHighResolutionPlacement(color, treatment);
   }
   selectedCells.forEach((cell) => { occupiedCells[cell.id - 1] = 255; });
