@@ -293,6 +293,15 @@ globeMaterial.onBeforeCompile = (shader) => {
       float availableCell = 1.0 - step(0.5, texture2D(occupancyMap, clamp(occupancyUv, vec2(0.0001), vec2(0.9999))).r);
       vec4 selectedColour = texture2D(selectionColourMap, clamp(occupancyUv, vec2(0.0001), vec2(0.9999)));
       vec4 purchasedColour = texture2D(purchasedColourMap, clamp(occupancyUv, vec2(0.0001), vec2(0.9999)));
+      // Available inventory carries the richer cobalt/cyan globe treatment.
+      // Purchased artwork is deliberately left untouched.
+      float oceanLatitude = 1.0 - min(1.0, abs(vMapUv.y - 0.48) * 1.65);
+      float oceanVariation = sin(vMapUv.x * 17.0 + vMapUv.y * 9.0) * 0.5 + 0.5;
+      float oceanLight = clamp(0.28 + oceanLatitude * 0.34 + oceanVariation * 0.10, 0.0, 1.0);
+      vec3 oceanDeep = vec3(0.004, 0.026, 0.115);
+      vec3 oceanBright = vec3(0.006, 0.245, 0.72);
+      vec3 oceanColour = mix(oceanDeep, oceanBright, oceanLight);
+      diffuseColor.rgb = mix(diffuseColor.rgb, oceanColour, availableCell * 0.94);
       vec2 absoluteHex = abs(localHex);
       float hexDistance = max(absoluteHex.x / 0.8660254, absoluteHex.y + absoluteHex.x * 0.5773503);
       float cellPixels = 1.0 / max(fwidth(gridPoint.x) / 1.7320508, fwidth(gridPoint.y) / 1.5);
@@ -319,7 +328,7 @@ globeMaterial.onBeforeCompile = (shader) => {
     #endif`
   );
 };
-globeMaterial.customProgramCacheKey = () => 'million-hexagons-exact-colour-selection-v6';
+globeMaterial.customProgramCacheKey = () => 'million-hexagons-cobalt-globe-v7';
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 192, 128), globeMaterial);
 sphere.receiveShadow = true;
 globe.add(sphere);
@@ -332,7 +341,7 @@ globe.add(wire);
 
 const atmosphere = new THREE.Mesh(
   new THREE.SphereGeometry(radius + .19, 96, 64),
-  new THREE.MeshBasicMaterial({ color: 0x51d6eb, transparent: true, opacity: .085, side: THREE.BackSide, blending: THREE.AdditiveBlending })
+  new THREE.MeshBasicMaterial({ color: 0x168dff, transparent: true, opacity: .15, side: THREE.BackSide, blending: THREE.AdditiveBlending })
 );
 globe.add(atmosphere);
 
@@ -340,10 +349,10 @@ scene.add(new THREE.HemisphereLight(0xe8fbff, 0x07121c, 2.7));
 const key = new THREE.DirectionalLight(0xffffff, 3.6);
 key.position.set(-7, 8, 10);
 scene.add(key);
-const rim = new THREE.DirectionalLight(0x4fe8ff, 2.4);
+const rim = new THREE.DirectionalLight(0x159dff, 3.15);
 rim.position.set(8, 0, -8);
 scene.add(rim);
-const southFill = new THREE.DirectionalLight(0x78dce9, 1.35);
+const southFill = new THREE.DirectionalLight(0x2f8fff, 1.55);
 southFill.position.set(1, -9, 5);
 scene.add(southFill);
 
@@ -1509,7 +1518,7 @@ function animate() {
     if (Math.abs(distance - cameraDistanceTarget) < .005) cameraDistanceTarget = null;
   }
   document.body.classList.toggle('detail-view', camera.position.length() < globeFitDistance() * .72);
-  atmosphere.material.opacity = .075 + Math.sin(clock.getElapsedTime() * .7) * .012;
+  atmosphere.material.opacity = .14 + Math.sin(clock.getElapsedTime() * .7) * .014;
   renderer.render(scene, camera);
 }
 animate();
