@@ -298,9 +298,10 @@ globeMaterial.onBeforeCompile = (shader) => {
       float oceanFacing = clamp(dot(normalize(vNormal), normalize(vViewPosition)), 0.0, 1.0);
       float oceanLatitude = 1.0 - min(1.0, abs(vMapUv.y - 0.48) * 1.65);
       float oceanVariation = sin(vMapUv.x * 17.0 + vMapUv.y * 9.0) * 0.5 + 0.5;
-      float oceanLight = clamp(0.22 + oceanFacing * 0.52 + oceanLatitude * 0.12 + oceanVariation * 0.08, 0.0, 1.0);
-      vec3 oceanDeep = vec3(0.003, 0.035, 0.18);
-      vec3 oceanBright = vec3(0.0, 0.38, 0.98);
+      float oceanHotspot = pow(oceanFacing, 5.0);
+      float oceanLight = clamp(0.08 + oceanHotspot * 0.52 + oceanLatitude * 0.08 + oceanVariation * 0.045, 0.0, 1.0);
+      vec3 oceanDeep = vec3(0.0015, 0.009, 0.045);
+      vec3 oceanBright = vec3(0.0, 0.16, 0.56);
       vec3 oceanColour = mix(oceanDeep, oceanBright, oceanLight);
       diffuseColor.rgb = mix(diffuseColor.rgb, oceanColour, availableCell * 0.98);
       vec2 absoluteHex = abs(localHex);
@@ -331,10 +332,10 @@ globeMaterial.onBeforeCompile = (shader) => {
   shader.fragmentShader = shader.fragmentShader.replace(
     '#include <emissivemap_fragment>',
     `#include <emissivemap_fragment>
-    totalEmissiveRadiance += oceanColour * availableCell * (0.18 + oceanFacing * 0.16);`
+    totalEmissiveRadiance += oceanColour * availableCell * oceanHotspot * 0.075;`
   );
 };
-globeMaterial.customProgramCacheKey = () => 'million-hexagons-luminous-cobalt-v8';
+globeMaterial.customProgramCacheKey = () => 'million-hexagons-midnight-cobalt-v9';
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 192, 128), globeMaterial);
 sphere.receiveShadow = true;
 globe.add(sphere);
@@ -346,9 +347,9 @@ const wire = new THREE.Mesh(
 globe.add(wire);
 
 const atmosphere = new THREE.Mesh(
-  new THREE.SphereGeometry(radius + .19, 96, 64),
+  new THREE.SphereGeometry(radius + .03, 96, 64),
   new THREE.ShaderMaterial({
-    uniforms: { glowStrength: { value: .72 } },
+    uniforms: { glowStrength: { value: .74 } },
     vertexShader: `varying vec3 viewNormal;
       void main(){
         viewNormal = normalize(normalMatrix * normal);
@@ -357,8 +358,8 @@ const atmosphere = new THREE.Mesh(
     fragmentShader: `uniform float glowStrength;
       varying vec3 viewNormal;
       void main(){
-        float fresnel = pow(1.0 - abs(viewNormal.z), 2.35);
-        vec3 glow = mix(vec3(0.0, 0.22, 0.9), vec3(0.05, 0.75, 1.0), fresnel);
+        float fresnel = pow(1.0 - abs(viewNormal.z), 5.4);
+        vec3 glow = mix(vec3(0.0, 0.16, 0.72), vec3(0.03, 0.62, 1.0), fresnel);
         gl_FragColor = vec4(glow, fresnel * glowStrength);
       }`,
     transparent: true,
@@ -374,10 +375,10 @@ scene.add(new THREE.HemisphereLight(0xe8fbff, 0x07121c, 2.7));
 const key = new THREE.DirectionalLight(0xffffff, 3.6);
 key.position.set(-7, 8, 10);
 scene.add(key);
-const rim = new THREE.DirectionalLight(0x159dff, 3.15);
+const rim = new THREE.DirectionalLight(0x135cb8, .85);
 rim.position.set(8, 0, -8);
 scene.add(rim);
-const southFill = new THREE.DirectionalLight(0x2f8fff, 1.55);
+const southFill = new THREE.DirectionalLight(0x1c4e98, .72);
 southFill.position.set(1, -9, 5);
 scene.add(southFill);
 
@@ -1543,7 +1544,7 @@ function animate() {
     if (Math.abs(distance - cameraDistanceTarget) < .005) cameraDistanceTarget = null;
   }
   document.body.classList.toggle('detail-view', camera.position.length() < globeFitDistance() * .72);
-  atmosphere.material.uniforms.glowStrength.value = .70 + Math.sin(clock.getElapsedTime() * .7) * .035;
+  atmosphere.material.uniforms.glowStrength.value = .72 + Math.sin(clock.getElapsedTime() * .7) * .02;
   renderer.render(scene, camera);
 }
 animate();
