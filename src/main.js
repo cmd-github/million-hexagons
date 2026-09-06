@@ -68,8 +68,11 @@ globe.add(sphere);
 const artworkTiles = new ArtworkTiles(globe,radius,{base:millionFixture?'/artwork/million':'/artwork/sample-hq',maxTiles:innerWidth<700?64:128,anisotropy:Math.min(8,renderer.capabilities.getMaxAnisotropy())});
 await artworkTiles.ready;
 let designAnchor = bootstrap.anchor;
-const occupancyResponse=await fetch('/topology/occupancy-v1.gz');
-const occupancyBytes=new Uint8Array(await (occupancyResponse.headers.get('content-encoding')==='gzip'?occupancyResponse:new Response(occupancyResponse.body.pipeThrough(new DecompressionStream('gzip')))).arrayBuffer());
+async function fetchGzipBytes(path){
+  const response=await fetch(path);
+  return new Uint8Array(await (response.headers.get('content-encoding')==='gzip'?response:new Response(response.body.pipeThrough(new DecompressionStream('gzip')))).arrayBuffer());
+}
+const [occupancyBytes,sampleOwners]=await Promise.all([fetchGzipBytes('/topology/occupancy-v1.gz'),fetchGzipBytes('/topology/sample-owners-v1.gz')]);
 occupiedCells.set(occupancyBytes);
 if(millionFixture)occupiedCells.fill(255,0,CELL_COUNT);
 occupancyTexture.needsUpdate=true;
@@ -193,8 +196,8 @@ updateInventoryDisplay();
 
 
 function cellForId(id) {
-  const p = topology.centre(id), occupied = occupiedCells[id - 1] === 255;
-  return { id, latitude: Math.asin(p[1])*180/Math.PI, longitude: Math.atan2(p[2],-p[0])*180/Math.PI-180, occupied, pentagon: topology.degrees[id-1]===5, owner: occupied ? 'Purchased' : 'Available' };
+  const occupied = occupiedCells[id - 1] === 255, placement=sessionPlacements.get(id),campaign=bootstrap.sampleCampaigns?.[sampleOwners[id-1]-1];
+  return { id, occupied, pentagon: topology.degrees[id-1]===5, owner: placement?'Your placement':campaign?.name||(occupied?'Sample placement':'Available'), destination:placement?.website||campaign?.url||'' };
 }
 function intersect(event) {
   if(!topology){if(camera.position.length()<radius+2)void ensureTopology();return null;}
@@ -209,7 +212,9 @@ function intersect(event) {
 function updateTooltip(event, cell) {
   document.querySelector('#cellId').textContent = `${cell.pentagon ? 'PENTAGON' : 'HEX'} #${String(cell.id).padStart(6, '0')}`;
   document.querySelector('#cellOwner').textContent = cell.owner;
-  document.querySelector('#cellPosition').textContent = `${Math.abs(cell.latitude).toFixed(2)}° ${cell.latitude >= 0 ? 'N' : 'S'} · ${Math.abs(cell.longitude).toFixed(2)}° ${cell.longitude >= 0 ? 'E' : 'W'}`;
+  const destination=document.querySelector('#cellDestination');
+  destination.hidden=!cell.destination;
+  destination.textContent=cell.destination?new URL(cell.destination).hostname.replace(/^www\./,''):'';
   tooltip.style.left = `${Math.min(innerWidth - 205, event.clientX + 16)}px`;
   tooltip.style.top = `${Math.min(innerHeight - 90, event.clientY + 16)}px`;
   tooltip.classList.add('show');
