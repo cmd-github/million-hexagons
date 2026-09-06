@@ -1118,7 +1118,39 @@ addEventListener('resize', resize);
 resize();
 frameGlobe(true);
 
-const demoTour=createDemoTour({camera,globe,controls,radius,button:document.querySelector('#demoTour'),wideDistance:globeFitDistance,cancelZoom(){zoom.cancel();cameraDistanceTarget=null;},prepareDetail(){void ensureTopology().catch(()=>{});}});
+async function createTourStops(){
+  const grid=await ensureTopology(),reservoir=[],limit=96;
+  let seen=0;
+  for(let offset=0;offset<CELL_COUNT;offset++){
+    if(offset&&offset%100000===0)await new Promise(resolve=>setTimeout(resolve,0));
+    if(!occupiedCells[offset])continue;
+    seen++;
+    if(reservoir.length<limit)reservoir.push(offset+1);
+    else {const replace=Math.floor(Math.random()*seen);if(replace<limit)reservoir[replace]=offset+1;}
+  }
+  if(!reservoir.length)return [
+    {name:'Globe overview',normal:[0,0,1],angle:.4,overview:true,offset:0},
+    {name:'Globe overview',normal:[1,0,0],angle:.4,overview:true,offset:0},
+    {name:'Globe overview',normal:[0,0,-1],angle:.4,overview:true,offset:0},
+  ];
+  const selected=[reservoir.splice(Math.floor(Math.random()*reservoir.length),1)[0]];
+  while(selected.length<Math.min(8,seen)&&reservoir.length){
+    let best=0,bestScore=Infinity;
+    for(let i=0;i<reservoir.length;i++){
+      const point=grid.centre(reservoir[i]);
+      const score=Math.max(...selected.map(id=>{const other=grid.centre(id);return point[0]*other[0]+point[1]*other[1]+point[2]*other[2];}));
+      if(score<bestScore){best=i;bestScore=score;}
+    }
+    selected.push(reservoir.splice(best,1)[0]);
+  }
+  const firstDetail=Math.floor(Math.random()*selected.length),detailSlots=new Set([firstDetail]);
+  if(selected.length>1)detailSlots.add((firstDetail+1+Math.floor(Math.random()*(selected.length-1)))%selected.length);
+  return selected.map((id,index)=>{
+    const cell=cellForId(id);
+    return {id,name:cell.owner,normal:Array.from(grid.centre(id)),angle:.012,detail:detailSlots.has(index)||Math.random()<.35,offset:(Math.random()-.5)*.07};
+  });
+}
+const demoTour=createDemoTour({camera,globe,controls,radius,button:document.querySelector('#demoTour'),wideDistance:globeFitDistance,cancelZoom(){zoom.cancel();cameraDistanceTarget=null;},loadStops:createTourStops,prepareDetail(){void ensureTopology().catch(()=>{});}});
 const rotationToggle=document.querySelector('#rotationToggle');
 let displayedRotationState=null;
 function updateRotationControl(){

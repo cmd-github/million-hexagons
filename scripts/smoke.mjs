@@ -25,6 +25,7 @@ await page.goto(process.env.SMOKE_URL || 'http://127.0.0.1:4175');
 await page.waitForSelector('#world[data-ready="true"]', { timeout: 60000 });
 
 if (!(await page.locator('#demoTour').evaluate((element) => element.closest('.globe-controls') !== null))) errors.push('Demo control was not in the globe toolbar');
+if ((await page.locator('#demoTour').textContent()) !== '✈') errors.push('Globe tour did not use the plane control');
 await page.click('#zoomIn');
 await page.click('#zoomIn');
 await page.click('#zoomIn');
@@ -48,6 +49,18 @@ if ((await page.locator('#cellOwner').textContent()) !== 'Adidas') errors.push('
 if ((await page.locator('#cellDestination').textContent()) !== 'adidas.com') errors.push('Sample tile did not show its advertiser URL');
 await page.screenshot({path:'artifacts/visual-qa/desktop-owner-tooltip.png'});
 await page.click('#toggleHexSearch');
+await page.click('#demoTour');
+await page.waitForFunction(() => document.querySelector('#demoTour').getAttribute('aria-pressed') === 'true', null, {timeout:60000});
+const firstTourCell=await page.locator('#demoTour').getAttribute('data-cell');
+if (!firstTourCell) errors.push('Tour did not select an occupied target cell');
+await page.screenshot({path:'artifacts/visual-qa/desktop-globe-tour.png'});
+await page.mouse.wheel(0,100);
+await page.waitForFunction(() => document.querySelector('#demoTour').getAttribute('aria-pressed') === 'false');
+await page.click('#demoTour');
+await page.waitForFunction(() => document.querySelector('#demoTour').getAttribute('aria-pressed') === 'true', null, {timeout:60000});
+const secondTourCell=await page.locator('#demoTour').getAttribute('data-cell');
+if (!secondTourCell||secondTourCell===firstTourCell) errors.push('Tour did not vary its occupied route between runs');
+await page.mouse.wheel(0,100);
 
 await page.click('#claimButton');
 await page.waitForSelector('#typeStep', {state:'visible',timeout:60000});
@@ -91,6 +104,7 @@ console.log(JSON.stringify({
   paintedCount,
   activeScreen: await page.locator('.flow-screen.active').getAttribute('id'),
   detectedColours: await page.locator('#logoSwatches button').count(),
+  tourVaried: firstTourCell !== secondTourCell,
   errors,
 }));
 await browser.close();

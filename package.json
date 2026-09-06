@@ -16,7 +16,7 @@
     "test:geodesic-visual": "node scripts/geodesic-visual-qa.mjs",
     "test:geodesic-gestures": "node scripts/geodesic-gestures.mjs",
     "test:visual": "node scripts/visual-qa.mjs",
-    "build:runtime": "node scripts/build-runtime-assets.mjs && node scripts/build-demo-tour.mjs",
+    "build:runtime": "node scripts/build-runtime-assets.mjs",
     "build:artwork": "node scripts/build-artwork-tiles.mjs sample",
     "build:artwork-million": "node scripts/build-artwork-tiles.mjs million",
     "test:streaming": "node --test scripts/artwork-stream.test.mjs",

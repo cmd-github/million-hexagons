@@ -55,9 +55,9 @@ The separate live coming-soon globe repeats “Million Hexagons” and “Coming
 
 Grid outlines ease in over a broad projected-cell-size range with time-based opacity smoothing and an initial 0.8-second reveal. They do not fill or recolour the underlying surface. A subtle emissive floor keeps unoccupied regions readable on the dark side; exact geometry starts loading before the visible-detail threshold.
 
-The demo now dives to individual-hexagon scale on every other stop, starting about 23 seconds into the tour. It holds that view for six seconds before pulling back; exact cell detail preloads during the approach.
+The tour mixes broad passes with selected individual-hexagon dives. Exact cell detail preloads during approaches so close views remain crisp.
 
-The **Play demo** button starts an opt-in, looping tour of eight populated sample-brand locations. Each stop combines a wide rotating transition, a framed approach, a gentle close pass and a pullback. **Stop demo**, Escape, manual globe interaction, other controls or resizing returns control to the visitor. The small route file contains actual occupied placement centres and extents; it does not require loading the full topology. Regenerate it with `node scripts/build-demo-tour.mjs` after changing the sample inventory (also included in `build:runtime`).
+The plane control starts an opt-in globe **Tour** generated afresh from current occupied inventory. It samples up to eight geographically varied claimed cells, mixes wide transitions with selected close-detail passes, and never chooses an empty close-up target. With no occupied inventory it stays at overview distance. Stop, Escape, manual globe interaction, other controls or resizing returns control to the visitor. Route selection yields during its inventory scan and reuses the lazy topology rather than adding per-frame work.
 
 The versioned offline asset in `public/topology/` contains one million centres, shared polygon vertices, ordered polygon rings, reciprocal neighbours and areas. A 64-vertex degree-5/6 triangulation subdivided at frequency 127 gives exactly `(64 − 2) × 127² + 2 = 1,000,000` dual cells. Forty-eight degree-aware spherical spring iterations smooth the embedding without changing topology. This is a barycentric geodesic dual, not a latitude/longitude grid or a claim of perfectly regular equal-area hexagons.
 

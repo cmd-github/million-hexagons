@@ -28,6 +28,8 @@ Execution order: resolve rendering/count integrity, mobile placement, review sta
 
 ## Governing experience principles
 
+Visual quality and responsive performance are governing requirements for every product and presentation decision. Prefer adaptive detail, bounded memory and smooth progressive loading; do not trade visible polish for feature breadth or accept attractive output that performs poorly on target devices.
+
 1. Design artwork on a flat hex canvas; use the globe to choose location.
 2. Show only the controls required for the current decision.
 3. Movement and placement must never share an ambiguous gesture.
@@ -305,7 +307,7 @@ For every meaningful purchase-flow change:
 
 ## Decision log
 
-- Add an explicitly started demo tour through populated sample placements, with varied camera distances and gentle close passes. Keep its stop control available at every zoom; stop on manual interaction or entry into creation. Preserve Design → Place → Review.
+- Add an explicitly started, inventory-driven globe tour. Generate a fresh geographically varied route from currently occupied cells on every run, verify close-up targets are occupied, and use only wide overview movement when inventory is empty. Mix varied camera distances and gentle close passes without compromising frame pacing or artwork sharpness. Keep its stop control available at every zoom; stop on manual interaction or entry into creation. Preserve Design → Place → Review.
 
 - 6 September 2026: adopt bounded artwork tile streaming and continuous altitude-relative zoom for fully occupied inventory. Validate using an offline million-cell synthetic catalogue; production upload ingestion, authoritative metadata and durable publication remain transactional-MVP work.
 
