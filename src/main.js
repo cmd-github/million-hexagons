@@ -429,12 +429,7 @@ function setPaintAction(action) {
 }
 document.querySelector('#paintCells').addEventListener('click', () => setPaintAction('paint'));
 document.querySelector('#eraseCells').addEventListener('click', () => setPaintAction('erase'));
-document.querySelector('#exploreButton').addEventListener('click', () => { controls.autoRotate = !controls.autoRotate; });
-document.querySelector('#rotationToggle').addEventListener('click', () => { controls.autoRotate = !controls.autoRotate; });
-document.querySelector('#randomButton').addEventListener('click', () => {
-  controls.autoRotate = false;
-  globe.rotation.set((Math.random() - .5) * 1.8, Math.random() * Math.PI * 2, 0);
-});
+document.querySelector('#rotationToggle').addEventListener('click', () => { controls.autoRotate = !controls.autoRotate; updateRotationControl(); });
 document.querySelector('#zoomIn').addEventListener('click', () => {
   zoom.change(.8);
 });
