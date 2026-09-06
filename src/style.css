@@ -123,7 +123,7 @@ label,.field-label{font-size:12px;color:#bdcdcf}.upload-zone{padding:16px;margin
  body[data-flow=review] label{margin-top:8px;font-size:11px}
  body[data-flow=review] #website{padding:10px;font-size:14px;margin-top:5px}
 }
-#demoTour{color:var(--lime)}
+#demoTour{color:#fff}
 #demoTour[aria-pressed="true"]{background:var(--lime);color:#09151c}
 #rotationToggle[aria-pressed="true"]{color:var(--lime)}
 body.creating #demoTour{display:none}
