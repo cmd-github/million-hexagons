@@ -21,7 +21,7 @@ async function placeAvailableArea() {
   throw new Error('Could not find an available placement area');
 }
 
-await page.goto(process.env.SMOKE_URL || 'http://127.0.0.1:4175');
+await page.goto((process.env.SMOKE_URL || 'http://127.0.0.1:4175')+'?tourFast');
 await page.waitForSelector('#world[data-ready="true"]', { timeout: 60000 });
 
 if (!(await page.locator('#demoTour').evaluate((element) => element.closest('.globe-controls') !== null))) errors.push('Demo control was not in the globe toolbar');
@@ -34,7 +34,10 @@ await page.waitForFunction(() => document.body.classList.contains('detail-view')
 const globe = await page.locator('#world').boundingBox();
 if (!globe) throw new Error('Globe canvas was unavailable');
 await page.mouse.click(globe.x + globe.width / 2, globe.y + globe.height / 2);
+await page.waitForFunction(() => document.querySelector('#rotationToggle').getAttribute('aria-pressed') === 'false');
 if ((await page.locator('#rotationToggle').getAttribute('aria-pressed')) !== 'false') errors.push('Close globe click did not pause rotation');
+if ((await page.locator('#rotationToggle').textContent()) !== '⟳') errors.push('Paused globe control did not use the rotate icon');
+await page.screenshot({path:'artifacts/visual-qa/desktop-rotate-control.png'});
 await page.click('#rotationToggle');
 if ((await page.locator('#rotationToggle').getAttribute('aria-pressed')) !== 'true') errors.push('Rotation control did not restart rotation');
 if (await page.locator('#cellPosition').count()) errors.push('Tile tooltip still included coordinates');
@@ -54,6 +57,8 @@ await page.waitForFunction(() => document.querySelector('#demoTour').getAttribut
 const firstTourCell=await page.locator('#demoTour').getAttribute('data-cell');
 if (!firstTourCell) errors.push('Tour did not select an occupied target cell');
 await page.screenshot({path:'artifacts/visual-qa/desktop-globe-tour.png'});
+await page.waitForFunction(() => Number(document.querySelector('#demoTour').dataset.batch) >= 2, null, {timeout:15000});
+if ((await page.locator('#demoTour').getAttribute('aria-pressed')) !== 'true') errors.push('Tour did not continue into a fresh batch');
 await page.mouse.wheel(0,100);
 await page.waitForFunction(() => document.querySelector('#demoTour').getAttribute('aria-pressed') === 'false');
 await page.click('#demoTour');

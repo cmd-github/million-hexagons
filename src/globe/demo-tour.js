@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
-export function createDemoTour({camera,globe,controls,radius,button,wideDistance,cancelZoom,loadStops,prepareDetail=()=>{}}) {
-  let active=false,loading=false,stops=null,index=0,phase=0,elapsed=0,last=0,segment=null,generation=0;
+export function createDemoTour({camera,globe,controls,radius,button,wideDistance,cancelZoom,loadStops,prepareDetail=()=>{},timeScale=1}) {
+  let active=false,loading=false,stops=null,index=0,phase=0,elapsed=0,last=0,segment=null,generation=0,batch=0;
   const normalRoute=[['travel',7],['approach',5],['pass',7],['pullback',5]];
   const detailRoute=[['travel',7],['approach',5],['pass',4],['dive',7],['hexagons',6],['pullback',7]];
   const overviewRoute=[['travel',7],['pass',8],['pullback',5]];
@@ -38,7 +38,18 @@ export function createDemoTour({camera,globe,controls,radius,button,wideDistance
       if(!stops?.length)throw Error('Empty route');
       cancelZoom();controls.autoRotate=false;controls.enableDamping=false;controls.update();
       loading=false;active=true;index=0;phase=0;elapsed=0;last=performance.now();prepare();label();
+      batch=1;button.dataset.batch=String(batch);
     }catch{if(token===generation){stop();button.textContent='↻';button.setAttribute('aria-label','Retry globe tour');button.title='Retry globe tour';}}
+  }
+  async function replenish(){
+    const token=generation;
+    segment=null;
+    try{
+      const next=await loadStops();
+      if(!active||token!==generation)return;
+      if(!next?.length)throw Error('Empty route');
+      stops=next;index=0;phase=0;elapsed=0;last=performance.now();batch++;button.dataset.batch=String(batch);prepare();
+    }catch{if(token===generation)stop();}
   }
   button.addEventListener('click',start);
   document.addEventListener('pointerdown',event=>{if(!button.contains(event.target)&&(active||loading))stop();},{capture:true});
@@ -47,11 +58,11 @@ export function createDemoTour({camera,globe,controls,radius,button,wideDistance
   addEventListener('resize',()=>{if(active||loading)stop();});
   label();
   return {stop,get active(){return active;},update(time){
-    if(!active)return;
+    if(!active||!segment)return;
     const dt=Math.min(.1,Math.max(0,(time-last)/1000));last=time;if(document.hidden)return;
     elapsed+=dt;
-    const t=Math.min(1,elapsed/route()[phase][1]),ease=t*t*t*(t*(t*6-15)+10);
+    const t=Math.min(1,elapsed/(route()[phase][1]*timeScale)),ease=t*t*t*(t*(t*6-15)+10);
     camera.position.lerpVectors(segment.from,segment.to,ease);globe.quaternion.slerpQuaternions(segment.fromQ,segment.toQ,ease);camera.lookAt(0,0,0);
-    if(t===1){elapsed=0;phase++;if(phase===route().length){phase=0;index=(index+1)%stops.length;}prepare();}
+    if(t===1){elapsed=0;phase++;if(phase===route().length){phase=0;index++;if(index===stops.length){void replenish();return;}}prepare();}
   }};
 }

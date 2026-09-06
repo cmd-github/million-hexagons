@@ -307,7 +307,7 @@ For every meaningful purchase-flow change:
 
 ## Decision log
 
-- Add an explicitly started, inventory-driven globe tour. Generate a fresh geographically varied route from currently occupied cells on every run, verify close-up targets are occupied, and use only wide overview movement when inventory is empty. Mix varied camera distances and gentle close passes without compromising frame pacing or artwork sharpness. Keep its stop control available at every zoom; stop on manual interaction or entry into creation. Preserve Design → Place → Review.
+- Add an explicitly started, inventory-driven globe tour that continues through freshly generated batches until stopped. Route by purchased placement, using a stored central focus cell so close-ups land on meaningful artwork rather than an edge cell; verify every close-up target remains occupied, and use only wide overview movement when inventory is empty. Mix varied camera distances and gentle close passes without compromising frame pacing or artwork sharpness. Keep its stop control available at every zoom; stop on manual interaction or entry into creation. Preserve Design → Place → Review.
 
 - 6 September 2026: adopt bounded artwork tile streaming and continuous altitude-relative zoom for fully occupied inventory. Validate using an offline million-cell synthetic catalogue; production upload ingestion, authoritative metadata and durable publication remain transactional-MVP work.
 

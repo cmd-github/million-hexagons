@@ -1088,7 +1088,8 @@ async function paintPlacement() {
     publishing=false;document.querySelector('#buyPanel').inert=false;button.disabled=false;button.textContent=label;
   }
   clearPlacementPreview();
-  const placementRecord={website,count:amount};
+  const sum=cells.reduce((vector,cell)=>vector.add(new THREE.Vector3(...topology.centre(cell.id))),new THREE.Vector3()).normalize();
+  const placementRecord={website,count:amount,anchor:cells.reduce((best,cell)=>sum.dot(new THREE.Vector3(...topology.centre(cell.id)))>sum.dot(new THREE.Vector3(...topology.centre(best.id)))?cell:best,cells[0]).id};
   cells.forEach((cell) => { occupiedCells[cell.id - 1] = 255; sessionPlacements.set(cell.id,placementRecord); });
   occupancyTexture.needsUpdate = true;
   sold = Math.min(1000000, sold + amount);
@@ -1119,45 +1120,37 @@ resize();
 frameGlobe(true);
 
 async function createTourStops(){
-  const grid=await ensureTopology(),reservoir=[],limit=96;
-  let seen=0;
-  for(let offset=0;offset<CELL_COUNT;offset++){
-    if(offset&&offset%100000===0)await new Promise(resolve=>setTimeout(resolve,0));
-    if(!occupiedCells[offset])continue;
-    seen++;
-    if(reservoir.length<limit)reservoir.push(offset+1);
-    else {const replace=Math.floor(Math.random()*seen);if(replace<limit)reservoir[replace]=offset+1;}
-  }
-  if(!reservoir.length)return [
+  const grid=await ensureTopology(),sessionAreas=[...new Set(sessionPlacements.values())].map((placement,index)=>({anchor:placement.anchor,name:'Your placement',key:`session-${index}`}));
+  const candidates=[...(bootstrap.sampleAreas||[]).map((area,index)=>({anchor:area.anchor,name:bootstrap.sampleCampaigns[area.campaign].name,key:`sample-${index}`})),...sessionAreas]
+    .filter(area=>occupiedCells[area.anchor-1]);
+  if(!candidates.length)return [
     {name:'Globe overview',normal:[0,0,1],angle:.4,overview:true,offset:0},
     {name:'Globe overview',normal:[1,0,0],angle:.4,overview:true,offset:0},
     {name:'Globe overview',normal:[0,0,-1],angle:.4,overview:true,offset:0},
   ];
-  const selected=[reservoir.splice(Math.floor(Math.random()*reservoir.length),1)[0]];
-  while(selected.length<Math.min(8,seen)&&reservoir.length){
+  const pool=[...candidates],selected=[pool.splice(Math.floor(Math.random()*pool.length),1)[0]],limit=Math.min(24,candidates.length);
+  while(selected.length<limit&&pool.length){
     let best=0,bestScore=Infinity;
-    for(let i=0;i<reservoir.length;i++){
-      const point=grid.centre(reservoir[i]);
-      const score=Math.max(...selected.map(id=>{const other=grid.centre(id);return point[0]*other[0]+point[1]*other[1]+point[2]*other[2];}));
+    for(let i=0;i<pool.length;i++){
+      const point=grid.centre(pool[i].anchor);
+      const separation=Math.max(...selected.map(area=>{const other=grid.centre(area.anchor);return point[0]*other[0]+point[1]*other[1]+point[2]*other[2];}));
+      const score=separation+Math.random()*.08;
       if(score<bestScore){best=i;bestScore=score;}
     }
-    selected.push(reservoir.splice(best,1)[0]);
+    selected.push(pool.splice(best,1)[0]);
   }
   const firstDetail=Math.floor(Math.random()*selected.length),detailSlots=new Set([firstDetail]);
   if(selected.length>1)detailSlots.add((firstDetail+1+Math.floor(Math.random()*(selected.length-1)))%selected.length);
-  return selected.map((id,index)=>{
-    const cell=cellForId(id);
-    return {id,name:cell.owner,normal:Array.from(grid.centre(id)),angle:.012,detail:detailSlots.has(index)||Math.random()<.35,offset:(Math.random()-.5)*.07};
-  });
+  return selected.map((area,index)=>({id:area.anchor,name:area.name,normal:Array.from(grid.centre(area.anchor)),angle:.012,detail:detailSlots.has(index)||Math.random()<.35,offset:(Math.random()-.5)*.07}));
 }
-const demoTour=createDemoTour({camera,globe,controls,radius,button:document.querySelector('#demoTour'),wideDistance:globeFitDistance,cancelZoom(){zoom.cancel();cameraDistanceTarget=null;},loadStops:createTourStops,prepareDetail(){void ensureTopology().catch(()=>{});}});
+const demoTour=createDemoTour({camera,globe,controls,radius,button:document.querySelector('#demoTour'),wideDistance:globeFitDistance,cancelZoom(){zoom.cancel();cameraDistanceTarget=null;},loadStops:createTourStops,prepareDetail(){void ensureTopology().catch(()=>{});},timeScale:import.meta.env.DEV&&new URLSearchParams(location.search).has('tourFast')?.005:1});
 const rotationToggle=document.querySelector('#rotationToggle');
 let displayedRotationState=null;
 function updateRotationControl(){
   const rotating=controls.autoRotate&&!demoTour.active;
   if(rotating===displayedRotationState)return;
   displayedRotationState=rotating;
-  rotationToggle.textContent=rotating?'⏸':'▶';
+  rotationToggle.textContent=rotating?'⏸':'⟳';
   rotationToggle.setAttribute('aria-pressed',String(rotating));
   rotationToggle.setAttribute('aria-label',rotating?'Pause globe rotation':'Start globe rotation');
   rotationToggle.title=rotating?'Pause globe rotation':'Start globe rotation';
