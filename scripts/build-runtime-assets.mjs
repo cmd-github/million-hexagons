@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import {gzipSync} from 'node:zlib';
+import {SphericalTopology} from '../src/globe/topology.js';
+import {encodeTopology,decodeTopology} from '../src/globe/topology-codec.js';
+const data=fs.readFileSync('public/topology/geodesic-v1.bin'),manifest=JSON.parse(fs.readFileSync('public/topology/geodesic-v1.json'));
+const grid=new SphericalTopology(data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength),manifest);
+const compressed=gzipSync(data,{level:9});fs.writeFileSync('public/topology/geodesic-v1.bin.gz',compressed);
+const packed=encodeTopology(data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength),manifest);
+if(!Buffer.from(decodeTopology(packed,manifest)).equals(data))throw Error('Lossless codec mismatch');
+const packedGzip=gzipSync(packed,{level:9});fs.writeFileSync('public/topology/geodesic-v1.packed.gz',packedGzip);
+const catalogue=JSON.parse(fs.readFileSync('public/topology/samples-v1.json')),occupancy=new Uint8Array(1000000);
+for(const sample of catalogue.samples)for(const id of sample.ids)occupancy[id-1]=255;
+fs.writeFileSync('public/topology/occupancy-v1.gz',gzipSync(occupancy));
+fs.writeFileSync('public/topology/bootstrap.json',JSON.stringify({anchor:grid.pick([0,0,1]),locations:{equator:grid.pick([0,0,1]),north:grid.pick([0,1,0]),south:grid.pick([0,-1,0]),pentagon:1,nearPentagon:grid.neighboursOf(1)[0]},cells:1000000,pentagons:manifest.pentagons,bytes:packedGzip.length})+'\n');
+console.log({topologyCompressed:compressed.length,topologyPacked:packedGzip.length,occupancyCompressed:gzipSync(occupancy).length});

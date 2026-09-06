@@ -1,5 +1,6 @@
 # Repository guidance
 
+- Read `brand_and_marketing.md` before writing or changing public-facing brand, positioning, campaign, or marketing copy.
 - Read `docs/PRODUCT-DELIVERY-PLAN.md` before changing product behaviour, purchase flow, rendering, or roadmap scope.
 - Keep `README.md` accurate for setup and current architecture.
 - After completing work in this repository, run relevant validation, commit the task's changes, and push the working branch to its configured remote without asking for confirmation. Include associated documentation and audit updates. Do not include unrelated user changes or force-push; report any validation or push blocker explicitly. For read-only work with no changes, no empty commit is needed.

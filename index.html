@@ -10,17 +10,18 @@
   <body>
     <canvas id="world" aria-label="Interactive advertising globe. Drag to rotate; use the zoom controls to explore."></canvas>
     <div class="demo-badge">EXPERIENCE PREVIEW <span>No payments &middot; sample brands</span></div>
+    <button id="demoTour" class="secondary" aria-pressed="false" aria-label="Play or stop the guided globe demo">▶ Play demo</button>
     <header class="topbar">
       <a class="brand" href="#" aria-label="Million Hexagons home"><span class="mark">MH</span><span><b>MILLION</b><strong>HEXAGONS</strong></span></a>
-      <div class="inventory"><div><span id="soldCount">500,000</span> demo hexagons</div><div class="meter"><i id="soldMeter"></i></div><small><span id="availableCount">500,000</span> available to preview</small></div>
+      <div class="inventory"><div><span id="soldCount">…</span> demo cells</div><div class="meter"><i id="soldMeter"></i></div><small><span id="availableCount">…</span> available to preview</small></div>
       <button class="primary" id="claimButton">Create a placement <span>&#8599;</span></button>
     </header>
 
     <aside class="intro glass">
       <p class="eyebrow">A SMALL SPACE. A WORLD OF POSSIBILITY.</p>
       <h1>Your brand.<br><em>Part of<br>the world.</em></h1>
-      <p>One million hexagons. A place for your story.<br>Create a logo, colour or original design.<br><b>$1 per hexagon. One-time pricing.</b></p>
-      <div class="facts"><span><b>1,000,000</b> hexagons</span><span><b>Yours</b> to design</span><span><b>$1</b> each</span></div>
+      <p>One million spaces. A place for your story.<br>Includes 12 special, claimable pentagons.<br><b>$1 per cell. One-time pricing.</b></p>
+      <div class="facts"><span><b>1,000,000</b> spaces</span><span><b>Yours</b> to design</span><span><b>$1</b> each</span></div>
       <button class="secondary" id="exploreButton">Explore the globe</button>
     </aside>
 
@@ -113,7 +114,7 @@
         <div class="review-card"><canvas id="reviewCanvas" width="680" height="400"></canvas><div><span id="reviewKind">Logo placement</span><b id="reviewCount">150 hexagons</b></div></div>
         <button class="text-button" id="reviewEditDesign">Edit artwork &amp; size</button><p class="review-warning" id="reviewWarning" hidden></p>
         <label>Website to open when clicked <span class="optional">Optional</span><input id="website" type="url" placeholder="https://yourcompany.com" /></label>
-        <p id="websiteError" role="alert" hidden></p><div class="review-footer"><div class="price review-price"><span>Total</span><b id="reviewPrice">$150</b><small>$1 per hexagon · one-time</small></div>
+        <p id="websiteError" role="alert" hidden></p><div class="review-footer"><div class="price review-price"><span>Total</span><b id="reviewPrice">$150</b><small>$1 per cell · one-time</small></div>
         <button class="primary full" id="previewPurchase">Add this preview to the globe</button>
         <small class="mock-note">Prototype checkout — no payment will be taken.</small></div>
       </div>

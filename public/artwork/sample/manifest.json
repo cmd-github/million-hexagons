@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "tileSize": 512,
+  "gutter": 2,
+  "maxLevel": 5,
+  "inventory": 344500,
+  "fixture": null,
+  "projection": "cube-gnomonic",
+  "files": 8190
+}

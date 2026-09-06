@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "frequency": 127,
+  "relaxationSteps": 48,
+  "cells": 1000000,
+  "hexagons": 999988,
+  "pentagons": [
+    1,
+    2,
+    10,
+    11,
+    12,
+    14,
+    41,
+    43,
+    45,
+    51,
+    56,
+    57
+  ],
+  "vertices": 1999996,
+  "edges": 2999994,
+  "euler": 2,
+  "surfaceArea": 12.56637061430263,
+  "cellArea": {
+    "min": 0.000008921370034309263,
+    "max": 0.000014117747506109895,
+    "mean": 0.000012566370614302629,
+    "coefficientOfVariation": 0.04298094647551156,
+    "maxMinRatio": 1.5824640668212078
+  },
+  "edgeLength": {
+    "min": 0.0016181124293519727,
+    "max": 0.0026425756029057742,
+    "mean": 0.0022150508544984205,
+    "coefficientOfVariation": 0.07734005998946807,
+    "maxMinRatio": 1.6331223683660117
+  },
+  "bytes": 91999984,
+  "sha256": "9a5107c6ff56c89ba88f42760aeb472e63a70686ed4654ac77d011d4b8595a41",
+  "sections": {
+    "centres": {
+      "offset": 32,
+      "length": 3000000,
+      "type": "Float32Array"
+    },
+    "vertices": {
+      "offset": 12000032,
+      "length": 5999988,
+      "type": "Float32Array"
+    },
+    "rings": {
+      "offset": 35999984,
+      "length": 6000000,
+      "type": "Uint32Array"
+    },
+    "neighbours": {
+      "offset": 59999984,
+      "length": 6000000,
+      "type": "Uint32Array"
+    },
+    "degrees": {
+      "offset": 83999984,
+      "length": 1000000,
+      "type": "Uint32Array"
+    },
+    "areas": {
+      "offset": 87999984,
+      "length": 1000000,
+      "type": "Float32Array"
+    }
+  }
+}

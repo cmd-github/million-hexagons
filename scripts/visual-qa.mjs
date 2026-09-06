@@ -14,13 +14,14 @@ try {
   page.setDefaultTimeout(10000);
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(url);
-  await page.waitForTimeout(500);
+  await page.waitForSelector('#world[data-ready="true"]', { timeout: 60000 });
   const prefix=mobile?'mobile':'desktop';
   await page.screenshot({path:`artifacts/visual-qa/${prefix}-explore.png`});
   await page.locator('#toggleHexSearch').click();
   await page.locator('#hexSearchInput').fill('#1');
   await page.locator('#hexSearch').evaluate(form=>form.requestSubmit());
-  assert.equal(await page.locator('#hexSearchStatus').textContent(),'Centred on hex #1.');
+  await page.waitForFunction(()=>document.querySelector('#hexSearchStatus').textContent==='Centred on pentagon #1.',null,{timeout:60000});
+  assert.equal(await page.locator('#hexSearchStatus').textContent(),'Centred on pentagon #1.');
   await page.screenshot({path:`artifacts/visual-qa/${prefix}-explore-hex-1.png`});
   await page.locator('#toggleHexSearch').click();
   for(const type of ['logo','colour','paint']) {
@@ -89,6 +90,7 @@ try {
     await page.locator('#website').fill('https://example.com/');
     const soldBefore=Number((await page.locator('#soldCount').textContent()).replaceAll(',',''));
     await page.locator('#previewPurchase').click();
+    await page.waitForFunction(()=>document.querySelector('#buyPanel').getAttribute('aria-hidden')==='true',null,{timeout:60000});
     assert.equal(await page.locator('#buyPanel').getAttribute('aria-hidden'),'true');
     assert.equal(await page.locator('#placementWebsite').getAttribute('href'),'https://example.com/');
     const soldAfter=Number((await page.locator('#soldCount').textContent()).replaceAll(',',''));

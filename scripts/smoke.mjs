@@ -22,9 +22,10 @@ async function placeAvailableArea() {
 }
 
 await page.goto(process.env.SMOKE_URL || 'http://127.0.0.1:4175');
-await page.waitForTimeout(1200);
+await page.waitForSelector('#world[data-ready="true"]', { timeout: 60000 });
 
 await page.click('#claimButton');
+await page.waitForSelector('#typeStep', {state:'visible',timeout:60000});
 if (!(await page.locator('#typeStep').isVisible())) errors.push('Creation type step did not open');
 await page.click('#logoArtwork');
 if (!(await page.locator('#designStep').isVisible())) errors.push('Logo design step did not open');
@@ -44,7 +45,7 @@ await page.click('#toReview');
 if (!(await page.locator('#reviewStep').isVisible())) errors.push('Review step did not open');
 if ((await page.locator('#reviewPrice').textContent()) !== '$150') errors.push('Logo review price was not $150');
 await page.click('#previewPurchase');
-await page.waitForTimeout(250);
+await page.waitForFunction(()=>document.querySelector('#buyPanel').getAttribute('aria-hidden')==='true',null,{timeout:60000});
 
 await page.click('#claimButton');
 await page.click('#paintArtwork');

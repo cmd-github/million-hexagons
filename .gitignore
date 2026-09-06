@@ -1,6 +1,8 @@
 node_modules/
 dist/
+coming-soon-dist/
 artifacts/
+public/artwork/million/
 *.log
 xcreds.txt
 .firebase/

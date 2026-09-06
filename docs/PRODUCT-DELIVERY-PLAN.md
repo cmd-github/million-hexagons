@@ -1,11 +1,11 @@
 # Million Hexagons Product and Delivery Plan
 
 Status: agreed direction  
-Last updated: 5 September 2026
+Last updated: 6 September 2026
 
 ## Product thesis
 
-Million Hexagons is an advertising product first and a 3D globe second. The globe contains exactly 1,000,000 individually addressable advertising hexagons sold at $1 each. A buyer can create a coloured placement or display artwork across a connected group, attach a destination URL, and buy the placement permanently.
+Million Hexagons is an advertising product first and a 3D globe second. The globe contains exactly 1,000,000 individually addressable cells: 999,988 hexagons and 12 claimable pentagons, with a prototype price of $1 per cell. A buyer can create a coloured placement or display artwork across a connected group, attach a destination URL, and buy the placement permanently.
 
 The first objective is to prove that visitors understand the proposition, enjoy exploring the world, and are willing to create a placement. Account systems, real payments, auctions, campaign analytics, and enterprise sales tooling come only after that behaviour is validated.
 
@@ -122,6 +122,7 @@ Grid lines should be crisp but faint during exploration and deliberately clearer
 ## Artwork quality rules
 
 - Map editor cells and globe cells using one canonical cell address and geometry calculation.
+- Use exactly 1,000,000 near-equal-area claimable cells: 999,988 hexagons and the 12 pentagons required to close a spherical geodesic topology. The pentagons are claimable product spaces, not hidden seams.
 - Clip artwork to the exact purchased cells.
 - Preserve aspect ratio; do not stretch artwork to fill irregular selections.
 - Fit artwork inside the useful bounds of its selected shape.
@@ -159,11 +160,21 @@ Explicitly deferred:
 
 ### Rendering
 
+The working implementation now uses the versioned v1 geodesic dual described in [GEODESIC-MIGRATION-QA.md](GEODESIC-MIGRATION-QA.md). A 64-vertex spherical triangulation subdivided at frequency 127 produces exactly one million dual cells, with 48 degree-aware spring-relaxation iterations. The measured area CV is 4.30% (max/min 1.5825); edge-length CV is 7.734% (max/min 1.6332). These are measured tolerances, not an equal-area or regular-polygon claim.
+
+- Freeze v1 IDs and the 12 pentagon IDs in the asset manifest. Changing the seed or subdivision numbering requires an explicit inventory migration.
+- Treat `src/globe/topology.js` as the canonical source for polygon boundaries, centres, adjacency, picking and local projections. `SphereGeometry` is only a shaded background, never the cell grid.
+- Use one placement-local gnomonic frame for the true polygon mask, artwork, flat preview and merged territory. Preserve aspect ratio locally; ordinary perspective foreshortening remains when viewing from an angle.
+- Moving the draft can change its polygon outline around pentagons. Reassign the exact count through real adjacency, adopt the new IDs in Design, and show the actual result in Review. Do not pretend a planar hex footprint can translate unchanged through a spherical defect. Painting joins distant clicks through an explicitly visible connected path; totals include those cells. Moving to a different anchor resets the location-specific undo history.
+- Use an incrementally built visible grid patch with screen-size boundary fade and streamed, polygon-clipped artwork pages. Select required artwork resolution over the entire viewport before allocating requests; never leave a region permanently coarse to meet a draw-call budget. Use cached ancestors only during loading, crisp page replacements, anisotropic filtering and high-resolution source artwork. Bound the cache by viewport demand rather than advertiser count. The 1024×977 state texture is ID storage with 448 unused slots, not a geographic UV grid.
+- Overview must not await the full topology. Load the losslessly packed 17.2 MB topology in a worker when exact selection/detail is needed, retaining its unchanged 92 MB representation. Account for decoded image and GPU memory separately from JavaScript heap; test physical low-end mobile/network behaviour before commercial release. See [PERFORMANCE-QA.md](PERFORMANCE-QA.md).
+
 - Keep the million cells as logical addresses rather than one million Three.js objects.
 - Continue using GPU textures for occupancy, selected colours, and purchased colours.
-- Use the same spherical cell-coordinate function for picking, preview, and final logo meshes.
+- Use the same actual spherical polygon topology for picking, preview, and final logo meshes.
 - Suppress sub-pixel grid detail at globe scale to prevent shimmer.
-- Merge each purchased territory into as few draw calls as practical.
+- Fade only grid outlines over a broad screen-size range with time-based smoothing. Keep the underlying globe surface stable during detail loading and maintain readable dark-side illumination.
+- Compile published territories into affected artwork pages, then dispose their temporary geometry/textures. Do not retain one object or texture per advertiser in the visitor scene.
 - Keep uploaded textures bounded and dispose preview geometry and textures when leaving review.
 
 ### Application structure
@@ -198,7 +209,7 @@ A placement will eventually require:
 Goal: make the current concept trustworthy enough for hands-on evaluation.
 
 - [x] Render one million addressable cells without one million objects.
-- [x] Populate roughly half the globe with representative mock advertising.
+- [x] Populate 344,500 cells with 53 representative sample campaigns using actual polygon boundaries.
 - [x] Provide exact multi-cell logo geometry and per-cell colour data.
 - [x] Introduce the staged Design → Place → Review flow.
 - [x] Add the flat logo/colour/paint preview.
@@ -294,7 +305,13 @@ For every meaningful purchase-flow change:
 
 ## Decision log
 
-- Use one million logical mapped hexagons rather than a literal geodesic polyhedron with twelve pentagons.
+- Add an explicitly started demo tour through populated sample placements, with varied camera distances and gentle close passes. Keep its stop control available at every zoom; stop on manual interaction or entry into creation. Preserve Design → Place → Review.
+
+- 6 September 2026: adopt bounded artwork tile streaming and continuous altitude-relative zoom for fully occupied inventory. Validate using an offline million-cell synthetic catalogue; production upload ingestion, authoritative metadata and durable publication remain transactional-MVP work.
+
+- 6 September 2026: adopt the exact-count v1 geodesic asset, real pentagonal inventory, placement-local artwork and adjacency-based draft relocation. The old latitude/longitude inventory and campaign atlas are removed from the product renderer. The dated geodesic audit records verification and remaining release limits.
+
+- Use exactly one million claimable geodesic cells: 999,988 near-uniform hexagons plus 12 similarly sized claimable pentagons. Do not use latitude/longitude UV cells because they stretch tiles and advertiser artwork near the poles.
 - Treat the product as permanent advertising inventory, not a game or virtual-world building simulator.
 - Use one globe rather than islands or multiple landmasses.
 - Populate the prototype heavily enough to communicate marketplace potential.

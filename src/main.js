@@ -1,22 +1,22 @@
-import { compactFootprint, translateFootprint, footprintBounds, centre } from './placements/geometry.js';
+import { loadTopology, CELL_COUNT } from './globe/topology.js';
+import { createCellDetail } from './globe/detail.js';
+import { ArtworkTiles } from './globe/tiles.js';
+import { publishToTiles } from './globe/tile-baker.js';
+import { smoothZoom } from './globe/zoom.js';
+import { createDemoTour } from './globe/demo-tour.js';
+import { footprintBounds, centre } from './placements/geometry.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import adidasSvg from 'simple-icons/icons/adidas.svg?raw';
-import appleSvg from 'simple-icons/icons/apple.svg?raw';
-import cocaColaSvg from 'simple-icons/icons/cocacola.svg?raw';
-import googleSvg from 'simple-icons/icons/google.svg?raw';
-import ikeaSvg from 'simple-icons/icons/ikea.svg?raw';
-import mastercardSvg from 'simple-icons/icons/mastercard.svg?raw';
-import mcdonaldsSvg from 'simple-icons/icons/mcdonalds.svg?raw';
-import netflixSvg from 'simple-icons/icons/netflix.svg?raw';
-import nikeSvg from 'simple-icons/icons/nike.svg?raw';
-import samsungSvg from 'simple-icons/icons/samsung.svg?raw';
-import spotifySvg from 'simple-icons/icons/spotify.svg?raw';
-import youtubeSvg from 'simple-icons/icons/youtube.svg?raw';
 import './style.css';
 
 const canvas = document.querySelector('#world');
+document.querySelector('#claimButton').disabled = true;
+const loading = document.createElement('div');
+loading.textContent = 'Loading the canvas…';
+loading.setAttribute('role', 'status');
+loading.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);color:#d4ff58;z-index:20;font:16px sans-serif';
+document.body.append(loading);
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
 renderer.setSize(innerWidth, innerHeight);
@@ -27,213 +27,29 @@ renderer.toneMappingExposure = 1.15;
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x050b14, .018);
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .1, 100);
-const logicalColumns = 1250;
-const logicalRows = 800;
-const occupiedCells = new Uint8Array(logicalColumns * logicalRows);
-
-const atlas = document.createElement('canvas');
-atlas.width = Math.min(4096, renderer.capabilities.maxTextureSize);
-atlas.height = atlas.width / 2;
-const ctx = atlas.getContext('2d');
-
-const iconPath = (svg) => new Path2D(svg.match(/<path d="([^"]+)"/)?.[1] || '');
-const brands = {
-  adidas: { name: 'adidas', bg: '#08090b', fg: '#ffffff', path: iconPath(adidasSvg) },
-  apple: { name: 'Apple', bg: '#f4f4f1', fg: '#111214', path: iconPath(appleSvg) },
-  cocaCola: { name: 'Coca-Cola', bg: '#f40009', fg: '#ffffff', path: iconPath(cocaColaSvg), markOnly: true, wide: true },
-  google: { name: 'Google', bg: '#f7f7f3', fg: '#4285f4', path: iconPath(googleSvg) },
-  ikea: { name: 'IKEA', bg: '#0058a3', fg: '#ffda1a', path: iconPath(ikeaSvg), markOnly: true, wide: true },
-  mastercard: { name: 'mastercard', bg: '#f2f0eb', fg: '#111111', path: iconPath(mastercardSvg) },
-  mcdonalds: { name: "McDonald's", bg: '#da291c', fg: '#ffc72c', path: iconPath(mcdonaldsSvg) },
-  netflix: { name: 'NETFLIX', bg: '#090909', fg: '#e50914', path: iconPath(netflixSvg) },
-  nike: { name: 'NIKE', bg: '#f3f1eb', fg: '#111111', path: iconPath(nikeSvg) },
-  samsung: { name: 'SAMSUNG', bg: '#1428a0', fg: '#ffffff', path: iconPath(samsungSvg), markOnly: true, wide: true },
-  spotify: { name: 'Spotify', bg: '#1ed760', fg: '#111111', path: iconPath(spotifySvg) },
-  youtube: { name: 'YouTube', bg: '#ffffff', fg: '#ff0000', path: iconPath(youtubeSvg) },
-};
-
-const heroCampaigns = [
-  { brand: 'nike', x: .015, y: .035, w: .245, h: .205, seed: 2 },
-  { brand: 'cocaCola', x: .292, y: .025, w: .29, h: .19, seed: 5 },
-  { brand: 'apple', x: .625, y: .04, w: .15, h: .205, seed: 8 },
-  { brand: 'spotify', x: .815, y: .055, w: .17, h: .16, seed: 11 },
-  { brand: 'google', x: .045, y: .315, w: .285, h: .17, seed: 14 },
-  { brand: 'mcdonalds', x: .375, y: .28, w: .155, h: .205, seed: 17 },
-  { brand: 'youtube', x: .575, y: .305, w: .255, h: .175, seed: 20 },
-  { brand: 'nike', x: .865, y: .305, w: .12, h: .15, seed: 23, compact: true },
-  { brand: 'adidas', x: .015, y: .56, w: .19, h: .185, seed: 26 },
-  { brand: 'netflix', x: .245, y: .535, w: .14, h: .225, seed: 29 },
-  { brand: 'mastercard', x: .425, y: .56, w: .17, h: .18, seed: 32 },
-  { brand: 'ikea', x: .635, y: .535, w: .255, h: .185, seed: 35 },
-  { brand: 'spotify', x: .915, y: .555, w: .075, h: .155, seed: 38, compact: true },
-  { brand: 'samsung', x: .06, y: .82, w: .285, h: .15, seed: 41 },
-  { brand: 'apple', x: .39, y: .805, w: .12, h: .16, seed: 44, compact: true },
-  { brand: 'youtube', x: .555, y: .82, w: .175, h: .145, seed: 47 },
-  { brand: 'google', x: .78, y: .815, w: .195, h: .15, seed: 50 },
-];
-
-function campaignPath({ x, y, w, h, seed }) {
-  const px = x * atlas.width;
-  const py = y * atlas.height;
-  const width = w * atlas.width;
-  const height = h * atlas.height;
-  const jitter = (index) => ((Math.sin(seed * 19.17 + index * 8.31) + 1) * .5 - .5);
-  const path = new Path2D();
-  const points = [
-    [.05 + jitter(0) * .025, 0], [.72 + jitter(1) * .08, .015], [1, .16 + jitter(2) * .035],
-    [.985, .76 + jitter(3) * .08], [.82 + jitter(4) * .07, 1], [.19 + jitter(5) * .07, .975],
-    [0, .79 + jitter(6) * .055], [.015, .2 + jitter(7) * .06],
-  ];
-  path.moveTo(px + points[0][0] * width, py + points[0][1] * height);
-  points.slice(1).forEach(([pointX, pointY]) => path.lineTo(px + pointX * width, py + pointY * height));
-  path.closePath();
-  return path;
+let topology = null, topologyPromise = null, cellDetail = null;
+const bootstrap = await fetch('/topology/bootstrap.json').then(r=>r.json());
+const millionFixture = import.meta.env.DEV && new URLSearchParams(location.search).has('millionLogos');
+async function ensureTopology() {
+  if(topology)return topology;
+  if(!topologyPromise)topologyPromise=loadTopology().then(value=>{
+    topology=value;
+    cellDetail=createCellDetail(topology,globe,radius,{occupancy:occupancyTexture,selection:selectionColourTexture},selectionModeUniform,hoverCellUniform);
+    return topology;
+  }).catch(error=>{topologyPromise=null;loading.textContent=error.message;throw error;});
+  return topologyPromise;
 }
+const textureColumns = 1024, textureRows = 977;
+const occupiedCells = new Uint8Array(textureColumns * textureRows);
 
-function drawBrandMark(context, brand, x, y, width, height, compact = false) {
-  const markSize = brand.wide
-    ? Math.min(height * 1.2, width * .7)
-    : Math.min(height * (compact || brand.markOnly ? .62 : .48), width * (compact ? .72 : .28));
-  const hasLabel = !compact && !brand.markOnly && width > height * 1.35;
-  const markX = hasLabel ? x + width * .2 : x + width * .5;
-  const markY = hasLabel ? y + height * .48 : y + height * .5;
-  context.save();
-  context.translate(markX - markSize / 2, markY - markSize / 2);
-  context.scale(markSize / 24, markSize / 24);
-  context.fillStyle = brand.fg;
-  context.fill(brand.path);
-  context.restore();
-  if (!hasLabel) return;
-  context.save();
-  context.fillStyle = brand.fg;
-  context.font = `800 ${Math.max(22, Math.floor(height * .21))}px Arial`;
-  context.textAlign = 'left';
-  context.textBaseline = 'middle';
-  context.fillText(brand.name, x + width * .36, y + height * .5, width * .58);
-  context.restore();
-}
-
-function drawHeroCampaign(campaign) {
-  const brand = brands[campaign.brand];
-  const path = campaignPath(campaign);
-  const x = campaign.x * atlas.width;
-  const y = campaign.y * atlas.height;
-  const width = campaign.w * atlas.width;
-  const height = campaign.h * atlas.height;
-  ctx.save();
-  ctx.clip(path);
-  ctx.fillStyle = brand.bg;
-  ctx.fillRect(x, y, width, height);
-  const sheen = ctx.createLinearGradient(x, y, x + width, y + height);
-  sheen.addColorStop(0, 'rgba(255,255,255,.12)');
-  sheen.addColorStop(.52, 'rgba(255,255,255,0)');
-  sheen.addColorStop(1, 'rgba(0,0,0,.12)');
-  ctx.fillStyle = sheen;
-  ctx.fillRect(x, y, width, height);
-  drawBrandMark(ctx, brand, x, y, width, height, campaign.compact);
-  ctx.restore();
-}
-
-function seededRandom(seed) {
-  let state = seed >>> 0;
-  return () => {
-    state = (state * 1664525 + 1013904223) >>> 0;
-    return state / 4294967296;
-  };
-}
-
-function connectedCells(startColumn, startRow, count, random) {
-  const cells = new Map();
-  const key = (column, row) => `${column},${row}`;
-  cells.set(key(startColumn, startRow), { column: startColumn, row: startRow });
-  while (cells.size < count) {
-    const existing = [...cells.values()][Math.floor(random() * cells.size)];
-    const neighbours = existing.row % 2
-      ? [[1, 0], [-1, 0], [0, 1], [1, 1], [0, -1], [1, -1]]
-      : [[1, 0], [-1, 0], [-1, 1], [0, 1], [-1, -1], [0, -1]];
-    const [columnStep, rowStep] = neighbours[Math.floor(random() * neighbours.length)];
-    const column = THREE.MathUtils.clamp(existing.column + columnStep, 2, 1247);
-    const row = THREE.MathUtils.clamp(existing.row + rowStep, 2, 797);
-    cells.set(key(column, row), { column, row });
-  }
-  return [...cells.values()];
-}
-
-function drawSmallOwners() {
-  const random = seededRandom(7331);
-  const ownerColours = ['#ff7657', '#69d7ff', '#f8d849', '#ad85ff', '#f18ec4', '#54d89b', '#f3f0de'];
-  const ownerNames = ['AK', 'JS', 'M+M', 'RB', 'LO', 'TQ', 'HEY', '44'];
-  const cellWidth = atlas.width / 1250;
-  const cellHeight = atlas.height / 800;
-  let drawn = 0;
-  let attempts = 0;
-  while (drawn < 54 && attempts < 800) {
-    attempts += 1;
-    const column = Math.floor(18 + random() * 1214);
-    const row = Math.floor(15 + random() * 770);
-    const u = column / 1250;
-    const v = row / 800;
-    if (heroCampaigns.some((campaign) => u > campaign.x - .018 && u < campaign.x + campaign.w + .018 && v > campaign.y - .025 && v < campaign.y + campaign.h + .025)) continue;
-    const count = 20 + Math.floor(random() * 31);
-    const cells = connectedCells(column, row, count, random);
-    const minColumn = Math.min(...cells.map((cell) => cell.column));
-    const maxColumn = Math.max(...cells.map((cell) => cell.column));
-    const minRow = Math.min(...cells.map((cell) => cell.row));
-    const maxRow = Math.max(...cells.map((cell) => cell.row));
-    const mask = new Path2D();
-    cells.forEach((cell) => {
-      const centreX = ((cell.column + (cell.row % 2) * .5) / 1250) * atlas.width;
-      const centreY = (cell.row / 800) * atlas.height;
-      mask.rect(centreX - cellWidth * .56, centreY - cellHeight * .56, cellWidth * 1.12, cellHeight * 1.12);
-    });
-    ctx.save();
-    ctx.clip(mask);
-    ctx.fillStyle = ownerColours[drawn % ownerColours.length];
-    ctx.fillRect(0, 0, atlas.width, atlas.height);
-    const left = (minColumn / 1250) * atlas.width;
-    const top = (minRow / 800) * atlas.height;
-    const width = Math.max(cellWidth * 4, ((maxColumn - minColumn + 1) / 1250) * atlas.width);
-    const height = Math.max(cellHeight * 4, ((maxRow - minRow + 1) / 800) * atlas.height);
-    ctx.fillStyle = '#07131b';
-    ctx.font = `900 ${Math.floor(Math.min(height * .58, width * .32))}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(ownerNames[drawn % ownerNames.length], left + width / 2, top + height / 2, width * .84);
-    ctx.restore();
-    drawn += 1;
-  }
-}
-
-function makeCampaignAtlas() {
-  ctx.fillStyle = '#102631';
-  ctx.fillRect(0, 0, atlas.width, atlas.height);
-  heroCampaigns.forEach(drawHeroCampaign);
-  drawSmallOwners();
-}
-makeCampaignAtlas();
-
-function buildOccupancyMap() {
-  const pixels = ctx.getImageData(0, 0, atlas.width, atlas.height).data;
-  for (let row = 0; row < logicalRows; row += 1) {
-    const sourceY = Math.min(atlas.height - 1, Math.max(0, Math.round((1 - row / logicalRows) * (atlas.height - 1))));
-    for (let column = 0; column < logicalColumns; column += 1) {
-      const sourceX = Math.min(atlas.width - 1, Math.round(((column + (row % 2) * .5) / logicalColumns) * (atlas.width - 1)));
-      const pixel = (sourceY * atlas.width + sourceX) * 4;
-      const difference = Math.abs(pixels[pixel] - 16) + Math.abs(pixels[pixel + 1] - 38) + Math.abs(pixels[pixel + 2] - 49);
-      occupiedCells[row * logicalColumns + column] = difference > 22 ? 255 : 0;
-    }
-  }
-}
-buildOccupancyMap();
-const occupancyTexture = new THREE.DataTexture(occupiedCells, logicalColumns, logicalRows, THREE.RedFormat, THREE.UnsignedByteType);
+const occupancyTexture = new THREE.DataTexture(occupiedCells, textureColumns, textureRows, THREE.RedFormat, THREE.UnsignedByteType);
 occupancyTexture.minFilter = THREE.NearestFilter;
 occupancyTexture.magFilter = THREE.NearestFilter;
 occupancyTexture.generateMipmaps = false;
 occupancyTexture.needsUpdate = true;
-const selectionColourData = new Uint8Array(logicalColumns * logicalRows * 4);
-const purchasedColourData = new Uint8Array(logicalColumns * logicalRows * 4);
+const selectionColourData = new Uint8Array(textureColumns * textureRows * 4);
 function makeCellColourTexture(data) {
-  const texture = new THREE.DataTexture(data, logicalColumns, logicalRows, THREE.RGBAFormat, THREE.UnsignedByteType);
+  const texture = new THREE.DataTexture(data, textureColumns, textureRows, THREE.RGBAFormat, THREE.UnsignedByteType);
   texture.minFilter = THREE.NearestFilter;
   texture.magFilter = THREE.NearestFilter;
   texture.generateMipmaps = false;
@@ -241,153 +57,27 @@ function makeCellColourTexture(data) {
   return texture;
 }
 const selectionColourTexture = makeCellColourTexture(selectionColourData);
-const purchasedColourTexture = makeCellColourTexture(purchasedColourData);
-const globeTexture = new THREE.CanvasTexture(atlas);
-globeTexture.colorSpace = THREE.SRGBColorSpace;
-globeTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-
 const globe = new THREE.Group();
 scene.add(globe);
 const radius = 4;
 const selectionModeUniform = { value: 0 };
-const hoverCellUniform = { value: new THREE.Vector2(-2, -2) };
-const globeMaterial = new THREE.MeshStandardMaterial({ map: globeTexture, roughness: .57, metalness: .04 });
-globeMaterial.onBeforeCompile = (shader) => {
-  shader.uniforms.selectionMode = selectionModeUniform;
-  shader.uniforms.hoverCell = hoverCellUniform;
-  shader.uniforms.occupancyMap = { value: occupancyTexture };
-  shader.uniforms.selectionColourMap = { value: selectionColourTexture };
-  shader.uniforms.purchasedColourMap = { value: purchasedColourTexture };
-  shader.fragmentShader = `uniform float selectionMode;\nuniform vec2 hoverCell;\nuniform sampler2D occupancyMap;\nuniform sampler2D selectionColourMap;\nuniform sampler2D purchasedColourMap;\n${shader.fragmentShader}`;
-  shader.fragmentShader = shader.fragmentShader.replace(
-    '#include <map_fragment>',
-    `#include <map_fragment>
-    #ifdef USE_MAP
-      vec3 smoothArtwork = diffuseColor.rgb;
-      // 1,250 staggered columns by 800 rows: exactly one million logical cells,
-      // with a substantially more regular on-sphere aspect ratio near the equator.
-      vec2 gridPoint = vMapUv * vec2(2165.0635, 1200.0);
-      float baseRow = floor(gridPoint.y / 1.5 + 0.5);
-      vec2 localHex = vec2(10.0);
-      vec2 cellAddress = vec2(0.0);
-      float nearestCell = 100.0;
-      for (int rowOffset = -1; rowOffset <= 1; rowOffset++) {
-        float row = baseRow + float(rowOffset);
-        float offsetX = mod(row, 2.0) * 0.8660254;
-        float column = floor((gridPoint.x - offsetX) / 1.7320508 + 0.5);
-        vec2 centre = vec2(column * 1.7320508 + offsetX, row * 1.5);
-        vec2 candidate = gridPoint - centre;
-        float distanceSquared = dot(candidate, candidate);
-        if (distanceSquared < nearestCell) {
-          nearestCell = distanceSquared;
-          localHex = candidate;
-          cellAddress = vec2(column, row);
-        }
-      }
-      vec2 cellCentreUv = vec2(
-        (cellAddress.x * 1.7320508 + mod(cellAddress.y, 2.0) * 0.8660254) / 2165.0635,
-        (cellAddress.y * 1.5) / 1200.0
-      );
-      vec3 cellArtwork = texture2D(map, clamp(cellCentreUv, vec2(0.0001), vec2(0.9999))).rgb;
-      vec2 occupancyUv = vec2((cellAddress.x + 0.5) / 1250.0, (cellAddress.y + 0.5) / 800.0);
-      float availableCell = 1.0 - step(0.5, texture2D(occupancyMap, clamp(occupancyUv, vec2(0.0001), vec2(0.9999))).r);
-      vec4 selectedColour = texture2D(selectionColourMap, clamp(occupancyUv, vec2(0.0001), vec2(0.9999)));
-      vec4 purchasedColour = texture2D(purchasedColourMap, clamp(occupancyUv, vec2(0.0001), vec2(0.9999)));
-      float cellPixels = 1.0 / max(fwidth(gridPoint.x) / 1.7320508, fwidth(gridPoint.y) / 1.5);
-      float detailVisibility = smoothstep(1.6, 4.5, cellPixels);
-      // Group neighbouring inventory into stable larger hexagonal plates.
-      vec2 cellGridCentre = vec2(
-        cellAddress.x * 1.7320508 + mod(cellAddress.y, 2.0) * 0.8660254,
-        cellAddress.y * 1.5
-      );
-      vec2 macroPoint = cellGridCentre / 12.0;
-      float macroBaseRow = floor(macroPoint.y / 1.5 + 0.5);
-      vec2 macroAddress = vec2(0.0);
-      float nearestMacro = 100.0;
-      for (int macroRowOffset = -1; macroRowOffset <= 1; macroRowOffset++) {
-        float macroRow = macroBaseRow + float(macroRowOffset);
-        float macroOffsetX = mod(macroRow, 2.0) * 0.8660254;
-        float macroColumn = floor((macroPoint.x - macroOffsetX) / 1.7320508 + 0.5);
-        vec2 macroCentre = vec2(macroColumn * 1.7320508 + macroOffsetX, macroRow * 1.5);
-        float macroDistance = dot(macroPoint - macroCentre, macroPoint - macroCentre);
-        if (macroDistance < nearestMacro) {
-          nearestMacro = macroDistance;
-          macroAddress = vec2(macroColumn, macroRow);
-        }
-      }
-      // Purchased artwork is deliberately left untouched.
-      // Keep the highlight fixed to the camera instead of letting it rotate with map UVs.
-      vec3 fixedOceanLight = normalize(vec3(-0.32, 0.34, 1.0));
-      float oceanFacing = clamp(dot(normalize(vNormal), fixedOceanLight), 0.0, 1.0);
-      float oceanHotspot = pow(oceanFacing, 4.6);
-      // Lift the geographic south pole separately, while keeping it below the hotspot.
-      float southPoleLift = smoothstep(0.72, 1.0, vMapUv.y);
-      float globeFacing = clamp(dot(normalize(vNormal), normalize(vViewPosition)), 0.0, 1.0);
-      float attachedRim = pow(1.0 - globeFacing, 35.0);
-      vec2 absoluteHex = abs(localHex);
-      float hexDistance = max(absoluteHex.x / 0.8660254, absoluteHex.y + absoluteHex.x * 0.5773503);
-      float plateSeed = fract(sin(dot(macroAddress, vec2(127.1, 311.7))) * 43758.5453);
-      float plateBand = floor(plateSeed * 4.0) / 3.0;
-      float macroVisibility = smoothstep(0.25, 1.15, cellPixels);
-      vec3 farOcean = vec3(0.0013, 0.006, 0.019);
-      vec3 platedOcean = mix(vec3(0.0012, 0.0055, 0.017), vec3(0.0015, 0.0065, 0.020), plateBand);
-      vec3 oceanColour = mix(farOcean, platedOcean, macroVisibility);
-      oceanColour += oceanHotspot * vec3(0.0, 0.012, 0.038);
-      oceanColour += southPoleLift * vec3(0.0, 0.006, 0.016);
-      float plateFace = 1.0 - smoothstep(0.18, 0.9, hexDistance);
-      oceanColour += plateFace * detailVisibility * vec3(0.0004, 0.0018, 0.0055);
-      float artworkSnap = smoothstep(5.0, 10.0, cellPixels);
-      // Resolve artwork first, then restore every available cell to the ocean
-      // material so filtered campaign pixels cannot bleed into its neighbours.
-      diffuseColor.rgb = mix(smoothArtwork, cellArtwork, artworkSnap);
-      diffuseColor.rgb = mix(diffuseColor.rgb, oceanColour, availableCell * 0.98);
-      diffuseColor.rgb = mix(diffuseColor.rgb, purchasedColour.rgb, purchasedColour.a);
-      float edgeWidth = max(fwidth(hexDistance) * 1.15, 0.002);
-      float hexEdge = 1.0 - smoothstep(0.0, edgeWidth, 1.0 - hexDistance);
-      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.58, hexEdge * detailVisibility * 0.34);
-
-      // Buying mode uses unmistakably different fills for available and sold cells.
-      vec3 purchasedFill = diffuseColor.rgb * 0.34 + vec3(0.012, 0.018, 0.022);
-      vec3 availableFill = vec3(0.004, 0.018, 0.025);
-      vec3 selectionFill = mix(purchasedFill, availableFill, availableCell);
-      diffuseColor.rgb = mix(diffuseColor.rgb, selectionFill, selectionMode * 0.86);
-      diffuseColor.rgb = mix(diffuseColor.rgb, selectedColour.rgb, selectedColour.a * selectionMode * 0.94);
-      float selectionGrid = hexEdge * selectionMode * smoothstep(0.8, 2.2, cellPixels);
-      vec3 selectionInk = mix(vec3(0.38, 0.46, 0.48), vec3(0.015, 0.045, 0.055), availableCell);
-      diffuseColor.rgb = mix(diffuseColor.rgb, selectionInk, selectionGrid * 0.55);
-      float hoveredCell = (1.0 - step(0.1, abs(cellAddress.x - hoverCell.x) + abs(cellAddress.y - hoverCell.y))) * selectionMode;
-      vec3 hoverInk = mix(vec3(0.65), vec3(0.96), availableCell);
-      diffuseColor.rgb = mix(diffuseColor.rgb, hoverInk, hexEdge * hoveredCell * 0.82);
-    #endif`
-  );
-  shader.fragmentShader = shader.fragmentShader.replace(
-    '#include <emissivemap_fragment>',
-    `#include <emissivemap_fragment>
-    totalEmissiveRadiance += oceanColour * availableCell * oceanHotspot * 0.075;
-    totalEmissiveRadiance += vec3(0.01, 0.24, 0.78) * attachedRim * 0.28;`
-  );
-};
-globeMaterial.customProgramCacheKey = () => 'million-hexagons-unified-midnight-plates-v14';
-const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 192, 128), globeMaterial);
-sphere.receiveShadow = true;
+const hoverCellUniform = { value: -2 };
+const globeMaterial = new THREE.MeshStandardMaterial({ color: '#071c2b', emissive:'#102735',emissiveIntensity:.85, roughness: .7, metalness: .04 });
+const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius - .0005, 192, 128), globeMaterial);
 globe.add(sphere);
-
-const wire = new THREE.Mesh(
-  new THREE.SphereGeometry(radius + .012, 40, 24),
-  new THREE.MeshBasicMaterial({ color: 0xb9f8ed, wireframe: true, transparent: true, opacity: 0 })
-);
-globe.add(wire);
+const artworkTiles = new ArtworkTiles(globe,radius,{base:millionFixture?'/artwork/million':'/artwork/sample-hq',maxTiles:innerWidth<700?64:128,anisotropy:Math.min(8,renderer.capabilities.getMaxAnisotropy())});
+await artworkTiles.ready;
+let designAnchor = bootstrap.anchor;
+const occupancyResponse=await fetch('/topology/occupancy-v1.gz');
+const occupancyBytes=new Uint8Array(await (occupancyResponse.headers.get('content-encoding')==='gzip'?occupancyResponse:new Response(occupancyResponse.body.pipeThrough(new DecompressionStream('gzip')))).arrayBuffer());
+occupiedCells.set(occupancyBytes);
+if(millionFixture)occupiedCells.fill(255,0,CELL_COUNT);
+occupancyTexture.needsUpdate=true;
 
 scene.add(new THREE.HemisphereLight(0xe8fbff, 0x07121c, 2.7));
 const key = new THREE.DirectionalLight(0xffffff, 3.6);
 key.position.set(-7, 8, 10);
 scene.add(key);
-const rim = new THREE.DirectionalLight(0x135cb8, .85);
-rim.position.set(8, 0, -8);
-scene.add(rim);
-const southFill = new THREE.DirectionalLight(0x1c4e98, .72);
-southFill.position.set(1, -9, 5);
-scene.add(southFill);
 
 const stars = [];
 for (let i = 0; i < 950; i += 1) {
@@ -406,7 +96,8 @@ controls.dampingFactor = .055;
 controls.enablePan = false;
 controls.minDistance = radius + .22;
 controls.rotateSpeed = .42;
-controls.zoomSpeed = .72;
+controls.zoomSpeed = .28;
+const zoom = smoothZoom(canvas,camera,controls,radius,()=>{cameraDistanceTarget=null;});
 controls.autoRotate = !matchMedia('(prefers-reduced-motion: reduce)').matches;
 controls.autoRotateSpeed = .22;
 
@@ -450,6 +141,8 @@ let creationType = null;
 let buyInteractionMode = 'move';
 let designCells = [];
 let logoCells = null;
+let colourCells = null;
+let footprintEdited = false;
 let draftArtwork = null;
 let editorPainting = false;
 const selectedCellColours = new Map();
@@ -459,7 +152,7 @@ canvas.addEventListener('pointerdown', event => { explorationStart = {x:event.cl
 canvas.addEventListener('pointerup', event => {
   if (document.body.classList.contains('creating') || !explorationStart || Math.hypot(event.clientX-explorationStart.x,event.clientY-explorationStart.y)>6) return;
   const hit=intersect(event); if(!hit?.uv) return;
-  const placement=sessionPlacements.get(cellFromUV(hit.uv).id); if(!placement) return;
+  const placement=sessionPlacements.get(hit.cell.id); if(!placement) return;
   const toast=document.querySelector('#toast');
   toast.querySelector('b').textContent='Your placement';
   toast.querySelector('span').textContent=`${placement.count} hexagons. Saved for this session.`;
@@ -487,7 +180,7 @@ function clearSelectionColours() {
 }
 
 function clearHover() {
-  hoverCellUniform.value.set(-2, -2);
+  hoverCellUniform.value = -2;
 }
 
 function updateInventoryDisplay() {
@@ -497,44 +190,23 @@ function updateInventoryDisplay() {
 }
 updateInventoryDisplay();
 
-function cellFromUV(uv) {
-  const gridX = uv.x * 2165.0635;
-  const gridY = uv.y * 1200;
-  const baseRow = Math.floor(gridY / 1.5 + .5);
-  let nearestDistance = Infinity;
-  let nearestRow = baseRow;
-  let nearestColumn = 0;
-  for (let rowOffset = -1; rowOffset <= 1; rowOffset += 1) {
-    const candidateRow = baseRow + rowOffset;
-    const offsetX = ((candidateRow % 2) + 2) % 2 * .8660254;
-    const candidateColumn = Math.floor((gridX - offsetX) / 1.7320508 + .5);
-    const centreX = candidateColumn * 1.7320508 + offsetX;
-    const centreY = candidateRow * 1.5;
-    const distance = (gridX - centreX) ** 2 + (gridY - centreY) ** 2;
-    if (distance < nearestDistance) {
-      nearestDistance = distance;
-      nearestRow = candidateRow;
-      nearestColumn = candidateColumn;
-    }
-  }
-  const row = THREE.MathUtils.clamp(nearestRow, 0, logicalRows - 1);
-  const col = THREE.MathUtils.clamp(nearestColumn, 0, logicalColumns - 1);
-  const id = row * logicalColumns + col + 1;
-  const longitude = uv.x * 360 - 180;
-  const latitude = uv.y * 180 - 90;
-  const occupied = occupiedCells[id - 1] === 255;
-  return { id, col, row, longitude, latitude, occupied, owner: occupied ? 'Purchased' : 'Available' };
-}
 
+function cellForId(id) {
+  const p = topology.centre(id), occupied = occupiedCells[id - 1] === 255;
+  return { id, latitude: Math.asin(p[1])*180/Math.PI, longitude: Math.atan2(p[2],-p[0])*180/Math.PI-180, occupied, pentagon: topology.degrees[id-1]===5, owner: occupied ? 'Purchased' : 'Available' };
+}
 function intersect(event) {
+  if(!topology){if(camera.position.length()<radius+2)void ensureTopology();return null;}
   const rect = canvas.getBoundingClientRect();
   pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
-  return raycaster.intersectObject(sphere, false)[0];
+  const point = raycaster.ray.intersectSphere(new THREE.Sphere(new THREE.Vector3(), radius), new THREE.Vector3());
+  if (!point) return null;
+  return { point, uv: new THREE.Vector2(), cell: cellForId(topology.pick(globe.worldToLocal(point.clone()).normalize().toArray())) };
 }
 
 function updateTooltip(event, cell) {
-  document.querySelector('#cellId').textContent = `HEX #${String(cell.id).padStart(6, '0')}`;
+  document.querySelector('#cellId').textContent = `${cell.pentagon ? 'PENTAGON' : 'HEX'} #${String(cell.id).padStart(6, '0')}`;
   document.querySelector('#cellOwner').textContent = cell.owner;
   document.querySelector('#cellPosition').textContent = `${Math.abs(cell.latitude).toFixed(2)}° ${cell.latitude >= 0 ? 'N' : 'S'} · ${Math.abs(cell.longitude).toFixed(2)}° ${cell.longitude >= 0 ? 'E' : 'W'}`;
   tooltip.style.left = `${Math.min(innerWidth - 205, event.clientX + 16)}px`;
@@ -543,7 +215,9 @@ function updateTooltip(event, cell) {
 }
 
 function connectedPattern(origin, amount, shape) {
-  return translateFootprint(previewCells().map(c => ({...c, row:-c.row})), origin);
+  const draft = previewCells();
+  if (origin.id === designAnchor) return draft;
+  return relocateDesign(draft, origin.id);
 }
 
 function refreshSelection() {
@@ -551,12 +225,19 @@ function refreshSelection() {
   const amount = shape === 'painted' ? designCells.length : Math.max(1, Math.min(10000, Number(document.querySelector('#hexAmount').value) || 1));
   if (selectedCell) {
     const candidateCells = connectedPattern(selectedCell, amount, shape);
-    const blocked = candidateCells.find((cell) => cell.col < 0 || cell.col >= logicalColumns || cell.row < 1 || cell.row >= logicalRows - 1 || occupiedCells[cell.id - 1]);
+    const blocked = candidateCells.find((cell) => occupiedCells[cell.id - 1]);
     if (blocked) {
       selectedCells = [];
       selectionError = 'That area overlaps purchased hexagons. Try another location, shape or quantity.';
     } else {
       selectedCells = candidateCells;
+      if (designAnchor !== selectedCell.id) { undoStack.length=0; redoStack.length=0; updateHistory(); }
+      designAnchor = selectedCell.id;
+      if (creationType === 'logo') logoCells = candidateCells;
+      else if (creationType === 'paint') designCells = candidateCells;
+      else colourCells = candidateCells;
+      draftArtwork = renderArtwork(selectedCells);
+      updateTotals();
       selectionError = '';
     }
   }
@@ -592,7 +273,7 @@ function updateHover(hit, cell) {
     clearHover();
     return;
   }
-  hoverCellUniform.value.set(cell.col, cell.row);
+  hoverCellUniform.value = cell.id - 1;
 }
 
 function choosePatternOrigin(hit, cell) {
@@ -655,7 +336,7 @@ canvas.addEventListener('pointerdown', (event) => {
   const hit = intersect(event);
   if (!hit?.uv) return;
   event.preventDefault();
-  const cell = cellFromUV(hit.uv);
+  const cell = hit.cell;
   const shape = document.querySelector('#selectionShape').value;
   if (shape === 'custom') {
     painting = true;
@@ -674,7 +355,7 @@ canvas.addEventListener('pointermove', (event) => {
     tooltip.classList.remove('show');
     return;
   }
-  const cell = cellFromUV(hit.uv);
+  const cell = hit.cell;
   if (!selecting) return updateTooltip(event, cell);
   if (buyInteractionMode !== 'place') {
     clearHover();
@@ -695,7 +376,9 @@ canvas.addEventListener('pointerup', stopPainting);
 canvas.addEventListener('pointercancel', stopPainting);
 canvas.addEventListener('pointerleave', () => { if (!painting) clearHover(); tooltip.classList.remove('show'); });
 
-function openBuy() {
+async function openBuy() {
+  if(publishing)return;
+  if(!topology){loading.textContent='Preparing exact cell selection…';document.body.append(loading);try{await ensureTopology();}catch{return;}loading.remove();}
   selecting = false;
   selectionModeUniform.value = 0;
   controls.autoRotate = false;
@@ -715,6 +398,7 @@ function openBuy() {
   showFlowStep('type');
 }
 function closeBuy() {
+  if(publishing)return;
   selecting = false;
   selectionModeUniform.value = 0;
   cameraDistanceTarget = null;
@@ -750,12 +434,13 @@ document.querySelector('#randomButton').addEventListener('click', () => {
   globe.rotation.set((Math.random() - .5) * 1.8, Math.random() * Math.PI * 2, 0);
 });
 document.querySelector('#zoomIn').addEventListener('click', () => {
-  camera.position.setLength(Math.max(controls.minDistance, camera.position.length() * .78));
+  zoom.change(.8);
 });
 document.querySelector('#zoomOut').addEventListener('click', () => {
-  camera.position.setLength(Math.min(controls.maxDistance, camera.position.length() * 1.24));
+  zoom.change(1.25);
 });
 document.querySelector('#homeView').addEventListener('click', () => {
+  zoom.cancel();cameraDistanceTarget=null;
   controls.autoRotate = false;
   const fit = globeFitDistance();
   camera.position.set(0, fit * .018, fit);
@@ -772,25 +457,23 @@ function showHexSearch(open) {
   if (open) hexSearchInput.focus();
 }
 document.querySelector('#toggleHexSearch').addEventListener('click', () => showHexSearch(hexSearchPanel.hidden));
-hexSearch.addEventListener('submit', (event) => {
+hexSearch.addEventListener('submit', async (event) => {
   event.preventDefault();
   const match = hexSearchInput.value.trim().match(/^#?([0-9]{1,7})$/);
   const id = match ? Number(match[1]) : 0;
-  if (id < 1 || id > logicalColumns * logicalRows) {
+  if (id < 1 || id > CELL_COUNT) {
     hexSearchStatus.textContent = 'Use a hex number from 1 to 1,000,000.';
     hexSearchInput.setAttribute('aria-invalid', 'true');
     return;
   }
-  const cell = { id, row: Math.floor((id - 1) / logicalColumns), col: (id - 1) % logicalColumns };
+  await ensureTopology();
+  const cell = cellForId(id);
   controls.autoRotate = false;
   cameraDistanceTarget = null;
-  const direction = globe.localToWorld(spherePointForGrid(cell, 0, 0)).normalize();
-  camera.position.copy(direction.multiplyScalar(radius + .82));
-  controls.target.set(0, 0, 0);
-  controls.update();
-  hoverCellUniform.value.set(cell.col, cell.row);
+  orientToCell(id, radius + .82);
+  hoverCellUniform.value = cell.id - 1;
   hexSearchInput.removeAttribute('aria-invalid');
-  hexSearchStatus.textContent = `Centred on hex #${id.toLocaleString()}.`;
+  hexSearchStatus.textContent = `Centred on ${cell.pentagon ? 'pentagon' : 'hex'} #${id.toLocaleString()}.`;
 });
 
 const amountInput = document.querySelector('#hexAmount');
@@ -838,7 +521,8 @@ function placementCount() {
 
 function updateTotals() {
   const count = placementCount();
-  const countText = `${count.toLocaleString()} hexagon${count === 1 ? '' : 's'}`;
+  const pentagons = creationType ? previewCells().filter(cell => cell.pentagon).length : 0;
+  const countText = `${count.toLocaleString()} cell${count === 1 ? '' : 's'}${pentagons ? ` · ${pentagons} pentagon${pentagons === 1 ? '' : 's'}` : ''}`;
   const priceText = `$${count.toLocaleString()}`;
   document.querySelector('#designCount').textContent = countText;
   document.querySelector('#price').textContent = priceText;
@@ -853,169 +537,102 @@ function updateTotals() {
 
 let editorHitRegions = [];
 function previewCells() {
-  if (creationType === 'paint') return designCells;
-  const aspect = creationType === 'logo' && uploadedLogo
-    ? (uploadedLogoCrop?.width || uploadedLogo.naturalWidth) / (uploadedLogoCrop?.height || uploadedLogo.naturalHeight) : 1.25;
-  if (creationType === 'logo' && logoCells) return logoCells;
-  return compactFootprint(placementCount(), aspect);
+  if(!topology)return [];
+  if (creationType === 'paint') return topology.cells(designCells, designAnchor);
+  if (creationType === 'logo' && logoCells) return topology.cells(logoCells, designAnchor);
+  if (creationType === 'colour' && colourCells) return topology.cells(colourCells, designAnchor);
+  const aspect = creationType === 'logo' && uploadedLogo ? (uploadedLogoCrop?.width || uploadedLogo.naturalWidth)/(uploadedLogoCrop?.height || uploadedLogo.naturalHeight) : 1.25;
+  return topology.connected(designAnchor, placementCount(), aspect);
 }
-
-function adjacentLogoCandidates(cells) {
-  const active = new Set(cells.map((cell) => `${cell.col},${cell.row}`));
-  const candidates = new Map();
-  cells.forEach((cell) => {
-    for (let row = cell.row - 1; row <= cell.row + 1; row += 1) for (let col = cell.col - 1; col <= cell.col + 1; col += 1) {
-      const key = `${col},${row}`;
-      if (active.has(key)) continue;
-      if (Math.hypot(centre({ col, row }).x - centre(cell).x, centre({ col, row }).y - centre(cell).y) < 1.8) candidates.set(key, { col, row, guide: true });
+function relocateDesign(draft, anchor) {
+  if (creationType !== 'paint' && !footprintEdited) {
+    const aspect = creationType === 'logo' && uploadedLogo ? (uploadedLogoCrop?.width || uploadedLogo.naturalWidth)/(uploadedLogoCrop?.height || uploadedLogo.naturalHeight) : 1.25;
+    return topology.connected(anchor, draft.length, aspect);
+  }
+  // Map in radial source order onto a connected frontier. Each source colour
+  // is assigned once; candidate coordinates are cached. This avoids a cubic
+  // all-pairs search when a buyer edits a large custom footprint.
+  const frame = topology.frame(anchor), chosen = [], used = new Set();
+  const frontier = new Map([[anchor, {x:0,y:0}]]);
+  const ordered = [...draft].sort((a,b)=>(a.x*a.x+a.y*a.y)-(b.x*b.x+b.y*b.y)||a.id-b.id);
+  for (const source of ordered) {
+    let bestId, best = Infinity;
+    for (const [id,p] of frontier) {
+      const distance=(p.x-source.x)**2+(p.y-source.y)**2;
+      if(distance<best) {best=distance;bestId=id;}
     }
-  });
-  return [...candidates.values()];
-}
-
-function isConnectedFootprint(cells) {
-  if (!cells.length) return false;
-  const pending = [cells[0]];
-  const visited = new Set([`${cells[0].col},${cells[0].row}`]);
-  while (pending.length) {
-    const current = pending.pop();
-    cells.forEach((cell) => {
-      const key = `${cell.col},${cell.row}`;
-      if (!visited.has(key) && Math.hypot(centre(cell).x - centre(current).x, centre(cell).y - centre(current).y) < 1.8) { visited.add(key); pending.push(cell); }
-    });
+    chosen.push({id:bestId,color:source.color});frontier.delete(bestId);used.add(bestId);
+    for(const id of topology.neighboursOf(bestId))if(!used.has(id)&&!frontier.has(id))frontier.set(id,topology.project(topology.centre(id),frame));
   }
-  return visited.size === cells.length;
+  return topology.cells(chosen, anchor);
 }
-
-function hexPath(context, x, y, size, append = false) {
-  if (!append) context.beginPath();
-  for (let corner = 0; corner < 6; corner += 1) {
-    const angle = Math.PI / 3 * corner - Math.PI / 2;
-    const px = x + Math.cos(angle) * size;
-    const py = y + Math.sin(angle) * size;
-    if (!corner) context.moveTo(px, py); else context.lineTo(px, py);
-  }
+function adjacentLogoCandidates(cells) {
+  const active = new Set(cells.map(c=>c.id)), ids = new Set();
+  for(const cell of cells) for(const id of topology.neighboursOf(cell.id)) if(!active.has(id)) ids.add(id);
+  return topology.cells([...ids],designAnchor).map(c=>({...c,guide:true}));
+}
+function isConnectedFootprint(cells) { return topology.isConnected(cells); }
+function polygonPath(context, cell, bounds, scaleX, scaleY = scaleX, append = false, offsetX = 0, offsetY = 0) {
+  if(!append) context.beginPath();
+  cell.polygon.forEach((p,k)=> { const x=offsetX+(p.x-bounds.left)*scaleX,y=offsetY+(p.y-bounds.top)*scaleY; if(k===0) context.moveTo(x,y); else context.lineTo(x,y); });
   context.closePath();
 }
-
-function drawDesignPreview(target = document.querySelector('#designCanvas')) {
-  if (!target) return;
-  if (target.id === 'designCanvas') draftArtwork = null;
-  if ((creationType !== 'paint' && creationType !== 'logo') || target.id === 'reviewCanvas') {
-    const ctx = target.getContext('2d');
-    ctx.clearRect(0, 0, target.width, target.height);
-    const cells = previewCells();
-    if (cells.length) {
-      const art = target.id === 'reviewCanvas' && draftArtwork ? draftArtwork : renderArtwork(cells);
-      const scale = Math.min((target.width - 64) / art.width, (target.height - 48) / art.height);
-      ctx.drawImage(art, (target.width-art.width*scale)/2, (target.height-art.height*scale)/2, art.width*scale, art.height*scale);
-    }
-    document.querySelector('#editorEmpty').hidden = Boolean(cells.length);
-    return;
+function pointInPolygon(x,y,polygon) {
+  let inside=false;
+  for(let i=0,j=polygon.length-1;i<polygon.length;j=i++) {
+    const a=polygon[i],b=polygon[j];
+    if((a.y>y)!==(b.y>y) && x<(b.x-a.x)*(y-a.y)/(b.y-a.y)+a.x) inside=!inside;
   }
-  if (creationType === 'logo') {
-    const context = target.getContext('2d');
-    context.clearRect(0, 0, target.width, target.height);
-    context.fillStyle = '#071722'; context.fillRect(0, 0, target.width, target.height);
-    const cells = previewCells();
-    const guides = adjacentLogoCandidates(cells);
-    const displayBounds = footprintBounds([...cells, ...guides]);
-    const scale = Math.min((target.width - 44) / displayBounds.width, (target.height - 36) / displayBounds.height);
-    const offsetX = (target.width - displayBounds.width * scale) / 2;
-    const offsetY = (target.height - displayBounds.height * scale) / 2;
-    const point = (cell) => { const p = centre(cell); return { x: offsetX + (p.x - displayBounds.left) * scale, y: offsetY + (p.y - displayBounds.top) * scale }; };
-    const bounds = footprintBounds(cells);
-    const art = renderArtwork(cells);
-    context.drawImage(art, offsetX + (bounds.left - displayBounds.left) * scale, offsetY + (bounds.top - displayBounds.top) * scale, bounds.width * scale, bounds.height * scale);
-    editorHitRegions = [...cells, ...guides].map((cell) => ({ ...cell, ...point(cell), size: scale }));
-    guides.forEach((cell) => { const p = point(cell); hexPath(context, p.x, p.y, scale * .91); context.fillStyle='rgba(14,39,49,.72)'; context.fill(); context.strokeStyle='rgba(212,255,88,.38)'; context.setLineDash([4,4]); context.stroke(); context.setLineDash([]); });
-    cells.forEach((cell) => { const p = point(cell); hexPath(context, p.x, p.y, scale * .94); context.strokeStyle='rgba(220,255,245,.34)'; context.lineWidth=1.2; context.stroke(); });
-    document.querySelector('#editorEmpty').hidden = Boolean(cells.length);
-    return;
-  }
-  const context = target.getContext('2d');
-  const width = target.width;
-  const height = target.height;
-  context.clearRect(0, 0, width, height);
-  context.fillStyle = '#071722';
-  context.fillRect(0, 0, width, height);
-  const cells = previewCells();
-  const editingGrid = creationType === 'paint';
-  const displayCells = editingGrid
-    ? Array.from({ length: 135 }, (_, index) => ({ col: index % 15, row: Math.floor(index / 15), guide: true }))
-    : cells;
-  const minCol = Math.min(...displayCells.map((cell) => cell.col), 0);
-  const maxCol = Math.max(...displayCells.map((cell) => cell.col), 1);
-  const minRow = Math.min(...displayCells.map((cell) => cell.row), 0);
-  const maxRow = Math.max(...displayCells.map((cell) => cell.row), 1);
-  const size = Math.min(22, (width - 56) / ((maxCol - minCol + 1.5) * 1.732), (height - 46) / ((maxRow - minRow + 1.35) * 1.5));
-  const gridWidth = (maxCol - minCol + 1.5) * 1.732 * size;
-  const gridHeight = (maxRow - minRow + 1.35) * 1.5 * size;
-  const originX = (width - gridWidth) / 2 - minCol * 1.732 * size + size;
-  const originY = (height - gridHeight) / 2 - minRow * 1.5 * size + size;
-  const point = (cell) => ({ x: originX + (cell.col + (cell.row % 2) * .5) * 1.732 * size, y: originY + cell.row * 1.5 * size });
-  editorHitRegions = displayCells.map((cell) => ({ ...cell, ...point(cell), size }));
-  const activeMap = new Map(cells.map((cell) => [`${cell.col},${cell.row}`, cell]));
-
-  displayCells.forEach((cell) => {
-    const active = activeMap.get(`${cell.col},${cell.row}`);
-    const position = point(cell);
-    hexPath(context, position.x, position.y, size * .96);
-    context.fillStyle = active?.color || (active ? document.querySelector('#brandColor').value : '#102a35');
-    context.fill();
-    context.strokeStyle = active ? 'rgba(220,255,245,.34)' : 'rgba(125,174,181,.16)';
-    context.lineWidth = active ? 1.6 : 1;
-    context.stroke();
-  });
-
-  if (creationType === 'logo' && uploadedLogo && cells.length) {
-    context.save();
-    context.beginPath();
-    cells.forEach((cell) => { const p = point(cell); hexPath(context, p.x, p.y, size * .94, true); });
-    context.clip();
-    context.translate(width / 2, height / 2);
-    context.rotate(THREE.MathUtils.degToRad(Number(document.querySelector('#logoOrientation').value) || 0));
-    context.translate(-width / 2, -height / 2);
-    if (document.querySelector('#logoTreatment').value === 'repeat') {
-      cells.forEach((cell) => { const p = point(cell); context.save(); hexPath(context, p.x, p.y, size * .9); context.clip(); drawLogo(context, size * 1.55, size * 1.55, document.querySelector('#brandColor').value, true, p.x - size * .775, p.y - size * .775); context.restore(); });
-    } else drawLogo(context, width, height, document.querySelector('#brandColor').value, true);
-    context.restore();
-  }
-  document.querySelector('#editorEmpty').hidden = Boolean(cells.length);
+  return inside;
 }
-
-function paintEditorAt(event) {
-  if (creationType !== 'paint' && creationType !== 'logo') return;
-  const rect = event.currentTarget.getBoundingClientRect();
-  const x = (event.clientX - rect.left) * event.currentTarget.width / rect.width;
-  const y = (event.clientY - rect.top) * event.currentTarget.height / rect.height;
-  const hit = editorHitRegions.reduce((nearest, cell) => Math.hypot(cell.x - x, cell.y - y) < Math.hypot(nearest.x - x, nearest.y - y) ? cell : nearest, editorHitRegions[0]);
-  if (!hit || Math.hypot(hit.x - x, hit.y - y) > hit.size) return;
-  if (creationType === 'logo') {
-    const cells = previewCells();
-    const index = cells.findIndex((cell) => cell.col === hit.col && cell.row === hit.row);
-    if (index < 0) logoCells = [...cells, { col: hit.col, row: hit.row }];
-    else {
-      const reduced = cells.filter((_, cellIndex) => cellIndex !== index);
-      if (!isConnectedFootprint(reduced)) { updateLogoGuidance('Keep at least one connected hexagon. Remove a different edge hexagon.'); return; }
-      logoCells = reduced;
-    }
-    amountInput.value = logoCells.length;
-    selectedCell = null; selectedCells = [];
-    drawDesignPreview(); updateTotals();
-    return;
+function drawDesignPreview(target = document.querySelector('#designCanvas')) {
+  if(!target) return;
+  const review=target.id==='reviewCanvas', cells=review?selectedCells:previewCells();
+  if(!review) draftArtwork=null;
+  const context=target.getContext('2d'); context.clearRect(0,0,target.width,target.height);
+  const guides=review?[]:creationType==='paint'?topology.connected(designAnchor,135,1.5).filter(c=>!cells.some(a=>a.id===c.id)):creationType==='logo'?adjacentLogoCandidates(cells):[];
+  const display=[...cells,...guides]; if(!display.length) return;
+  const bounds=footprintBounds(display), scale=Math.min((target.width-44)/bounds.width,(target.height-36)/bounds.height);
+  const ox=(target.width-bounds.width*scale)/2,oy=(target.height-bounds.height*scale)/2;
+  if(cells.length) {
+    const art=review&&draftArtwork?draftArtwork:renderArtwork(cells), box=footprintBounds(cells);
+    context.drawImage(art,ox+(box.left-bounds.left)*scale,oy+(box.top-bounds.top)*scale,box.width*scale,box.height*scale);
   }
-  const index = designCells.findIndex((cell) => cell.col === hit.col && cell.row === hit.row);
-  if (paintAction === 'erase') {
-    if (index >= 0) designCells.splice(index, 1);
-  } else if (index >= 0) designCells[index].color = document.querySelector('#brandColor').value;
-  else designCells.push({ col: hit.col, row: hit.row, color: document.querySelector('#brandColor').value });
-  amountInput.value = designCells.length;
-  drawDesignPreview();
-  updateTotals();
+  for(const cell of guides) { polygonPath(context,cell,bounds,scale,scale,false,ox,oy); context.fillStyle='#102a35';context.fill();context.strokeStyle='rgba(212,255,88,.38)';context.stroke(); }
+  for(const cell of cells) { polygonPath(context,cell,bounds,scale,scale,false,ox,oy);context.strokeStyle='rgba(220,255,245,.3)';context.stroke(); }
+  if(!review) editorHitRegions=display.map(cell=>({cell,polygon:cell.polygon.map(p=>({x:ox+(p.x-bounds.left)*scale,y:oy+(p.y-bounds.top)*scale}))}));
+  document.querySelector('#editorEmpty').hidden=Boolean(cells.length);
+}
+function paintEditorAt(event) {
+  if(!['paint','logo'].includes(creationType))return;
+  const rect=event.currentTarget.getBoundingClientRect(), x=(event.clientX-rect.left)*event.currentTarget.width/rect.width,y=(event.clientY-rect.top)*event.currentTarget.height/rect.height;
+  const hit=editorHitRegions.find(r=>pointInPolygon(x,y,r.polygon))?.cell; if(!hit)return;
+  const cells=previewCells(),index=cells.findIndex(c=>c.id===hit.id);
+  if(creationType==='logo') {
+    const next=index<0?[...cells,hit]:cells.filter(c=>c.id!==hit.id);
+    if(!topology.isConnected(next)) {updateLogoGuidance('Keep at least one connected cell.');return;}
+    logoCells=next;footprintEdited=true;amountInput.value=next.length;
+  } else {
+    let next=cells.map(c=>({...c}));
+    if(paintAction==='erase')next=next.filter(c=>c.id!==hit.id);
+    else if(index>=0)next[index].color=document.querySelector('#brandColor').value;
+    else {
+      // Fill the shortest adjacency path when painting beyond the current edge.
+      const pending=[hit.id],parent=new Map([[hit.id,null]]),active=new Set(next.map(c=>c.id));
+      let end=hit.id;
+      if(next.length) {
+        for(let i=0;i<pending.length;i++) { end=pending[i];if(active.has(end))break;for(const id of topology.neighboursOf(end))if(!parent.has(id)){parent.set(id,end);pending.push(id);} }
+      }
+      while(end!==null) {if(!active.has(end))next.push({id:end,color:document.querySelector('#brandColor').value});end=parent.get(end);}
+    }
+    if(next.length&&!topology.isConnected(next))return;
+    designCells=next;amountInput.value=next.length;
+  }
+  selectedCell=null;selectedCells=[];drawDesignPreview();updateTotals();
 }
 
 function configureCreation(type) {
+  logoCells = null; colourCells = null; footprintEdited = false;
   creationType = type;
   fixedArtworkMode = type === 'logo' ? 'logo' : 'colour';
   document.querySelector('#selectionShape').value = type === 'logo' ? 'logo' : type === 'paint' ? 'painted' : 'compact';
@@ -1064,48 +681,39 @@ function enterPlacement() {
 
 
 function focusSelection() {
-  if(!selectedCells.length) return;
-  const middle=selectedCells.reduce((sum,c)=>sum.add(spherePointForGrid(c,0,0)),new THREE.Vector3()).normalize();
-  const halfVertical=THREE.MathUtils.degToRad(camera.fov)/2;
-  const halfHorizontal=Math.atan(Math.tan(halfVertical)*camera.aspect);
-  const limitingFov=Math.min(halfVertical,halfHorizontal);
-  const corners=[[0,1],[.8660254,.5],[.8660254,-.5],[0,-1],[-.8660254,-.5],[-.8660254,.5]];
+  if(!selectedCells.length)return;
+  const middle=new THREE.Vector3(...topology.centre(selectedCell.id));
+  const halfVertical=THREE.MathUtils.degToRad(camera.fov)/2, halfHorizontal=Math.atan(Math.tan(halfVertical)*camera.aspect),limitingFov=Math.min(halfVertical,halfHorizontal);
   let distance=radius+.35;
-  selectedCells.forEach((cell)=>corners.forEach(([x,y])=>{
-    const point=spherePointForGrid(cell,x,y);
-    const depth=point.dot(middle);
+  for(const cell of selectedCells)for(const p of topology.polygon(cell.id)) {
+    const point=new THREE.Vector3(...p).multiplyScalar(radius+.001),depth=point.dot(middle);
     const perpendicular=point.clone().addScaledVector(middle,-depth).length();
-    distance=Math.max(distance,depth+perpendicular/Math.tan(limitingFov)*1.12);
-  }));
-  cameraDistanceTarget=null;
-  camera.position.copy(globe.localToWorld(middle.multiplyScalar(distance)));
-  controls.update();
+    distance=Math.max(distance,depth+perpendicular/Math.tan(limitingFov)*1.15);
+  }
+  orientToCell(selectedCell.id, distance);
+}
+function orientToCell(id, distance) {
+  zoom.cancel();
+  const frame=topology.frame(id);
+  const basis=new THREE.Matrix4().makeBasis(new THREE.Vector3(...frame.east),new THREE.Vector3(...frame.north),new THREE.Vector3(...frame.normal));
+  globe.quaternion.setFromRotationMatrix(basis).invert();globe.updateMatrixWorld(true);
+  cameraDistanceTarget=null;camera.position.set(0,0,distance);controls.target.set(0,0,0);controls.update();
 }
 let suggestionIndex = 0;
 function suggestLocation() {
-  const draft = previewCells();
-  for (let attempt = 0; attempt < 500; attempt++) {
-    const index = suggestionIndex++;
-    const origin = { col: 40 + (index * 137 % 1170), row: 320 + (index * 67 % 160) };
-    const cells = translateFootprint(draft.map(c => ({...c,row:-c.row})), origin);
-    if (cells.some((c) => c.col < 0 || c.col >= 1250 || c.row < 1 || c.row >= 799 || occupiedCells[c.id-1])) continue;
-    selectedCell = origin;
-    selectedUV = new THREE.Vector2(origin.col/1250,origin.row/800);
-    selectedNormal = spherePointForGrid(origin,0,0).normalize();
-    globe.rotation.set(0,0,0); globe.updateMatrixWorld(true);
-    cameraDistanceTarget = null;
-    const span = footprintBounds(cells);
-    const distance = radius + Math.max(.55, Math.max(span.width, span.height) * .04);
-    camera.position.copy(selectedNormal).multiplyScalar(distance);
-    controls.update();
-    refreshSelection();
-    focusSelection();
-    document.querySelector('#selectionStatus').textContent = 'Your whole design fits here. Ready when you are.';
-    return;
+  const draft=previewCells();
+  for(let attempt=0;attempt<120;attempt++) {
+    const id=attempt===0&&suggestionIndex===0?designAnchor:1+(++suggestionIndex*7919)%CELL_COUNT;
+    if(occupiedCells[id-1])continue;
+    const cells=id===designAnchor?draft:relocateDesign(draft,id);
+    if(cells.some(c=>occupiedCells[c.id-1]))continue;
+    selectedCell=cellForId(id);selectedUV=new THREE.Vector2(0,0);selectedNormal=pointForCell(selectedCell,0,0).normalize();
+    globe.rotation.set(0,0,0);globe.updateMatrixWorld(true);cameraDistanceTarget=null;
+    refreshSelection();focusSelection();
+    document.querySelector('#selectionStatus').textContent='Your whole design fits here. Ready when you are.';suggestionIndex++;return;
   }
-  selectedCells = []; selectedCell = null; selectedUV = null;
-  refreshSelection();
-  document.querySelector('#selectionStatus').textContent = 'No suggested space found for this size. Try a smaller design or choose a location manually.';
+  selectedCells=[];selectedCell=null;selectedUV=null;refreshSelection();
+  document.querySelector('#selectionStatus').textContent='No suggested space found for this size. Try a smaller design or choose a location manually.';
 }
 document.querySelector('#suggestLocation').addEventListener('click', suggestLocation);
 document.querySelector('#reviewEditDesign').addEventListener('click', () => document.querySelector('#backToDesign').click());
@@ -1123,7 +731,7 @@ document.querySelector('#colourArtwork').addEventListener('click', () => configu
 document.querySelector('#paintArtwork').addEventListener('click', () => configureCreation('paint'));
 document.querySelector('#backToType').addEventListener('click', () => showFlowStep('type'));
 document.querySelector('#toPlacement').addEventListener('click', enterPlacement);
-document.querySelector('#backToDesign').addEventListener('click', () => { clearPlacementPreview(); selecting = false; selectionModeUniform.value = 0; document.body.classList.remove('selecting', 'placing-design'); controls.enableRotate = true; showFlowStep('design'); });
+document.querySelector('#backToDesign').addEventListener('click', () => { clearPlacementPreview(); selecting = false; selectionModeUniform.value = 0; document.body.classList.remove('selecting', 'placing-design'); controls.enableRotate = true; showFlowStep('design'); drawDesignPreview(); updateTotals(); });
 document.querySelector('#moveGlobeMode').addEventListener('click', () => setInteractionMode('move'));
 document.querySelector('#placeDesignMode').addEventListener('click', () => setInteractionMode('place'));
 document.querySelector('#toReview').addEventListener('click', () => {
@@ -1141,9 +749,9 @@ document.querySelector('#toReview').addEventListener('click', () => {
   addHighResolutionPlacement(document.querySelector('#brandColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
 });
 document.querySelector('#backToPlacement').addEventListener('click', () => { clearPlacementPreview(); showFlowStep('place'); setInteractionMode('move'); refreshSelection(); });
-document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size; logoCells = null; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); }));
+document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size; logoCells = null; colourCells = null; footprintEdited = false; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); }));
 amountInput.addEventListener('change', () => { amountInput.value = placementCount(); });
-amountInput.addEventListener('input', () => { logoCells = null; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); });
+amountInput.addEventListener('input', () => { logoCells = null; colourCells = null; footprintEdited = false; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); });
 document.querySelectorAll('[data-treatment]').forEach((button) => button.addEventListener('click', () => { document.querySelector('#logoTreatment').value = button.dataset.treatment; document.querySelectorAll('[data-treatment]').forEach((item) => item.classList.toggle('active', item === button)); drawDesignPreview(); updateLogoGuidance(); }));
 document.querySelector('#logoScale').addEventListener('input', () => drawDesignPreview());
 document.querySelector('#logoOrientation').addEventListener('change', () => { updateLogoPreviewOrientation(); drawDesignPreview(); });
@@ -1297,7 +905,7 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
     if(image.naturalWidth*image.naturalHeight>40000000) { URL.revokeObjectURL(url); showUploadMessage('This image is too large to process. Use an image under 40 megapixels.'); return; }
     // Rasterize SVG at an explicit viewport before using source crop rectangles.
     const raster = document.createElement('canvas');
-    const factor = file.type === 'image/svg+xml' ? 1536 / Math.max(image.naturalWidth,image.naturalHeight) : Math.min(1, 2048 / Math.max(image.naturalWidth, image.naturalHeight));
+    const factor = file.type === 'image/svg+xml' ? 3072 / Math.max(image.naturalWidth,image.naturalHeight) : Math.min(1, 4096 / Math.max(image.naturalWidth, image.naturalHeight));
     raster.width = Math.max(1,Math.round(image.naturalWidth*factor));
     raster.height = Math.max(1,Math.round(image.naturalHeight*factor));
     raster.getContext('2d').drawImage(image,0,0,raster.width,raster.height);
@@ -1350,42 +958,28 @@ function drawLogo(context, width, height, color, transparent = false, offsetX = 
   }
 }
 
-function largestLogoRect(cells, bounds, aspect, width, height) {
-  const active = new Set(cells.map((cell) => `${cell.col},${cell.row}`));
-  const contains = (x, y) => {
-    const approximateRow = Math.round(y / 1.5);
-    for (let row = approximateRow - 1; row <= approximateRow + 1; row += 1) {
-      const approximateCol = Math.round(x / Math.sqrt(3) - (((row % 2) + 2) % 2) / 2);
-      for (let col = approximateCol - 1; col <= approximateCol + 1; col += 1) {
-        if (!active.has(`${col},${row}`)) continue;
-        const p = centre({ col, row }), dx = Math.abs(x - p.x), dy = Math.abs(y - p.y);
-        if (dy <= .98 && dx <= Math.sqrt(3) * (.98 - dy / 2)) return true;
-      }
-    }
-    return false;
-  };
-  const middleX = bounds.left + bounds.width / 2, middleY = bounds.top + bounds.height / 2;
-  const fits = (candidateHeight) => {
-    const candidateWidth = candidateHeight * aspect;
-    const step = .28;
-    for (let y = middleY - candidateHeight / 2; y <= middleY + candidateHeight / 2; y += step) {
-      for (let x = middleX - candidateWidth / 2; x <= middleX + candidateWidth / 2; x += step) if (!contains(x, y)) return false;
-    }
-    return true;
-  };
-  let low = .05, high = Math.min(bounds.height, bounds.width / aspect), best = .05;
-  for (let attempt = 0; attempt < 12; attempt += 1) {
-    const candidate = (low + high) / 2;
-    if (fits(candidate)) { best = candidate; low = candidate; } else high = candidate;
+function largestLogoRect(cells,bounds,aspect,width,height) {
+  const mx=bounds.left+bounds.width/2,my=bounds.top+bounds.height/2;
+  // Rasterize the true union once; a summed-area table verifies every covered
+  // pixel in each candidate rectangle, including holes and concave edges.
+  const mask=document.createElement('canvas');mask.width=512;mask.height=512;
+  const context=mask.getContext('2d');context.fillStyle='#fff';
+  cells.forEach(c=>{polygonPath(context,c,bounds,512/bounds.width,512/bounds.height);context.fill();});
+  const data=context.getImageData(0,0,512,512).data, integral=new Uint32Array(513*513);
+  for(let y=0;y<512;y++){let row=0;for(let x=0;x<512;x++){row+=data[(y*512+x)*4+3]>20?0:1;integral[(y+1)*513+x+1]=integral[y*513+x+1]+row;}}
+  let low=0,high=Math.min(bounds.height,bounds.width/aspect);
+  for(let i=0;i<16;i++) {
+    const h=(low+high)/2,w=h*aspect,x0=Math.max(0,Math.floor((mx-w/2-bounds.left)/bounds.width*512)),x1=Math.min(512,Math.ceil((mx+w/2-bounds.left)/bounds.width*512)),y0=Math.max(0,Math.floor((my-h/2-bounds.top)/bounds.height*512)),y1=Math.min(512,Math.ceil((my+h/2-bounds.top)/bounds.height*512));
+    const missing=integral[y1*513+x1]-integral[y0*513+x1]-integral[y1*513+x0]+integral[y0*513+x0];
+    if(missing===0)low=h;else high=h;
   }
-  const safeHeight = Math.max(.05, best - .12), safeWidth = safeHeight * aspect;
-  return { x: (middleX - safeWidth / 2 - bounds.left) / bounds.width * width, y: (middleY - safeHeight / 2 - bounds.top) / bounds.height * height, width: safeWidth / bounds.width * width, height: safeHeight / bounds.height * height };
+  const h=Math.max(.01,low*.94),w=h*aspect;
+  return {x:(mx-w/2-bounds.left)/bounds.width*width,y:(my-h/2-bounds.top)/bounds.height*height,width:w/bounds.width*width,height:h/bounds.height*height};
 }
-
 function renderArtwork(cells) {
   const bounds = footprintBounds(cells);
   const art = document.createElement('canvas');
-  const unit = Math.min(70, 1536 / Math.max(bounds.width, bounds.height));
+  const unit = Math.min(128, 3072 / Math.max(bounds.width, bounds.height));
   art.width = Math.ceil(bounds.width * unit);
   art.height = Math.ceil(bounds.height * unit);
   const context = art.getContext('2d');
@@ -1404,15 +998,15 @@ function renderArtwork(cells) {
     const p = point(cell);
     // Slightly overlap texture fills so antialiased seams do not become holes in
     // the artwork-safe area. The globe geometry still supplies the visible seams.
-    hexPath(context, p.x, p.y, unit * 1.01);
+    polygonPath(context, cell, bounds, px, py);
     context.fillStyle = cell.color || document.querySelector('#brandColor').value; context.fill();
   });
   if (creationType === 'logo' && uploadedLogo) {
     context.save(); context.beginPath();
-    cells.forEach((cell) => { const p = point(cell); hexPath(context,p.x,p.y,unit*.98,true); });
+    cells.forEach((cell) => { polygonPath(context,cell,bounds,px,py,true); });
     context.clip();
     if (document.querySelector('#logoTreatment').value === 'repeat') {
-      cells.forEach((cell) => { const p = point(cell); context.save(); hexPath(context,p.x,p.y,unit*.98); context.clip(); drawRotated(p.x-unit*.525,p.y-unit*.525,unit*1.05,unit*1.05); context.restore(); });
+      cells.forEach((cell) => { const p = point(cell); context.save(); polygonPath(context,cell,bounds,px,py); context.clip(); drawRotated(p.x-unit*.525,p.y-unit*.525,unit*1.05,unit*1.05); context.restore(); });
     } else {
       const source = uploadedLogoCrop || { width: uploadedLogo.naturalWidth, height: uploadedLogo.naturalHeight };
       const rotation = Math.abs(Number(document.querySelector('#logoOrientation').value) || 0);
@@ -1425,41 +1019,12 @@ function renderArtwork(cells) {
   return art;
 }
 
-function spherePointForGrid(cell, localX, localY) {
-  const gridX = cell.col * 1.7320508 + (cell.row % 2) * .8660254 + localX;
-  const gridY = cell.row * 1.5 + localY;
-  const u = gridX / 2165.0635;
-  const v = gridY / 1200;
-  const phi = u * Math.PI * 2;
-  const theta = (1 - v) * Math.PI;
-  const surfaceRadius = radius + .022;
-  return new THREE.Vector3(
-    -surfaceRadius * Math.cos(phi) * Math.sin(theta),
-    surfaceRadius * Math.cos(theta),
-    surfaceRadius * Math.sin(phi) * Math.sin(theta)
-  );
-}
-
-function exactHexGeometry(cell, textureCoordinates) {
-  const corners = [[0, 1], [.8660254, .5], [.8660254, -.5], [0, -1], [-.8660254, -.5], [-.8660254, .5]];
-  const positions = [];
-  const uvs = [];
-  const addVertex = ([localX, localY]) => {
-    const position = spherePointForGrid(cell, localX, localY);
-    positions.push(position.x, position.y, position.z);
-    const [u, v] = textureCoordinates(localX, localY);
-    uvs.push(u, v);
-  };
-  for (let corner = 0; corner < corners.length; corner += 1) {
-    addVertex([0, 0]);
-    addVertex(corners[(corner + 1) % corners.length]);
-    addVertex(corners[corner]);
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.computeVertexNormals();
-  return geometry;
+function pointForCell(cell) { return new THREE.Vector3(...topology.centre(cell.id)).multiplyScalar(radius+.0006); }
+function exactCellGeometry(cell, textureCoordinates) {
+  const polygon=topology.polygon(cell.id),positions=[],uvs=[],frame=topology.frame(selectedCell?.id||designAnchor);
+  const add=p=>{positions.push(...Array.from(p,v=>v*(radius+.0006)));const local=topology.project(p,frame);uvs.push(...textureCoordinates(local.x,local.y));};
+  for(let k=0;k<polygon.length;k++){add(topology.centre(cell.id));add(polygon[k]);add(polygon[(k+1)%polygon.length]);}
+  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));return geometry;
 }
 
 function clearPlacementPreview() {
@@ -1480,9 +1045,9 @@ function addHighResolutionPlacement(color, treatment, targetLayer = placementLay
   const material = new THREE.MeshBasicMaterial({ map: texture, toneMapped: false, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
   const geometries = selectedCells.map((cell) => {
     const p = centre(cell);
-    return exactHexGeometry(cell, (localX, localY) => [
-      (p.x + localX - bounds.left) / bounds.width,
-      (p.y + localY - bounds.top) / bounds.height
+    return exactCellGeometry(cell, (localX, localY) => [
+      (localX - bounds.left) / bounds.width,
+      1 - (localY - bounds.top) / bounds.height
     ]);
   });
   const mergedGeometry = mergeGeometries(geometries, false);
@@ -1493,7 +1058,9 @@ function addHighResolutionPlacement(color, treatment, targetLayer = placementLay
   return territory;
 }
 
-function paintPlacement() {
+let publishing=false;
+async function paintPlacement() {
+  if(publishing)return;
   if (!selectedUV || !selectedCells.length) return;
   const rawWebsite = document.querySelector('#website').value.trim();
   let website = '';
@@ -1503,15 +1070,24 @@ function paintPlacement() {
   const amount = selectedCells.length;
   const color = document.querySelector('#brandColor').value;
   const treatment = document.querySelector('#logoTreatment').value;
-  const custom = document.querySelector('#selectionShape').value === 'custom';
-  if (fixedArtworkMode === 'colour') {
-    selectedCells.forEach((cell) => writeCellColour(purchasedColourData, cell, cell.color || (custom ? selectedCellColours.get(cell.id) : null) || color));
-    purchasedColourTexture.needsUpdate = true;
+  publishing=true;
+  document.querySelector('#buyPanel').inert=true;
+  const button=document.querySelector('#previewPurchase'),label=button.textContent;
+  button.disabled=true;button.textContent='Publishing preview…';
+  const cells=selectedCells.map(c=>({...c})),temporary=new THREE.Group();
+  const mesh=addHighResolutionPlacement(color,treatment,temporary);
+  try {
+    await publishToTiles(artworkTiles,renderer,mesh,topology,cells);
+  } catch(error) {
+    document.querySelector('#websiteError').hidden=false;document.querySelector('#websiteError').textContent='Could not publish the preview. Your design is still here; please try again.';
+    return;
+  } finally {
+    mesh.geometry.dispose();mesh.material.map.dispose();mesh.material.dispose();
+    publishing=false;document.querySelector('#buyPanel').inert=false;button.disabled=false;button.textContent=label;
   }
   clearPlacementPreview();
-  addHighResolutionPlacement(color, treatment);
   const placementRecord={website,count:amount};
-  selectedCells.forEach((cell) => { occupiedCells[cell.id - 1] = 255; sessionPlacements.set(cell.id,placementRecord); });
+  cells.forEach((cell) => { occupiedCells[cell.id - 1] = 255; sessionPlacements.set(cell.id,placementRecord); });
   occupancyTexture.needsUpdate = true;
   sold = Math.min(1000000, sold + amount);
   updateInventoryDisplay();
@@ -1540,17 +1116,39 @@ addEventListener('resize', resize);
 resize();
 frameGlobe(true);
 
-const clock = new THREE.Clock();
+const demoTour=createDemoTour({camera,globe,controls,radius,button:document.querySelector('#demoTour'),wideDistance:globeFitDistance,cancelZoom(){zoom.cancel();cameraDistanceTarget=null;},prepareDetail(){void ensureTopology().catch(()=>{});}});
 function animate() {
   requestAnimationFrame(animate);
   controls.target.set(0, 0, 0);
-  controls.update();
+  if(!demoTour.active)controls.update();
   if (cameraDistanceTarget !== null) {
     const distance = THREE.MathUtils.lerp(camera.position.length(), cameraDistanceTarget, .12);
     camera.position.setLength(distance);
     if (Math.abs(distance - cameraDistanceTarget) < .005) cameraDistanceTarget = null;
   }
   document.body.classList.toggle('detail-view', camera.position.length() < globeFitDistance() * .72);
+  zoom.update();
+  demoTour.update(performance.now());
+  artworkTiles.update(camera,canvas.clientHeight*renderer.getPixelRatio(),performance.now());
+  if(!topology&&!topologyPromise&&camera.position.length()<radius+3.5)void ensureTopology().catch(()=>{});
+  if(topology)cellDetail.update(camera,canvas.clientHeight,performance.now());
   renderer.render(scene, camera);
 }
 animate();
+loading.remove();
+document.querySelector('#claimButton').disabled = false;
+canvas.dataset.ready = 'true';
+
+if (import.meta.env.DEV && new URLSearchParams(location.search).has('geodesicQA')) {
+  await ensureTopology();
+  window.geodesicQA = {
+    locations: { equator: topology.pick([0,0,1]), north: topology.pick([0,1,0]), south: topology.pick([0,-1,0]), pentagon: topology.manifest.pentagons[0], nearPentagon: topology.neighboursOf(topology.manifest.pentagons[0])[0] },
+    focus(id, distance = .6) {
+      controls.autoRotate=false;orientToCell(id,radius+distance);
+    },
+    place(id) { choosePatternOrigin({uv:new THREE.Vector2(),point:pointForCell({id})},cellForId(id));focusSelection(); },
+    state() { return { selected: selectedCells.map(c=>c.id), design: previewCells().map(c=>c.id), sold, committed: [...sessionPlacements.keys()], connected: topology.isConnected(selectedCells), camera:camera.position.toArray(), detailVertices:cellDetail?.mesh.geometry.attributes.position?.count||0, drawCalls:renderer.info.render.calls,tiles:{...artworkTiles.stats},retainedPlacements:placementLayers.children.length }; },
+    screen(id) { const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return {x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2}; },
+  };
+}
+if(import.meta.env.DEV)window.performanceQA={tiles:artworkTiles.stats,focus(direction,altitude){zoom.cancel();controls.autoRotate=false;cameraDistanceTarget=null;globe.rotation.set(0,0,0);camera.position.set(...direction).normalize().multiplyScalar(radius+altitude);controls.update();},state(){return{tiles:{...artworkTiles.stats},topologyLoaded:!!topology,drawCalls:renderer.info.render.calls,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,camera:camera.position.toArray(),retainedPlacements:placementLayers.children.length};}};

@@ -1,5 +1,7 @@
 # Placement studio redesign and verification
 
+The original redesign observations below are historical. The 6 September geometry replacement supersedes the axial translation, UV grid and global-atlas descriptions: see [GEODESIC-MIGRATION-QA.md](GEODESIC-MIGRATION-QA.md) for the current topology, actual polygon previews and focused verification.
+
 ## Delivered behaviour
 
 - Cleaner landing composition, visible mobile pricing, explicit sample/non-payment disclosure, and quieter exploration controls.
@@ -32,6 +34,6 @@ Screenshots are generated under `artifacts/visual-qa/` and are intentionally exc
 
 - The supplied Birdcage logo is not in this checkout. Its named acceptance journey remains pending; the checked-in SVG fixture was used instead.
 - No observed first-time-buyer study, physical iOS/Android device test, screen-reader audit, or sustained low-end-device performance measurement has been completed. Touch emulation is not physical-device certification.
-- The sphere remains the existing mapped grid, with geographic projection distortion and finite geometry resolution. This redesign does not turn it into a literal equal-area geodesic mesh. More rendering work may be appropriate after device testing.
+- Superseded on 6 September: the mapped grid was replaced by an audited exact-count geodesic dual. It has measured area/edge tolerances rather than exact equal area. Physical-device and delivery-budget checks remain; see the geodesic audit.
 - Session previews reset on refresh. Durable drafts, inventory reservations, payment/webhook reconciliation, production artwork storage, moderation and customer ownership remain transactional-MVP work in the delivery plan.
 - Full silhouette tracing, commercial audience measurement and proven willingness to pay remain outside this redesign. The dated release audit continues to document the original findings; this document records the subsequent changes rather than rewriting that historical evidence.

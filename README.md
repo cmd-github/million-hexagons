@@ -1,6 +1,6 @@
 # Million Hexagons
 
-A performance-first prototype of a globe containing exactly 1,000,000 logical hexagonal advertising cells. Half the inventory is mock-sold. Visitors can explore campaigns and run a mock placement flow.
+A prototype of a globe containing exactly 1,000,000 spherical polygon cells: 999,988 hexagons and 12 claimable pentagons. The sample catalogue occupies 344,500 actual cells. Visitors can explore campaigns and run a session-only placement flow.
 
 The agreed product direction, staged purchase experience, technical rules, roadmap, and acceptance criteria live in [docs/PRODUCT-DELIVERY-PLAN.md](docs/PRODUCT-DELIVERY-PLAN.md). Treat that document as the source of truth for subsequent product work.
 
@@ -23,17 +23,17 @@ The production build is hosted by the dedicated Firebase project `million-hexago
 npm run deploy
 ```
 
-This builds the app into the ignored `dist/` directory, then deploys only that generated directory. Firebase rewrites browser routes to `index.html`, avoids caching the HTML shell, and caches Vite's content-hashed assets. The custom production domains are `millionhexagons.com` and `www.millionhexagons.com`; DNS is managed at Hostinger.
+The current deployment script builds the separate `coming-soon/` site into `coming-soon-dist/` and publishes that directory. `npm run build` continues to build the globe app into `dist/` for local preview. Firebase rewrites browser routes to `index.html`, avoids caching the HTML shell, and caches Vite's content-hashed assets. The custom production domains are `millionhexagons.com` and `www.millionhexagons.com`; DNS is managed at Hostinger.
 
 ## Placement studio and visual checks
 
 The purchase prototype keeps Design → Place → Review. Logo is the recommended starting path; custom sizes and artwork adjustments expand when needed. Place suggests an available footprint automatically, with Find another spot and separate Move/Place controls. Paint includes undo/redo. Review and the globe now consume the same frozen artwork rendition and the camera frames the complete selected footprint. Review keeps its edit routes, validates optional HTTP(S) destinations, and adds a session preview without taking payment. Click a committed session placement to reopen its website action. Refresh still resets these previews; this is not durable ownership or real checkout.
 
-In normal globe exploration, the discreet search control accepts a cell reference such as `#1` or `500000` and centres that logical hexagon. The control is intentionally separate from the placement studio and leaves room for named brand/location discovery later.
+In normal globe exploration, the discreet search control accepts a cell reference such as `#1` or `500000` and centres that cell (including the 12 pentagons). The control is intentionally separate from the placement studio and leaves room for named brand/location discovery later.
 
 On mobile, exploration gives the globe its own region below the introduction. Place and Review reserve a separate canvas area above a scrollable bottom sheet; pointer coordinates and the camera use that actual canvas size. Desktop uses a separate studio sidebar. The grid is quieter during placement and the old decorative triangular wireframe has been removed.
 
-`src/placements/geometry.js` defines shared compact footprints and parity-safe hex translation. Flat previews and globe territories use the same raster artwork routine in `src/main.js`, including repeat and quarter-turn transforms. Committed and preview territories use an unlit, non-tone-mapped material to preserve advertiser colours. SVG uploads are rasterized before crop calculations to avoid browser source-rectangle inconsistencies.
+`src/globe/topology.js` supplies the canonical polygon IDs, adjacency, picking and placement-local projections; `src/placements/geometry.js` computes bounds from those polygons. Flat previews and globe territories use the same raster artwork routine in `src/main.js`, including repeat and quarter-turn transforms. Committed and preview territories use an unlit, non-tone-mapped material to preserve advertiser colours. SVG uploads are rasterized before crop calculations to avoid browser source-rectangle inconsistencies.
 
 Validation (start a dev/preview server first):
 
@@ -51,18 +51,54 @@ The visual journey runner writes screenshots to ignored `artifacts/visual-qa/` f
 
 ## Rendering architecture
 
-The million cells are logical addresses, not one million DOM or Three.js objects. A campaign atlas supplies the advertising artwork while a procedural GPU shader draws resolution-independent hexagon edges. Pointer coordinates map deterministically to cell IDs. Because this is a mapped interactive surface rather than a literal geodesic polyhedron, no visible pentagonal correction faces are needed.
+The separate live coming-soon globe repeats “Million Hexagons” and “Coming Soon” in coloured letter hexagons. Build it with `npm run build:coming-soon`; Firebase Hosting publishes `coming-soon-dist`. See [the focused release check](docs/COMING-SOON-WORDS-QA.md).
 
-The renderer uses distance-based detail: the micro-grid is suppressed when its cells would be smaller than a screen pixel, eliminating full-globe shimmer, then fades into a connected HD honeycomb while zooming. Individual occupied cells resolve to consistent campaign marks, while purchased territories can carry one logo continuously across many cells.
+Grid outlines ease in over a broad projected-cell-size range with time-based opacity smoothing and an initial 0.8-second reveal. They do not fill or recolour the underlying surface. A subtle emissive floor keeps unoccupied regions readable on the dark side; exact geometry starts loading before the visible-detail threshold.
 
-Available inventory has a unified near-black midnight surface with extremely subtle larger hexagonal tonal regions. At close range, darker seams and a restrained centre lift give each underlying sellable hex a plated face instead of a flat patchwork appearance. The variation fades at extreme distance, while a restrained camera-fixed highlight, gently lifted south pole, and surface-attached Fresnel edge complete the treatment. Available cells are restored after artwork sampling so neighbouring advertiser colours cannot bleed across territory boundaries; advertiser artwork and placement-state overlays are unchanged.
+The demo now dives to individual-hexagon scale on every other stop, starting about 23 seconds into the tour. It holds that view for six seconds before pulling back; exact cell detail preloads during the approach.
 
-The seeded marketplace preview uses recognisable brand marks from Simple Icons alongside repeated placements and deterministic connected clusters of 20–50 cells. These brands are visual examples only and do not imply participation or endorsement.
+The **Play demo** button starts an opt-in, looping tour of eight populated sample-brand locations. Each stop combines a wide rotating transition, a framed approach, a gentle close pass and a pullback. **Stop demo**, Escape, manual globe interaction, other controls or resizing returns control to the visitor. The small route file contains actual occupied placement centres and extents; it does not require loading the full topology. Regenerate it with `node scripts/build-demo-tour.mjs` after changing the sample inventory (also included in `build:runtime`).
 
-Logo placement accepts PNG, JPG, WebP and SVG files up to 4 MB. Small campaigns use high-resolution hex-clipped meshes rather than the coarse world atlas. Buyers choose Logo, Solid Colour, or Paint; create the artwork in a flat hex-mosaic editor; position the completed design on the globe; and review the exact result before adding it.
+The versioned offline asset in `public/topology/` contains one million centres, shared polygon vertices, ordered polygon rings, reciprocal neighbours and areas. A 64-vertex degree-5/6 triangulation subdivided at frequency 127 gives exactly `(64 − 2) × 127² + 2 = 1,000,000` dual cells. Forty-eight degree-aware spherical spring iterations smooth the embedding without changing topology. This is a barycentric geodesic dual, not a latitude/longitude grid or a claim of perfectly regular equal-area hexagons.
 
-Uploaded artwork has unused outer margins trimmed automatically, retains its aspect ratio, and defaults to one logo spread across a compact territory proportioned to the artwork. The logo is fitted into a safe rectangle inside the actual hex mask, so its complete content remains visible from a single hexagon through custom large footprints. In the flat preview, buyers can click an outlined neighbouring hexagon to add it or click a removable edge hexagon to remove it; the connected footprint, live quantity, price, globe preview, review and committed placement all update together. Buyers can instead repeat the logo inside every hexagon. Purchased territories are merged into one draw call so even hundreds of image-mapped cells remain efficient.
+Measured cell-area coefficient of variation is **4.30%**, with a **1.5825** largest/smallest ratio. Edge-length coefficient of variation is **7.734%**, with a **1.6332** longest/shortest ratio. IDs 1–1,000,000 and the 12 pentagon IDs are frozen in the v1 asset. See [the geodesic audit](docs/GEODESIC-MIGRATION-QA.md) for measurements, constraints and QA evidence.
 
-Buying mode moves into a close selection distance and uses an adaptive light/dark high-contrast grid over every campaign colour. Uploaded artwork is aligned to geographic north so its default orientation stays upright around the globe, with manual quarter-turn and upside-down controls when needed.
+The globe streams a six-level cube tile pyramid instead of retaining a mesh and texture for every advertiser. Each 512-pixel tile contains artwork clipped to the canonical polygons. Resolution selection evaluates the whole visible surface using projected pixel density before allocating downloads; traversal order and draw-call limits do not downgrade one side of the view. Target pages load directly, with cached ancestors used only while loading. Crisp replacements and anisotropic filtering avoid the old parent-image blur crossfade. The cache normally holds at most 128 pages on desktop or 64 on narrow screens, expanding only when the viewport's required set plus ten reserve slots exceeds that; it scales with screen demand, not advertiser count. Four concurrent requests bound image decoding. The sample-hq catalogue uses 2048-pixel logo sources and lossless WebP pages. Session publication writes lossless PNG pages atomically to IndexedDB and releases the temporary mesh and texture. Microcell edges use one bounded, incrementally rebuilt close-view patch. Picking intersects the mathematical sphere and walks actual polygon boundaries from a coarse seed lookup. GPU occupancy/colour textures are packed by ID; their rectangular storage has no geographic meaning.
 
-The purchase flow separates design from location. Detailed editing happens in a flat hex canvas. During placement, Move globe enables rotation and Place design turns the globe surface into an unambiguous location target; wheel or pinch continues to zoom in both modes. A one-million-cell GPU occupancy mask gives available, purchased and selected tiles distinct states regardless of advertiser colour, and pointer selection uses the same nearest-hex calculation as the rendered grid. Selection colours are written directly into exact cell-addressed shader data, eliminating alignment drift.
+Artwork is fitted in a placement-local gnomonic tangent frame and clipped to the purchased polygons. Flat design, review, globe preview and committed territory use those same IDs and coordinates. Moving a placement reassigns IDs through real adjacency and updates the flat draft; perfect planar translations cannot be preserved through a pentagon. Count and connectivity remain fixed. Moving to a different anchor resets the paint undo history; editing and undo within one location retain it.
+
+Regenerate and audit the topology with Node (Python is unnecessary for normal regeneration):
+
+```powershell
+npm run build:topology
+npm run test:geometry
+```
+
+The checked-in seed is frozen. `scripts/create-geodesic-seed.py` is an optional development tool requiring NumPy and SciPy to discover a new seed; running it changes the identity basis and must not be used for routine regeneration.
+
+Focused visual tests require the dev server because their location controls are excluded from production:
+
+```powershell
+npm run dev -- --port 4180
+# In another terminal:
+$env:SMOKE_URL = 'http://127.0.0.1:4180'
+npm run test:geodesic-visual
+npm run test:geodesic-gestures
+node scripts/geodesic-studio-qa.mjs
+python scripts/measure-reference-logo.py  # Pillow; reads screenshots only
+```
+
+Screenshots and measured results go to `artifacts/geodesic-qa/`. Initial exploration loads a small bootstrap, compressed occupancy and artwork tiles. The exact topology loads on demand for close detail, search or creation: 17.2 MB losslessly packed, decoded in a worker to the unchanged 92 MB canonical buffer. Wheel, buttons and touch pinch use continuous altitude-relative zoom. See [streaming architecture and performance QA](docs/PERFORMANCE-QA.md) for workload limits and evidence. Payments, durable ownership and cross-session artwork persistence are still outside this prototype.
+
+Regenerate runtime assets after topology/sample changes, with a dev server running for the artwork compiler:
+
+```powershell
+npm run build:runtime
+$env:SMOKE_URL = 'http://127.0.0.1:4180'
+npm run build:artwork
+npm run build:artwork-million
+npm run test:streaming
+npm run test:performance
+```
+
+On the dev server, `/?millionLogos` selects the offline stress catalogue: one synthetic ID mark in each real cell. It is a rendering fixture, not a million uploaded source files or real advertisers. Generated artwork is served directly from disk in development, so new catalogues are available without restarting Vite; missing artwork returns HTTP 404 rather than the application HTML. Tile generation resumes existing output; remove the explicitly chosen output catalogue before rebuilding changed artwork. Normal visitors never download the whole pyramid. The stress catalogue and raw compiler inputs are excluded from production builds. Production ingestion must publish versioned tile pages and authoritative metadata from a server/object store; the current IndexedDB pages are session previews only.
