@@ -5,7 +5,12 @@ export function createDemoTour({camera,globe,controls,radius,button,wideDistance
   const normalRoute=[['travel',7],['approach',5],['pass',7],['pullback',5]];
   const detailRoute=[['travel',7],['approach',5],['pass',4],['dive',7],['hexagons',6],['pullback',7]];
   const route=()=>index%2===0?detailRoute:normalRoute;
-  const label=()=>{button.textContent=loading?'Preparing demo…':active?'■ Stop demo':'▶ Play demo';button.setAttribute('aria-pressed',String(active));};
+  const label=()=>{
+    button.textContent=loading?'…':active?'■':'✨';
+    button.setAttribute('aria-pressed',String(active));
+    button.setAttribute('aria-label',loading?'Preparing guided globe demo':active?'Stop guided globe demo':'Play guided globe demo');
+    button.title=loading?'Preparing guided globe demo':active?'Stop guided globe demo':'Play guided globe demo';
+  };
   function stop(){generation++;active=false;loading=false;segment=null;controls.enableDamping=true;label();}
   function prepare(){
     const step=route()[phase][0];
@@ -31,7 +36,7 @@ export function createDemoTour({camera,globe,controls,radius,button,wideDistance
       if(!stops?.length)throw Error('Empty route');
       cancelZoom();controls.autoRotate=false;controls.enableDamping=false;controls.update();
       loading=false;active=true;index=0;phase=0;elapsed=0;last=performance.now();prepare();label();
-    }catch{if(token===generation){stop();button.textContent='Retry demo';}}
+    }catch{if(token===generation){stop();button.textContent='↻';button.setAttribute('aria-label','Retry guided globe demo');button.title='Retry guided globe demo';}}
   }
   button.addEventListener('click',start);
   document.addEventListener('pointerdown',event=>{if(!button.contains(event.target)&&(active||loading))stop();},{capture:true});

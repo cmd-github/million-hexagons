@@ -151,6 +151,7 @@ let explorationStart = null;
 canvas.addEventListener('pointerdown', event => { explorationStart = {x:event.clientX,y:event.clientY}; });
 canvas.addEventListener('pointerup', event => {
   if (document.body.classList.contains('creating') || !explorationStart || Math.hypot(event.clientX-explorationStart.x,event.clientY-explorationStart.y)>6) return;
+  if (camera.position.length() < globeFitDistance() * .82) controls.autoRotate = false;
   const hit=intersect(event); if(!hit?.uv) return;
   const placement=sessionPlacements.get(hit.cell.id); if(!placement) return;
   const toast=document.querySelector('#toast');
@@ -429,6 +430,7 @@ function setPaintAction(action) {
 document.querySelector('#paintCells').addEventListener('click', () => setPaintAction('paint'));
 document.querySelector('#eraseCells').addEventListener('click', () => setPaintAction('erase'));
 document.querySelector('#exploreButton').addEventListener('click', () => { controls.autoRotate = !controls.autoRotate; });
+document.querySelector('#rotationToggle').addEventListener('click', () => { controls.autoRotate = !controls.autoRotate; });
 document.querySelector('#randomButton').addEventListener('click', () => {
   controls.autoRotate = false;
   globe.rotation.set((Math.random() - .5) * 1.8, Math.random() * Math.PI * 2, 0);
@@ -1117,6 +1119,17 @@ resize();
 frameGlobe(true);
 
 const demoTour=createDemoTour({camera,globe,controls,radius,button:document.querySelector('#demoTour'),wideDistance:globeFitDistance,cancelZoom(){zoom.cancel();cameraDistanceTarget=null;},prepareDetail(){void ensureTopology().catch(()=>{});}});
+const rotationToggle=document.querySelector('#rotationToggle');
+let displayedRotationState=null;
+function updateRotationControl(){
+  const rotating=controls.autoRotate&&!demoTour.active;
+  if(rotating===displayedRotationState)return;
+  displayedRotationState=rotating;
+  rotationToggle.textContent=rotating?'⏸':'▶';
+  rotationToggle.setAttribute('aria-pressed',String(rotating));
+  rotationToggle.setAttribute('aria-label',rotating?'Pause globe rotation':'Start globe rotation');
+  rotationToggle.title=rotating?'Pause globe rotation':'Start globe rotation';
+}
 function animate() {
   requestAnimationFrame(animate);
   controls.target.set(0, 0, 0);
@@ -1129,6 +1142,7 @@ function animate() {
   document.body.classList.toggle('detail-view', camera.position.length() < globeFitDistance() * .72);
   zoom.update();
   demoTour.update(performance.now());
+  updateRotationControl();
   artworkTiles.update(camera,canvas.clientHeight*renderer.getPixelRatio(),performance.now());
   if(!topology&&!topologyPromise&&camera.position.length()<radius+3.5)void ensureTopology().catch(()=>{});
   if(topology)cellDetail.update(camera,canvas.clientHeight,performance.now());

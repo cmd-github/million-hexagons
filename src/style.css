@@ -123,7 +123,7 @@ label,.field-label{font-size:12px;color:#bdcdcf}.upload-zone{padding:16px;margin
  body[data-flow=review] label{margin-top:8px;font-size:11px}
  body[data-flow=review] #website{padding:10px;font-size:14px;margin-top:5px}
 }
-#demoTour{position:fixed;bottom:58px;left:50%;transform:translateX(-50%);z-index:15;width:auto;padding:11px 18px;background:#0c1e29;border:1px solid #50616b;border-radius:24px;color:#d4ff58;white-space:nowrap}
-#demoTour[aria-pressed="true"]{background:#d4ff58;color:#09151c}
+#demoTour{color:var(--lime)}
+#demoTour[aria-pressed="true"]{background:var(--lime);color:#09151c}
+#rotationToggle[aria-pressed="true"]{color:var(--lime)}
 body.creating #demoTour{display:none}
-@media(max-width:700px){#demoTour{left:16px;bottom:76px;transform:none;padding:9px 14px;font-size:12px}}

@@ -10,7 +10,6 @@
   <body>
     <canvas id="world" aria-label="Interactive advertising globe. Drag to rotate; use the zoom controls to explore."></canvas>
     <div class="demo-badge">EXPERIENCE PREVIEW <span>No payments &middot; sample brands</span></div>
-    <button id="demoTour" class="secondary" aria-pressed="false" aria-label="Play or stop the guided globe demo">▶ Play demo</button>
     <header class="topbar">
       <a class="brand" href="#" aria-label="Million Hexagons home"><span class="mark">MH</span><span><b>MILLION</b><strong>HEXAGONS</strong></span></a>
       <div class="inventory"><div><span id="soldCount">…</span> demo cells</div><div class="meter"><i id="soldMeter"></i></div><small><span id="availableCount">…</span> available to preview</small></div>
@@ -35,6 +34,8 @@
 
     <div class="hint" id="hint"><span>DRAG TO ROTATE</span><i></i><span>SCROLL TO ZOOM</span><i></i><span>CLICK A TILE</span></div>
     <nav class="globe-controls glass" aria-label="Globe controls">
+      <button type="button" id="rotationToggle" aria-pressed="true" aria-label="Pause globe rotation" title="Pause globe rotation">⏸</button>
+      <button type="button" id="demoTour" aria-pressed="false" aria-label="Play guided globe demo" title="Play guided globe demo">✨</button>
       <form class="hex-search" id="hexSearch" role="search">
         <button type="button" id="toggleHexSearch" aria-label="Find a hexagon" aria-expanded="false">⌕</button>
         <div id="hexSearchPanel" hidden><label for="hexSearchInput">Find a hexagon</label><span><input id="hexSearchInput" inputmode="numeric" autocomplete="off" placeholder="#1" aria-describedby="hexSearchStatus"><button type="submit" aria-label="Go to hexagon">Go</button></span><small id="hexSearchStatus" role="status">Enter a number from 1 to 1,000,000.</small></div>

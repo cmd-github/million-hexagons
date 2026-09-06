@@ -24,6 +24,17 @@ async function placeAvailableArea() {
 await page.goto(process.env.SMOKE_URL || 'http://127.0.0.1:4175');
 await page.waitForSelector('#world[data-ready="true"]', { timeout: 60000 });
 
+if (!(await page.locator('#demoTour').evaluate((element) => element.closest('.globe-controls') !== null))) errors.push('Demo control was not in the globe toolbar');
+await page.click('#zoomIn');
+await page.click('#zoomIn');
+await page.waitForTimeout(900);
+const globe = await page.locator('#world').boundingBox();
+if (!globe) throw new Error('Globe canvas was unavailable');
+await page.mouse.click(globe.x + globe.width / 2, globe.y + globe.height / 2);
+if ((await page.locator('#rotationToggle').getAttribute('aria-pressed')) !== 'false') errors.push('Close globe click did not pause rotation');
+await page.click('#rotationToggle');
+if ((await page.locator('#rotationToggle').getAttribute('aria-pressed')) !== 'true') errors.push('Rotation control did not restart rotation');
+
 await page.click('#claimButton');
 await page.waitForSelector('#typeStep', {state:'visible',timeout:60000});
 if (!(await page.locator('#typeStep').isVisible())) errors.push('Creation type step did not open');

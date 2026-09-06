@@ -5,6 +5,7 @@ The original redesign observations below are historical. The 6 September geometr
 ## Delivered behaviour
 
 - Cleaner landing composition, visible mobile pricing, explicit sample/non-payment disclosure, and quieter exploration controls.
+- The right-side globe toolbar now groups ambient play/pause, the guided demo (sparkle), search, zoom, and home. A close-range globe click pauses ambient rotation and the play control restarts it.
 - Separate desktop studio and globe regions. Mobile exploration leaves the globe below the introduction; Place reserves a dedicated interactive globe region above a compact sheet. Review has a separate scrollable sheet and a visible total/action footer.
 - Logo-first recommendation while retaining Logo, Solid Colour, and Paint. Custom sizes and fine adjustments use expandable controls. Live pricing, clear upload status, direct editing from review, paint undo/redo, and persistent dismissible session confirmation.
 - Automatic valid location suggestion and Find another spot. Move remains the default. Manual placement validates the entire footprint and invalidates Review on overlap or a boundary conflict; it never trims purchased cells silently.
