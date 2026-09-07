@@ -1,11 +1,11 @@
 # Million Hexagons Product and Delivery Plan
 
 Status: agreed direction  
-Last updated: 6 September 2026
+Last updated: 7 September 2026
 
 ## Product thesis
 
-Million Hexagons is an advertising product first and a 3D globe second. The globe contains exactly 1,000,000 individually addressable cells: 999,988 hexagons and 12 claimable pentagons, with a prototype price of $1 per cell. A buyer can create a coloured placement or display artwork across a connected group, attach a destination URL, and buy the placement permanently.
+Million Hexagons is an advertising product first and a 3D globe second. The globe contains exactly 1,000,000 individually addressable cells: 999,988 hexagons and 12 claimable pentagons. Standard cells use clean regional prices of £1 in the UK, €1 in the eurozone, and $2 in the USA. A buyer can create a coloured placement or display artwork across a connected group, attach a destination URL, and buy the placement permanently.
 
 The first objective is to prove that visitors understand the proposition, enjoy exploring the world, and are willing to create a placement. Account systems, real payments, auctions, campaign analytics, and enterprise sales tooling come only after that behaviour is validated.
 
@@ -20,7 +20,7 @@ The objective is a polished product that earns revenue by delivering a useful, t
 - Add draft recovery, paint undo/redo, accessible navigation, clear conflict recovery, and a direct Edit design route from review. Avoid an unnecessary account-creation detour; choose a secure, low-friction ownership/recovery mechanism during transactional design.
 - Include basic placement pages, globe-focus sharing links, visitor discovery, and destination-click measurement in the transactional MVP. Full campaign dashboards and richer social launch assets remain later work.
 - After payment, provide a persistent confirmation, receipt, publication status, placement link, secure management access, and support route. Clearly distinguish payment received from published when moderation applies.
-- Validate the offer with a focused buyer community, measured funnel events, and observed usability sessions before expanding the commercial scope. Keep the $1-per-cell validation price. Treat audience value and willingness to pay as hypotheses to prove, not consequences of attractive graphics.
+- Validate the offer with a focused buyer community, measured funnel events, and observed usability sessions before expanding the commercial scope. Validate the agreed clean regional standard prices: £1 per hexagon in the UK, €1 in the eurozone, and $2 in the USA. Treat audience value and willingness to pay as hypotheses to prove, not consequences of attractive graphics.
 - Treat the fixed inventory as a finite gross revenue opportunity with ongoing operating costs. Define the service commitment behind “permanent”, customer terms, and operating responsibilities before charging buyers; do not promise unmeasured traffic.
 - Do not launch paid purchases until the audit's P0 blockers are resolved and transactional release gates pass: durable ownership, authoritative inventory, atomic reservations, idempotent payment fulfillment, safe destinations, moderation, receipts, and recoverable failure/refund handling.
 
@@ -320,5 +320,5 @@ For every meaningful purchase-flow change:
 - Use a flat editor before globe placement.
 - Use an explicit Move globe / Place design toggle rather than a small movement joystick.
 - Keep the initial artwork choices to Logo, Solid Colour, and Paint.
-- Keep pricing at $1 per hexagon for the validation prototype.
+- Use fixed clean regional standard prices rather than live currency conversion: £1 per hexagon in the UK, €1 in the eurozone, and $2 in the USA. Implement these as explicit currency prices in checkout so the website and payment total agree.
 - Defer premium-location pricing until buyer behaviour supplies evidence for it.
