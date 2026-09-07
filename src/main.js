@@ -151,12 +151,22 @@ let editorPainting = false;
 const selectedCellColours = new Map();
 const sessionPlacements = new Map();
 let explorationStart = null;
+let requestedAnchor = null;
+let pinnedCell = null;
 canvas.addEventListener('pointerdown', event => { explorationStart = {x:event.clientX,y:event.clientY}; });
 canvas.addEventListener('pointerup', event => {
   if (document.body.classList.contains('creating') || !explorationStart || Math.hypot(event.clientX-explorationStart.x,event.clientY-explorationStart.y)>6) return;
   if (camera.position.length() < globeFitDistance() * .82) controls.autoRotate = false;
   const hit=intersect(event); if(!hit?.uv) return;
-  const placement=sessionPlacements.get(hit.cell.id); if(!placement) return;
+  const placement=sessionPlacements.get(hit.cell.id);
+  if (!hit.cell.occupied) {
+    pinnedCell = hit.cell;
+    updateTooltip(event, hit.cell, true);
+    return;
+  }
+  pinnedCell = null;
+  tooltip.classList.remove('pinned');
+  if(!placement) return;
   const toast=document.querySelector('#toast');
   toast.querySelector('b').textContent='Your placement';
   toast.querySelector('span').textContent=`${placement.count} hexagons. Saved for this session.`;
@@ -209,14 +219,17 @@ function intersect(event) {
   return { point, uv: new THREE.Vector2(), cell: cellForId(topology.pick(globe.worldToLocal(point.clone()).normalize().toArray())) };
 }
 
-function updateTooltip(event, cell) {
-  document.querySelector('#cellId').textContent = `${cell.pentagon ? 'PENTAGON' : 'HEX'} #${String(cell.id).padStart(6, '0')}`;
+function updateTooltip(event, cell, pinned = false) {
   document.querySelector('#cellOwner').textContent = cell.owner;
   const destination=document.querySelector('#cellDestination');
   destination.hidden=!cell.destination;
   destination.textContent=cell.destination?new URL(cell.destination).hostname.replace(/^www\./,''):'';
+  const claim=document.querySelector('#claimCell');
+  claim.hidden=cell.occupied;
+  claim.dataset.anchor=cell.occupied?'':String(cell.id);
   tooltip.style.left = `${Math.min(innerWidth - 205, event.clientX + 16)}px`;
-  tooltip.style.top = `${Math.min(innerHeight - 90, event.clientY + 16)}px`;
+  tooltip.style.top = `${Math.min(innerHeight - (cell.occupied ? 90 : 130), event.clientY + 16)}px`;
+  tooltip.classList.toggle('pinned', pinned);
   tooltip.classList.add('show');
 }
 
@@ -355,6 +368,7 @@ canvas.addEventListener('pointerdown', (event) => {
 });
 
 canvas.addEventListener('pointermove', (event) => {
+  if (pinnedCell && !selecting) return;
   const hit = intersect(event);
   if (!hit?.uv) {
     clearHover();
@@ -380,9 +394,9 @@ function stopPainting(event) {
 }
 canvas.addEventListener('pointerup', stopPainting);
 canvas.addEventListener('pointercancel', stopPainting);
-canvas.addEventListener('pointerleave', () => { if (!painting) clearHover(); tooltip.classList.remove('show'); });
+canvas.addEventListener('pointerleave', () => { if (!painting) clearHover(); if(!pinnedCell)tooltip.classList.remove('show'); });
 
-async function openBuy() {
+async function openBuy(anchor = null) {
   if(publishing)return;
   if(!topology){loading.textContent='Preparing exact cell selection…';document.body.append(loading);try{await ensureTopology();}catch{return;}loading.remove();}
   selecting = false;
@@ -392,6 +406,10 @@ async function openBuy() {
   selectedCell = null;
   selectedNormal = null;
   selectedCells = [];
+  requestedAnchor = Number.isInteger(anchor) ? anchor : null;
+  if(requestedAnchor)designAnchor=requestedAnchor;
+  pinnedCell = null;
+  tooltip.classList.remove('show', 'pinned');
   clearPlacementPreview();
   clearSelectionColours();
   document.body.classList.add('creating');
@@ -421,9 +439,16 @@ function closeBuy() {
   document.querySelector('#buyPanel').setAttribute('aria-hidden', 'true');
   clearSelectionColours();
   clearPlacementPreview();
+  requestedAnchor = null;
+  pinnedCell = null;
   document.querySelector('#hint').innerHTML = '<span>DRAG TO ROTATE</span><i></i><span>SCROLL TO ZOOM</span><i></i><span>CLICK A TILE</span>';
 }
-document.querySelector('#claimButton').addEventListener('click', openBuy);
+document.querySelector('#claimButton').addEventListener('click', () => openBuy());
+document.querySelector('#claimCell').addEventListener('click', (event) => {
+  event.stopPropagation();
+  const anchor=Number(event.currentTarget.dataset.anchor);
+  if(anchor)openBuy(anchor);
+});
 document.querySelector('#closeBuy').addEventListener('click', closeBuy);
 function setPaintAction(action) {
   paintAction = action;
@@ -1182,11 +1207,12 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('geodesicQA'
   await ensureTopology();
   window.geodesicQA = {
     locations: { equator: topology.pick([0,0,1]), north: topology.pick([0,1,0]), south: topology.pick([0,-1,0]), pentagon: topology.manifest.pentagons[0], nearPentagon: topology.neighboursOf(topology.manifest.pentagons[0])[0] },
+    available: occupiedCells.findIndex(value=>!value)+1,
     focus(id, distance = .6) {
       controls.autoRotate=false;orientToCell(id,radius+distance);
     },
     place(id) { choosePatternOrigin({uv:new THREE.Vector2(),point:pointForCell({id})},cellForId(id));focusSelection(); },
-    state() { return { selected: selectedCells.map(c=>c.id), design: previewCells().map(c=>c.id), sold, committed: [...sessionPlacements.keys()], connected: topology.isConnected(selectedCells), camera:camera.position.toArray(), detailVertices:cellDetail?.mesh.geometry.attributes.position?.count||0, drawCalls:renderer.info.render.calls,tiles:{...artworkTiles.stats},retainedPlacements:placementLayers.children.length }; },
+    state() { return { selected: selectedCells.map(c=>c.id), design: previewCells().map(c=>c.id), designAnchor, requestedAnchor, sold, committed: [...sessionPlacements.keys()], connected: topology.isConnected(selectedCells), camera:camera.position.toArray(), detailVertices:cellDetail?.mesh.geometry.attributes.position?.count||0, drawCalls:renderer.info.render.calls,tiles:{...artworkTiles.stats},retainedPlacements:placementLayers.children.length }; },
     screen(id) { const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return {x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2}; },
   };
 }

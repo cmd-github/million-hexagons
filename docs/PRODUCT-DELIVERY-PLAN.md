@@ -26,6 +26,7 @@ Preserve the staged Design -> Place -> Review journey.
 
 ### Place
 
+- While exploring, clicking an available cell offers a compact Claim this space action. Starting there opens Design first and retains that cell as the intended placement anchor.
 - Suggest a complete available location automatically and provide Find another spot.
 - Keep Move globe as the default. Movement and placement must never share an ambiguous gesture.
 - Move globe drag rotates; Place design click or tap positions the complete design. Wheel or pinch zooms in either mode.

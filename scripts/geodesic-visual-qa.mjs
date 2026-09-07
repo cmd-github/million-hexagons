@@ -13,6 +13,17 @@ try {
   await page.waitForFunction(()=>window.geodesicQA,{timeout:60000});
   const prefix=mobile?'mobile':'desktop';
   const locations=await page.evaluate(()=>geodesicQA.locations);
+  const available=await page.evaluate(()=>geodesicQA.available);
+  await page.evaluate(id=>geodesicQA.focus(id,.35),available);await page.waitForTimeout(350);
+  const availablePoint=await page.evaluate(id=>geodesicQA.screen(id),available);
+  await page.mouse.click(availablePoint.x,availablePoint.y);
+  await page.locator('#claimCell').waitFor({state:'visible'});
+  assert.equal(await page.locator('#cellId').count(),0);
+  await page.screenshot({path:`${directory}/${prefix}-available-claim-cta.png`});
+  await page.locator('#claimCell').click();
+  await page.locator('#typeStep').waitFor({state:'visible'});
+  assert.equal((await page.evaluate(()=>geodesicQA.state())).designAnchor,available);
+  await page.locator('#closeBuy').click();
   await page.evaluate(id=>geodesicQA.focus(id,10),locations.equator);await page.waitForTimeout(300);
   await page.screenshot({path:`${directory}/${prefix}-equator-overview.png`});
   for(const [name,id] of Object.entries(locations)) {
@@ -21,7 +32,7 @@ try {
     await page.screenshot({path:`${directory}/${prefix}-${name}-close.png`});
     const point=await page.evaluate(id=>geodesicQA.screen(id),id);
     await page.mouse.move(point.x,point.y);await page.waitForTimeout(100);
-    assert.match(await page.locator('#cellId').textContent(),new RegExp('#'+String(id).padStart(6,'0')+'$'));
+    assert.equal(await page.locator('#cellId').count(),0);
   }
   if(process.env.QA_QUICK) { console.log({errors});break; }
   for(const [name,id] of Object.entries(locations)) {
