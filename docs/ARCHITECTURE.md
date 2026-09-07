@@ -1,0 +1,33 @@
+# Current architecture
+
+## Runtime
+
+The Vite/Three.js client is intentionally backend-free. `src/main.js` coordinates the interface and scene; focused globe modules live under `src/globe/`, and placement geometry lives in `src/placements/geometry.js`. Session placements and generated artwork pages use IndexedDB and reset on normal page exit. They are previews, not durable ownership.
+
+The separately built `coming-soon/` site is the Firebase Hosting target. `npm run deploy` builds it into `coming-soon-dist/`; the product globe builds into `dist/` for local preview.
+
+## Cell topology
+
+`public/topology/geodesic-v1.bin` is the frozen inventory basis. A frequency-127 subdivision of a 64-vertex degree-5/6 spherical triangulation produces exactly 1,000,000 dual cells: 999,988 hexagons and 12 pentagons. Public IDs are one-based and stable. Changing the seed or numbering requires an explicit inventory migration.
+
+`src/globe/topology.js` is authoritative for polygon boundaries, centres, adjacency, picking, and local projections. The background `SphereGeometry` is not inventory. Picking intersects the mathematical sphere and resolves the actual polygon; the renderer never creates one scene object per cell.
+
+The packed topology loads in a worker only when exact detail or interaction requires it. It transfers as approximately 17.2 MB compressed and expands to a 92 MB canonical buffer. GPU state textures are ID storage, not geographic UV maps.
+
+## Artwork and placement
+
+Design, Place, Review, and publication share exact polygon IDs and one placement-local gnomonic frame. Artwork is clipped to the true polygon union and retains its source aspect ratio. Moving a draft reassigns the same count through real adjacency; its outline may change near a pentagon.
+
+Published/sample artwork uses a six-face, six-level cube tile pyramid with 512-pixel interiors and gutters. The renderer chooses detail from projected pixel density across the complete visible surface, requests four pages concurrently, and uses cached ancestors only while target pages load. It uses crisp replacements and anisotropic filtering, without crossfading blurry parent imagery.
+
+The normal cache target is 128 pages on desktop and 64 on narrow screens, expanding when the viewport-required set plus reserve exceeds that. It scales with screen demand, not advertiser count. Close grid geometry is one bounded, incrementally rebuilt patch.
+
+Session publication bakes affected lossless pages atomically to IndexedDB and disposes temporary meshes and textures. Production publication will require validated source storage, background tile generation, immutable manifests, CDN delivery, authoritative placement metadata, and transactional inventory.
+
+## Frozen invariants
+
+- Exactly 1,000,000 claimable cells, including all 12 pentagons.
+- One canonical ID/geometry/rendering contract across editing, pricing, picking, review, and publication.
+- No latitude/longitude inventory, global artwork atlas, or one-object-per-cell renderer.
+- Exact connected counts; conflicts reject rather than trim.
+- Responsive visual quality and bounded resource use are product requirements.
