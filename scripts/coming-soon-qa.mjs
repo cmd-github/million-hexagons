@@ -33,7 +33,10 @@ try {
     await page.goto(baseUrl);
     await page.locator('#globe').waitFor({ state: 'visible' });
 
+    assert.equal(await page.title(), 'Million Hexagons | Coming Soon');
     assert.equal(await page.locator('h1').innerText(), 'Claim your space.\nLaunching soon.');
+    assert.equal(await page.locator('.brand-mark').innerText(), 'MH');
+    assert.equal(await page.getByText('Launch updates only. Unsubscribe anytime.').count(), 0);
     assert.equal(await page.locator('.build-link').getAttribute('href'), 'https://x.com/MillionHexagons');
     assert.equal(await page.locator('label[for="launch-email"]').innerText(), 'Email address');
 
@@ -43,8 +46,7 @@ try {
     const inputBox = await page.locator('#launch-email').boundingBox();
     const buttonBox = await page.locator('#launch-form button').boundingBox();
     assert.ok(inputBox && buttonBox);
-    if (mobile) assert.ok(buttonBox.y > inputBox.y + inputBox.height - 1, 'Mobile controls should stack');
-    else assert.ok(Math.abs(buttonBox.y - inputBox.y) < 2, 'Desktop controls should share one row');
+    assert.ok(Math.abs(buttonBox.y - inputBox.y) < 2, `${name} controls should share one compact row`);
 
     await page.locator('#launch-form button').click();
     assert.equal(await page.locator('#launch-status').innerText(), 'Enter a valid email address.');

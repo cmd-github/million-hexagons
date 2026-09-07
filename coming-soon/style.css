@@ -5,16 +5,18 @@ body { background: radial-gradient(circle at 50% 48%, #102f40 0, #06141d 34%, #0
 main::after { content: ""; position: fixed; inset: 0; pointer-events: none; background: radial-gradient(circle, transparent 42%, rgba(0,0,0,.42) 100%); }
 #globe { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
 #globe:active { cursor: grabbing; }
-.brand { position: fixed; z-index: 2; top: clamp(1.25rem, 4vw, 3rem); left: clamp(1.25rem, 4vw, 3rem); }
-.brand-logo { display: block; width: clamp(4rem, 5.5vw, 5rem); height: auto; border-radius: 16%; }
+.brand { position: fixed; z-index: 2; top: clamp(1.25rem, 4vw, 3rem); left: clamp(1.25rem, 4vw, 3rem); display: flex; align-items: center; gap: .75rem; }
+.brand-mark { display: grid; place-items: center; width: 3rem; aspect-ratio: 1; border-radius: 50%; background: #d0ff52; color: #07141b; font-weight: 900; }
+.brand-name { font-size: .72rem; line-height: 1.05; letter-spacing: .04em; text-transform: uppercase; font-weight: 800; }
+.brand-name strong { color: #d0ff52; }
 .message { position: fixed; z-index: 2; left: clamp(1.25rem, 4vw, 3rem); top: 50%; width: min(34rem, 40vw); transform: translateY(-50%); pointer-events: none; }
 .message p { margin: 0 0 1rem; color: #d0ff52; font: 800 .68rem/1.3 ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; }
 .message h1 { margin: 0; font-size: clamp(3rem, 5.6vw, 6.2rem); line-height: .88; letter-spacing: -.07em; }
 .message h1 span { color: #d0ff52; }
-.launch-signup { width: min(29rem, 100%); margin-top: clamp(1rem, 2vh, 1.45rem); pointer-events: auto; }
-.launch-signup h2 { margin: 0 0 .5rem; font-size: clamp(.82rem, 1vw, .95rem); line-height: 1.2; letter-spacing: -.01em; }
+.launch-signup { position: fixed; z-index: 2; left: clamp(1.25rem, 4vw, 3rem); bottom: clamp(2.5rem, 5vh, 4rem); width: min(23rem, 32vw); pointer-events: auto; }
+.launch-signup h2 { margin: 0 0 .38rem; font-size: .76rem; line-height: 1.2; letter-spacing: -.01em; }
 .signup-row { display: flex; gap: .45rem; }
-.signup-row input, .signup-row button { min-height: 2.55rem; border: 1px solid rgba(188,239,255,.24); border-radius: .7rem; font: 700 .76rem/1 Inter, "Segoe UI", Arial, sans-serif; transition: border-color .18s ease, box-shadow .18s ease, background .18s ease, transform .18s ease; }
+.signup-row input, .signup-row button { min-height: 2.25rem; border: 1px solid rgba(188,239,255,.24); border-radius: .62rem; font: 700 .72rem/1 Inter, "Segoe UI", Arial, sans-serif; transition: border-color .18s ease, box-shadow .18s ease, background .18s ease, transform .18s ease; }
 .signup-row input { min-width: 0; flex: 1; padding: 0 .8rem; background: rgba(5,20,29,.82); color: #f7f9f3; outline: none; }
 .signup-row input::placeholder { color: #82969f; }
 .signup-row button { flex: 0 0 auto; padding: 0 1rem; border-color: #d0ff52; background: #d0ff52; color: #07141b; cursor: pointer; }
@@ -22,11 +24,10 @@ main::after { content: ""; position: fixed; inset: 0; pointer-events: none; back
 .signup-row button:disabled { cursor: wait; opacity: .72; }
 .signup-row input:focus-visible, .signup-row button:focus-visible, .build-link:focus-visible { outline: none; box-shadow: 0 0 0 3px #061118, 0 0 0 5px #d0ff52; }
 .signup-row input[aria-invalid="true"] { border-color: #ff8f83; box-shadow: 0 0 0 1px rgba(255,143,131,.3); }
-.message .privacy { margin: .55rem 0 0; color: #8ca0a9; font: 600 .65rem/1.35 Inter, "Segoe UI", Arial, sans-serif; letter-spacing: 0; text-transform: none; }
-.message .signup-status { min-height: 1rem; margin: .35rem 0 0; color: #bcefff; font: 700 .68rem/1.35 Inter, "Segoe UI", Arial, sans-serif; letter-spacing: 0; text-transform: none; }
-.message .signup-status[data-state="success"] { color: #d0ff52; }
-.message .signup-status[data-state="error"] { color: #ffaaa2; }
-.build-link { display: inline-block; margin-top: .45rem; border-radius: .25rem; color: #9eb2ba; font-size: .7rem; font-weight: 700; text-decoration: none; }
+.signup-status { min-height: .7rem; margin: .2rem 0 0; color: #bcefff; font: 700 .6rem/1.25 Inter, "Segoe UI", Arial, sans-serif; letter-spacing: 0; text-transform: none; }
+.signup-status[data-state="success"] { color: #d0ff52; }
+.signup-status[data-state="error"] { color: #ffaaa2; }
+.build-link { display: inline-block; margin-top: .18rem; border-radius: .25rem; color: #9eb2ba; font-size: .62rem; font-weight: 700; text-decoration: none; }
 .build-link:hover { color: #d0ff52; }
 .signup-trap { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
@@ -34,16 +35,16 @@ main::after { content: ""; position: fixed; inset: 0; pointer-events: none; back
 .hint::before { content: "↔"; margin-right: .65rem; color: #d0ff52; }
 @media (min-width: 851px) { #globe { transform: translateX(7%); } }
 @media (max-width: 850px) {
-  .message { top: auto; bottom: 1.25rem; width: calc(100% - 2.5rem); transform: none; text-align: center; }
+  .message { top: auto; bottom: 6.8rem; width: calc(100% - 2.5rem); transform: none; text-align: center; }
   .message p { margin-bottom: .55rem; font-size: .58rem; }
   .message h1 { font-size: clamp(2.25rem, 10vw, 4rem); }
-  .launch-signup { width: min(22rem, 100%); margin: .6rem auto 0; }
-  .launch-signup h2 { margin-bottom: .4rem; font-size: .78rem; }
-  .signup-row { flex-direction: column; gap: .3rem; }
-  .signup-row input, .signup-row button { width: 100%; min-height: 2.25rem; border-radius: .62rem; font-size: .72rem; }
-  .message .privacy { margin-top: .3rem; font-size: .58rem; }
-  .message .signup-status { min-height: .75rem; margin-top: .18rem; font-size: .6rem; }
-  .build-link { margin-top: .2rem; font-size: .62rem; }
+  .launch-signup { left: 50%; bottom: .45rem; width: min(20rem, calc(100% - 2.5rem)); transform: translateX(-50%); text-align: center; }
+  .launch-signup h2 { margin-bottom: .3rem; font-size: .7rem; }
+  .signup-row { gap: .3rem; }
+  .signup-row input, .signup-row button { min-height: 2rem; border-radius: .58rem; font-size: .68rem; }
+  .signup-row button { padding-inline: .85rem; }
+  .signup-status { min-height: .6rem; margin-top: .12rem; font-size: .56rem; }
+  .build-link { margin-top: .1rem; font-size: .58rem; }
   .hint { display: none; }
 }
-@media (max-width: 600px) { .brand-logo { width: 3.5rem; } }
+@media (max-width: 600px) { .brand-name { display: none; } .brand-mark { width: 2.7rem; } }
