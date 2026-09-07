@@ -4,7 +4,7 @@
 
 The Vite/Three.js client is intentionally backend-free. `src/main.js` coordinates the interface and scene; focused globe modules live under `src/globe/`, and placement geometry lives in `src/placements/geometry.js`. Session placements and generated artwork pages use IndexedDB and reset on normal page exit. They are previews, not durable ownership.
 
-The separately built `coming-soon/` site is the Firebase Hosting target. `npm run deploy` builds it into `coming-soon-dist/`; the product globe builds into `dist/` for local preview.
+The separately built `coming-soon/` site is the Firebase Hosting target. Its same-origin `/api/launch-signup` route rewrites to the `launchSignup` HTTPS Function, which validates and deduplicates addresses into the server-only `launchSignups` Firestore collection. The product globe builds into `dist/` for local preview.
 
 ## Cell topology
 

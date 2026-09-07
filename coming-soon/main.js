@@ -1,6 +1,53 @@
 import * as THREE from 'three';
 
 const canvas = document.querySelector('#globe');
+const launchForm = document.querySelector('#launch-form');
+const launchEmail = document.querySelector('#launch-email');
+const launchStatus = document.querySelector('#launch-status');
+const launchButton = launchForm.querySelector('button[type="submit"]');
+
+launchForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  launchEmail.setAttribute('aria-invalid', 'false');
+  launchStatus.textContent = '';
+  launchStatus.removeAttribute('data-state');
+
+  if (!launchEmail.validity.valid) {
+    launchEmail.setAttribute('aria-invalid', 'true');
+    launchStatus.dataset.state = 'error';
+    launchStatus.textContent = 'Enter a valid email address.';
+    launchEmail.focus();
+    return;
+  }
+
+  const idleLabel = launchButton.textContent;
+  launchButton.disabled = true;
+  launchButton.textContent = 'Sending…';
+  launchForm.setAttribute('aria-busy', 'true');
+
+  try {
+    const response = await fetch(launchForm.action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        email: launchEmail.value.trim(),
+        website: launchForm.elements.website.value
+      })
+    });
+    if (!response.ok) throw new Error('Signup request failed');
+    launchStatus.dataset.state = 'success';
+    launchStatus.textContent = 'You’re on the list.';
+    launchForm.reset();
+  } catch {
+    launchStatus.dataset.state = 'error';
+    launchStatus.textContent = 'Something went wrong. Try again.';
+  } finally {
+    launchButton.disabled = false;
+    launchButton.textContent = idleLabel;
+    launchForm.removeAttribute('aria-busy');
+  }
+});
+
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;

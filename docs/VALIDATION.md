@@ -56,4 +56,4 @@ npm run test:performance
 
 ## Coming-soon site
 
-For changes under `coming-soon/`, run `npm run build:coming-soon` and inspect desktop/mobile output plus drag behaviour before deployment.
+For changes under `coming-soon/`, run `npm run build:coming-soon`, `npm --prefix functions test`, and `npm run test:coming-soon` against its preview server. Inspect desktop/mobile output, form validation and states, keyboard focus, the X link, and globe drag behaviour before deploying functions and hosting together.

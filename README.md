@@ -46,10 +46,12 @@ Screenshots are written beneath ignored `artifacts/` directories and require ins
 
 ## Hosting
 
-Firebase Hosting currently publishes the separate `coming-soon/` site, not the product globe:
+Firebase Hosting currently publishes the separate `coming-soon/` site, not the product globe. Its launch signup posts to the `launchSignup` Firebase Function, which stores deduplicated addresses in the server-only `launchSignups` Firestore collection.
 
 ```powershell
 npm run build:coming-soon
+npm --prefix functions install
+npm --prefix functions test
 npm run deploy
 ```
 
