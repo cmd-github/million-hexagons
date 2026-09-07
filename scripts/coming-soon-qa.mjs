@@ -34,6 +34,8 @@ try {
     await page.locator('#globe').waitFor({ state: 'visible' });
 
     assert.equal(await page.title(), 'Million Hexagons | Coming Soon');
+    assert.equal(await page.locator('link[rel="icon"]').getAttribute('href'), '/favicon.svg');
+    assert.equal((await page.request.get(`${baseUrl}/favicon.svg`)).status(), 200);
     assert.equal(await page.locator('h1').innerText(), 'Claim your space.\nLaunching soon.');
     assert.equal(await page.locator('.brand-mark').innerText(), 'MH');
     assert.equal(await page.getByText('Launch updates only. Unsubscribe anytime.').count(), 0);
