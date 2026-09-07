@@ -133,6 +133,8 @@ let selectedNormal = null;
 let selectedCells = [];
 let uploadedLogo = null;
 let uploadedLogoCrop = null;
+let logoEditorMode = 'move', logoDrag = null;
+let editorArtworkSize = { width: 1, height: 1 };
 let sold = occupiedCells.reduce((total, value) => total + (value ? 1 : 0), 0);
 let cameraDistanceTarget = null;
 let painting = false;
@@ -623,6 +625,7 @@ function drawDesignPreview(target = document.querySelector('#designCanvas')) {
   const ox=(target.width-bounds.width*scale)/2,oy=(target.height-bounds.height*scale)/2;
   if(cells.length) {
     const art=review&&draftArtwork?draftArtwork:renderArtwork(cells), box=footprintBounds(cells);
+    if(!review) editorArtworkSize = { width: box.width*scale, height: box.height*scale };
     context.drawImage(art,ox+(box.left-bounds.left)*scale,oy+(box.top-bounds.top)*scale,box.width*scale,box.height*scale);
   }
   for(const cell of guides) { polygonPath(context,cell,bounds,scale,scale,false,ox,oy); context.fillStyle='#102a35';context.fill();context.strokeStyle='rgba(212,255,88,.38)';context.stroke(); }
@@ -666,6 +669,7 @@ function configureCreation(type) {
   document.querySelector('#designTitle').textContent = type === 'logo' ? 'Make your logo look great' : type === 'paint' ? 'Paint your design' : 'Choose your colour and size';
   document.querySelector('#designIntro').textContent = type === 'paint' ? 'Every coloured hexagon becomes part of your placement.' : 'This is a true hex-mosaic preview of your placement.';
   document.querySelector('#logoControls').hidden = type !== 'logo';
+  document.querySelector('#logoPositionControls').hidden = type !== 'logo';
   document.querySelector('#logoOptions').hidden = type !== 'logo';
   document.querySelector('#colourControls').hidden = type === 'logo';
   document.querySelector('#customPaintTools').hidden = type !== 'paint';
@@ -780,15 +784,40 @@ document.querySelectorAll('.size-presets button').forEach((button) => button.add
 amountInput.addEventListener('change', () => { amountInput.value = placementCount(); });
 amountInput.addEventListener('input', () => { logoCells = null; colourCells = null; footprintEdited = false; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); });
 document.querySelectorAll('[data-treatment]').forEach((button) => button.addEventListener('click', () => { document.querySelector('#logoTreatment').value = button.dataset.treatment; document.querySelectorAll('[data-treatment]').forEach((item) => item.classList.toggle('active', item === button)); drawDesignPreview(); updateLogoGuidance(); }));
-document.querySelector('#logoScale').addEventListener('input', () => drawDesignPreview());
+document.querySelector('#logoScale').addEventListener('input', () => { document.querySelector('#logoScaleValue').textContent = `${document.querySelector('#logoScale').value}%`; drawDesignPreview(); });
+for (const id of ['logoPositionX', 'logoPositionY']) document.querySelector(`#${id}`).addEventListener('input', () => drawDesignPreview());
+for (const [id, mode] of [['moveImageMode', 'move'], ['editHexMode', 'hex']]) document.querySelector(`#${id}`).addEventListener('click', () => {
+  logoEditorMode = mode;
+  for (const button of ['moveImageMode', 'editHexMode']) { const active = button === id; document.querySelector(`#${button}`).classList.toggle('active', active); document.querySelector(`#${button}`).setAttribute('aria-pressed', String(active)); }
+});
+function resetLogoTransform() {
+  document.querySelector('#logoScale').value = 100;
+  document.querySelector('#logoScaleValue').textContent = '100%';
+  document.querySelector('#logoPositionX').value = 0;
+  document.querySelector('#logoPositionY').value = 0;
+  document.querySelector('#logoOrientation').value = '0';
+}
+
 document.querySelector('#logoOrientation').addEventListener('change', () => { updateLogoPreviewOrientation(); drawDesignPreview(); });
-document.querySelector('#resetLogo').addEventListener('click', () => { document.querySelector('#logoScale').value = 100; document.querySelector('#logoOrientation').value = '0'; updateLogoPreviewOrientation(); drawDesignPreview(); });
+document.querySelector('#resetLogo').addEventListener('click', () => { resetLogoTransform(); updateLogoPreviewOrientation(); drawDesignPreview(); });
 document.querySelector('#clearPaint').addEventListener('click', () => { rememberPaint(); designCells = []; amountInput.value = 0; drawDesignPreview(); updateTotals(); });
 const designCanvas = document.querySelector('#designCanvas');
-designCanvas.addEventListener('pointerdown', (event) => { if(creationType === 'paint') rememberPaint(); editorPainting = true; designCanvas.setPointerCapture(event.pointerId); paintEditorAt(event); });
-designCanvas.addEventListener('pointermove', (event) => { if (editorPainting && creationType === 'paint') paintEditorAt(event); });
-designCanvas.addEventListener('pointerup', () => { editorPainting = false; });
-designCanvas.addEventListener('pointercancel', () => { editorPainting = false; });
+designCanvas.addEventListener('pointerdown', (event) => {
+  if(creationType === 'logo' && logoEditorMode === 'move') {
+    logoDrag = { x: event.clientX, y: event.clientY, offsetX: Number(document.querySelector('#logoPositionX').value), offsetY: Number(document.querySelector('#logoPositionY').value) };
+    designCanvas.setPointerCapture(event.pointerId); return;
+  }
+  if(creationType === 'paint') rememberPaint(); editorPainting = true; designCanvas.setPointerCapture(event.pointerId); paintEditorAt(event); });
+designCanvas.addEventListener('pointermove', (event) => {
+  if(logoDrag) {
+    const rect = designCanvas.getBoundingClientRect();
+    document.querySelector('#logoPositionX').value = logoDrag.offsetX + (event.clientX-logoDrag.x)*designCanvas.width/rect.width/editorArtworkSize.width*100;
+    document.querySelector('#logoPositionY').value = logoDrag.offsetY + (event.clientY-logoDrag.y)*designCanvas.height/rect.height/editorArtworkSize.height*100;
+    drawDesignPreview(); return;
+  }
+  if (editorPainting && creationType === 'paint') paintEditorAt(event); });
+designCanvas.addEventListener('pointerup', () => { editorPainting = false; logoDrag = null; });
+designCanvas.addEventListener('pointercancel', () => { editorPainting = false; logoDrag = null; });
 updatePaintColour();
 
 function rgbToHex(red, green, blue) {
@@ -939,6 +968,7 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
     raster.naturalWidth=raster.width; raster.naturalHeight=raster.height;
     uploadedLogo = raster;
     uploadedLogoCrop = findLogoContentBounds(raster);
+    resetLogoTransform();
     const preview = document.querySelector('#logoPreview');
     const previewImage = document.createElement('img');
     previewImage.src = raster.toDataURL();
@@ -972,7 +1002,7 @@ function drawLogo(context, width, height, color, transparent = false, offsetX = 
   if (uploadedLogo) {
     const source = uploadedLogoCrop || { x: 0, y: 0, width: uploadedLogo.naturalWidth, height: uploadedLogo.naturalHeight };
     const fit = document.querySelector('#logoFit').value;
-    const padding = fit === 'contain' ? Math.min(width, height) * .08 : 0;
+    const padding = 0;
     const availableWidth = width - padding * 2;
     const availableHeight = height - padding * 2;
     const userScale = document.querySelector('#logoScale') ? Number(document.querySelector('#logoScale').value) / 100 : 1;
@@ -1000,7 +1030,7 @@ function largestLogoRect(cells,bounds,aspect,width,height) {
     const missing=integral[y1*513+x1]-integral[y0*513+x1]-integral[y1*513+x0]+integral[y0*513+x0];
     if(missing===0)low=h;else high=h;
   }
-  const h=Math.max(.01,low*.94),w=h*aspect;
+  const h=Math.max(.01,low),w=h*aspect;
   return {x:(mx-w/2-bounds.left)/bounds.width*width,y:(my-h/2-bounds.top)/bounds.height*height,width:w/bounds.width*width,height:h/bounds.height*height};
 }
 function renderArtwork(cells) {
@@ -1013,7 +1043,10 @@ function renderArtwork(cells) {
   const px = art.width / bounds.width, py = art.height / bounds.height;
   const drawRotated = (x, y, width, height) => {
     const rotation = Number(document.querySelector('#logoOrientation').value) || 0;
-    context.save(); context.translate(x + width / 2, y + height / 2);
+    const repeat = document.querySelector('#logoTreatment').value === 'repeat';
+    const shiftX = Number(document.querySelector('#logoPositionX').value)/100 * (repeat ? width : art.width);
+    const shiftY = Number(document.querySelector('#logoPositionY').value)/100 * (repeat ? height : art.height);
+    context.save(); context.translate(x + width / 2 + shiftX, y + height / 2 + shiftY);
     context.rotate(THREE.MathUtils.degToRad(rotation));
     const quarterTurn = Math.abs(rotation) === 90;
     const w = quarterTurn ? height : width, h = quarterTurn ? width : height;

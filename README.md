@@ -23,6 +23,7 @@ npm run preview -- --port 4181
 - Exact, versioned one-million-cell geodesic topology with stable IDs and claimable pentagons.
 - Sample advertising inventory, cell search, hover details, bounded zoom, and an opt-in inventory-driven Tour.
 - Logo/image, solid-colour, and paint creation paths through Design -> Place -> Review.
+- Image framing: maximum contained fit, 50?400% zoom with cell clipping, drag or slider positioning, and a separate hexagon editing mode. Reset logo restores the original framing.
 - Shared polygon IDs and artwork mapping across flat preview, globe preview, review, and session publication.
 - Suggested available locations, separate Move/Place controls, conflict rejection, undo/redo, and responsive desktop/mobile layouts.
 - Lazy exact-topology loading and viewport-driven artwork tile streaming rather than one object or source image per advertiser.

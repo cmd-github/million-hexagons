@@ -127,3 +127,5 @@ label,.field-label{font-size:12px;color:#bdcdcf}.upload-zone{padding:16px;margin
 #demoTour[aria-pressed="true"]{background:var(--lime);color:#09151c}
 #rotationToggle[aria-pressed="true"]{color:var(--lime)}
 body.creating #demoTour{display:none}
+
+#logoPositionControls{margin-top:14px}#logoPositionControls .segmented{margin-bottom:10px}#logoPositionControls input[type=range]{padding:0;margin:6px 0 10px;min-height:24px;accent-color:var(--lime)}#logoPositionControls .field-row{margin-top:0}#logoPositionControls output{color:var(--lime)}.hex-editor:has(canvas:active){cursor:grabbing}

@@ -45,8 +45,10 @@ try {
       }
     }
     if(type==='logo' && count===50) {
+      await page.locator('#editHexMode').click();
       const before=await page.locator('#designCount').textContent();
       const editor=page.locator('#designCanvas');
+      await editor.scrollIntoViewIfNeeded();
       const box=await editor.boundingBox();
       for(const [x,y] of [[.5,.16],[.18,.5],[.82,.5],[.5,.84],[.3,.25],[.7,.25]]) {
         await page.mouse.click(box.x+box.width*x,box.y+box.height*y);
@@ -54,6 +56,36 @@ try {
       }
       assert.notEqual(await page.locator('#designCount').textContent(),before,'Logo footprint canvas did not add or remove a hexagon');
       await page.locator('[data-size="50"]').click();
+    }
+    if(type==='logo') {
+      await page.locator('#moveImageMode').click();
+      const countBefore = await page.locator('#designCount').textContent();
+      const original = await page.locator('#designCanvas').evaluate(c=>c.toDataURL());
+      await page.locator('#logoScale').fill('250');
+      await page.locator('#designCanvas').scrollIntoViewIfNeeded();
+      const box = await page.locator('#designCanvas').boundingBox();
+      if(mobile) {
+        const touch = await page.context().newCDPSession(page);
+        await touch.send('Input.dispatchTouchEvent', {type:'touchStart',touchPoints:[{x:box.x+box.width/2,y:box.y+box.height/2}]});
+        await touch.send('Input.dispatchTouchEvent', {type:'touchMove',touchPoints:[{x:box.x+box.width*.6,y:box.y+box.height*.55}]});
+        await touch.send('Input.dispatchTouchEvent', {type:'touchEnd',touchPoints:[]});
+        await touch.detach();
+      } else {
+        await page.mouse.move(box.x+box.width/2,box.y+box.height/2);
+        await page.mouse.down();
+        await page.mouse.move(box.x+box.width*.6,box.y+box.height*.55,{steps:4});
+        await page.mouse.up();
+      }
+      assert.notEqual(await page.locator('#logoPositionX').inputValue(),'0');
+      assert.equal(await page.locator('#designCount').textContent(),countBefore);
+      assert.notEqual(await page.locator('#designCanvas').evaluate(c=>c.toDataURL()),original);
+      await page.screenshot({path:`artifacts/visual-qa/${prefix}-logo-${count}-cropped.png`});
+      await page.locator('#resetLogo').click();
+      assert.equal(await page.locator('#logoScale').inputValue(),'100');
+      assert.equal(await page.locator('#logoPositionX').inputValue(),'0');
+      await page.locator('#logoScale').fill('200');
+      await page.locator('#logoPositionX').fill('12');
+      await page.locator('#logoPositionY').fill('-8');
     }
     if(type==='paint') {
       const rect=await page.locator('#designCanvas').boundingBox();

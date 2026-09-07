@@ -81,13 +81,14 @@
           <small>Choose a colour, then click or drag over the flat hex canvas.</small>
         </div>
 
+        <div id="logoPositionControls" hidden><div class="segmented"><button type="button" id="moveImageMode" class="active" aria-pressed="true">Move image</button><button type="button" id="editHexMode" aria-pressed="false">Edit hexagons</button></div><label>Zoom <output id="logoScaleValue">100%</output><input id="logoScale" type="range" min="50" max="400" value="100" /></label><div class="field-row"><label>Horizontal position<input id="logoPositionX" type="range" min="-100" max="100" value="0" /></label><label>Vertical position<input id="logoPositionY" type="range" min="-100" max="100" value="0" /></label></div></div>
         <div class="hex-editor"><canvas id="designCanvas" width="680" height="400" aria-label="Placement footprint editor"></canvas><span id="editorEmpty">Your placement preview</span></div>
-        <small class="logo-footprint-help" id="logoFootprintHelp" hidden>Click an outlined hexagon to add it. Click a filled edge hexagon to remove it. Your total and price update with the shape.</small>
+        <small class="logo-footprint-help" id="logoFootprintHelp" hidden>Drag to position your image, or use the position sliders. Zoom in to crop. Choose Edit hexagons to add or remove cells.</small>
 
         <details class="logo-options" id="logoOptions" hidden><summary>Fine-tune your artwork</summary>
           <div class="segmented"><button type="button" data-treatment="span" class="active">One logo across area</button><button type="button" data-treatment="repeat">Repeat in each hex</button></div>
           <select id="logoTreatment" hidden><option value="span">span</option><option value="repeat">repeat</option></select>
-          <div class="field-row"><label>Scale<input id="logoScale" type="range" min="50" max="100" value="100" /></label><label>Direction<select id="logoOrientation"><option value="0">Upright</option><option value="90">Turn right</option><option value="-90">Turn left</option><option value="180">Upside down</option></select></label></div>
+          <div class="field-row"><label>Direction<select id="logoOrientation"><option value="0">Upright</option><option value="90">Turn right</option><option value="-90">Turn left</option><option value="180">Upside down</option></select></label></div>
           <select id="logoFit" hidden><option value="contain">contain</option></select>
           <button class="text-button reset-logo" type="button" id="resetLogo">Reset logo</button>
           <small class="logo-guidance" id="logoGuidance">Upload a logo to see its true hex-mosaic preview.</small>

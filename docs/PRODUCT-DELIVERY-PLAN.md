@@ -20,7 +20,7 @@ Preserve the staged Design -> Place -> Review journey.
 - Start with three choices: Logo or image, Solid colour, and Paint hexagons. Prioritise Logo for business buyers.
 - Use a face-on hex mosaic for editing. Keep price and cell count visible whenever either can change.
 - Accept PNG, JPG, WebP, and SVG artwork up to 4 MB. Trim empty margins, preserve aspect ratio, and show the real cell-clipped result.
-- Default logos to one spread image. Keep repeat-per-cell, scale, quarter-turn rotation, reset, and Custom sizing secondary.
+- Default logos to one spread image. Fit the image as large as possible without cropping by default. Expose zoom (50?400%) and drag/slider positioning with cropping at the cell boundary, separately from hexagon editing. Keep repeat-per-cell, quarter-turn rotation, reset, and Custom sizing secondary.
 - Use Small, Medium, and Large presets based initially on 50, 150, and 400 cells. Presets are not readability guarantees.
 - Paint supports colour changes, erase, clear, undo, and redo while retaining a connected footprint.
 
