@@ -161,25 +161,16 @@ const sessionPlacements = new Map();
 let explorationStart = null;
 let requestedAnchor = null;
 let pinnedCell = null;
+let designSurface = "canvas", exactGlobeArea = false;
+let hoverTimer, globeStroke = null;
 canvas.addEventListener('pointerdown', event => { explorationStart = {x:event.clientX,y:event.clientY}; });
 canvas.addEventListener('pointerup', event => {
   if (document.body.classList.contains('creating') || !explorationStart || Math.hypot(event.clientX-explorationStart.x,event.clientY-explorationStart.y)>6) return;
   if (camera.position.length() < globeFitDistance() * .82) controls.autoRotate = false;
   const hit=intersect(event); if(!hit?.uv) return;
-  const placement=sessionPlacements.get(hit.cell.id);
-  if (!hit.cell.occupied) {
-    pinnedCell = hit.cell;
-    updateTooltip(event, hit.cell, true);
-    return;
-  }
-  pinnedCell = null;
-  tooltip.classList.remove('pinned');
-  if(!placement) return;
-  const toast=document.querySelector('#toast');
-  toast.querySelector('b').textContent='Your placement';
-  toast.querySelector('span').textContent=`${placement.count} hexagons. Saved for this session.`;
-  const link=document.querySelector('#placementWebsite'); link.hidden=!placement.website; link.href=placement.website;
-  toast.classList.add('show');
+  if (!hit.cell.occupied) { pinnedCell=hit.cell; updateTooltip(event,hit.cell,true); return; }
+  inspectPlacement(hit.cell.id);
+
 });
 
 function writeCellColour(data, cell, colour, selected = true) {
@@ -372,6 +363,7 @@ canvas.addEventListener('pointerdown', (event) => {
 });
 
 canvas.addEventListener('pointermove', (event) => {
+  if(document.body.dataset.flow==='design')return;
   if (pinnedCell && !selecting) return;
   const hit = intersect(event);
   if (!hit?.uv) {
@@ -380,7 +372,7 @@ canvas.addEventListener('pointermove', (event) => {
     return;
   }
   const cell = hit.cell;
-  if (!selecting) return updateTooltip(event, cell);
+  if (!selecting) { clearTimeout(hoverTimer);tooltip.classList.remove('show');if(!event.buttons&&!controls.autoRotate)hoverTimer=setTimeout(()=>updateTooltip(event,cell),250);return;}
   if (buyInteractionMode !== 'place') {
     clearHover();
     tooltip.classList.remove('show');
@@ -398,10 +390,11 @@ function stopPainting(event) {
 }
 canvas.addEventListener('pointerup', stopPainting);
 canvas.addEventListener('pointercancel', stopPainting);
-canvas.addEventListener('pointerleave', () => { if (!painting) clearHover(); if(!pinnedCell)tooltip.classList.remove('show'); });
+canvas.addEventListener('pointerleave', () => { clearTimeout(hoverTimer); if (!painting) clearHover(); if(!pinnedCell)tooltip.classList.remove('show'); });
 
 async function openBuy(anchor = null) {
   if(publishing)return;
+  document.body.classList.remove('inspecting');document.querySelector('#placementInspector').hidden=true;
   document.querySelector('#toast').classList.remove('show');
   if(!topology){loading.textContent='Preparing exact cell selection…';document.body.append(loading);try{await ensureTopology();}catch{return;}loading.remove();}
   selecting = false;
@@ -426,10 +419,17 @@ async function openBuy(anchor = null) {
   panel.setAttribute('aria-hidden', 'false');
   panel.scrollTop = 0;
   configureCreation();
+  if(requestedAnchor) {
+    designAnchor=requestedAnchor; logoCells=topology.cells([designAnchor],designAnchor);
+    footprintEdited=true; amountInput.value=1; undoStack.length=0;redoStack.length=0;
+    exactGlobeArea=true; setDesignSurface('globe'); setEditorMode('hex',false);
+    orientToCell(designAnchor,radius+.12);
+  } else {exactGlobeArea=false;setDesignSurface('canvas');}
 }
 function closeBuy() {
   if(publishing)return;
   selecting = false;
+  designSurface='canvas';delete document.body.dataset.surface;
   selectionModeUniform.value = 0;
   cameraDistanceTarget = null;
   document.body.classList.remove('selecting', 'creating', 'placing-design');
@@ -631,6 +631,7 @@ function pointInPolygon(x,y,polygon) {
 }
 function drawDesignPreview(target = document.querySelector('#designCanvas')) {
   if(!target || !topology)return;
+  if(target.id==='designCanvas' && document.body.dataset.flow==='design' && designSurface==='globe') {syncGlobeDesign();return;}
   const review=target.id==='reviewCanvas',cells=review?selectedCells:previewCells();
   if(!cells.length)return;
   if(!review) {
@@ -706,6 +707,7 @@ function updateImageControls() {
   setEditorMode(logoEditorMode,false);
 }
 function setEditorMode(mode, zoomToCells=true) {
+  if(designSurface==='globe')controls.enableRotate=mode==='pan';
   logoEditorMode=mode;logoDrag=null;editorPan=null;lastPaintedCell=null;
   const brushing=['paint','transparent','restore'].includes(mode);
   for(const [id,value] of [['moveImageMode','move'],['editHexMode','hex'],['paintCells','paint'],['panEditor','pan'],['colourBrush','paint'],['eraseCells','transparent'],['restoreCells','restore']]) {
@@ -749,7 +751,7 @@ function enterPlacement() {
   showFlowStep('place');
   setInteractionMode('move');
   document.querySelector('#toReview').disabled = true;
-  suggestLocation();
+  if(exactGlobeArea){selectedCell=cellForId(designAnchor);refreshSelection(previewCells());focusSelection();}else suggestLocation();
 }
 
 
@@ -1235,11 +1237,11 @@ async function paintPlacement() {
 document.querySelector('#previewPurchase').addEventListener('click', paintPlacement);
 
 function resize() {
-  const active = document.body.dataset.flow;
+  const active = document.body.dataset.flow==='design' && designSurface==='globe'?'place':document.body.dataset.flow||(document.body.classList.contains('inspecting')?'inspect':null);
   const narrow = innerWidth <= 700 || (innerWidth <= 900 && innerHeight > innerWidth);
   const width = active && !narrow ? innerWidth - 490 : innerWidth;
   canvas.style.left='0px';
-  const height = narrow && (active === 'place' || active === 'review') ? Math.max(120, innerHeight - (active === 'place' ? Math.min(320,innerHeight*.48) : innerHeight*.55)) : narrow && !active ? Math.max(180,innerHeight-300) : innerHeight;
+  const height = narrow && active==='inspect'?Math.max(150,innerHeight-400):narrow && (active === 'place' || active === 'review') ? Math.max(120, innerHeight - (active === 'place' ? Math.min(320,innerHeight*.48) : innerHeight*.55)) : narrow && !active ? Math.max(180,innerHeight-300) : innerHeight;
   canvas.style.top = narrow && !active ? '230px' : '0px';
   canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
   camera.aspect = width / height;
@@ -1324,3 +1326,134 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('geodesicQA'
   };
 }
 if(import.meta.env.DEV)window.performanceQA={tiles:artworkTiles.stats,focus(direction,altitude){zoom.cancel();controls.autoRotate=false;cameraDistanceTarget=null;globe.rotation.set(0,0,0);camera.position.set(...direction).normalize().multiplyScalar(radius+altitude);controls.update();},state(){return{tiles:{...artworkTiles.stats},topologyLoaded:!!topology,drawCalls:renderer.info.render.calls,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,camera:camera.position.toArray(),retainedPlacements:placementLayers.children.length};}};
+
+// Globe and canvas share the source footprint, original image and per-cell edits.
+function syncGlobeDesign(){
+  controls.enableRotate=logoEditorMode==='pan';
+  selectedCell=cellForId(designAnchor);
+  selectedCells=previewCells(); draftArtwork=renderArtwork(selectedCells);
+  clearPlacementPreview();
+  addHighResolutionPlacement(document.querySelector('#brandColor').value,document.querySelector('#logoTreatment').value,previewPlacementLayers);
+  updateTotals();
+}
+function setDesignSurface(surface){
+  designSurface=surface;document.body.dataset.surface=surface;
+  for(const name of ['canvas','globe'])document.querySelector('#'+name+'Surface').setAttribute('aria-pressed',String(name===surface));
+  document.querySelector('#surfaceStatus').textContent=surface==='globe'?'Edit actual cells. Pan to move the globe.':exactGlobeArea?'Same cells, flat view. Your location is kept.':'Design freely, then choose a location.';
+  controls.enableRotate=surface!=='globe'||logoEditorMode==='pan';
+  if(surface==='canvas')clearPlacementPreview();
+  document.querySelector('#toPlacement').textContent=exactGlobeArea?'Keep this space \u2192':'Find my spot \u2192';
+  resize();drawDesignPreview();
+}
+document.querySelector('#canvasSurface').onclick=()=>setDesignSurface('canvas');
+document.querySelector('#globeSurface').onclick=async()=>{
+  if(!exactGlobeArea){
+    const cells=previewCells();
+    if(cells.some(c=>occupiedCells[c.id-1])){
+      document.querySelector('#surfaceStatus').textContent='Choose a location first, then select Design in this space.';
+      enterPlacement();return;
+    }
+    exactGlobeArea=true;
+  }
+  setDesignSurface('globe');orientToCell(designAnchor,radius+.25);
+};
+document.querySelector('#editThisSpace').onclick=()=>{
+  if(!selectedCells.length)return;
+  designAnchor=selectedCell.id;logoCells=topology.cells(selectedCells,designAnchor);
+  footprintEdited=true;exactGlobeArea=true;undoStack.length=0;redoStack.length=0;updateHistory();
+  document.querySelector('#backToDesign').click();setDesignSurface('globe');
+};
+function editGlobeCell(id){
+  if(globeStroke.last===id)return;globeStroke.last=id;
+  let cells=previewCells(),index=cells.findIndex(c=>c.id===id),next=cells.map(c=>({...c}));
+  if(logoEditorMode==='hex'){
+    if(index>=0){if(cells.length===1)return;next.splice(index,1);if(!topology.isConnected(next))return;}
+    else {if(occupiedCells[id-1]||cells.length>=100000||!topology.neighboursOf(id).some(n=>cells.some(c=>c.id===n)))return;next=topology.cells([...next,{id}],designAnchor);}
+  }else{
+    if(index<0)return;
+    if(logoEditorMode==='paint'){next[index].color=document.querySelector('#brushColor').value;delete next[index].transparent;}
+    else if(logoEditorMode==='transparent')next[index].transparent=true;
+    else if(logoEditorMode==='restore'){delete next[index].color;delete next[index].transparent;}
+    else return;
+  }
+  logoCells=next;footprintEdited=true;exactGlobeArea=true;amountInput.value=next.length;queueDesignPreview();
+}
+canvas.addEventListener('pointerdown',event=>{
+  clearTimeout(hoverTimer);
+  if(document.body.dataset.flow!=='design'||designSurface!=='globe'||logoEditorMode==='pan')return;
+  const hit=intersect(event);if(!hit)return;
+  globeStroke={last:null,x:event.clientX,y:event.clientY,position:{...logoPosition}};
+  rememberPaint();canvas.setPointerCapture(event.pointerId);
+  if(logoEditorMode!=='move')editGlobeCell(hit.cell.id);
+});
+canvas.addEventListener('pointermove',event=>{
+  if(!globeStroke)return;
+  if(logoEditorMode==='move'){
+    logoPosition.x=Math.max(-100,Math.min(100,globeStroke.position.x+(event.clientX-globeStroke.x)/2));
+    logoPosition.y=Math.max(-100,Math.min(100,globeStroke.position.y+(event.clientY-globeStroke.y)/2));
+    queueDesignPreview();
+  }else{const hit=intersect(event);if(hit)editGlobeCell(hit.cell.id);}
+});
+for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>globeStroke=null);
+let inspectedId=null, inspectedCells=[];
+function inspectPlacement(id){
+  inspectedId=id;document.body.classList.add('inspecting');resize();pinnedCell=null;tooltip.classList.remove('show','pinned');
+  const cell=cellForId(id),record=sessionPlacements.get(id),panel=document.querySelector('#placementInspector');
+  document.querySelector('#inspectorName').textContent=cell.owner;
+  document.querySelector('#inspectorInfo').textContent=record?record.count.toLocaleString()+' cells. Preview saved for this session.':'Example brand placement. No ownership or purchase implied.';
+  const link=document.querySelector('#inspectorVisit');link.hidden=!cell.destination;link.href=cell.destination||'#';
+  const owner=sampleOwners[id-1],seen=new Set([id]),queue=[id];
+  for(let i=0;i<queue.length&&queue.length<100000;i++)for(const next of topology.neighboursOf(queue[i])){
+    if(seen.has(next))continue;seen.add(next);
+    if(record?sessionPlacements.get(next)===record:owner&&sampleOwners[next-1]===owner)queue.push(next);
+  }
+  inspectedCells=queue;
+  if(!record)document.querySelector('#inspectorInfo').textContent=queue.length.toLocaleString()+' connected sample cells. Example brand placement.';
+  clearSelectionColours();for(const cellId of queue)writeCellColour(selectionColourData,{id:cellId},'#d7ff55');
+  selectionColourTexture.needsUpdate=true;selectionModeUniform.value=1;
+  const nearby=document.querySelector('#nearbyPlacements');nearby.replaceChildren();
+  const centre=topology.centre(id);
+  const areas=[...bootstrap.sampleAreas].sort((a,b)=>{
+    const dot=x=>topology.centre(x.anchor).reduce((sum,v,i)=>sum+v*centre[i],0);
+    return dot(b)-dot(a);
+  }).filter(a=>a.campaign!==owner-1).slice(0,3);
+  for(const area of areas){const button=document.createElement('button');button.textContent=bootstrap.sampleCampaigns[area.campaign].name;button.onclick=()=>{inspectPlacement(area.anchor);viewInspectedPlacement();};nearby.append(button);}
+  document.querySelector('#inspectorStatus').textContent='';panel.hidden=false;controls.autoRotate=false;
+}
+document.querySelector('#closeInspector').onclick=()=>{document.querySelector('#placementInspector').hidden=true;document.body.classList.remove('inspecting');resize();clearSelectionColours();selectionModeUniform.value=0;};
+function viewInspectedPlacement(){
+  const middle=new THREE.Vector3(...topology.centre(inspectedId));
+  const halfVertical=THREE.MathUtils.degToRad(camera.fov)/2;
+  const field=Math.min(halfVertical,Math.atan(Math.tan(halfVertical)*camera.aspect));
+  let distance=radius+.12;
+  for(const id of inspectedCells){
+    const point=new THREE.Vector3(...topology.centre(id)).multiplyScalar(radius),depth=point.dot(middle);
+    distance=Math.max(distance,depth+(point.addScaledVector(middle,-depth).length()+.015)/Math.tan(field)*1.2);
+  }
+  orientToCell(inspectedId,distance);
+}
+document.querySelector('#inspectorView').onclick=viewInspectedPlacement;
+document.querySelector('#inspectorShare').onclick=async()=>{
+  const url=new URL(location.href);url.hash='cell='+inspectedId;
+  try{await navigator.clipboard.writeText(url.href);document.querySelector('#inspectorStatus').textContent='Location copied. Session artwork is not shared.';}
+  catch{document.querySelector('#inspectorStatus').textContent=url.href;}
+};
+document.querySelector('#inspectorNearby').onclick=()=>{
+  const seen=new Set([inspectedId]),queue=[inspectedId];
+  for(let i=0;i<queue.length&&i<20000;i++)for(const id of topology.neighboursOf(queue[i])){
+    if(seen.has(id))continue;seen.add(id);
+    if(!occupiedCells[id-1]){document.querySelector('#placementInspector').hidden=true;openBuy(id);return;}queue.push(id);
+  }
+  document.querySelector('#inspectorStatus').textContent='No nearby space found. Explore another area.';
+};
+document.querySelector('#discoverPlacement').onclick=async()=>{
+  await ensureTopology();const areas=bootstrap.sampleAreas,area=areas[Math.floor(Math.random()*areas.length)];
+  inspectPlacement(area.anchor);viewInspectedPlacement();
+};
+async function openLocationLink(){
+  const match=location.hash.match(/^#cell=(\d+)$/);if(!match)return;
+  const id=Number(match[1]);if(id<1||id>CELL_COUNT)return;
+  await ensureTopology();orientToCell(id,radius+.12);
+  if(occupiedCells[id-1]){inspectPlacement(id);viewInspectedPlacement();}
+}
+addEventListener('hashchange',openLocationLink);void openLocationLink();

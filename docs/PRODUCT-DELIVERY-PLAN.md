@@ -18,6 +18,7 @@ Preserve the staged Design -> Place -> Review journey.
 ### Design
 
 - Open one editor directly, with optional image upload, background colour, per-cell paint and transparency. No artwork-type selection screen.
+- Offer Globe and Canvas surfaces for the same editable source. Starting at an available cell creates a one-cell anchored footprint; Cells adds/removes connected available neighbours on the globe. Paint, clear, restore and image framing work in place. Design in this space adopts the selected location explicitly; ordinary navigation never replaces the original image. Keeping this space preserves the exact cell IDs through Place and Review.
 - Use a face-on, canvas-first editor that fits without pane scrolling. Use the same right-hand studio shell and progress navigation across Design, Place and Review. Keep Add image, exact cell count, background and price visible; expose advanced controls contextually.
 - Support 1-100,000 cells with a fit-to-area overview, independent canvas zoom/pan, and automatic close-up for cell editing. Image zoom changes the crop; canvas zoom changes only the view.
 - Accept PNG, JPG, WebP, and SVG artwork up to 4 MB. Trim empty margins, preserve aspect ratio, and show the real cell-clipped result.
@@ -57,3 +58,12 @@ Preserve the staged Design -> Place -> Review journey.
 Included now: globe exploration and search, sample campaigns, the unified image and colour editor, exact availability/conflict states, responsive layouts, mock session publication, and destination reopening.
 
 Not yet production-ready: durable drafts or ownership, accounts, authoritative inventory, reservations, checkout, tax/refunds, receipts, production artwork storage, moderation, recovery, support tooling, physical-device certification, or analytics. Do not represent the prototype as a paid or durable service.
+
+
+## Interaction review (8 September 2026)
+
+The LLM proposal in public/interactions.md describes area selection but did not specify shared globe/canvas editing. The implemented path above closes that gap.
+
+Implemented: delayed stationary hover, click/tap inspection, separate outbound Visit, connected sample-placement highlighting/count, View placement, location-copy links, nearby sample discovery, Start nearby and random discovery. Links use stable #cell= IDs; session artwork is not durable or shared. Sample branding stays explicitly labelled.
+
+Deferred until durable inventory and consent-aware event storage exist: purchase dates, permanent placement URLs/artwork, ownership certificates, advertiser dashboards, geographic analytics, popular/newest rankings and historical snapshots. Never substitute fake statistics or ownership claims. A history scrubber is not a launch requirement. A generated social share image remains follow-up; current sharing copies an exact globe location.

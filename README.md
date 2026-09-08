@@ -22,6 +22,8 @@ npm run preview -- --port 4181
 
 - Exact, versioned one-million-cell geodesic topology with stable IDs and claimable pentagons.
 - Sample advertising inventory, cell search, hover details, bounded zoom, and an opt-in inventory-driven Tour.
+- Globe or Canvas editing of the same footprint: start from an available cell, grow around neighbours, or choose Design in this space during placement.
+- Placement inspection with explicit website visits, nearby exploration, random discovery and shareable cell-location links.
 - One Design -> Place -> Review journey for images, colour-only artwork, and mixed designs.
 - A shared right-hand studio carries Design, Place and Review with consistent navigation and controls. Image options and extra cell actions share one menu.
 - Compact, canvas-first editor for 1-100,000 cells: Add image, exact size and background in one row; contextual Image/Paint/Cells/Pan tools, per-cell transparency and undo/redo. The design pane fits without scrolling on desktop and mobile. Large footprints have canvas zoom/pan and automatically zoom to editable cells. Transparent cells retain their count and price.

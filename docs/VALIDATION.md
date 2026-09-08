@@ -60,3 +60,6 @@ npm run test:performance
 ## Coming-soon site
 
 For changes under `coming-soon/`, run `npm run build:coming-soon`, `npm --prefix functions test`, and `npm run test:coming-soon` against its preview server. Inspect desktop/mobile output, form validation and states, keyboard focus, the X link, and globe drag behaviour before deploying functions and hosting together.
+
+
+Globe editing: run `node scripts/globe-design-qa.mjs` against localhost:4180. It checks desktop/mobile globe painting and undo, identical cell IDs across Canvas/Globe/Place/Review, discovery inspector and starting a one-cell area nearby. Inspect artifacts/globe-design. Also manually check connected add/remove and occupied-cell rejection around an existing placement.

@@ -33,7 +33,7 @@
     <div class="hint" id="hint"><span>DRAG TO ROTATE</span><i></i><span>SCROLL TO ZOOM</span><i></i><span>CLICK A TILE</span></div>
     <nav class="globe-controls glass" aria-label="Globe controls">
       <button type="button" id="rotationToggle" aria-pressed="true" aria-label="Pause globe rotation" title="Pause globe rotation">⏸</button>
-      <button type="button" id="demoTour" aria-pressed="false" aria-label="Start globe tour" title="Start globe tour">✈</button>
+      <button type="button" id="discoverPlacement" aria-label="Discover a random placement" title="Discover a placement">&#10022;</button><button type="button" id="demoTour" aria-pressed="false" aria-label="Start globe tour" title="Start globe tour">✈</button>
       <form class="hex-search" id="hexSearch" role="search">
         <button type="button" id="toggleHexSearch" aria-label="Find a hexagon" aria-expanded="false">⌕</button>
         <div id="hexSearchPanel" hidden><label for="hexSearchInput">Find a hexagon</label><span><input id="hexSearchInput" inputmode="numeric" autocomplete="off" placeholder="#1" aria-describedby="hexSearchStatus"><button type="submit" aria-label="Go to hexagon">Go</button></span><small id="hexSearchStatus" role="status">Enter a number from 1 to 1,000,000.</small></div>
@@ -42,14 +42,14 @@
     </nav>
     <div class="cell-tooltip glass" id="cellTooltip"><b id="cellOwner">Available</b><small id="cellDestination" hidden></small><button type="button" id="claimCell" hidden>Claim this space</button></div>
 
-    <section class="buy-panel glass" id="buyPanel" aria-hidden="true" inert aria-label="Placement studio">
+    <aside id="placementInspector" class="glass" hidden aria-label="Placement details"><button id="closeInspector" aria-label="Close placement details">&times;</button><p class="eyebrow">EXPLORE THE GLOBE</p><h2 id="inspectorName"></h2><p id="inspectorInfo"></p><a id="inspectorVisit" target="_blank" rel="noopener noreferrer">Visit website &#8599;</a><button id="inspectorView">View placement</button><button id="inspectorShare">Copy location link</button><button id="inspectorNearby">Start nearby</button><details><summary>Explore nearby</summary><div id="nearbyPlacements"></div></details><small id="inspectorStatus" role="status"></small></aside><section class="buy-panel glass" id="buyPanel" aria-hidden="true" inert aria-label="Placement studio">
       <button class="close" id="closeBuy" aria-label="Close">×</button>
       <p class="eyebrow">PLACEMENT STUDIO</p>
       <div class="flow-progress" aria-label="Creation progress"><i class="active">1</i><span></span><i>2</i><span></span><i>3</i><small>Design</small><small>Place</small><small>Review</small></div>
 
       <div class="flow-screen" id="designStep" hidden>
         <header class="studio-heading"><h2 id="designTitle">Make it yours.</h2><span id="designIntro">Your space. Your design.</span></header>
-        <div class="studio-setup">
+        <div class="design-surfaces" aria-label="Design surface"><button id="canvasSurface" aria-pressed="true">Canvas</button><button id="globeSurface" aria-pressed="false">Globe</button><small id="surfaceStatus">Design freely, then choose a location.</small></div><div class="studio-setup">
           <div id="logoControls"><label class="add-image" for="logoUpload"><span aria-hidden="true">&#43;</span><span id="addImageLabel">Add image</span></label><input id="logoUpload" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" aria-label="Add image" /></div>
           <label class="studio-count" id="sizeControls">Cells <input id="hexAmount" type="number" min="1" max="100000" step="1" value="150" /></label>
           <details class="studio-popover size-menu"><summary aria-label="Choose a size preset">&#8964;</summary><div class="popover-content size-presets"><button type="button" data-size="1">1 cell</button><button type="button" data-size="50">50 cells</button><button type="button" data-size="500">500 cells</button><button type="button" data-size="5000">5,000 cells</button><button type="button" data-size="50000">50,000 cells</button><button type="button" data-size="100000">100,000 cells</button></div></details>
@@ -78,7 +78,7 @@
         <button class="back-link" type="button" id="backToDesign">← Edit design</button>
         <h2>Choose its location</h2>
         <p class="panel-intro">We found a space for your design. Keep it, find another, or place it yourself.</p>
-        <button class="secondary" id="suggestLocation">Find another spot</button><div class="interaction-modes"><button type="button" id="moveGlobeMode" class="active"><b>✥ Move globe</b><span>Drag to rotate</span></button><button type="button" id="placeDesignMode"><b>⬡ Place design</b><span>Click a location</span></button></div>
+        <button class="secondary" id="editThisSpace">Design in this space</button><button class="secondary" id="suggestLocation">Find another spot</button><div class="interaction-modes"><button type="button" id="moveGlobeMode" class="active"><b>✥ Move globe</b><span>Drag to rotate</span></button><button type="button" id="placeDesignMode"><b>⬡ Place design</b><span>Click a location</span></button></div>
         <div class="availability-key" aria-label="Hexagon availability key"><span><i class="available"></i>Available</span><span><i class="purchased"></i>Purchased</span><span><i class="chosen"></i>Your design</span></div>
         <p class="step" id="selectionStatus" role="status" aria-live="polite">Move the globe to find the right location.</p>
         <div class="place-summary"><span id="placeCount">150 hexagons</span><b id="placePrice">$150</b></div>
