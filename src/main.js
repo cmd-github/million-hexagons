@@ -180,10 +180,11 @@ let hoverTimer, globeStroke = null, flightVersion=0;
 for(const type of ['pointerdown','wheel'])canvas.addEventListener(type,()=>flightVersion++,{capture:true});
 canvas.addEventListener('pointerdown', event => { explorationStart = {x:event.clientX,y:event.clientY}; });
 canvas.addEventListener('pointerup', event => {
-  if (document.body.classList.contains('creating') || !explorationStart || Math.hypot(event.clientX-explorationStart.x,event.clientY-explorationStart.y)>6) return;
+  if(document.body.classList.contains('creating')||!explorationStart)return;
+  if(Math.hypot(event.clientX-explorationStart.x,event.clientY-explorationStart.y)>6){closeInspector();return;}
   if (camera.position.length() < globeFitDistance() * .82) controls.autoRotate = false;
-  const hit=intersect(event); if(!hit?.uv) return;
-  if (!hit.cell.occupied) { if(camera.position.length()>radius+.8)return; pinnedCell=hit.cell; updateTooltip(event,hit.cell,true); return; }
+  const hit=intersect(event); if(!hit?.uv){closeInspector();return;}
+  if (!hit.cell.occupied) { closeInspector();if(camera.position.length()>radius+1.0)return; pinnedCell=hit.cell; updateTooltip(event,hit.cell,true); return; }
   inspectPlacement(hit.cell.id);
 
 });
@@ -240,7 +241,7 @@ function updateTooltip(event, cell, pinned = false) {
   destination.hidden=!cell.destination;
   destination.textContent=cell.destination?new URL(cell.destination).hostname.replace(/^www\./,''):'';
   const claim=document.querySelector('#claimCell');
-  claim.hidden=cell.occupied || camera.position.length()>radius+.8;
+  claim.hidden=cell.occupied || camera.position.length()>radius+1.0;
   claim.dataset.anchor=cell.occupied?'':String(cell.id);
   tooltip.style.left = `${Math.min(innerWidth - 205, event.clientX + 16)}px`;
   tooltip.style.top = `${Math.min(innerHeight - (cell.occupied ? 90 : 130), event.clientY + 16)}px`;
@@ -388,7 +389,7 @@ canvas.addEventListener('pointermove', (event) => {
     return;
   }
   const cell = hit.cell;
-  if (!selecting) { clearTimeout(hoverTimer);tooltip.classList.remove('show');if(!event.buttons&&camera.position.length()<=radius+.8)hoverTimer=setTimeout(()=>updateTooltip(event,cell),250);return;}
+  if (!selecting) { clearTimeout(hoverTimer);tooltip.classList.remove('show');if(!event.buttons&&camera.position.length()<=radius+1.0)hoverTimer=setTimeout(()=>updateTooltip(event,cell),250);return;}
   if (buyInteractionMode !== 'place') {
     clearHover();
     tooltip.classList.remove('show');
@@ -483,7 +484,7 @@ function closeBuy() {
   clearPlacementPreview();
   requestedAnchor = null;
   pinnedCell = null;
-  document.querySelector('#hint').innerHTML = '<span>DRAG TO ROTATE</span><i></i><span>SCROLL TO ZOOM</span><i></i><span>CLICK A TILE</span>';
+  document.querySelector('#hint').innerHTML = '<span title="Drag to rotate" role="img" aria-label="Drag to rotate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18m-5-4 4 4-4 4M8 8l-4 4 4 4"/></svg></span><i></i><span title="Scroll to zoom" role="img" aria-label="Scroll to zoom"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14m5 12 6 6M7 10h6m-3-3v6"/></svg></span><i></i><span title="Click a tile" role="img" aria-label="Click a tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3 14 10-7 1-3 7z"/></svg></span>';
 }
 document.querySelector('#claimButton').addEventListener('click', () => openBuy());
 document.querySelector('#claimCell').addEventListener('click', (event) => {
@@ -756,7 +757,7 @@ function setEditorMode(mode, zoomToCells=true) {
   }
   document.querySelector('#brushControls').hidden=!brushing;
   document.querySelector('#logoPositionControls').hidden=mode!=='move'||!uploadedLogo;
-  const hint=mode==='move'?'Drag the image to frame it.':mode==='hex'?'Add cells: drag across available neighbouring spaces.':mode==='remove'?'Remove cells: drag to erase the footprint. Undo recovers it.':mode==='transparent'?'Click or drag to clear cells. They remain part of your area.':mode==='restore'?'Click or drag to restore the image and background.':mode==='paint'?'Click or drag to paint cells.':'Drag to pan. Scroll or pinch to zoom.';
+  const hint=mode==='move'?'Move image':mode==='hex'?'Add hexagons':mode==='remove'?'Remove hexagons':mode==='transparent'?'Clear colour':mode==='restore'?'Restore artwork':mode==='paint'?'Paint':'Pan';
   document.querySelector('#toolHint').textContent=hint;
   document.querySelector('#logoFootprintHelp').textContent=hint;
   document.querySelector('#designCanvas').style.cursor=['move','pan'].includes(mode)?'grab':'crosshair';
@@ -774,7 +775,7 @@ function setInteractionMode(mode) {
   document.body.classList.toggle('placing-design', mode === 'place');
   controls.enableRotate = mode === 'move';
   document.querySelector('#selectionStatus').textContent = mode === 'move' ? 'Drag the globe to find the right location.' : 'Click an available area to place your design.';
-  document.querySelector('#hint').innerHTML = mode === 'move' ? '<span>DRAG TO ROTATE</span><i></i><span>SCROLL TO ZOOM</span>' : '<span>CLICK TO PLACE</span><i></i><span>SCROLL TO ZOOM</span>';
+  document.querySelector('#hint').innerHTML = mode === 'move' ? '<span title="Drag to rotate" role="img" aria-label="Drag to rotate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18m-5-4 4 4-4 4M8 8l-4 4 4 4"/></svg></span><i></i><span title="Scroll to zoom" role="img" aria-label="Scroll to zoom"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14m5 12 6 6M7 10h6m-3-3v6"/></svg></span>' : '<span title="Click to place" role="img" aria-label="Click to place"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3 14 10-7 1-3 7z"/></svg></span><i></i><span title="Scroll to zoom" role="img" aria-label="Scroll to zoom"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14m5 12 6 6M7 10h6m-3-3v6"/></svg></span>';
 }
 
 function enterPlacement() {
@@ -1265,7 +1266,7 @@ async function paintPlacement() {
   }
   clearPlacementPreview();
   const sum=cells.reduce((vector,cell)=>vector.add(new THREE.Vector3(...topology.centre(cell.id))),new THREE.Vector3()).normalize();
-  const placementRecord={website,name:document.querySelector('#companyName').value.trim().slice(0,60),description:document.querySelector('#companyDescription').value.trim().slice(0,160),createdAt:Date.now(),count:amount,anchor:cells.reduce((best,cell)=>sum.dot(new THREE.Vector3(...topology.centre(cell.id)))>sum.dot(new THREE.Vector3(...topology.centre(best.id)))?cell:best,cells[0]).id};
+  const placementRecord={logo:uploadedLogo?createHudThumbnail(uploadedLogo):null,website,name:document.querySelector('#companyName').value.trim().slice(0,60),description:document.querySelector('#companyDescription').value.trim().slice(0,160),createdAt:Date.now(),count:amount,anchor:cells.reduce((best,cell)=>sum.dot(new THREE.Vector3(...topology.centre(cell.id)))>sum.dot(new THREE.Vector3(...topology.centre(best.id)))?cell:best,cells[0]).id};
   cells.forEach((cell) => { occupiedCells[cell.id - 1] = 255; sessionPlacements.set(cell.id,placementRecord); });
   renderClaimFeed();
   occupancyTexture.needsUpdate = true;
@@ -1328,7 +1329,7 @@ function updateRotationControl(){
   const rotating=controls.autoRotate&&!demoTour.active;
   if(rotating===displayedRotationState)return;
   displayedRotationState=rotating;
-  rotationToggle.innerHTML=rotating?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 8C16 4 3 6 3 12s14 8 18 1M15 8h5V3"/></svg>';
+  rotationToggle.innerHTML=rotating?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2 6"/></svg>';
   rotationToggle.setAttribute('aria-pressed',String(rotating));
   rotationToggle.setAttribute('aria-label',rotating?'Pause globe rotation':'Start globe rotation');
   rotationToggle.title=rotating?'Pause globe rotation':'Start globe rotation';
@@ -1441,12 +1442,20 @@ canvas.addEventListener('pointermove',event=>{
   }else{const hit=intersect(event);if(hit)editGlobeCell(hit.cell.id);}
 });
 for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>globeStroke=null);
-let inspectedId=null, inspectedCells=[], hudPinned=false;
-const linkClicks=new Map();
+let inspectedId=null, inspectedCells=[], hudPinned=false, inspectedOwner=null;
+const clickStorageKey='mh-link-totals-v1';
+let linkClicks={};
+try{const saved=JSON.parse(localStorage.getItem(clickStorageKey)||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))linkClicks=saved;}catch{}
+function ownerKey(id){const record=sessionPlacements.get(id);return record||'sample-'+sampleOwners[id-1];}
+function createHudThumbnail(source){const art=document.createElement('canvas');const scale=Math.min(1,160/Math.max(source.width,source.height));art.width=Math.max(1,Math.round(source.width*scale));art.height=Math.max(1,Math.round(source.height*scale));art.getContext('2d').drawImage(source,0,0,art.width,art.height);return art.toDataURL('image/png');}
 function inspectPlacement(id){
-  inspectedId=id;document.body.classList.add('inspecting');resize();pinnedCell=null;tooltip.classList.remove('show','pinned');
+  const sameOwner=inspectedOwner===ownerKey(id);inspectedOwner=ownerKey(id);
+  inspectedId=id;document.querySelector('#inspectorHex').textContent='#'+id.toLocaleString();
+  if(sameOwner&&!document.querySelector('#placementInspector').hidden)return;
+  document.body.classList.add('inspecting');resize();pinnedCell=null;tooltip.classList.remove('show','pinned');
   const cell=cellForId(id),record=sessionPlacements.get(id),panel=document.querySelector('#placementInspector');
   document.querySelector('#inspectorName').textContent=cell.owner;
+  const logo=document.querySelector('#inspectorLogo');const logoSource=record?.logo||(!record?'/brands/'+(sampleOwners[id-1]-1)+'.svg':'');logo.hidden=!logoSource;if(logoSource)logo.src=logoSource;else logo.removeAttribute('src');
   document.querySelector('#inspectorInfo').textContent=record?record.count.toLocaleString()+' cells. Preview saved for this session.':'Example brand placement. No ownership or purchase implied.';
   const link=document.querySelector('#inspectorVisit');link.hidden=!cell.destination;link.href=cell.destination||'#';
   const owner=sampleOwners[id-1],seen=new Set([id]),queue=[id];
@@ -1455,11 +1464,11 @@ function inspectPlacement(id){
     if(record?sessionPlacements.get(next)===record:owner&&sampleOwners[next-1]===owner)queue.push(next);
   }
   inspectedCells=queue;
-  document.querySelector('#inspectorInfo').textContent=(record?.count||queue.length).toLocaleString()+' hexagons';
-  document.querySelector('#inspectorDate').textContent=record?'Preview added '+new Date(record.createdAt).toLocaleDateString('en-GB'):'Sample placement - not a paid claim';
+  document.querySelector('#inspectorInfo').textContent=(record?.count||queue.length).toLocaleString()+' \u2b21';
+  document.querySelector('#inspectorDate').textContent=record?new Date(record.createdAt).toLocaleDateString('en-GB'):'Sample';
   document.querySelector('#inspectorDescription').textContent=record?.description||'';
   document.querySelector('#inspectorDescription').hidden=!record?.description;
-  document.querySelector('#inspectorHex').textContent='Hex #'+id.toLocaleString();
+  document.querySelector('#inspectorHex').textContent='#'+id.toLocaleString();
   renderLinkClicks();
   clearSelectionColours();for(const cellId of queue)writeCellColour(selectionColourData,{id:cellId},'#d7ff55');
   selectionColourTexture.needsUpdate=true;selectionModeUniform.value=1;
@@ -1477,35 +1486,38 @@ function closeInspector(force=false){
   document.querySelector('#placementInspector').hidden=true;document.body.classList.remove('inspecting');resize();
   if(!document.body.classList.contains('creating')){clearSelectionColours();selectionModeUniform.value=0;}
 }
-document.querySelector('#pinInspector').onclick=event=>{hudPinned=!hudPinned;event.currentTarget.setAttribute('aria-pressed',String(hudPinned));event.currentTarget.textContent=hudPinned?'HUD pinned':'Pin HUD';};
+document.querySelector('#pinInspector').onclick=event=>{hudPinned=!hudPinned;event.currentTarget.setAttribute('aria-checked',String(hudPinned));};
 document.addEventListener('pointerdown',event=>{
   if(!hexSearch.contains(event.target))showHexSearch(false);
-  if(!event.target.closest('#placementInspector,#hexSearch,#claimFeed'))closeInspector();
+  if(!event.target.closest('#placementInspector,#hexSearch,#claimFeed')&&event.target!==canvas)closeInspector();
   if(!tooltip.contains(event.target)){pinnedCell=null;tooltip.classList.remove('show','pinned');}
 });
 document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeInspector(true);showHexSearch(false);tooltip.classList.remove('show','pinned');}});
-function renderLinkClicks(){document.querySelector('#inspectorClicks').textContent=(linkClicks.get(cellForId(inspectedId).destination)||0)+' link clicks this session';}
-for(const type of ['click','auxclick'])document.querySelector('#inspectorVisit').addEventListener(type,event=>{
+function renderLinkClicks(){const value=linkClicks[cellForId(inspectedId).destination];document.querySelector('#inspectorClicks').textContent=(Number.isSafeInteger(value)&&value>=0?value:0).toLocaleString()+' clicks';}
+for(const id of ['inspectorVisit','placementWebsite'])for(const type of ['click','auxclick'])document.getElementById(id).addEventListener(type,event=>{
   if(type==='auxclick'&&event.button!==1)return;
-  const url=cellForId(inspectedId).destination;linkClicks.set(url,(linkClicks.get(url)||0)+1);renderLinkClicks();
+  const url=event.currentTarget.href;const current=linkClicks[url];linkClicks[url]=(Number.isSafeInteger(current)&&current>=0?current:0)+1;try{localStorage.setItem(clickStorageKey,JSON.stringify(linkClicks));}catch{}if(inspectedId)renderLinkClicks();
 });
 function companyEntries(){return [...bootstrap.sampleAreas.map(area=>({id:area.anchor,name:bootstrap.sampleCampaigns[area.campaign].name,sample:true})),...[...new Set(sessionPlacements.values())].map(record=>({id:record.anchor,name:record.name||'Your placement'}))];}
 function renderCompanyResults(){
   const target=document.querySelector('#companyResults'),query=hexSearchInput.value.trim().toLowerCase();target.replaceChildren();
   if(!query||/^#?\d+$/.test(query))return;
-  for(const entry of companyEntries().filter(entry=>entry.name.toLowerCase().includes(query)).slice(0,8)){
-    const button=document.createElement('button');button.type='button';button.textContent=entry.name+(entry.sample?' - sample':' - session');
+  for(const entry of companyEntries().filter((entry,index,all)=>all.findIndex(other=>other.name===entry.name)===index&&entry.name.toLowerCase().includes(query)).slice(0,8)){
+    const button=document.createElement('button');button.type='button';button.textContent=entry.name;
     button.onclick=async()=>{await ensureTopology();inspectPlacement(entry.id);viewInspectedPlacement();showHexSearch(false);};target.append(button);
   }
 }
-hexSearchInput.addEventListener('input',()=>{hexSearchInput.removeAttribute('aria-invalid');renderCompanyResults();});
+hexSearchInput.addEventListener('input',()=>{hexSearchInput.removeAttribute('aria-invalid');hexSearchStatus.textContent='';renderCompanyResults();});
 function renderClaimFeed(){
   const target=document.querySelector('#claimFeedItems');target.replaceChildren();
+  document.querySelector('#claimFeed summary span').textContent=sessionPlacements.size?'Previews + examples':'Examples';
   for(const record of [...new Set(sessionPlacements.values())].sort((a,b)=>b.createdAt-a.createdAt).slice(0,5)){
-    const button=document.createElement('button');button.textContent=new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})+' - '+record.count.toLocaleString()+' hexagons added by '+(record.name||'You');
+    const button=document.createElement('button');button.textContent=new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})+' - '+record.count.toLocaleString()+' \u2b21 '+(record.name||'You');
     button.onclick=()=>{inspectPlacement(record.anchor);viewInspectedPlacement();};target.append(button);
   }
+  for(const [index,count] of [[8,204],[4,96],[10,350]]){const entry=bootstrap.sampleAreas.find(area=>area.campaign===index);const button=document.createElement('button');button.className='example-activity';button.textContent=bootstrap.sampleCampaigns[index].name+' \u00b7 '+count+' \u2b21';const badge=document.createElement('small');badge.textContent='Example';button.append(badge);button.onclick=async()=>{await ensureTopology();inspectPlacement(entry.anchor);viewInspectedPlacement();};target.append(button);}
 }
+renderClaimFeed();
 if(innerWidth>900)document.querySelector('#claimFeed').open=true;
 
 function viewInspectedPlacement(){
@@ -1522,7 +1534,7 @@ function viewInspectedPlacement(){
 
 document.querySelector('#inspectorShare').onclick=async()=>{
   const url=new URL(location.href);url.hash='cell='+inspectedId;
-  try{await navigator.clipboard.writeText(url.href);document.querySelector('#inspectorStatus').textContent='Location copied. Session artwork is not shared.';}
+  try{await navigator.clipboard.writeText(url.href);document.querySelector('#inspectorStatus').textContent='Copied \u2713';}
   catch{document.querySelector('#inspectorStatus').textContent=url.href;}
 };
 async function openLocationLink(){
@@ -1546,3 +1558,10 @@ canvas.addEventListener('dblclick',event=>{
 document.querySelector('#logoOrientation').addEventListener('input',event=>{
  document.querySelector('#rotationValue').textContent=event.target.value+'\u00b0';queueDesignPreview();
 });
+
+// Icons keep the tool rail compact; accessible names and active-mode feedback remain.
+document.querySelector('#moveImageMode').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v18H3z M3 16l6-6 5 5 3-3 4 4 M15 7h.01"/></svg>';document.querySelector('#moveImageMode').setAttribute('aria-label','Move image');document.querySelector('#moveImageMode').title='Move image';
+document.querySelector('#paintCells').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 3 7 7-10 10H4v-7z M12 5l7 7"/></svg>';document.querySelector('#paintCells').setAttribute('aria-label','Paint');document.querySelector('#paintCells').title='Paint';
+document.querySelector('#editHexMode').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 3 12 0 5 9-5 9H6L1 12z M8 12h8 M12 8v8"/></svg>';document.querySelector('#editHexMode').setAttribute('aria-label','Add hexagons');document.querySelector('#editHexMode').title='Add hexagons';
+document.querySelector('#removeHexMode').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 3 12 0 5 9-5 9H6L1 12z M8 12h8"/></svg>';document.querySelector('#removeHexMode').setAttribute('aria-label','Remove hexagons');document.querySelector('#removeHexMode').title='Remove hexagons';
+document.querySelector('#panEditor').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20 M2 12h20 M8 6l4-4 4 4 M8 18l4 4 4-4 M6 8l-4 4 4 4 M18 8l4 4-4 4"/></svg>';document.querySelector('#panEditor').setAttribute('aria-label','Pan');document.querySelector('#panEditor').title='Pan';

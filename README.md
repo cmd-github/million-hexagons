@@ -24,7 +24,7 @@ npm run preview -- --port 4181
 - Sample advertising inventory, company/hex search, contextual hex IDs and hover details, bounded zoom, and an opt-in inventory-driven Tour.
 - Globe-only editing of the exact footprint: start from an available cell, grow around neighbours, or choose Design in this space during placement.
 - Placement inspection with explicit website visits, nearby exploration, a pinnable HUD, tour-stop details and shareable cell-location links.
-- Optional company names and 160-character descriptions, session dates/link-click counts, and a collapsible latest-preview feed. Sample brands are labelled; these are not paid claims or production analytics.
+- Optional company names and 160-character descriptions, preview dates, browser-persistent running click totals, and a collapsible activity feed with labelled examples. Sample brands are labelled; these are not paid claims or shared production analytics. The compact HUD shows logo thumbnails, an icon pin switch and inline counts; same-owner clicks only update the hex ID.
 - One Design -> Place -> Review journey for images, colour-only artwork, and mixed designs.
 - A shared right-hand studio carries Design, Place and Review with consistent navigation and controls. Image options and extra cell actions share one menu.
 - Compact globe-only editor for 1-100,000 cells: Add image, exact count, background colour, image zoom/rotation, separate Add/Remove brushes, paint/transparency and undo/redo. Fresh placements start clean; editing preserves the draft. Transparent cells retain count and price.
