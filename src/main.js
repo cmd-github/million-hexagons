@@ -3,6 +3,8 @@ import { createCellDetail } from './globe/detail.js';
 import { ArtworkTiles } from './globe/tiles.js';
 import { publishToTiles } from './globe/tile-baker.js';
 import { smoothZoom } from './globe/zoom.js';
+import { createCameraFlight, placementPose } from './globe/camera-flight.js';
+import { rotatedImageBox, containRotatedImage } from './placements/artwork-fit.js';
 import { createDemoTour } from './globe/demo-tour.js';
 import { footprintBounds, centre } from './placements/geometry.js';
 import * as THREE from 'three';
@@ -117,6 +119,10 @@ controls.zoomSpeed = .28;
 const zoom = smoothZoom(canvas,camera,controls,radius,()=>{cameraDistanceTarget=null;});
 controls.autoRotate = !matchMedia('(prefers-reduced-motion: reduce)').matches;
 controls.autoRotateSpeed = .22;
+const reducedMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+const cameraFlight=createCameraFlight(camera,globe,controls,reducedMotion);
+for(const event of ['pointerdown','wheel','keydown'])document.addEventListener(event,()=>cameraFlight.cancel(),{capture:true,passive:true});
+addEventListener('resize',()=>cameraFlight.cancel());
 
 function globeFitDistance() {
   const verticalFov = THREE.MathUtils.degToRad(camera.fov);
@@ -177,7 +183,7 @@ let requestedAnchor = null;
 let pinnedCell = null;
 let designSurface = "canvas", exactGlobeArea = false;
 let hoverTimer, globeStroke = null, flightVersion=0;
-for(const type of ['pointerdown','wheel'])canvas.addEventListener(type,()=>flightVersion++,{capture:true});
+for(const type of ['pointerdown','wheel','keydown'])document.addEventListener(type,()=>flightVersion++,{capture:true,passive:true});
 canvas.addEventListener('pointerdown', event => { explorationStart = {x:event.clientX,y:event.clientY}; });
 canvas.addEventListener('pointerup', event => {
   if(document.body.classList.contains('creating')||!explorationStart)return;
@@ -442,6 +448,7 @@ async function openBuy(anchor = null) {
   panel.setAttribute('aria-hidden', 'false');
   panel.scrollTop = 0;
   for(const id of ['companyName','companyDescription','website'])document.getElementById(id).value='';
+  document.querySelector('#artworkQuality').hidden=true;
   uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;draftArtwork=null;
   document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();
   document.querySelector('#brandColor').value='#5967b0';document.querySelector('#logoTreatment').value='span';document.querySelector('#areaBrush').value='0';document.querySelector('#areaBrushValue').textContent='1 cell';showUploadMessage('');document.querySelector('#uploadStatus').hidden=true;
@@ -465,6 +472,7 @@ async function openBuy(anchor = null) {
 }
 function closeBuy() {
   if(publishing)return;
+  fitMaskCache=null;
   selecting = false;
   designSurface='canvas';delete document.body.dataset.surface;
   selectionModeUniform.value = 0;
@@ -503,10 +511,7 @@ document.querySelector('#zoomOut').addEventListener('click', () => {
 document.querySelector('#homeView').addEventListener('click', () => {
   zoom.cancel();cameraDistanceTarget=null;demoTour.stop();closeInspector(true);showHexSearch(false);
   controls.autoRotate=false;controls.target.set(0,0,0);
-  const token=++flightVersion,from=camera.position.clone(),fit=globeFitDistance(),to=new THREE.Vector3(0,fit*.018,fit),began=performance.now();
-  const duration=matchMedia('(prefers-reduced-motion: reduce)').matches?0:1100;
-  const travel=now=>{if(token!==flightVersion)return;const t=duration?Math.min(1,(now-began)/duration):1;camera.position.lerpVectors(from,to,1-Math.pow(1-t,3));if(t<1)requestAnimationFrame(travel);else{controls.autoRotate=true;updateRotationControl();}};
-  requestAnimationFrame(travel);
+  ++flightVersion;const fit=globeFitDistance();cameraFlight.start({position:new THREE.Vector3(0,fit*.018,fit),duration:1300,onComplete(){controls.autoRotate=!reducedMotion();updateRotationControl();}});
 });
 
 const hexSearch = document.querySelector('#hexSearch');
@@ -533,8 +538,8 @@ hexSearch.addEventListener('submit', async (event) => {
   const cell = cellForId(id);
   controls.autoRotate = false;
   cameraDistanceTarget = null;
-  orientToCell(id, radius + .3);
-  if(cell.occupied)inspectPlacement(id);
+  if(cell.occupied){inspectPlacement(id);viewInspectedPlacement();}
+  else flyToCell(id,.004);
   hoverCellUniform.value = cell.id - 1;
   hexSearchInput.removeAttribute('aria-invalid');
   hexSearchStatus.textContent = `Centred on ${cell.pentagon ? 'pentagon' : 'hex'} #${id.toLocaleString()}.`;
@@ -809,7 +814,7 @@ function focusSelection() {
   orientToCell(selectedCell.id, distance);
 }
 function orientToCell(id, distance) {
-  zoom.cancel();
+  cameraFlight.cancel();zoom.cancel();
   const frame=topology.frame(id);
   const basis=new THREE.Matrix4().makeBasis(new THREE.Vector3(...frame.east),new THREE.Vector3(...frame.north),new THREE.Vector3(...frame.normal));
   globe.quaternion.setFromRotationMatrix(basis).invert();globe.updateMatrixWorld(true);
@@ -868,8 +873,8 @@ document.querySelector('#toReview').addEventListener('click', () => {
   const reviewCanvas = document.querySelector('#reviewCanvas');
   drawDesignPreview(reviewCanvas);
   const warning = document.querySelector('#reviewWarning');
-  warning.hidden = !uploadedLogo;
-  warning.textContent = 'Small text can be hard to read from a distance. Zoom out to check your artwork before adding it.';
+  warning.hidden = !uploadedLogo||document.querySelector('#artworkQuality').hidden;
+  warning.textContent = 'Low resolution. Use SVG or a larger image for sharper artwork.';
   clearPlacementPreview();
   addHighResolutionPlacement(document.querySelector('#brandColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
 });
@@ -884,7 +889,7 @@ document.querySelector('#logoScale').addEventListener('input', () => { document.
 for(const [id,mode] of [['moveImageMode','move'],['editHexMode','hex'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan'],['colourBrush','paint'],['eraseCells','transparent'],['restoreCells','restore']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode));
 document.querySelector('#brushColor').addEventListener('input',()=>{document.querySelector('#paintColourChip').style.background=document.querySelector('#brushColor').value;});
 document.querySelector('#fillCells').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;rememberPaint();logoCells=previewCells().map(c=>({...c,color:document.querySelector('#brushColor').value,transparent:false}));footprintEdited=true;drawDesignPreview();});
-document.querySelector('#removeImage').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;for(const id of ['companyName','companyDescription','website'])document.getElementById(id).value='';
+document.querySelector('#removeImage').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;document.querySelector('#artworkQuality').hidden=true;
   uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();});
 function resetLogoTransform() {
   document.querySelector('#logoScale').value = 100;
@@ -1059,24 +1064,25 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
   const version=++uploadVersion;
-  uploadedLogo=null; uploadedLogoCrop=null;
-  updateTotals(); drawDesignPreview();
   if (file.size > 4 * 1024 * 1024) {
     showUploadMessage('Logo must be smaller than 4 MB.');
     event.target.value = '';
     return;
   }
+  if(!['image/png','image/jpeg','image/webp','image/svg+xml'].includes(file.type)){showUploadMessage('Use PNG, JPG, WebP or SVG.');event.target.value='';return;}
   showUploadMessage('Preparing your artwork...');
   const image = new Image();
   const url = URL.createObjectURL(file);
   image.onload = () => {
     if(version!==uploadVersion) { URL.revokeObjectURL(url); return; }
     if(image.naturalWidth*image.naturalHeight>40000000) { URL.revokeObjectURL(url); showUploadMessage('This image is too large to process. Use an image under 40 megapixels.'); return; }
+    const quality=document.querySelector('#artworkQuality');quality.hidden=file.type==='image/svg+xml'||Math.max(image.naturalWidth,image.naturalHeight)>=512;
     // Rasterize SVG at an explicit viewport before using source crop rectangles.
     const raster = document.createElement('canvas');
     const factor = file.type === 'image/svg+xml' ? 3072 / Math.max(image.naturalWidth,image.naturalHeight) : Math.min(1, 4096 / Math.max(image.naturalWidth, image.naturalHeight));
     raster.width = Math.max(1,Math.round(image.naturalWidth*factor));
     raster.height = Math.max(1,Math.round(image.naturalHeight*factor));
+    raster.getContext('2d').imageSmoothingQuality='high';
     raster.getContext('2d').drawImage(image,0,0,raster.width,raster.height);
     raster.naturalWidth=raster.width; raster.naturalHeight=raster.height;
     uploadedLogo = raster;
@@ -1129,15 +1135,20 @@ function drawLogo(context, width, height, color, transparent = false, offsetX = 
   }
 }
 
+let fitMaskCache=null;
 function largestLogoRect(cells,bounds,aspect,width,height) {
   const mx=bounds.left+bounds.width/2,my=bounds.top+bounds.height/2;
   // Rasterize the true union once; a summed-area table verifies every covered
   // pixel in each candidate rectangle, including holes and concave edges.
+  let integral=fitMaskCache?.cells===cells?fitMaskCache.integral:null;
+  if(!integral){
   const mask=document.createElement('canvas');mask.width=512;mask.height=512;
   const context=mask.getContext('2d');context.fillStyle='#fff';
   context.setTransform(512/bounds.width,0,0,512/bounds.height,-bounds.left*512/bounds.width,-bounds.top*512/bounds.height);context.fill(layoutFor(cells).path);
-  const data=context.getImageData(0,0,512,512).data, integral=new Uint32Array(513*513);
+  const data=context.getImageData(0,0,512,512).data;integral=new Uint32Array(513*513);
   for(let y=0;y<512;y++){let row=0;for(let x=0;x<512;x++){row+=data[(y*512+x)*4+3]>20?0:1;integral[(y+1)*513+x+1]=integral[y*513+x+1]+row;}}
+  fitMaskCache={cells,integral};
+  }
   let low=0,high=Math.min(bounds.height,bounds.width/aspect);
   for(let i=0;i<16;i++) {
     const h=(low+high)/2,w=h*aspect,x0=Math.max(0,Math.floor((mx-w/2-bounds.left)/bounds.width*512)),x1=Math.min(512,Math.ceil((mx+w/2-bounds.left)/bounds.width*512)),y0=Math.max(0,Math.floor((my-h/2-bounds.top)/bounds.height*512)),y1=Math.min(512,Math.ceil((my+h/2-bounds.top)/bounds.height*512));
@@ -1158,6 +1169,7 @@ function renderArtwork(cells) {
   art.width = Math.ceil(bounds.width * unit);
   art.height = Math.ceil(bounds.height * unit);
   const context = art.getContext('2d');
+  context.imageSmoothingQuality='high';
   const px = art.width / bounds.width, py = art.height / bounds.height;
   const drawRotated = (x, y, width, height) => {
     const rotation = Number(document.querySelector('#logoOrientation').value) || 0;
@@ -1166,8 +1178,9 @@ function renderArtwork(cells) {
     const shiftY = logoPosition.y/100 * (repeat ? height : sourceBounds.height * py);
     context.save(); context.translate(x + width / 2 + shiftX, y + height / 2 + shiftY);
     context.rotate(THREE.MathUtils.degToRad(rotation));
-    const quarterTurn = Math.abs(rotation) === 90;
-    const w = quarterTurn ? height : width, h = quarterTurn ? width : height;
+    const source=uploadedLogoCrop||uploadedLogo;
+    const fitted=containRotatedImage(source.width,source.height,width,height,rotation);
+    const w=fitted.width,h=fitted.height;
     drawLogo(context, w, h, document.querySelector('#brandColor').value, true, -w / 2, -h / 2);
     context.restore();
   };
@@ -1182,10 +1195,10 @@ function renderArtwork(cells) {
     } else {
       const source = uploadedLogoCrop || { width: uploadedLogo.naturalWidth, height: uploadedLogo.naturalHeight };
       const rotation = Math.abs(Number(document.querySelector('#logoOrientation').value) || 0);
-      const sourceAspect = source.width / source.height;
       // Fit once in the editor's local coordinate system. A new destination
       // clips that same framing; it must not shrink/recentre the source image.
-      const aspect=rotation===90?1/sourceAspect:sourceAspect;
+      const rotated=rotatedImageBox(source.width,source.height,rotation);
+      const aspect=rotated.width/rotated.height;
       if(sourceLayout.fits.size>12)sourceLayout.fits.clear();
       if(!sourceLayout.fits.has(aspect))sourceLayout.fits.set(aspect,largestLogoRect(sourceCells,sourceBounds,aspect,sourceBounds.width,sourceBounds.height));
       const safeRect=sourceLayout.fits.get(aspect);
@@ -1266,7 +1279,7 @@ async function paintPlacement() {
   }
   clearPlacementPreview();
   const sum=cells.reduce((vector,cell)=>vector.add(new THREE.Vector3(...topology.centre(cell.id))),new THREE.Vector3()).normalize();
-  const placementRecord={logo:uploadedLogo?createHudThumbnail(uploadedLogo):null,website,name:document.querySelector('#companyName').value.trim().slice(0,60),description:document.querySelector('#companyDescription').value.trim().slice(0,160),createdAt:Date.now(),count:amount,anchor:cells.reduce((best,cell)=>sum.dot(new THREE.Vector3(...topology.centre(cell.id)))>sum.dot(new THREE.Vector3(...topology.centre(best.id)))?cell:best,cells[0]).id};
+  const placementRecord={angle:Math.acos(cells.reduce((dot,cell)=>Math.min(dot,sum.dot(new THREE.Vector3(...topology.centre(cell.id)))),1))+.004,logo:uploadedLogo?createHudThumbnail(uploadedLogo):null,website,name:document.querySelector('#companyName').value.trim().slice(0,60),description:document.querySelector('#companyDescription').value.trim().slice(0,160),createdAt:Date.now(),count:amount,anchor:cells.reduce((best,cell)=>sum.dot(new THREE.Vector3(...topology.centre(cell.id)))>sum.dot(new THREE.Vector3(...topology.centre(best.id)))?cell:best,cells[0]).id};
   cells.forEach((cell) => { occupiedCells[cell.id - 1] = 255; sessionPlacements.set(cell.id,placementRecord); });
   renderClaimFeed();
   occupancyTexture.needsUpdate = true;
@@ -1299,8 +1312,8 @@ resize();
 frameGlobe(true);
 
 async function createTourStops(){
-  const grid=await ensureTopology(),sessionAreas=[...new Set(sessionPlacements.values())].map((placement,index)=>({anchor:placement.anchor,name:placement.name||'Your placement',key:`session-${index}`}));
-  const candidates=[...(bootstrap.sampleAreas||[]).map((area,index)=>({anchor:area.anchor,name:bootstrap.sampleCampaigns[area.campaign].name,key:`sample-${index}`})),...sessionAreas]
+  const grid=await ensureTopology(),sessionAreas=[...new Set(sessionPlacements.values())].map((placement,index)=>({anchor:placement.anchor,angle:placement.angle,name:placement.name||'Your placement',key:`session-${index}`}));
+  const candidates=[...(bootstrap.sampleAreas||[]).map((area,index)=>({anchor:area.anchor,angle:area.angle,name:bootstrap.sampleCampaigns[area.campaign].name,key:`sample-${index}`})),...sessionAreas]
     .filter(area=>occupiedCells[area.anchor-1]);
   if(!candidates.length)return [
     {name:'Globe overview',normal:[0,0,1],angle:.4,overview:true,offset:0},
@@ -1320,9 +1333,9 @@ async function createTourStops(){
   }
   const firstDetail=Math.floor(Math.random()*selected.length),detailSlots=new Set([firstDetail]);
   if(selected.length>1)detailSlots.add((firstDetail+1+Math.floor(Math.random()*(selected.length-1)))%selected.length);
-  return selected.map((area,index)=>({id:area.anchor,name:area.name,normal:Array.from(grid.centre(area.anchor)),angle:.012,detail:detailSlots.has(index)||Math.random()<.35,offset:(Math.random()-.5)*.07}));
+  return selected.map((area,index)=>({id:area.anchor,name:area.name,normal:Array.from(grid.centre(area.anchor)),angle:area.angle||.012,detail:detailSlots.has(index)||Math.random()<.35,offset:(Math.random()-.5)*.07}));
 }
-const demoTour=createDemoTour({camera,globe,controls,radius,button:document.querySelector('#demoTour'),wideDistance:globeFitDistance,cancelZoom(){zoom.cancel();cameraDistanceTarget=null;},loadStops:createTourStops,onStop(place,phase){if(phase==='approach'&&place.id)inspectPlacement(place.id);else if(phase==='travel')closeInspector(true);},prepareDetail(){void ensureTopology().catch(()=>{});},timeScale:import.meta.env.DEV&&new URLSearchParams(location.search).has('tourFast')?.005:1});
+const demoTour=createDemoTour({camera,globe,controls,radius,button:document.querySelector('#demoTour'),wideDistance:globeFitDistance,cancelZoom(){cameraFlight.cancel();zoom.cancel();cameraDistanceTarget=null;},loadStops:createTourStops,onStop(place,phase){if(phase==='hold'&&place.id)inspectPlacement(place.id);else if(phase==='travel')closeInspector(true);},prepareDetail(){void ensureTopology().catch(()=>{});},timeScale:import.meta.env.DEV&&new URLSearchParams(location.search).has('tourFast')?.005:1});
 const rotationToggle=document.querySelector('#rotationToggle');
 let displayedRotationState=null;
 function updateRotationControl(){
@@ -1337,7 +1350,8 @@ function updateRotationControl(){
 function animate() {
   requestAnimationFrame(animate);
   controls.target.set(0, 0, 0);
-  if(!demoTour.active)controls.update();
+  if(!demoTour.active&&!cameraFlight.active)controls.update();
+  cameraFlight.update(performance.now());
   if (cameraDistanceTarget !== null) {
     const distance = THREE.MathUtils.lerp(camera.position.length(), cameraDistanceTarget, .12);
     camera.position.setLength(distance);
@@ -1449,6 +1463,7 @@ try{const saved=JSON.parse(localStorage.getItem(clickStorageKey)||'{}');if(saved
 function ownerKey(id){const record=sessionPlacements.get(id);return record||'sample-'+sampleOwners[id-1];}
 function createHudThumbnail(source){const art=document.createElement('canvas');const scale=Math.min(1,160/Math.max(source.width,source.height));art.width=Math.max(1,Math.round(source.width*scale));art.height=Math.max(1,Math.round(source.height*scale));art.getContext('2d').drawImage(source,0,0,art.width,art.height);return art.toDataURL('image/png');}
 function inspectPlacement(id){
+  cameraFlight.cancel();
   const sameOwner=inspectedOwner===ownerKey(id);inspectedOwner=ownerKey(id);
   inspectedId=id;document.querySelector('#inspectorHex').textContent='#'+id.toLocaleString();
   if(sameOwner&&!document.querySelector('#placementInspector').hidden)return;
@@ -1520,16 +1535,16 @@ function renderClaimFeed(){
 renderClaimFeed();
 if(innerWidth>900)document.querySelector('#claimFeed').open=true;
 
+function flyToCell(id,angle,duration=1500,onComplete=()=>{},onCancel=()=>{}){
+  zoom.cancel();cameraDistanceTarget=null;
+  const mobile=innerWidth<=700||(innerWidth<=900&&innerHeight>innerWidth);
+  cameraFlight.start({...placementPose(topology.frame(id),camera,radius,angle,{mobile}),duration,onComplete,onCancel});
+}
 function viewInspectedPlacement(){
-  const middle=new THREE.Vector3(...topology.centre(inspectedId));
-  const halfVertical=THREE.MathUtils.degToRad(camera.fov)/2;
-  const field=Math.min(halfVertical,Math.atan(Math.tan(halfVertical)*camera.aspect));
-  let distance=radius+.12;
-  for(const id of inspectedCells){
-    const point=new THREE.Vector3(...topology.centre(id)).multiplyScalar(radius),depth=point.dot(middle);
-    distance=Math.max(distance,depth+(point.addScaledVector(middle,-depth).length()+.015)/Math.tan(field)*1.2);
-  }
-  orientToCell(inspectedId,distance);
+  const n=topology.centre(inspectedId);let dot=1;
+  for(const id of inspectedCells){const p=topology.centre(id);dot=Math.min(dot,n[0]*p[0]+n[1]*p[1]+n[2]*p[2]);}
+  const panel=document.querySelector('#placementInspector');panel.hidden=true;
+  flyToCell(inspectedId,Math.acos(Math.max(-1,dot))+.004,1500,()=>{panel.hidden=false;},()=>closeInspector(true));
 }
 
 document.querySelector('#inspectorShare').onclick=async()=>{
@@ -1540,14 +1555,9 @@ document.querySelector('#inspectorShare').onclick=async()=>{
 async function openLocationLink(){
   const match=location.hash.match(/^#cell=(\d+)$/);if(!match)return;
   const id=Number(match[1]);if(id<1||id>CELL_COUNT)return;
-  await ensureTopology();
-  const flight=++flightVersion,from=globe.quaternion.clone(),position=camera.position.clone();
-  if(occupiedCells[id-1]){inspectPlacement(id);viewInspectedPlacement();}else orientToCell(id,radius+.12);
-  const destination=globe.quaternion.clone(),target=camera.position.clone();
-  globe.quaternion.copy(from);camera.position.copy(position);controls.autoRotate=false;
-  const began=performance.now(),duration=matchMedia('(prefers-reduced-motion: reduce)').matches?0:1800;
-  const travel=now=>{if(flight!==flightVersion)return;const t=duration?Math.min(1,(now-began)/duration):1,e=t*t*(3-2*t);globe.quaternion.slerpQuaternions(from,destination,e);camera.position.lerpVectors(position,target,e);if(t<1)requestAnimationFrame(travel);};
-  requestAnimationFrame(travel);
+  const request=++flightVersion;await ensureTopology();if(request!==flightVersion)return;
+  if(occupiedCells[id-1]){inspectPlacement(id);viewInspectedPlacement();}else flyToCell(id,.004,1800);
+
 }
 addEventListener('hashchange',openLocationLink);void openLocationLink();
 

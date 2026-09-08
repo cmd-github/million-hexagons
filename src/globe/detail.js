@@ -21,7 +21,7 @@ export function createCellDetail(topology, globe, radius, textures, selectionMod
         float patchFade=smoothstep(patchCosines.x,patchCosines.y,dot(normalize(vPoint),patchDirection));
         // Only outlines fade in: never replace the background with an opaque
         // circular patch as geometry becomes available.
-        gl_FragColor=vec4(line,visibility*patchFade*border*mix(.48,.22,artwork));
+        gl_FragColor=vec4(line,visibility*patchFade*border*mix(.48,.07,artwork));
         #include <colorspace_fragment>
       }`, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1,
   });

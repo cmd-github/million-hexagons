@@ -1,9 +1,11 @@
 import * as THREE from 'three';
+import { placementPose, cinematicEase } from './camera-flight.js';
 
 export function createDemoTour({camera,globe,controls,radius,button,wideDistance,cancelZoom,loadStops,prepareDetail=()=>{},onStop=()=>{},timeScale=1}) {
+  const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');
   let active=false,loading=false,stops=null,index=0,phase=0,elapsed=0,last=0,segment=null,generation=0,batch=0;
-  const normalRoute=[['travel',7],['approach',5],['pass',7],['pullback',5]];
-  const detailRoute=[['travel',7],['approach',5],['pass',4],['dive',7],['hexagons',6],['pullback',7]];
+  const normalRoute=[['travel',4],['approach',3],['hold',6],['pullback',3]];
+  const detailRoute=[['travel',4],['approach',3],['hold',8],['pullback',3]];
   const overviewRoute=[['travel',7],['pass',8],['pullback',5]];
   const route=()=>stops[index].overview?overviewRoute:stops[index].detail?detailRoute:normalRoute;
   const label=()=>{
@@ -20,13 +22,11 @@ export function createDemoTour({camera,globe,controls,radius,button,wideDistance
     const normal=new THREE.Vector3(...place.normal);
     const east=new THREE.Vector3().crossVectors(Math.abs(normal.y)<.99999?new THREE.Vector3(0,1,0):new THREE.Vector3(0,0,-1),normal).normalize();
     const north=new THREE.Vector3().crossVectors(normal,east);
-    const orientation=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(east,north,normal)).invert();
-    const fov=Math.min(THREE.MathUtils.degToRad(camera.fov),2*Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*camera.aspect));
-    const close=Math.min(wideDistance()*.85,Math.max(radius+.65,radius*Math.cos(place.angle)+radius*Math.sin(place.angle)/Math.tan(fov/2)*1.3));
-    const detail=step==='dive'||step==='hexagons';
-    const distance=detail?Math.max(controls.minDistance,radius+.24):step==='travel'||step==='pullback'?wideDistance():step==='approach'?close:Math.min(wideDistance(),close+(close-radius)*.35);
-    const offset=(step==='approach'?.08:step==='pass'?-.12:step==='hexagons'?.025:0)+(place.offset||0);
-    segment={from:camera.position.clone(),to:new THREE.Vector3(offset*(distance-radius),step==='pass'?(distance-radius)*.04:0,distance),fromQ:globe.quaternion.clone(),toQ:orientation};
+    const mobile=innerWidth<=700||(innerWidth<=900&&innerHeight>innerWidth);
+    const frame={east:east.toArray(),north:north.toArray(),normal:normal.toArray()};
+    const wide=step==='travel'||step==='pullback';
+    const pose=placementPose(frame,camera,radius,place.angle,{mobile:!wide&&mobile,...(wide?{distance:wideDistance()}:{})});
+    segment={from:camera.position.clone(),to:pose.position,fromQ:globe.quaternion.clone(),toQ:pose.quaternion};
     onStop(place,step);
     button.dataset.stop=place.name;button.dataset.cell=place.id||'';button.dataset.phase=step;
   }
@@ -62,7 +62,8 @@ export function createDemoTour({camera,globe,controls,radius,button,wideDistance
     if(!active||!segment)return;
     const dt=Math.min(.1,Math.max(0,(time-last)/1000));last=time;if(document.hidden)return;
     elapsed+=dt;
-    const t=Math.min(1,elapsed/(route()[phase][1]*timeScale)),ease=t*t*t*(t*(t*6-15)+10);
+    const reduced=motionPreference.matches;
+    const t=reduced&&route()[phase][0]!=='hold'?1:Math.min(1,elapsed/(route()[phase][1]*timeScale)),ease=cinematicEase(t);
     camera.position.lerpVectors(segment.from,segment.to,ease);globe.quaternion.slerpQuaternions(segment.fromQ,segment.toQ,ease);camera.lookAt(0,0,0);
     if(t===1){elapsed=0;phase++;if(phase===route().length){phase=0;index++;if(index===stops.length){void replenish();return;}}prepare();}
   }};

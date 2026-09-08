@@ -21,6 +21,7 @@ npm run preview -- --port 4181
 ## What is implemented
 
 - Exact, versioned one-million-cell geodesic topology with stable IDs and claimable pentagons.
+- Interruptible camera travel, complete-advert tour framing, arrival HUDs and mobile clearance; reduced-motion navigation is immediate.
 - Sample advertising inventory, company/hex search, contextual hex IDs and hover details, bounded zoom, and an opt-in inventory-driven Tour.
 - Globe-only editing of the exact footprint: start from an available cell, grow around neighbours, or choose Design in this space during placement.
 - Placement inspection with explicit website visits, nearby exploration, a pinnable HUD, tour-stop details and shareable cell-location links.
@@ -28,7 +29,7 @@ npm run preview -- --port 4181
 - One Design -> Place -> Review journey for images, colour-only artwork, and mixed designs.
 - A shared right-hand studio carries Design, Place and Review with consistent navigation and controls. Image options and extra cell actions share one menu.
 - Compact globe-only editor for 1-100,000 cells: Add image, exact count, background colour, image zoom/rotation, separate Add/Remove brushes, paint/transparency and undo/redo. Fresh placements start clean; editing preserves the draft. Transparent cells retain count and price.
-- Image framing: maximum contained fit, 50-400% zoom with cell clipping, drag positioning, and a separate hexagon editing mode. Reset logo restores the original framing.
+- Image framing: rotation-aware contained fit, low-resolution upload preflight, 50-400% zoom with cell clipping, drag positioning, and a separate hexagon editing mode. Reset logo restores the original framing.
 - Shared polygon IDs and artwork mapping across flat preview, globe preview, review, and session publication.
 - Suggested available locations, separate Move/Place controls, conflict rejection, undo/redo, and responsive desktop/mobile layouts.
 - Lazy exact-topology loading and viewport-driven artwork tile streaming rather than one object or source image per advertiser.

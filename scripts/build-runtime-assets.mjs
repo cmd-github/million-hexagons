@@ -19,7 +19,8 @@ const sampleAreas=catalogue.samples.map((sample,index)=>{
   const centre=sample.ids.reduce((sum,id)=>{const point=grid.centre(id);sum[0]+=point[0];sum[1]+=point[1];sum[2]+=point[2];return sum;},[0,0,0]);
   const length=Math.hypot(...centre);centre[0]/=length;centre[1]/=length;centre[2]/=length;
   const anchor=sample.ids.reduce((best,id)=>{const point=grid.centre(id),bestPoint=grid.centre(best);return point[0]*centre[0]+point[1]*centre[1]+point[2]*centre[2]>bestPoint[0]*centre[0]+bestPoint[1]*centre[1]+bestPoint[2]*centre[2]?id:best;},sample.ids[0]);
-  return {anchor,campaign:index%sampleCampaigns.length};
+  const normal=grid.centre(anchor);let dot=1;for(const id of sample.boundary){const p=grid.vertices.subarray(id*3,id*3+3);dot=Math.min(dot,p[0]*normal[0]+p[1]*normal[1]+p[2]*normal[2]);}
+  return {anchor,campaign:index%sampleCampaigns.length,angle:Number(Math.acos(Math.max(-1,dot)).toFixed(6))};
 });
 fs.writeFileSync('public/topology/occupancy-v1.gz',gzipSync(occupancy));
 fs.writeFileSync('public/topology/sample-owners-v1.gz',gzipSync(sampleOwners));
