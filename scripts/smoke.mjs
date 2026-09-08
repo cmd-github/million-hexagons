@@ -74,7 +74,7 @@ if (!(await page.locator('#designStep').isVisible())) errors.push('Unified edito
 if (!(await page.locator('#designStep').isVisible())) errors.push('Logo design step did not open');
 if (!(await page.locator('#toPlacement').isEnabled())) errors.push('Colour design should work without upload');
 await page.setInputFiles('#logoUpload', 'scripts/fixtures/test-logo.svg');
-await page.locator('#moveImageMode').click();await page.locator('#logoOptions summary').click();
+await page.locator('#moveImageMode').click();await page.locator('.studio-more summary').click();
 await page.selectOption('#logoOrientation', '180');
 const logoRotation = await page.locator('#logoPreview').evaluate((element) => getComputedStyle(element).getPropertyValue('--logo-rotation').trim());
 if (logoRotation !== '180deg') errors.push(`Logo rotation preview was ${logoRotation || 'not set'}`);

@@ -12,7 +12,7 @@ try {
   await page.locator('#claimButton').click();
   if(type==='logo') {
     await page.locator('#logoUpload').setInputFiles('scripts/fixtures/geodesic-reference.svg');await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Change image'&&document.querySelector('#uploadStatus').hidden);
-    await page.locator('#moveImageMode').click();await page.locator('#logoOptions summary').click();await page.locator('#logoTreatment').selectOption('repeat');await page.selectOption('#logoOrientation','180');
+    await page.locator('#moveImageMode').click();await page.locator('.studio-more summary').click();await page.locator('#logoTreatment').selectOption('repeat');await page.selectOption('#logoOrientation','180');
   }
   if(type!=='paint')await page.locator('#hexAmount').fill('400');
   else {

@@ -1,6 +1,6 @@
 # Compact studio validation - 8 September 2026
 
-The Design pane opens directly, fits without scrolling, and uses a larger desktop canvas with the globe on the right. Image upload is a single Add image action. Image, Paint, Cells and Pan expose contextual controls; image zoom and canvas zoom are independent.
+The Design pane opens directly, fits without scrolling, and shares the same right-hand desktop panel as Place and Review, with the globe on the left. Image upload is a single Add image action. Image, Paint, Cells and Pan expose contextual controls; image zoom and canvas zoom are independent.
 
 ## Verification
 

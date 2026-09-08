@@ -699,6 +699,7 @@ function configureCreation() {
 }
 function updateImageControls() {
   document.querySelector('#removeImage').hidden=!uploadedLogo;
+  document.querySelector('#logoOptions').hidden=!uploadedLogo;
   document.querySelector('#moveImageMode').disabled=!uploadedLogo;
   document.querySelector('#addImageLabel').textContent=uploadedLogo?'Change image':'Add image';
   if(!uploadedLogo && logoEditorMode==='move')logoEditorMode='pan';
@@ -1236,10 +1237,8 @@ document.querySelector('#previewPurchase').addEventListener('click', paintPlacem
 function resize() {
   const active = document.body.dataset.flow;
   const narrow = innerWidth <= 700 || (innerWidth <= 900 && innerHeight > innerWidth);
-  const designing=active==='design'&&innerWidth>1000;
-  const editorWidth=designing?document.querySelector('#buyPanel').getBoundingClientRect().width+36:0;
-  const width = designing?Math.max(200,innerWidth-editorWidth):active && !narrow ? innerWidth - 490 : innerWidth;
-  canvas.style.left=designing?`${editorWidth}px`:'0px';
+  const width = active && !narrow ? innerWidth - 490 : innerWidth;
+  canvas.style.left='0px';
   const height = narrow && (active === 'place' || active === 'review') ? Math.max(120, innerHeight - (active === 'place' ? Math.min(320,innerHeight*.48) : innerHeight*.55)) : narrow && !active ? Math.max(180,innerHeight-300) : innerHeight;
   canvas.style.top = narrow && !active ? '230px' : '0px';
   canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;

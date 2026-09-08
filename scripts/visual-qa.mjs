@@ -29,7 +29,7 @@ try {
       if(mobile){const touch=await page.context().newCDPSession(page);await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:r.x+r.width*.5,y:r.y+r.height*.5}]});await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:r.x+r.width*.58,y:r.y+r.height*.54}]});await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await touch.detach();}
       else{await page.mouse.move(r.x+r.width*.5,r.y+r.height*.5);await page.mouse.down();await page.mouse.move(r.x+r.width*.58,r.y+r.height*.54,{steps:5});await page.mouse.up();}
       await page.waitForTimeout(50);assert.notEqual(await pixels(),before,'Image drag must change framing');
-      await page.locator('#logoOptions summary').click();await page.locator('#logoOrientation').selectOption(count===150?'90':'0');await page.locator('#logoTreatment').selectOption(count===400?'repeat':'span');await page.locator('#logoOptions summary').click();
+      await page.locator('.studio-more summary').click();await page.locator('#logoOrientation').selectOption(count===150?'90':'0');await page.locator('#logoTreatment').selectOption(count===400?'repeat':'span');await page.locator('.studio-more summary').click();
     }
     if(type!=='colour'){
       await page.locator('#paintCells').click();const original=await pixels();await page.locator('#brushColor').fill('#ff4d6d');await clickCanvas();const painted=await pixels();assert.notEqual(painted,original);
