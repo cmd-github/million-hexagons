@@ -74,12 +74,12 @@ if (!(await page.locator('#designStep').isVisible())) errors.push('Unified edito
 if (!(await page.locator('#designStep').isVisible())) errors.push('Logo design step did not open');
 if (!(await page.locator('#toPlacement').isEnabled())) errors.push('Colour design should work without upload');
 await page.setInputFiles('#logoUpload', 'scripts/fixtures/test-logo.svg');
-await page.locator('#logoOptions summary').click();
+await page.locator('#moveImageMode').click();await page.locator('#logoOptions summary').click();
 await page.selectOption('#logoOrientation', '180');
 const logoRotation = await page.locator('#logoPreview').evaluate((element) => getComputedStyle(element).getPropertyValue('--logo-rotation').trim());
 if (logoRotation !== '180deg') errors.push(`Logo rotation preview was ${logoRotation || 'not set'}`);
 if (!(await page.locator('#toPlacement').isEnabled())) errors.push('Logo placement did not enable after upload');
-await page.click('#toPlacement');
+await page.click('#toPlacement');await page.waitForFunction(()=>!document.querySelector('#suggestLocation').disabled);
 if (!(await page.locator('#moveGlobeMode').evaluate((el) => el.classList.contains('active')))) errors.push('Move was not the default placement mode');
 await page.click('#placeDesignMode');
 await page.waitForTimeout(650);

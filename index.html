@@ -48,44 +48,30 @@
       <div class="flow-progress" aria-label="Creation progress"><i class="active">1</i><span></span><i>2</i><span></span><i>3</i><small>Design</small><small>Place</small><small>Review</small></div>
 
       <div class="flow-screen" id="designStep" hidden>
-        <h2 id="designTitle">Design your placement</h2>
-        <p class="panel-intro" id="designIntro">This hex preview is what people will see.</p>
-        <select id="selectionShape" hidden><option value="compact">Compact</option><option value="logo">Logo proportion</option><option value="painted">Painted design</option></select>
-
-        <div class="logo-controls" id="logoControls" hidden>
-          <label class="upload-zone">Image (optional) <span>PNG, JPG, WebP or SVG · up to 4 MB</span><input id="logoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
-          <button class="text-button" type="button" id="removeImage" hidden>Remove image</button><p id="uploadStatus" role="status" aria-live="polite">Your artwork stays on this device.</p><div class="logo-preview" id="logoPreview"><span>UPLOAD YOUR LOGO</span></div>
-          <details class="logo-palette" id="logoPalette" hidden><summary>Colours from your image</summary><div id="logoSwatches"></div></details>
+        <header class="studio-heading"><h2 id="designTitle">Make it yours.</h2><span id="designIntro">Your space. Your design.</span></header>
+        <div class="studio-setup">
+          <div id="logoControls"><label class="add-image" for="logoUpload"><span aria-hidden="true">&#43;</span><span id="addImageLabel">Add image</span></label><input id="logoUpload" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" aria-label="Add image" /></div>
+          <label class="studio-count" id="sizeControls">Cells <input id="hexAmount" type="number" min="1" max="100000" step="1" value="150" /></label>
+          <details class="studio-popover size-menu"><summary aria-label="Choose a size preset">&#8964;</summary><div class="popover-content size-presets"><button type="button" data-size="1">1 cell</button><button type="button" data-size="50">50 cells</button><button type="button" data-size="500">500 cells</button><button type="button" data-size="5000">5,000 cells</button><button type="button" data-size="50000">50,000 cells</button><button type="button" data-size="100000">100,000 cells</button></div></details>
+          <label class="studio-colour" id="colourControls"><input id="brandColor" aria-label="Background colour" type="color" value="#5967b0" /><span>Background</span></label>
         </div>
-
-        <div class="custom-paint-tools" id="customPaintTools">
-          <div class="editor-tools" role="group" aria-label="Editor tools">
-            <button type="button" id="moveImageMode" aria-pressed="true">Move image</button><button type="button" id="editHexMode" aria-pressed="false">Add / remove cells</button>
-            <button type="button" id="paintCells" aria-pressed="false"><i id="paintColourChip"></i>Paint cells</button><button type="button" id="eraseCells" aria-pressed="false">Transparent</button><button type="button" id="restoreCells" aria-pressed="false">Restore artwork</button>
+        <div class="studio-workspace">
+          <div class="studio-toolbar" id="customPaintTools" role="toolbar" aria-label="Design tools">
+            <button type="button" id="moveImageMode" aria-pressed="false">Image</button><button type="button" id="paintCells" aria-pressed="false">Paint</button><button type="button" id="editHexMode" aria-pressed="false">Cells</button><button type="button" id="panEditor" aria-pressed="true">Pan</button>
+            <span class="toolbar-spacer"></span><button type="button" id="undoPaint" disabled aria-label="Undo painting" title="Undo">&#8630;</button><button type="button" id="redoPaint" disabled aria-label="Redo painting" title="Redo">&#8631;</button>
+            <details class="studio-popover studio-more"><summary aria-label="More design actions">&#8943;</summary><div class="popover-content"><button type="button" id="fillCells">Paint all cells</button><button type="button" id="clearPaint">Reset cell colours</button><button type="button" id="removeImage" hidden>Remove image</button></div></details>
           </div>
-          <div class="brush-controls"><label>Brush colour<input id="brushColor" type="color" value="#ff4d6d" /></label><button type="button" id="fillCells">Paint all</button></div>
-          <div><button type="button" id="clearPaint">Reset cell edits</button><button type="button" id="undoPaint" disabled aria-label="Undo painting">Undo</button><button type="button" id="redoPaint" disabled aria-label="Redo painting">Redo</button></div>
+          <div class="studio-context">
+            <div id="logoPositionControls" hidden><label>Image zoom <input id="logoScale" type="range" min="50" max="400" value="100" /><output id="logoScaleValue">100%</output></label><details class="studio-popover" id="logoOptions"><summary aria-label="Image options">Options</summary><div class="popover-content"><label>Layout<select id="logoTreatment"><option value="span">Across the area</option><option value="repeat">Repeat per cell</option></select></label><label>Rotate<select id="logoOrientation"><option value="0">0&deg;</option><option value="90">90&deg;</option><option value="180">180&deg;</option><option value="-90">270&deg;</option></select></label><button type="button" id="resetLogo">Reset image</button></div></details></div>
+            <div id="brushControls" hidden><label class="brush-swatch"><input id="brushColor" type="color" value="#ff4d6d" /><span id="paintColourChip"></span>Colour</label><button type="button" id="colourBrush" aria-pressed="true">Paint</button><button type="button" id="eraseCells" aria-pressed="false">Clear</button><button type="button" id="restoreCells" aria-pressed="false">Restore</button></div>
+            <small id="toolHint">Drag to explore your design.</small>
+          </div>
+          <div class="hex-editor"><canvas id="designCanvas" width="1000" height="600" tabindex="0" aria-label="Design canvas. Scroll or pinch to zoom. Use Pan to move the canvas."></canvas><span id="editorEmpty">Add an image or choose a colour</span><div class="canvas-navigation"><button type="button" id="editorZoomOut" aria-label="Zoom out of design">&#8722;</button><button type="button" id="editorFit" title="Fit whole design">Fit</button><button type="button" id="editorZoomIn" aria-label="Zoom into design">&#43;</button></div></div>
+          <div class="canvas-caption"><span id="logoFootprintHelp">Scroll or pinch to zoom in to individual cells.</span><span id="editorZoomValue">100%</span></div>
         </div>
-        <div id="logoPositionControls" hidden><label>Zoom <output id="logoScaleValue">100%</output><input id="logoScale" type="range" min="50" max="400" value="100" /></label></div>
-        <div class="hex-editor"><canvas id="designCanvas" width="680" height="400" aria-label="Placement footprint editor"></canvas><span id="editorEmpty">Your placement preview</span></div>
-        <small class="logo-footprint-help" id="logoFootprintHelp" hidden>Drag to move the image. Choose a tool to paint, clear or restore individual cells. Transparent cells still count towards your price.</small>
-
-        <div id="sizeControls">
-          <span class="field-label">Choose a size</span>
-          <div class="size-presets"><button type="button" data-size="50">Small<b>50 · $50</b></button><button type="button" data-size="150" class="active">Medium<b>150 · $150</b></button><button type="button" data-size="400">Large<b>400 · $400</b></button></div>
-          <details class="custom-options"><summary>Choose a custom size</summary><label class="custom-size">Custom number of hexagons<input id="hexAmount" type="number" min="1" max="10000" step="1" value="150" /></label></details>
-        </div>
-
-        <div class="colour-controls" id="colourControls" hidden><label><span id="brandColourLabel">Background colour</span><input id="brandColor" type="color" value="#5967b0" /></label></div>
-        <details class="logo-options" id="logoOptions" hidden><summary>Fine-tune your artwork</summary>
-          <div class="segmented"><button type="button" data-treatment="span" class="active">One logo across area</button><button type="button" data-treatment="repeat">Repeat in each hex</button></div>
-          <select id="logoTreatment" hidden><option value="span">span</option><option value="repeat">repeat</option></select>
-          <div class="field-row"><label>Direction<select id="logoOrientation"><option value="0">Upright</option><option value="90">Turn right</option><option value="-90">Turn left</option><option value="180">Upside down</option></select></label></div>
-          <select id="logoFit" hidden><option value="contain">contain</option></select>
-          <button class="text-button reset-logo" type="button" id="resetLogo">Reset logo</button>
-          <small class="logo-guidance" id="logoGuidance">Upload a logo to see its true hex-mosaic preview.</small>
-        </details>
-        <div class="design-footer"><div class="mini-price"><span id="designCount">150 hexagons</span><b id="price">$150</b></div><button class="primary" id="toPlacement" disabled>Find my spot &rarr;</button></div>
+        <div class="design-footer"><div class="mini-price"><span id="designCount">150 cells</span><b id="price">$150</b></div><button class="primary" id="toPlacement">Find my spot &rarr;</button></div>
+        <p id="uploadStatus" role="status" aria-live="polite" hidden></p>
+        <div hidden><select id="selectionShape"><option value="logo">Logo</option></select><select id="logoFit"><option value="contain">contain</option></select><div id="logoPreview"></div><div id="logoPalette"><div id="logoSwatches"></div></div><span id="logoGuidance"></span></div>
       </div>
 
       <div class="flow-screen" id="placeStep" hidden>

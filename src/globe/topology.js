@@ -69,7 +69,7 @@ export class SphericalTopology {
         polygon: this.polygon(id).map(p => this.project(p, frame)), pentagon: this.degrees[id - 1] === 5 };
     });
   }
-  connected(anchor, count, aspect = 1.25) {
+  connected(anchor, count, aspect = 1.25, blocked = null) {
     const frame = this.frame(anchor), visited = new Set([anchor]), heap = [];
     const score = id => { const p = this.project(this.centre(id), frame); return p.x * p.x / aspect + p.y * p.y * aspect; };
     const push = id => {
@@ -84,7 +84,7 @@ export class SphericalTopology {
     push(anchor);
     const ids = [];
     while (ids.length < count) {
-      const id = pop(); ids.push(id);
+      const id = pop(); if(blocked?.[id-1])return []; ids.push(id);
       for (const neighbour of this.neighboursOf(id)) if (!visited.has(neighbour)) { visited.add(neighbour); push(neighbour); }
     }
     return this.cells(ids, anchor);

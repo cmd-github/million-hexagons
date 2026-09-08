@@ -12,9 +12,12 @@ $env:SMOKE_URL = 'http://127.0.0.1:4181'
 npm test
 npm run test:geometry
 npm run test:visual
+npm run test:studio-scale
 ```
 
-For purchase-flow changes, exercise image, solid colour, and mixed per-cell paint/transparency in the unified editor at desktop and mobile sizes. Confirm repeated Place/Review -> Edit round trips preserve the exact draft pixels, undo/redo and restore recover source artwork, and transparent cells retain count/price. Cover 1/50/150/400/500-cell logo footprints as relevant, valid and occupied locations, URL validation, editing routes, and exact selected/reviewed/committed count and price parity. Inspect generated screenshots under `artifacts/visual-qa/`.
+For purchase-flow changes, exercise image, solid colour, and mixed per-cell paint/transparency in the unified editor at desktop and mobile sizes. Confirm repeated Place/Review -> Edit round trips preserve the exact draft pixels, undo/redo and restore recover source artwork, and transparent cells retain count/price. Cover 1/50/150/400/500-cell logo footprints as relevant, valid and occupied locations, URL validation, editing routes, and exact selected/reviewed/committed count and price parity. Inspect generated screenshots under `artifacts/visual-qa/`. Confirm no pane scrolling at 320x568, 390x844, 1024x768 and 1440x900, including open contextual tools.
+
+`test:studio-scale` uses a test-only empty occupancy response to exercise 50,000/100,000-cell editing, undo/redo, image framing, canvas pan/zoom, relocation and a 100,000-cell publication. It leaves real sample inventory unchanged. Inspect `artifacts/studio-scale/`; report timing as local/emulated results and distinguish capacity from available contiguous space. Run this check against the development server because it uses the existing `geodesicQA` hooks.
 
 ## Geodesic and gesture checks
 

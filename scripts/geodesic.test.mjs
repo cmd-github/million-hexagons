@@ -63,3 +63,15 @@ test('connected footprints preserve exact counts across all special locations', 
     }
   }
 });
+
+test('large connected counts and early conflict rejection', () => {
+  const blocked=new Uint8Array(1000000),anchor=grid.pick([0,0,1]);
+  for(const count of [50000,100000]) {
+    const cells=grid.connected(anchor,count,2,blocked);
+    assert.equal(cells.length,count);assert.ok(grid.isConnected(cells));
+  }
+  blocked[grid.neighboursOf(anchor)[0]-1]=255;
+  assert.deepEqual(grid.connected(anchor,100000,2,blocked),[]);
+  blocked.fill(0);blocked[anchor-1]=255;
+  assert.deepEqual(grid.connected(anchor,1,1,blocked),[]);
+});

@@ -23,7 +23,7 @@ npm run preview -- --port 4181
 - Exact, versioned one-million-cell geodesic topology with stable IDs and claimable pentagons.
 - Sample advertising inventory, cell search, hover details, bounded zoom, and an opt-in inventory-driven Tour.
 - One Design -> Place -> Review journey for images, colour-only artwork, and mixed designs.
-- Unified editor opens directly with optional image upload, background colour, per-cell paint/transparency, restore artwork, and undo/redo. Transparent cells retain their count and price. Placement and review never replace the editable source design.
+- Compact, canvas-first editor for 1-100,000 cells: Add image, exact size and background in one row; contextual Image/Paint/Cells/Pan tools, per-cell transparency and undo/redo. The design pane fits without scrolling on desktop and mobile. Large footprints have canvas zoom/pan and automatically zoom to editable cells. Transparent cells retain their count and price.
 - Image framing: maximum contained fit, 50-400% zoom with cell clipping, drag positioning, and a separate hexagon editing mode. Reset logo restores the original framing.
 - Shared polygon IDs and artwork mapping across flat preview, globe preview, review, and session publication.
 - Suggested available locations, separate Move/Place controls, conflict rejection, undo/redo, and responsive desktop/mobile layouts.

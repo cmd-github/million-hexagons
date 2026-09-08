@@ -18,10 +18,11 @@ Preserve the staged Design -> Place -> Review journey.
 ### Design
 
 - Open one editor directly, with optional image upload, background colour, per-cell paint and transparency. No artwork-type selection screen.
-- Use a face-on hex mosaic for editing. Keep price and cell count visible whenever either can change.
+- Use a face-on, canvas-first editor that fits without pane scrolling. Give Design more desktop width and move the globe to the right. Keep Add image, exact cell count, background and price visible; expose advanced controls contextually.
+- Support 1-100,000 cells with a fit-to-area overview, independent canvas zoom/pan, and automatic close-up for cell editing. Image zoom changes the crop; canvas zoom changes only the view.
 - Accept PNG, JPG, WebP, and SVG artwork up to 4 MB. Trim empty margins, preserve aspect ratio, and show the real cell-clipped result.
 - Default logos to one spread image. Fit the image as large as possible without cropping by default. Expose zoom (50-400%) and drag positioning with cropping at the cell boundary, separately from hexagon editing. Keep repeat-per-cell, quarter-turn rotation, reset, and Custom sizing secondary.
-- Use Small, Medium, and Large presets based initially on 50, 150, and 400 cells. Presets are not readability guarantees.
+- Keep size presets in a compact menu alongside the exact count input. Presets are not readability guarantees.
 - Paint overrides individual cells above the image. Transparent clears a cell without removing it from the count or price. Restore artwork removes that override. Support paint all, reset cell edits, undo and redo. Add/remove cells is a separate tool and retains a connected footprint.
 
 ### Place

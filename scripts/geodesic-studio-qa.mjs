@@ -11,10 +11,10 @@ try {
   await page.goto((process.env.SMOKE_URL||'http://127.0.0.1:4180')+'/?geodesicQA');await page.waitForFunction(()=>window.geodesicQA,{timeout:60000});
   await page.locator('#claimButton').click();
   if(type==='logo') {
-    await page.locator('#logoUpload').setInputFiles('scripts/fixtures/geodesic-reference.svg');await page.locator('#removeImage').waitFor({state:'visible'});
-    await page.locator('#logoOptions summary').click();await page.locator('[data-treatment="repeat"]').click();await page.selectOption('#logoOrientation','180');
+    await page.locator('#logoUpload').setInputFiles('scripts/fixtures/geodesic-reference.svg');await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Change image'&&document.querySelector('#uploadStatus').hidden);
+    await page.locator('#moveImageMode').click();await page.locator('#logoOptions summary').click();await page.locator('#logoTreatment').selectOption('repeat');await page.selectOption('#logoOrientation','180');
   }
-  if(type!=='paint')await page.locator('[data-size="400"]').click();
+  if(type!=='paint')await page.locator('#hexAmount').fill('400');
   else {
     await page.locator('#paintCells').click();
     await page.locator('#designCanvas').scrollIntoViewIfNeeded();
@@ -23,7 +23,7 @@ try {
     await page.locator('#brushColor').fill('#4d7cff');await page.mouse.click(r.x+r.width*.65,r.y+r.height*.52);
   }
   const count=(await page.evaluate(()=>geodesicQA.state())).design.length;assert.ok(count>0);
-  await page.locator('#toPlacement').click();await page.locator('#toReview').click();await page.waitForTimeout(700);
+  await page.locator('#toPlacement').click();await page.waitForFunction(()=>!document.querySelector('#suggestLocation').disabled);await page.locator('#toReview').click();await page.waitForTimeout(700);
   const state=await page.evaluate(()=>geodesicQA.state());assert.equal(state.selected.length,count);assert.equal(state.connected,true);assert.equal(state.design.length,count);
   await page.screenshot({path:`artifacts/geodesic-qa/${mobile?'mobile':'desktop'}-${type}-settled-review.png`});
   await page.locator('#previewPurchase').click();await page.waitForFunction(()=>document.querySelector('#buyPanel').getAttribute('aria-hidden')==='true',null,{timeout:60000});await page.waitForTimeout(700);

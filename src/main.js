@@ -7,8 +7,8 @@ import { createDemoTour } from './globe/demo-tour.js';
 import { footprintBounds, centre } from './placements/geometry.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import './style.css';
+import './studio.css';
 
 const canvas = document.querySelector('#world');
 document.querySelector('#claimButton').disabled = true;
@@ -137,6 +137,13 @@ let logoEditorMode = 'move', logoDrag = null;
 const logoPosition = { x: 0, y: 0 };
 let lastPaintedCell = null;
 let editorArtworkSize = { width: 1, height: 1 };
+const editorView = { zoom: 1, x: 0, y: 0 };
+let editorPan = null, previewCache = null;
+const layoutCache = new WeakMap(), artworkCache = new WeakMap();
+let redrawPending = false;
+function queueDesignPreview() { if(redrawPending)return;redrawPending=true;requestAnimationFrame(()=>{redrawPending=false;drawDesignPreview();}); }
+function resetEditorView() { editorView.zoom=1;editorView.x=0;editorView.y=0; }
+
 let sold = occupiedCells.reduce((total, value) => total + (value ? 1 : 0), 0);
 let cameraDistanceTarget = null;
 let painting = false;
@@ -240,11 +247,11 @@ function connectedPattern(origin, amount, shape) {
   return relocateDesign(draft, origin.id);
 }
 
-function refreshSelection() {
+function refreshSelection(preparedCells = null) {
   const shape = document.querySelector('#selectionShape').value;
-  const amount = Math.max(1, Math.min(10000, Number(document.querySelector('#hexAmount').value) || 1));
+  const amount = Math.max(1, Math.min(100000, Number(document.querySelector('#hexAmount').value) || 1));
   if (selectedCell) {
-    const candidateCells = connectedPattern(selectedCell, amount, shape);
+    const candidateCells = Array.isArray(preparedCells)?preparedCells:connectedPattern(selectedCell, amount, shape);
     const blocked = candidateCells.find((cell) => occupiedCells[cell.id - 1]);
     if (blocked) {
       selectedCells = [];
@@ -395,6 +402,7 @@ canvas.addEventListener('pointerleave', () => { if (!painting) clearHover(); if(
 
 async function openBuy(anchor = null) {
   if(publishing)return;
+  document.querySelector('#toast').classList.remove('show');
   if(!topology){loading.textContent='Preparing exact cell selection…';document.body.append(loading);try{await ensureTopology();}catch{return;}loading.remove();}
   selecting = false;
   selectionModeUniform.value = 0;
@@ -527,7 +535,7 @@ function showFlowStep(step) {
 }
 
 function placementCount() {
-  return Math.max(1, Math.min(10000, Math.floor(Number(amountInput.value)) || 1));
+  return Math.max(1, Math.min(100000, Math.floor(Number(amountInput.value)) || 1));
 }
 
 function updateTotals() {
@@ -549,29 +557,57 @@ function updateTotals() {
 let editorHitRegions = [];
 function previewCells() {
   if(!topology)return [];
-  if (creationType === 'logo' && logoCells) return topology.cells(logoCells, designAnchor);
-  const aspect = creationType === 'logo' && uploadedLogo ? (uploadedLogoCrop?.width || uploadedLogo.naturalWidth)/(uploadedLogoCrop?.height || uploadedLogo.naturalHeight) : 1.25;
-  return topology.connected(designAnchor, placementCount(), aspect);
+  if(logoCells)return logoCells;
+  const aspect = uploadedLogo ? Math.max(.2,Math.min(5,(uploadedLogoCrop?.width || uploadedLogo.naturalWidth)/(uploadedLogoCrop?.height || uploadedLogo.naturalHeight))) : 1.25;
+  const key=`${designAnchor}:${placementCount()}:${aspect}`;
+  if(previewCache?.key===key)return previewCache.cells;
+  const cells=topology.connected(designAnchor,placementCount(),aspect);
+  previewCache={key,cells};return cells;
+}
+function layoutFor(cells) {
+  if(layoutCache.has(cells))return layoutCache.get(cells);
+  const bounds=footprintBounds(cells),path=new Path2D(),active=new Set(cells.map(c=>c.id)),edges=new Map();
+  // Internal edges cancel. Trace only the exact union boundary, including holes.
+  // This keeps canvas rasterisation proportional to the outline, not 600k edges.
+  for(const cell of cells){const offset=(cell.id-1)*6,degree=topology.degrees[cell.id-1];for(let k=0;k<degree;k++) {
+    if(active.has(topology.neighbours[offset+k]+1))continue;
+    const from=topology.rings[offset+k],to=topology.rings[offset+(k+1)%degree];
+    edges.set(from,{to,p:cell.polygon[k],q:cell.polygon[(k+1)%degree]});
+  }}
+  while(edges.size){const first=edges.keys().next().value;let current=first,edge=edges.get(first);path.moveTo(edge.p.x,edge.p.y);
+    do{edge=edges.get(current);if(!edge)break;path.lineTo(edge.q.x,edge.q.y);edges.delete(current);current=edge.to;}while(current!==first);path.closePath();
+  }
+  const layout={bounds,path,fits:new Map(),guides:null};layoutCache.set(cells,layout);return layout;
 }
 function relocateDesign(draft, anchor) {
   if (!footprintEdited) {
-    const aspect = creationType === 'logo' && uploadedLogo ? (uploadedLogoCrop?.width || uploadedLogo.naturalWidth)/(uploadedLogoCrop?.height || uploadedLogo.naturalHeight) : 1.25;
+    const aspect = uploadedLogo ? Math.max(.2,Math.min(5,(uploadedLogoCrop?.width || uploadedLogo.naturalWidth)/(uploadedLogoCrop?.height || uploadedLogo.naturalHeight))) : 1.25;
     return topology.connected(anchor, draft.length, aspect);
   }
   // Map in radial source order onto a connected frontier. Each source colour
   // is assigned once; candidate coordinates are cached. This avoids a cubic
   // all-pairs search when a buyer edits a large custom footprint.
   const frame = topology.frame(anchor), chosen = [], used = new Set();
-  const frontier = new Map([[anchor, {x:0,y:0}]]);
+  const frontier = new Map(), buckets=new Map(), bucketSize=8;
+  const bucketKey=p=>`${Math.floor(p.x/bucketSize)},${Math.floor(p.y/bucketSize)}`;
+  const add=(id,p)=>{frontier.set(id,p);const key=bucketKey(p);if(!buckets.has(key))buckets.set(key,new Set());buckets.get(key).add(id);};
+  add(anchor,{x:0,y:0});
   const ordered = [...draft].sort((a,b)=>(a.x*a.x+a.y*a.y)-(b.x*b.x+b.y*b.y)||a.id-b.id);
   for (const source of ordered) {
-    let bestId, best = Infinity;
-    for (const [id,p] of frontier) {
-      const distance=(p.x-source.x)**2+(p.y-source.y)**2;
-      if(distance<best) {best=distance;bestId=id;}
+    let bestId,best=Infinity;
+    const bx=Math.floor(source.x/bucketSize),by=Math.floor(source.y/bucketSize);
+    for(let ring=0;bestId===undefined||ring<10000;ring++) {
+      for(let dx=-ring;dx<=ring;dx++)for(let dy=-ring;dy<=ring;dy++) {
+        if(ring&&Math.abs(dx)!==ring&&Math.abs(dy)!==ring)continue;
+        const bucket=buckets.get(`${bx+dx},${by+dy}`);if(!bucket)continue;
+        for(const id of bucket){const p=frontier.get(id),distance=(p.x-source.x)**2+(p.y-source.y)**2;if(distance<best){best=distance;bestId=id;}}
+      }
+      const edge=Math.min(source.x-(bx-ring)*bucketSize,(bx+ring+1)*bucketSize-source.x,source.y-(by-ring)*bucketSize,(by+ring+1)*bucketSize-source.y);
+      if(bestId!==undefined && best<=edge*edge)break;
     }
+    const key=bucketKey(frontier.get(bestId));buckets.get(key).delete(bestId);if(!buckets.get(key).size)buckets.delete(key);
     chosen.push({...source,id:bestId});frontier.delete(bestId);used.add(bestId);
-    for(const id of topology.neighboursOf(bestId))if(!used.has(id)&&!frontier.has(id))frontier.set(id,topology.project(topology.centre(id),frame));
+    for(const id of topology.neighboursOf(bestId))if(!used.has(id)&&!frontier.has(id))add(id,topology.project(topology.centre(id),frame));
   }
   return topology.cells(chosen, anchor);
 }
@@ -580,7 +616,6 @@ function adjacentLogoCandidates(cells) {
   for(const cell of cells) for(const id of topology.neighboursOf(cell.id)) if(!active.has(id)) ids.add(id);
   return topology.cells([...ids],designAnchor).map(c=>({...c,guide:true}));
 }
-function isConnectedFootprint(cells) { return topology.isConnected(cells); }
 function polygonPath(context, cell, bounds, scaleX, scaleY = scaleX, append = false, offsetX = 0, offsetY = 0) {
   if(!append) context.beginPath();
   cell.polygon.forEach((p,k)=> { const x=offsetX+(p.x-bounds.left)*scaleX,y=offsetY+(p.y-bounds.top)*scaleY; if(k===0) context.moveTo(x,y); else context.lineTo(x,y); });
@@ -595,23 +630,38 @@ function pointInPolygon(x,y,polygon) {
   return inside;
 }
 function drawDesignPreview(target = document.querySelector('#designCanvas')) {
-  if(!target) return;
-  const review=target.id==='reviewCanvas', cells=review?selectedCells:previewCells();
-  if(!review) draftArtwork=null;
-  const context=target.getContext('2d'); context.clearRect(0,0,target.width,target.height);
-  const guides=review||!topology?[]:adjacentLogoCandidates(cells);
-  const display=[...cells,...guides]; if(!display.length) return;
-  const bounds=footprintBounds(display), scale=Math.min((target.width-44)/bounds.width,(target.height-36)/bounds.height);
-  const ox=(target.width-bounds.width*scale)/2,oy=(target.height-bounds.height*scale)/2;
-  if(cells.length) {
-    const art=review&&draftArtwork?draftArtwork:renderArtwork(cells), box=footprintBounds(cells);
-    if(!review) editorArtworkSize = { width: box.width*scale, height: box.height*scale };
-    context.drawImage(art,ox+(box.left-bounds.left)*scale,oy+(box.top-bounds.top)*scale,box.width*scale,box.height*scale);
+  if(!target || !topology)return;
+  const review=target.id==='reviewCanvas',cells=review?selectedCells:previewCells();
+  if(!cells.length)return;
+  if(!review) {
+    draftArtwork=null;
+    const rect=target.getBoundingClientRect();
+    if(rect.width && rect.height) {const dpr=Math.min(devicePixelRatio,2,1600/rect.width,1200/rect.height);const w=Math.round(rect.width*dpr),h=Math.round(rect.height*dpr);if(target.width!==w)target.width=w;if(target.height!==h)target.height=h;}
   }
-  for(const cell of guides) { polygonPath(context,cell,bounds,scale,scale,false,ox,oy); context.fillStyle='#102a35';context.fill();context.strokeStyle='rgba(212,255,88,.38)';context.stroke(); }
-  for(const cell of cells) { polygonPath(context,cell,bounds,scale,scale,false,ox,oy);context.strokeStyle='rgba(220,255,245,.3)';context.stroke(); }
-  if(!review) editorHitRegions=display.map(cell=>({cell,polygon:cell.polygon.map(p=>({x:ox+(p.x-bounds.left)*scale,y:oy+(p.y-bounds.top)*scale}))}));
-  document.querySelector('#editorEmpty').hidden=Boolean(cells.length);
+  const context=target.getContext('2d');context.clearRect(0,0,target.width,target.height);
+  const layout=layoutFor(cells), box=layout.bounds;
+  const guides=review||logoEditorMode!=='hex'?[]:(layout.guides??=adjacentLogoCandidates(cells));
+  const bounds=guides.length?footprintBounds([...cells,...guides]):box;
+  const baseScale=Math.min((target.width-44)/bounds.width,(target.height-36)/bounds.height);
+  const scale=baseScale*(review?1:editorView.zoom);
+  const ox=(target.width-bounds.width*scale)/2+(review?0:editorView.x),oy=(target.height-bounds.height*scale)/2+(review?0:editorView.y);
+  const art=review&&draftArtwork?draftArtwork:renderArtwork(cells);
+  context.drawImage(art,ox+(box.left-bounds.left)*scale,oy+(box.top-bounds.top)*scale,box.width*scale,box.height*scale);
+  if(!review)editorArtworkSize={width:box.width*scale,height:box.height*scale};
+  const visible=cell=>{const x=ox+(cell.x-bounds.left)*scale,y=oy+(cell.y-bounds.top)*scale;return x>-scale*4&&x<target.width+scale*4&&y>-scale*4&&y<target.height+scale*4;};
+  const displayed=[];
+  if(scale>=4) {
+    for(const cell of guides)if(visible(cell)){polygonPath(context,cell,bounds,scale,scale,false,ox,oy);context.fillStyle='#17303b';context.fill();context.strokeStyle='#d4ff5870';context.stroke();displayed.push(cell);}
+    context.strokeStyle='rgba(220,255,245,.25)';context.lineWidth=Math.max(1,target.width/1200);
+    context.beginPath();
+    for(const cell of cells)if(visible(cell)){polygonPath(context,cell,bounds,scale,scale,true,ox,oy);displayed.push(cell);}
+    context.stroke();
+  }
+  if(!review) {
+    editorHitRegions=displayed.map(cell=>({cell,polygon:cell.polygon.map(p=>({x:ox+(p.x-bounds.left)*scale,y:oy+(p.y-bounds.top)*scale}))}));
+    document.querySelector('#editorZoomValue').textContent=`${Math.round(editorView.zoom*100)}%`;
+    document.querySelector('#editorEmpty').hidden=Boolean(cells.length);
+  }
 }
 function paintEditorAt(event) {
   const rect=event.currentTarget.getBoundingClientRect(), x=(event.clientX-rect.left)*event.currentTarget.width/rect.width,y=(event.clientY-rect.top)*event.currentTarget.height/rect.height;
@@ -622,6 +672,7 @@ function paintEditorAt(event) {
   let next = cells.map(c=>({...c}));
   if(logoEditorMode === 'hex') {
     next=index<0?[...next,{id:hit.id}]:next.filter(c=>c.id!==hit.id);
+    if(next.length>100000){document.querySelector('#toolHint').textContent='Maximum 100,000 cells.';return;}
     if(!topology.isConnected(next)) {updateLogoGuidance('Keep at least one connected cell.');return;}
   } else {
     if(index<0)return;
@@ -630,6 +681,8 @@ function paintEditorAt(event) {
     else if(logoEditorMode === 'restore') { delete next[index].color; delete next[index].transparent; }
     else return;
   }
+  if(logoEditorMode==='hex')next=topology.cells(next,designAnchor);
+  else if(layoutCache.has(cells))layoutCache.set(next,layoutCache.get(cells));
   logoCells=next; footprintEdited=true; amountInput.value=next.length;
   selectedCell=null;selectedCells=[];drawDesignPreview();updateTotals();
 }
@@ -637,25 +690,38 @@ function paintEditorAt(event) {
 function configureCreation() {
   creationType = 'logo';
   document.querySelector('#selectionShape').value = 'logo';
-  document.querySelector('#designTitle').textContent = 'Design your placement';
-  document.querySelector('#designIntro').textContent = 'Combine an image, colours and transparent cells in one design.';
+  document.querySelector('#designTitle').textContent = 'Make it yours.';
+  document.querySelector('#designIntro').textContent = 'Your space. Your design.';
   for(const id of ['logoControls','colourControls','customPaintTools','logoFootprintHelp','sizeControls']) document.querySelector(`#${id}`).hidden=false;
   updateImageControls();
   showFlowStep('design');
   drawDesignPreview();updateTotals();
 }
 function updateImageControls() {
-  for(const id of ['logoOptions','logoPositionControls','removeImage']) document.querySelector(`#${id}`).hidden=!uploadedLogo;
+  document.querySelector('#removeImage').hidden=!uploadedLogo;
   document.querySelector('#moveImageMode').disabled=!uploadedLogo;
-  if(!uploadedLogo && logoEditorMode==='move') setEditorMode('paint');
+  document.querySelector('#addImageLabel').textContent=uploadedLogo?'Change image':'Add image';
+  if(!uploadedLogo && logoEditorMode==='move')logoEditorMode='pan';
+  setEditorMode(logoEditorMode,false);
 }
-function setEditorMode(mode) {
-  logoEditorMode=mode; logoDrag=null; lastPaintedCell=null;
-  for(const [id,value] of [['moveImageMode','move'],['editHexMode','hex'],['paintCells','paint'],['eraseCells','transparent'],['restoreCells','restore']]) {
-    const button=document.querySelector(`#${id}`), active=value===mode;
+function setEditorMode(mode, zoomToCells=true) {
+  logoEditorMode=mode;logoDrag=null;editorPan=null;lastPaintedCell=null;
+  const brushing=['paint','transparent','restore'].includes(mode);
+  for(const [id,value] of [['moveImageMode','move'],['editHexMode','hex'],['paintCells','paint'],['panEditor','pan'],['colourBrush','paint'],['eraseCells','transparent'],['restoreCells','restore']]) {
+    const button=document.querySelector(`#${id}`),active=id==='paintCells'?brushing:value===mode;
     button.setAttribute('aria-pressed',String(active));button.classList.toggle('active',active);
   }
-  document.querySelector('#designCanvas').style.cursor=mode==='move'?'grab':'crosshair';
+  document.querySelector('#brushControls').hidden=!brushing;
+  document.querySelector('#logoPositionControls').hidden=mode!=='move'||!uploadedLogo;
+  const hint=mode==='move'?'Drag the image to frame it.':mode==='hex'?'Click an edge cell to remove it, or a neighbouring space to add one.':mode==='transparent'?'Click or drag to clear cells. They remain part of your area.':mode==='restore'?'Click or drag to restore the image and background.':mode==='paint'?'Click or drag to paint cells.':'Drag to pan. Scroll or pinch to zoom.';
+  document.querySelector('#toolHint').textContent=hint;
+  document.querySelector('#logoFootprintHelp').textContent=hint;
+  document.querySelector('#designCanvas').style.cursor=['move','pan'].includes(mode)?'grab':'crosshair';
+  if(zoomToCells && topology && (brushing||mode==='hex') && placementCount()>2000) {
+    const bounds=layoutFor(previewCells()).bounds,canvas=document.querySelector('#designCanvas');
+    editorView.zoom=Math.max(editorView.zoom,Math.min(100,Math.max(bounds.width/canvas.clientWidth,bounds.height/canvas.clientHeight)*18));
+  }
+  queueDesignPreview();
 }
 
 function setInteractionMode(mode) {
@@ -705,33 +771,41 @@ function orientToCell(id, distance) {
   globe.quaternion.setFromRotationMatrix(basis).invert();globe.updateMatrixWorld(true);
   cameraDistanceTarget=null;camera.position.set(0,0,distance);controls.target.set(0,0,0);controls.update();
 }
-let suggestionIndex = 0;
-function suggestLocation() {
-  const draft=previewCells();
-  for(let attempt=0;attempt<120;attempt++) {
-    const id=attempt===0&&suggestionIndex===0&&requestedAnchor?requestedAnchor:attempt===0&&suggestionIndex===0?designAnchor:1+(++suggestionIndex*7919)%CELL_COUNT;
-    if(occupiedCells[id-1])continue;
-    const cells=id===designAnchor?draft:relocateDesign(draft,id);
-    if(cells.some(c=>occupiedCells[c.id-1]))continue;
-    selectedCell=cellForId(id);selectedUV=new THREE.Vector2(0,0);selectedNormal=pointForCell(selectedCell,0,0).normalize();
-    globe.rotation.set(0,0,0);globe.updateMatrixWorld(true);cameraDistanceTarget=null;
-    refreshSelection();focusSelection();
-    document.querySelector('#selectionStatus').textContent='Your whole design fits here. Ready when you are.';suggestionIndex++;return;
-  }
-  selectedCells=[];selectedCell=null;selectedUV=null;refreshSelection();
-  document.querySelector('#selectionStatus').textContent='No suggested space found for this size. Try a smaller design or choose a location manually.';
+let suggestionIndex = 0, suggestionVersion = 0;
+async function suggestLocation() {
+  const version=++suggestionVersion,button=document.querySelector('#suggestLocation');
+  button.disabled=true;button.textContent='Finding a space?';document.querySelector('#toReview').disabled=true;
+  document.querySelector('#selectionStatus').textContent='Finding room for your whole design?';
+  try {
+    const draft=previewCells(),bounds=layoutFor(draft).bounds,aspect=Math.max(.2,Math.min(5,bounds.width/bounds.height));
+    for(let attempt=0;attempt<120;attempt++) {
+      if(attempt%8===0){await new Promise(resolve=>setTimeout(resolve,0));if(!selecting||version!==suggestionVersion)return;}
+      const id=attempt===0&&suggestionIndex===0&&requestedAnchor?requestedAnchor:attempt===0&&suggestionIndex===0?designAnchor:1+(++suggestionIndex*7919)%CELL_COUNT;
+      if(occupiedCells[id-1])continue;
+      // Abort blocked candidates while growing them, before projecting 100k polygons.
+      if(draft.length>2000&&!topology.connected(id,draft.length,aspect,occupiedCells).length)continue;
+      const cells=id===designAnchor?draft:relocateDesign(draft,id);
+      if(cells.some(c=>occupiedCells[c.id-1]))continue;
+      selectedCell=cellForId(id);selectedUV=new THREE.Vector2(0,0);selectedNormal=pointForCell(selectedCell,0,0).normalize();
+      globe.rotation.set(0,0,0);globe.updateMatrixWorld(true);cameraDistanceTarget=null;
+      refreshSelection(cells);focusSelection();
+      document.querySelector('#selectionStatus').textContent='Your whole design fits here. Ready when you are.';suggestionIndex++;return;
+    }
+    selectedCells=[];selectedCell=null;selectedUV=null;refreshSelection();
+    document.querySelector('#selectionStatus').textContent='No single available area found for this size. Try another size or place it manually.';
+  } finally {if(version===suggestionVersion){button.disabled=false;button.textContent='Find another spot';}}
 }
 document.querySelector('#suggestLocation').addEventListener('click', suggestLocation);
 document.querySelector('#reviewEditDesign').addEventListener('click', () => document.querySelector('#backToDesign').click());
 document.querySelector('#dismissToast').addEventListener('click', () => document.querySelector('#toast').classList.remove('show'));
 document.addEventListener('keydown', (event) => { if(event.key === 'Escape' && !document.querySelector('#buyPanel').inert) closeBuy(); });
 const undoStack = [], redoStack = [];
-function rememberPaint() { undoStack.push({cells:structuredClone(previewCells()),edited:footprintEdited}); if(undoStack.length>50)undoStack.shift();redoStack.length=0;updateHistory(); }
+function rememberPaint() { undoStack.push({cells:previewCells().map(({id,color,transparent})=>({id,color,transparent})),edited:footprintEdited}); while(undoStack.length>1&&(undoStack.length>50||undoStack.reduce((n,s)=>n+s.cells.length,0)>250000))undoStack.shift();redoStack.length=0;updateHistory(); }
 function updateHistory() { document.querySelector('#undoPaint').disabled=!undoStack.length;document.querySelector('#redoPaint').disabled=!redoStack.length; }
 function restorePaint(from,to) {
   if(!from.length)return;
-  to.push({cells:structuredClone(previewCells()),edited:footprintEdited});
-  const state=from.pop();logoCells=state.cells;footprintEdited=state.edited;amountInput.value=logoCells.length;
+  to.push({cells:previewCells().map(({id,color,transparent})=>({id,color,transparent})),edited:footprintEdited});
+  const state=from.pop();logoCells=topology.cells(state.cells,designAnchor);footprintEdited=state.edited;amountInput.value=logoCells.length;
   selectedCell=null;selectedCells=[];drawDesignPreview();updateTotals();updateHistory();
 }
 document.querySelector('#undoPaint').addEventListener('click',()=>restorePaint(undoStack,redoStack));
@@ -756,15 +830,17 @@ document.querySelector('#toReview').addEventListener('click', () => {
   addHighResolutionPlacement(document.querySelector('#brandColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
 });
 document.querySelector('#backToPlacement').addEventListener('click', () => { clearPlacementPreview(); showFlowStep('place'); setInteractionMode('move'); refreshSelection(); });
-document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size; logoCells = null; footprintEdited = false; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); }));
+document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size; button.closest('details').open=false; resetEditorView();logoCells = null; footprintEdited = false; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); }));
 amountInput.addEventListener('change', () => { amountInput.value = placementCount(); });
-amountInput.addEventListener('input', () => { logoCells = null; footprintEdited = false; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); });
-document.querySelectorAll('[data-treatment]').forEach((button) => button.addEventListener('click', () => { document.querySelector('#logoTreatment').value = button.dataset.treatment; document.querySelectorAll('[data-treatment]').forEach((item) => item.classList.toggle('active', item === button)); drawDesignPreview(); updateLogoGuidance(); }));
+amountInput.addEventListener('input', () => { resetEditorView();logoCells = null; footprintEdited = false; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); });
+document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
+document.querySelectorAll('[data-treatment]').forEach((button) => button.addEventListener('click', () => { document.querySelector('#logoTreatment').value = button.dataset.treatment; document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
+document.querySelectorAll('[data-treatment]').forEach((item) => item.classList.toggle('active', item === button)); drawDesignPreview(); updateLogoGuidance(); }));
 document.querySelector('#logoScale').addEventListener('input', () => { document.querySelector('#logoScaleValue').textContent = `${document.querySelector('#logoScale').value}%`; drawDesignPreview(); });
-for(const [id,mode] of [['moveImageMode','move'],['editHexMode','hex'],['paintCells','paint'],['eraseCells','transparent'],['restoreCells','restore']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode));
+for(const [id,mode] of [['moveImageMode','move'],['editHexMode','hex'],['paintCells','paint'],['panEditor','pan'],['colourBrush','paint'],['eraseCells','transparent'],['restoreCells','restore']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode));
 document.querySelector('#brushColor').addEventListener('input',()=>{document.querySelector('#paintColourChip').style.background=document.querySelector('#brushColor').value;});
-document.querySelector('#fillCells').addEventListener('click',()=>{rememberPaint();logoCells=previewCells().map(c=>({...c,color:document.querySelector('#brushColor').value,transparent:false}));footprintEdited=true;drawDesignPreview();});
-document.querySelector('#removeImage').addEventListener('click',()=>{uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();});
+document.querySelector('#fillCells').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;rememberPaint();logoCells=previewCells().map(c=>({...c,color:document.querySelector('#brushColor').value,transparent:false}));footprintEdited=true;drawDesignPreview();});
+document.querySelector('#removeImage').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();});
 function resetLogoTransform() {
   document.querySelector('#logoScale').value = 100;
   document.querySelector('#logoScaleValue').textContent = '100%';
@@ -774,24 +850,41 @@ function resetLogoTransform() {
 
 document.querySelector('#logoOrientation').addEventListener('change', () => { updateLogoPreviewOrientation(); drawDesignPreview(); });
 document.querySelector('#resetLogo').addEventListener('click', () => { resetLogoTransform(); updateLogoPreviewOrientation(); drawDesignPreview(); });
-document.querySelector('#clearPaint').addEventListener('click', () => { rememberPaint(); logoCells=previewCells().map(({color,transparent,...cell})=>cell); drawDesignPreview(); updateTotals(); });
+document.querySelector('#clearPaint').addEventListener('click', () => { document.querySelector('.studio-more').open=false;rememberPaint(); logoCells=previewCells().map(({color,transparent,...cell})=>cell); drawDesignPreview(); updateTotals(); });
 const designCanvas = document.querySelector('#designCanvas');
+const editorPointers=new Map();
+let editorPinch=null;
 designCanvas.addEventListener('pointerdown', (event) => {
+  editorPointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+  if(editorPointers.size===2){const points=[...editorPointers.values()];editorPinch={distance:Math.hypot(points[0].x-points[1].x,points[0].y-points[1].y),zoom:editorView.zoom};logoDrag=null;editorPainting=false;editorPan=null;designCanvas.setPointerCapture(event.pointerId);return;}
+  if(logoEditorMode==='pan'||event.button===1||event.altKey){editorPan={x:event.clientX,y:event.clientY,offsetX:editorView.x,offsetY:editorView.y};designCanvas.setPointerCapture(event.pointerId);return;}
+
   if(uploadedLogo && logoEditorMode === 'move') {
     logoDrag = { x: event.clientX, y: event.clientY, offsetX: logoPosition.x, offsetY: logoPosition.y };
     designCanvas.setPointerCapture(event.pointerId); return;
   }
   rememberPaint(); lastPaintedCell=null; editorPainting = true; designCanvas.setPointerCapture(event.pointerId); paintEditorAt(event); });
 designCanvas.addEventListener('pointermove', (event) => {
+  if(editorPointers.has(event.pointerId))editorPointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+  if(editorPinch&&editorPointers.size===2){const points=[...editorPointers.values()];editorView.zoom=Math.max(1,Math.min(100,editorPinch.zoom*Math.hypot(points[0].x-points[1].x,points[0].y-points[1].y)/editorPinch.distance));queueDesignPreview();return;}
+  if(editorPan){const r=designCanvas.getBoundingClientRect();editorView.x=editorPan.offsetX+(event.clientX-editorPan.x)*designCanvas.width/r.width;editorView.y=editorPan.offsetY+(event.clientY-editorPan.y)*designCanvas.height/r.height;queueDesignPreview();return;}
+
   if(logoDrag) {
     const rect = designCanvas.getBoundingClientRect();
     logoPosition.x = Math.max(-100,Math.min(100,logoDrag.offsetX + (event.clientX-logoDrag.x)*designCanvas.width/rect.width/editorArtworkSize.width*100));
     logoPosition.y = Math.max(-100,Math.min(100,logoDrag.offsetY + (event.clientY-logoDrag.y)*designCanvas.height/rect.height/editorArtworkSize.height*100));
-    drawDesignPreview(); return;
+    queueDesignPreview(); return;
   }
   if (editorPainting && logoEditorMode !== 'hex') paintEditorAt(event); });
-designCanvas.addEventListener('pointerup', () => { editorPainting = false; logoDrag = null; });
-designCanvas.addEventListener('pointercancel', () => { editorPainting = false; logoDrag = null; });
+for(const type of ['pointerup','pointercancel','lostpointercapture'])designCanvas.addEventListener(type,event=>{editorPointers.delete(event.pointerId);editorPainting=false;logoDrag=null;editorPan=null;editorPinch=null;});
+function zoomEditor(factor) {editorView.zoom=Math.max(1,Math.min(100,editorView.zoom*factor));queueDesignPreview();}
+designCanvas.addEventListener('wheel',event=>{event.preventDefault();zoomEditor(Math.exp(-event.deltaY*.002));},{passive:false});
+document.querySelector('#editorZoomIn').addEventListener('click',()=>zoomEditor(1.6));
+document.querySelector('#editorZoomOut').addEventListener('click',()=>zoomEditor(1/1.6));
+document.querySelector('#editorFit').addEventListener('click',()=>{resetEditorView();queueDesignPreview();});
+new ResizeObserver(()=>queueDesignPreview()).observe(designCanvas.parentElement);
+document.addEventListener('click',event=>{for(const menu of document.querySelectorAll('.studio-popover[open]'))if(!menu.contains(event.target))menu.open=false;});
+
 updatePaintColour();
 
 function rgbToHex(red, green, blue) {
@@ -964,7 +1057,7 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
 });
 
 function showUploadMessage(message) {
-  document.querySelector('#uploadStatus').textContent=message;
+  const status=document.querySelector('#uploadStatus');status.textContent=message;status.hidden=message.startsWith('Logo ready');
   updateLogoGuidance(message);
 }
 
@@ -996,7 +1089,7 @@ function largestLogoRect(cells,bounds,aspect,width,height) {
   // pixel in each candidate rectangle, including holes and concave edges.
   const mask=document.createElement('canvas');mask.width=512;mask.height=512;
   const context=mask.getContext('2d');context.fillStyle='#fff';
-  cells.forEach(c=>{polygonPath(context,c,bounds,512/bounds.width,512/bounds.height);context.fill();});
+  context.setTransform(512/bounds.width,0,0,512/bounds.height,-bounds.left*512/bounds.width,-bounds.top*512/bounds.height);context.fill(layoutFor(cells).path);
   const data=context.getImageData(0,0,512,512).data, integral=new Uint32Array(513*513);
   for(let y=0;y<512;y++){let row=0;for(let x=0;x<512;x++){row+=data[(y*512+x)*4+3]>20?0:1;integral[(y+1)*513+x+1]=integral[y*513+x+1]+row;}}
   let low=0,high=Math.min(bounds.height,bounds.width/aspect);
@@ -1009,14 +1102,17 @@ function largestLogoRect(cells,bounds,aspect,width,height) {
   return {x:(mx-w/2-bounds.left)/bounds.width*width,y:(my-h/2-bounds.top)/bounds.height*height,width:w/bounds.width*width,height:h/bounds.height*height};
 }
 function renderArtwork(cells) {
-  const bounds = footprintBounds(cells);
+  const bounds = layoutFor(cells).bounds;
+  const sourceCells=previewCells(),sourceLayout=layoutFor(sourceCells),sourceBounds=sourceLayout.bounds;
+  const signature=[document.querySelector('#logoScale').value,document.querySelector('#logoOrientation').value,document.querySelector('#logoTreatment').value,document.querySelector('#brandColor').value,logoPosition.x,logoPosition.y].join(':');
+  const cached=artworkCache.get(cells);
+  if(cached&&cached.signature===signature&&cached.image===uploadedLogo&&cached.source===sourceCells)return cached.art;
   const art = document.createElement('canvas');
   const unit = Math.min(128, 3072 / Math.max(bounds.width, bounds.height));
   art.width = Math.ceil(bounds.width * unit);
   art.height = Math.ceil(bounds.height * unit);
   const context = art.getContext('2d');
   const px = art.width / bounds.width, py = art.height / bounds.height;
-  const sourceCells = previewCells(), sourceBounds = footprintBounds(sourceCells);
   const drawRotated = (x, y, width, height) => {
     const rotation = Number(document.querySelector('#logoOrientation').value) || 0;
     const repeat = document.querySelector('#logoTreatment').value === 'repeat';
@@ -1030,17 +1126,11 @@ function renderArtwork(cells) {
     context.restore();
   };
   const point = (cell) => { const p = centre(cell); return { x: (p.x - bounds.left)*px, y: (p.y-bounds.top)*py }; };
-  cells.forEach((cell) => {
-    const p = point(cell);
-    // Slightly overlap texture fills so antialiased seams do not become holes in
-    // the artwork-safe area. The globe geometry still supplies the visible seams.
-    polygonPath(context, cell, bounds, px, py);
-    context.fillStyle = document.querySelector('#brandColor').value; context.fill();
-  });
+  context.setTransform(px,0,0,py,-bounds.left*px,-bounds.top*py);
+  context.fillStyle=document.querySelector('#brandColor').value;context.fill(layoutFor(cells).path);
+  context.resetTransform();
   if (creationType === 'logo' && uploadedLogo) {
-    context.save(); context.beginPath();
-    cells.forEach((cell) => { polygonPath(context,cell,bounds,px,py,true); });
-    context.clip();
+    context.save();context.setTransform(px,0,0,py,-bounds.left*px,-bounds.top*py);context.clip(layoutFor(cells).path);context.resetTransform();
     if (document.querySelector('#logoTreatment').value === 'repeat') {
       cells.forEach((cell) => { const p = point(cell); context.save(); polygonPath(context,cell,bounds,px,py); context.clip(); drawRotated(p.x-unit*.525,p.y-unit*.525,unit*1.05,unit*1.05); context.restore(); });
     } else {
@@ -1049,29 +1139,28 @@ function renderArtwork(cells) {
       const sourceAspect = source.width / source.height;
       // Fit once in the editor's local coordinate system. A new destination
       // clips that same framing; it must not shrink/recentre the source image.
-      const safeRect = largestLogoRect(sourceCells, sourceBounds, rotation === 90 ? 1 / sourceAspect : sourceAspect, sourceBounds.width, sourceBounds.height);
+      const aspect=rotation===90?1/sourceAspect:sourceAspect;
+      if(!sourceLayout.fits.has(aspect))sourceLayout.fits.set(aspect,largestLogoRect(sourceCells,sourceBounds,aspect,sourceBounds.width,sourceBounds.height));
+      const safeRect=sourceLayout.fits.get(aspect);
       drawRotated((sourceBounds.left + safeRect.x - bounds.left) * px, (sourceBounds.top + safeRect.y - bounds.top) * py, safeRect.width * px, safeRect.height * py);
     }
     context.restore();
   }
-  // Cell overrides are a separate editable layer above the untouched source image.
+  // Group vector overrides by colour, keeping bulk fills bounded at large counts.
+  const overrides=new Map();
   for(const cell of cells) {
-    if(!cell.transparent && !cell.color)continue;
-    context.save();polygonPath(context,cell,bounds,px,py);context.clip();
-    context.clearRect(0,0,art.width,art.height);
-    if(!cell.transparent) {context.fillStyle=cell.color;context.fillRect(0,0,art.width,art.height);}
-    context.restore();
+    if(!cell.transparent&&!cell.color)continue;
+    const key=cell.transparent?'clear':cell.color;
+    if(!overrides.has(key))overrides.set(key,[]);overrides.get(key).push(cell);
   }
+  context.setTransform(px,0,0,py,-bounds.left*px,-bounds.top*py);
+  for(const [color,group] of overrides){const path=layoutFor(group).path;context.globalCompositeOperation=color==='clear'?'destination-out':'source-over';context.fillStyle=color==='clear'?'#000':color;context.fill(path);}
+  context.resetTransform();context.globalCompositeOperation='source-over';
+  artworkCache.set(cells,{signature,image:uploadedLogo,source:sourceCells,art});
   return art;
 }
 
 function pointForCell(cell) { return new THREE.Vector3(...topology.centre(cell.id)).multiplyScalar(radius+.0006); }
-function exactCellGeometry(cell, textureCoordinates) {
-  const polygon=topology.polygon(cell.id),positions=[],uvs=[],frame=topology.frame(selectedCell?.id||designAnchor);
-  const add=p=>{positions.push(...Array.from(p,v=>v*(radius+.0006)));const local=topology.project(p,frame);uvs.push(...textureCoordinates(local.x,local.y));};
-  for(let k=0;k<polygon.length;k++){add(topology.centre(cell.id));add(polygon[k]);add(polygon[(k+1)%polygon.length]);}
-  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));return geometry;
-}
 
 function clearPlacementPreview() {
   [...previewPlacementLayers.children].forEach((child) => {
@@ -1089,15 +1178,12 @@ function addHighResolutionPlacement(color, treatment, targetLayer = placementLay
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   const material = new THREE.MeshBasicMaterial({ map: texture, toneMapped: false, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
-  const geometries = selectedCells.map((cell) => {
-    const p = centre(cell);
-    return exactCellGeometry(cell, (localX, localY) => [
-      (localX - bounds.left) / bounds.width,
-      1 - (localY - bounds.top) / bounds.height
-    ]);
-  });
-  const mergedGeometry = mergeGeometries(geometries, false);
-  geometries.forEach((geometry) => geometry.dispose());
+  const vertexCount=selectedCells.reduce((sum,cell)=>sum+topology.degrees[cell.id-1]*3,0);
+  const positions=new Float32Array(vertexCount*3),uvs=new Float32Array(vertexCount*2),frame=topology.frame(selectedCell.id);
+  let pi=0,ui=0;
+  const add=p=>{positions[pi++]=p[0]*(radius+.0006);positions[pi++]=p[1]*(radius+.0006);positions[pi++]=p[2]*(radius+.0006);const local=topology.project(p,frame);uvs[ui++]=(local.x-bounds.left)/bounds.width;uvs[ui++]=1-(local.y-bounds.top)/bounds.height;};
+  for(const cell of selectedCells){const polygon=topology.polygon(cell.id),middle=topology.centre(cell.id);for(let k=0;k<polygon.length;k++){add(middle);add(polygon[k]);add(polygon[(k+1)%polygon.length]);}}
+  const mergedGeometry=new THREE.BufferGeometry();mergedGeometry.setAttribute('position',new THREE.BufferAttribute(positions,3));mergedGeometry.setAttribute('uv',new THREE.BufferAttribute(uvs,2));
   const territory = new THREE.Mesh(mergedGeometry, material);
   territory.renderOrder = 6;
   targetLayer.add(territory);
@@ -1150,7 +1236,10 @@ document.querySelector('#previewPurchase').addEventListener('click', paintPlacem
 function resize() {
   const active = document.body.dataset.flow;
   const narrow = innerWidth <= 700 || (innerWidth <= 900 && innerHeight > innerWidth);
-  const width = active && !narrow ? innerWidth - 490 : innerWidth;
+  const designing=active==='design'&&innerWidth>1000;
+  const editorWidth=designing?document.querySelector('#buyPanel').getBoundingClientRect().width+36:0;
+  const width = designing?Math.max(200,innerWidth-editorWidth):active && !narrow ? innerWidth - 490 : innerWidth;
+  canvas.style.left=designing?`${editorWidth}px`:'0px';
   const height = narrow && (active === 'place' || active === 'review') ? Math.max(120, innerHeight - (active === 'place' ? Math.min(320,innerHeight*.48) : innerHeight*.55)) : narrow && !active ? Math.max(180,innerHeight-300) : innerHeight;
   canvas.style.top = narrow && !active ? '230px' : '0px';
   canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;

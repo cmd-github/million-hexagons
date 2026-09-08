@@ -18,6 +18,10 @@ The packed topology loads in a worker only when exact detail or interaction requ
 
 Design, Place, Review, and publication share exact polygon IDs and one placement-local gnomonic frame. Artwork is clipped to the true polygon union and retains its source aspect ratio. Placement projects a draft onto the same count through real adjacency; its outline may change near a pentagon. Placement never overwrites the editor anchor, source footprint, image, transform or cell overrides. Image fitting and drag offsets remain in the source editor frame when projected onto a destination, so relocation cannot shrink or recenter the image. Per-cell paint and transparency are applied after the source image and travel with their mapped cells.
 
+The studio caches projected cells, artwork and exact polygon-union outlines. Interior edges cancel using the frozen ring/neighbour IDs, so rasterisation scales with the boundary. Cell grid strokes and picking regions are limited to visible detail; canvas zoom/pan never changes artwork. Undo stores compact cell records with a 250,000-record budget. Relocation uses spatially indexed connected-frontier matching. Placement meshes use preallocated position/UV arrays rather than temporary geometry objects per cell.
+
+Availability suggestions abort blocked candidates during connected growth and yield between batches. A requested 100,000-cell footprint is still rejected in full if it overlaps inventory; editor capacity does not imply inventory availability.
+
 Published/sample artwork uses a six-face, six-level cube tile pyramid with 512-pixel interiors and gutters. The renderer chooses detail from projected pixel density across the complete visible surface, requests four pages concurrently, and uses cached ancestors only while target pages load. It uses crisp replacements and anisotropic filtering, without crossfading blurry parent imagery.
 
 The normal cache target is 128 pages on desktop and 64 on narrow screens, expanding when the viewport-required set plus reserve exceeds that. It scales with screen demand, not advertiser count. Close grid geometry is one bounded, incrementally rebuilt patch.
