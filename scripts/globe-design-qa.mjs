@@ -31,14 +31,24 @@ for(const mobile of [false,true]){
  await page.locator('#toPlacement').click();await page.locator('#toReview').click();
  await page.locator('#website').fill('javascript:alert(1)');await page.locator('#previewPurchase').click();assert.equal(await page.locator('#websiteError').isVisible(),true);
  await page.locator('#website').fill('https://example.com/');
+ await page.locator('#companyName').fill('Orbit Studio');await page.locator('#companyDescription').fill('Independent design for curious people.');
  await page.locator('#previewPurchase').click();await page.waitForFunction(()=>document.querySelector('#buyPanel').getAttribute('aria-hidden')==='true',null,{timeout:60000});
  const committed=await page.evaluate(()=>window.geodesicQA.state().committed);assert.ok(ids.every(id=>committed.includes(id)));
  await page.locator('#claimButton').click();await page.locator('#designStep').waitFor({state:'visible'});
  assert.equal(await page.locator('#addImageLabel').textContent(),'Add image');
  assert.equal(await page.locator('#logoOrientation').inputValue(),'0');
- await page.locator('#closeBuy').click();await page.locator('#discoverPlacement').click();
+ await page.locator('#closeBuy').click();
+ await page.locator('#toggleHexSearch').click();await page.locator('#hexSearchInput').fill('Orbit');await page.locator('#companyResults button').first().click();
  await page.locator('#placementInspector').waitFor({state:'visible'});
  assert.equal(await page.locator('#inspectorNearby').count(),0);
+ assert.equal(await page.locator('#inspectorName').textContent(),'Orbit Studio');
+ assert.equal(await page.locator('#inspectorDescription').textContent(),'Independent design for curious people.');
+ assert.match(await page.locator('#inspectorDate').textContent(),/Preview added/);
+ assert.match(await page.locator('#claimFeedItems').textContent(),/Orbit Studio/);
+ assert.equal(await page.locator('#discoverPlacement').count(),0);
+ await page.locator('#pinInspector').click();await page.mouse.click(8,100);assert.equal(await page.locator('#placementInspector').isVisible(),true);
+ await page.locator('#pinInspector').click();await page.mouse.click(8,100);assert.equal(await page.locator('#placementInspector').isVisible(),false);
+ await page.locator('#toggleHexSearch').click();await page.locator('#hexSearchInput').fill('Orbit');await page.locator('#companyResults button').first().click();
  await page.waitForTimeout(1500);await page.screenshot({path:'artifacts/globe-design/'+mobile+'-inspect.png'});
  await page.close();
 }

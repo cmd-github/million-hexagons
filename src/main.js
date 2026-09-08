@@ -221,7 +221,7 @@ updateInventoryDisplay();
 
 function cellForId(id) {
   const occupied = occupiedCells[id - 1] === 255, placement=sessionPlacements.get(id),campaign=bootstrap.sampleCampaigns?.[sampleOwners[id-1]-1];
-  return { id, occupied, pentagon: topology.degrees[id-1]===5, owner: placement?'Your placement':campaign?.name||(occupied?'Sample placement':'Available'), destination:placement?.website||campaign?.url||'' };
+  return { id, occupied, pentagon: topology.degrees[id-1]===5, owner: placement?(placement.name||'Your placement'):campaign?.name||(occupied?'Sample placement':'Available'), destination:placement?.website||campaign?.url||'' };
 }
 function intersect(event) {
   if(!topology){if(camera.position.length()<radius+2)void ensureTopology();return null;}
@@ -235,6 +235,7 @@ function intersect(event) {
 
 function updateTooltip(event, cell, pinned = false) {
   document.querySelector('#cellOwner').textContent = cell.owner;
+  document.querySelector('#cellNumber').textContent = '#'+cell.id.toLocaleString();
   const destination=document.querySelector('#cellDestination');
   destination.hidden=!cell.destination;
   destination.textContent=cell.destination?new URL(cell.destination).hostname.replace(/^www\./,''):'';
@@ -387,7 +388,7 @@ canvas.addEventListener('pointermove', (event) => {
     return;
   }
   const cell = hit.cell;
-  if (!selecting) { clearTimeout(hoverTimer);tooltip.classList.remove('show');if(!event.buttons&&!controls.autoRotate)hoverTimer=setTimeout(()=>updateTooltip(event,cell),250);return;}
+  if (!selecting) { clearTimeout(hoverTimer);tooltip.classList.remove('show');if(!event.buttons&&camera.position.length()<=radius+.8)hoverTimer=setTimeout(()=>updateTooltip(event,cell),250);return;}
   if (buyInteractionMode !== 'place') {
     clearHover();
     tooltip.classList.remove('show');
@@ -439,6 +440,7 @@ async function openBuy(anchor = null) {
   panel.classList.add('open');
   panel.setAttribute('aria-hidden', 'false');
   panel.scrollTop = 0;
+  for(const id of ['companyName','companyDescription','website'])document.getElementById(id).value='';
   uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;draftArtwork=null;
   document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();
   document.querySelector('#brandColor').value='#5967b0';document.querySelector('#logoTreatment').value='span';document.querySelector('#areaBrush').value='0';document.querySelector('#areaBrushValue').textContent='1 cell';showUploadMessage('');document.querySelector('#uploadStatus').hidden=true;
@@ -498,11 +500,12 @@ document.querySelector('#zoomOut').addEventListener('click', () => {
   zoom.change(1.25);
 });
 document.querySelector('#homeView').addEventListener('click', () => {
-  zoom.cancel();cameraDistanceTarget=null;
-  controls.autoRotate = false;
-  const fit = globeFitDistance();
-  camera.position.set(0, fit * .018, fit);
-  controls.target.set(0, 0, 0);
+  zoom.cancel();cameraDistanceTarget=null;demoTour.stop();closeInspector(true);showHexSearch(false);
+  controls.autoRotate=false;controls.target.set(0,0,0);
+  const token=++flightVersion,from=camera.position.clone(),fit=globeFitDistance(),to=new THREE.Vector3(0,fit*.018,fit),began=performance.now();
+  const duration=matchMedia('(prefers-reduced-motion: reduce)').matches?0:1100;
+  const travel=now=>{if(token!==flightVersion)return;const t=duration?Math.min(1,(now-began)/duration):1;camera.position.lerpVectors(from,to,1-Math.pow(1-t,3));if(t<1)requestAnimationFrame(travel);else{controls.autoRotate=true;updateRotationControl();}};
+  requestAnimationFrame(travel);
 });
 
 const hexSearch = document.querySelector('#hexSearch');
@@ -520,7 +523,8 @@ hexSearch.addEventListener('submit', async (event) => {
   const match = hexSearchInput.value.trim().match(/^#?([0-9]{1,7})$/);
   const id = match ? Number(match[1]) : 0;
   if (id < 1 || id > CELL_COUNT) {
-    hexSearchStatus.textContent = 'Use a hex number from 1 to 1,000,000.';
+    renderCompanyResults();
+    hexSearchStatus.textContent = document.querySelector('#companyResults').childElementCount?'Choose a company below.':'No company found. Try a name or hex number from 1 to 1,000,000.';
     hexSearchInput.setAttribute('aria-invalid', 'true');
     return;
   }
@@ -528,7 +532,8 @@ hexSearch.addEventListener('submit', async (event) => {
   const cell = cellForId(id);
   controls.autoRotate = false;
   cameraDistanceTarget = null;
-  orientToCell(id, radius + .82);
+  orientToCell(id, radius + .3);
+  if(cell.occupied)inspectPlacement(id);
   hoverCellUniform.value = cell.id - 1;
   hexSearchInput.removeAttribute('aria-invalid');
   hexSearchStatus.textContent = `Centred on ${cell.pentagon ? 'pentagon' : 'hex'} #${id.toLocaleString()}.`;
@@ -878,7 +883,8 @@ document.querySelector('#logoScale').addEventListener('input', () => { document.
 for(const [id,mode] of [['moveImageMode','move'],['editHexMode','hex'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan'],['colourBrush','paint'],['eraseCells','transparent'],['restoreCells','restore']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode));
 document.querySelector('#brushColor').addEventListener('input',()=>{document.querySelector('#paintColourChip').style.background=document.querySelector('#brushColor').value;});
 document.querySelector('#fillCells').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;rememberPaint();logoCells=previewCells().map(c=>({...c,color:document.querySelector('#brushColor').value,transparent:false}));footprintEdited=true;drawDesignPreview();});
-document.querySelector('#removeImage').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();});
+document.querySelector('#removeImage').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;for(const id of ['companyName','companyDescription','website'])document.getElementById(id).value='';
+  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();});
 function resetLogoTransform() {
   document.querySelector('#logoScale').value = 100;
   document.querySelector('#logoScaleValue').textContent = '100%';
@@ -1259,8 +1265,9 @@ async function paintPlacement() {
   }
   clearPlacementPreview();
   const sum=cells.reduce((vector,cell)=>vector.add(new THREE.Vector3(...topology.centre(cell.id))),new THREE.Vector3()).normalize();
-  const placementRecord={website,count:amount,anchor:cells.reduce((best,cell)=>sum.dot(new THREE.Vector3(...topology.centre(cell.id)))>sum.dot(new THREE.Vector3(...topology.centre(best.id)))?cell:best,cells[0]).id};
+  const placementRecord={website,name:document.querySelector('#companyName').value.trim().slice(0,60),description:document.querySelector('#companyDescription').value.trim().slice(0,160),createdAt:Date.now(),count:amount,anchor:cells.reduce((best,cell)=>sum.dot(new THREE.Vector3(...topology.centre(cell.id)))>sum.dot(new THREE.Vector3(...topology.centre(best.id)))?cell:best,cells[0]).id};
   cells.forEach((cell) => { occupiedCells[cell.id - 1] = 255; sessionPlacements.set(cell.id,placementRecord); });
+  renderClaimFeed();
   occupancyTexture.needsUpdate = true;
   sold = Math.min(1000000, sold + amount);
   updateInventoryDisplay();
@@ -1291,7 +1298,7 @@ resize();
 frameGlobe(true);
 
 async function createTourStops(){
-  const grid=await ensureTopology(),sessionAreas=[...new Set(sessionPlacements.values())].map((placement,index)=>({anchor:placement.anchor,name:'Your placement',key:`session-${index}`}));
+  const grid=await ensureTopology(),sessionAreas=[...new Set(sessionPlacements.values())].map((placement,index)=>({anchor:placement.anchor,name:placement.name||'Your placement',key:`session-${index}`}));
   const candidates=[...(bootstrap.sampleAreas||[]).map((area,index)=>({anchor:area.anchor,name:bootstrap.sampleCampaigns[area.campaign].name,key:`sample-${index}`})),...sessionAreas]
     .filter(area=>occupiedCells[area.anchor-1]);
   if(!candidates.length)return [
@@ -1314,14 +1321,14 @@ async function createTourStops(){
   if(selected.length>1)detailSlots.add((firstDetail+1+Math.floor(Math.random()*(selected.length-1)))%selected.length);
   return selected.map((area,index)=>({id:area.anchor,name:area.name,normal:Array.from(grid.centre(area.anchor)),angle:.012,detail:detailSlots.has(index)||Math.random()<.35,offset:(Math.random()-.5)*.07}));
 }
-const demoTour=createDemoTour({camera,globe,controls,radius,button:document.querySelector('#demoTour'),wideDistance:globeFitDistance,cancelZoom(){zoom.cancel();cameraDistanceTarget=null;},loadStops:createTourStops,prepareDetail(){void ensureTopology().catch(()=>{});},timeScale:import.meta.env.DEV&&new URLSearchParams(location.search).has('tourFast')?.005:1});
+const demoTour=createDemoTour({camera,globe,controls,radius,button:document.querySelector('#demoTour'),wideDistance:globeFitDistance,cancelZoom(){zoom.cancel();cameraDistanceTarget=null;},loadStops:createTourStops,onStop(place,phase){if(phase==='approach'&&place.id)inspectPlacement(place.id);else if(phase==='travel')closeInspector(true);},prepareDetail(){void ensureTopology().catch(()=>{});},timeScale:import.meta.env.DEV&&new URLSearchParams(location.search).has('tourFast')?.005:1});
 const rotationToggle=document.querySelector('#rotationToggle');
 let displayedRotationState=null;
 function updateRotationControl(){
   const rotating=controls.autoRotate&&!demoTour.active;
   if(rotating===displayedRotationState)return;
   displayedRotationState=rotating;
-  rotationToggle.textContent=rotating?'⏸':'⟳';
+  rotationToggle.innerHTML=rotating?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 8C16 4 3 6 3 12s14 8 18 1M15 8h5V3"/></svg>';
   rotationToggle.setAttribute('aria-pressed',String(rotating));
   rotationToggle.setAttribute('aria-label',rotating?'Pause globe rotation':'Start globe rotation');
   rotationToggle.title=rotating?'Pause globe rotation':'Start globe rotation';
@@ -1434,7 +1441,8 @@ canvas.addEventListener('pointermove',event=>{
   }else{const hit=intersect(event);if(hit)editGlobeCell(hit.cell.id);}
 });
 for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>globeStroke=null);
-let inspectedId=null, inspectedCells=[];
+let inspectedId=null, inspectedCells=[], hudPinned=false;
+const linkClicks=new Map();
 function inspectPlacement(id){
   inspectedId=id;document.body.classList.add('inspecting');resize();pinnedCell=null;tooltip.classList.remove('show','pinned');
   const cell=cellForId(id),record=sessionPlacements.get(id),panel=document.querySelector('#placementInspector');
@@ -1447,7 +1455,12 @@ function inspectPlacement(id){
     if(record?sessionPlacements.get(next)===record:owner&&sampleOwners[next-1]===owner)queue.push(next);
   }
   inspectedCells=queue;
-  if(!record)document.querySelector('#inspectorInfo').textContent=queue.length.toLocaleString()+' connected sample cells. Example brand placement.';
+  document.querySelector('#inspectorInfo').textContent=(record?.count||queue.length).toLocaleString()+' hexagons';
+  document.querySelector('#inspectorDate').textContent=record?'Preview added '+new Date(record.createdAt).toLocaleDateString('en-GB'):'Sample placement - not a paid claim';
+  document.querySelector('#inspectorDescription').textContent=record?.description||'';
+  document.querySelector('#inspectorDescription').hidden=!record?.description;
+  document.querySelector('#inspectorHex').textContent='Hex #'+id.toLocaleString();
+  renderLinkClicks();
   clearSelectionColours();for(const cellId of queue)writeCellColour(selectionColourData,{id:cellId},'#d7ff55');
   selectionColourTexture.needsUpdate=true;selectionModeUniform.value=1;
   const nearby=document.querySelector('#nearbyPlacements');nearby.replaceChildren();
@@ -1459,7 +1472,42 @@ function inspectPlacement(id){
   for(const area of areas){const button=document.createElement('button');button.textContent=bootstrap.sampleCampaigns[area.campaign].name;button.onclick=()=>{inspectPlacement(area.anchor);viewInspectedPlacement();};nearby.append(button);}
   document.querySelector('#inspectorStatus').textContent='';panel.hidden=false;controls.autoRotate=false;
 }
-document.querySelector('#closeInspector').onclick=()=>{document.querySelector('#placementInspector').hidden=true;document.body.classList.remove('inspecting');resize();clearSelectionColours();selectionModeUniform.value=0;};
+function closeInspector(force=false){
+  if(hudPinned&&!force)return;
+  document.querySelector('#placementInspector').hidden=true;document.body.classList.remove('inspecting');resize();
+  if(!document.body.classList.contains('creating')){clearSelectionColours();selectionModeUniform.value=0;}
+}
+document.querySelector('#pinInspector').onclick=event=>{hudPinned=!hudPinned;event.currentTarget.setAttribute('aria-pressed',String(hudPinned));event.currentTarget.textContent=hudPinned?'HUD pinned':'Pin HUD';};
+document.addEventListener('pointerdown',event=>{
+  if(!hexSearch.contains(event.target))showHexSearch(false);
+  if(!event.target.closest('#placementInspector,#hexSearch,#claimFeed'))closeInspector();
+  if(!tooltip.contains(event.target)){pinnedCell=null;tooltip.classList.remove('show','pinned');}
+});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeInspector(true);showHexSearch(false);tooltip.classList.remove('show','pinned');}});
+function renderLinkClicks(){document.querySelector('#inspectorClicks').textContent=(linkClicks.get(cellForId(inspectedId).destination)||0)+' link clicks this session';}
+for(const type of ['click','auxclick'])document.querySelector('#inspectorVisit').addEventListener(type,event=>{
+  if(type==='auxclick'&&event.button!==1)return;
+  const url=cellForId(inspectedId).destination;linkClicks.set(url,(linkClicks.get(url)||0)+1);renderLinkClicks();
+});
+function companyEntries(){return [...bootstrap.sampleAreas.map(area=>({id:area.anchor,name:bootstrap.sampleCampaigns[area.campaign].name,sample:true})),...[...new Set(sessionPlacements.values())].map(record=>({id:record.anchor,name:record.name||'Your placement'}))];}
+function renderCompanyResults(){
+  const target=document.querySelector('#companyResults'),query=hexSearchInput.value.trim().toLowerCase();target.replaceChildren();
+  if(!query||/^#?\d+$/.test(query))return;
+  for(const entry of companyEntries().filter(entry=>entry.name.toLowerCase().includes(query)).slice(0,8)){
+    const button=document.createElement('button');button.type='button';button.textContent=entry.name+(entry.sample?' - sample':' - session');
+    button.onclick=async()=>{await ensureTopology();inspectPlacement(entry.id);viewInspectedPlacement();showHexSearch(false);};target.append(button);
+  }
+}
+hexSearchInput.addEventListener('input',()=>{hexSearchInput.removeAttribute('aria-invalid');renderCompanyResults();});
+function renderClaimFeed(){
+  const target=document.querySelector('#claimFeedItems');target.replaceChildren();
+  for(const record of [...new Set(sessionPlacements.values())].sort((a,b)=>b.createdAt-a.createdAt).slice(0,5)){
+    const button=document.createElement('button');button.textContent=new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})+' - '+record.count.toLocaleString()+' hexagons added by '+(record.name||'You');
+    button.onclick=()=>{inspectPlacement(record.anchor);viewInspectedPlacement();};target.append(button);
+  }
+}
+if(innerWidth>900)document.querySelector('#claimFeed').open=true;
+
 function viewInspectedPlacement(){
   const middle=new THREE.Vector3(...topology.centre(inspectedId));
   const halfVertical=THREE.MathUtils.degToRad(camera.fov)/2;
@@ -1471,15 +1519,11 @@ function viewInspectedPlacement(){
   }
   orientToCell(inspectedId,distance);
 }
-document.querySelector('#inspectorView').onclick=viewInspectedPlacement;
+
 document.querySelector('#inspectorShare').onclick=async()=>{
   const url=new URL(location.href);url.hash='cell='+inspectedId;
   try{await navigator.clipboard.writeText(url.href);document.querySelector('#inspectorStatus').textContent='Location copied. Session artwork is not shared.';}
   catch{document.querySelector('#inspectorStatus').textContent=url.href;}
-};
-document.querySelector('#discoverPlacement').onclick=async()=>{
-  await ensureTopology();const areas=bootstrap.sampleAreas,area=areas[Math.floor(Math.random()*areas.length)];
-  inspectPlacement(area.anchor);viewInspectedPlacement();
 };
 async function openLocationLink(){
   const match=location.hash.match(/^#cell=(\d+)$/);if(!match)return;

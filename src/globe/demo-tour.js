@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export function createDemoTour({camera,globe,controls,radius,button,wideDistance,cancelZoom,loadStops,prepareDetail=()=>{},timeScale=1}) {
+export function createDemoTour({camera,globe,controls,radius,button,wideDistance,cancelZoom,loadStops,prepareDetail=()=>{},onStop=()=>{},timeScale=1}) {
   let active=false,loading=false,stops=null,index=0,phase=0,elapsed=0,last=0,segment=null,generation=0,batch=0;
   const normalRoute=[['travel',7],['approach',5],['pass',7],['pullback',5]];
   const detailRoute=[['travel',7],['approach',5],['pass',4],['dive',7],['hexagons',6],['pullback',7]];
@@ -27,6 +27,7 @@ export function createDemoTour({camera,globe,controls,radius,button,wideDistance
     const distance=detail?Math.max(controls.minDistance,radius+.24):step==='travel'||step==='pullback'?wideDistance():step==='approach'?close:Math.min(wideDistance(),close+(close-radius)*.35);
     const offset=(step==='approach'?.08:step==='pass'?-.12:step==='hexagons'?.025:0)+(place.offset||0);
     segment={from:camera.position.clone(),to:new THREE.Vector3(offset*(distance-radius),step==='pass'?(distance-radius)*.04:0,distance),fromQ:globe.quaternion.clone(),toQ:orientation};
+    onStop(place,step);
     button.dataset.stop=place.name;button.dataset.cell=place.id||'';button.dataset.phase=step;
   }
   async function start(){

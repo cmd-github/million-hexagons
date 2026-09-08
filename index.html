@@ -53,16 +53,16 @@
     <div class="hint" id="hint"><span>DRAG TO ROTATE</span><i></i><span>SCROLL TO ZOOM</span><i></i><span>CLICK A TILE</span></div>
     <nav class="globe-controls glass" aria-label="Globe controls">
       <button type="button" id="rotationToggle" aria-pressed="true" aria-label="Pause globe rotation" title="Pause globe rotation">⏸</button>
-      <button type="button" id="discoverPlacement" aria-label="Discover a random placement" title="Discover a placement">&#10022;</button><button type="button" id="demoTour" aria-pressed="false" aria-label="Start globe tour" title="Start globe tour">✈</button>
+      <button type="button" id="demoTour" aria-pressed="false" aria-label="Start globe tour" title="Start globe tour">✈</button>
       <form class="hex-search" id="hexSearch" role="search">
-        <button type="button" id="toggleHexSearch" aria-label="Find a hexagon" aria-expanded="false">⌕</button>
-        <div id="hexSearchPanel" hidden><label for="hexSearchInput">Find a hexagon</label><span><input id="hexSearchInput" inputmode="numeric" autocomplete="off" placeholder="#1" aria-describedby="hexSearchStatus"><button type="submit" aria-label="Go to hexagon">Go</button></span><small id="hexSearchStatus" role="status">Enter a number from 1 to 1,000,000.</small></div>
+        <button type="button" id="toggleHexSearch" aria-label="Find company or hex" aria-expanded="false">⌕</button>
+        <div id="hexSearchPanel" hidden><label for="hexSearchInput">Find company or hex</label><span><input id="hexSearchInput" autocomplete="off" placeholder="Company or #123" aria-describedby="hexSearchStatus"><button type="submit" aria-label="Go to hexagon">Go</button></span><div id="companyResults"></div><small id="hexSearchStatus" role="status">Search a company or hex number.</small></div>
       </form>
       <button id="zoomIn" aria-label="Zoom in">+</button><button id="zoomOut" aria-label="Zoom out">−</button><button id="homeView" aria-label="Re-centre globe">⌂</button>
     </nav>
-    <div class="cell-tooltip glass" id="cellTooltip"><b id="cellOwner">Available</b><small id="cellDestination" hidden></small><button type="button" id="claimCell" hidden>Claim this space</button></div>
+    <div class="cell-tooltip glass" id="cellTooltip"><small id="cellNumber"></small><b id="cellOwner">Available</b><small id="cellDestination" hidden></small><button type="button" id="claimCell" hidden>Claim this space</button></div>
 
-    <aside id="placementInspector" class="glass" hidden aria-label="Placement details"><button id="closeInspector" aria-label="Close placement details">&times;</button><p class="eyebrow">EXPLORE THE GLOBE</p><h2 id="inspectorName"></h2><p id="inspectorInfo"></p><a id="inspectorVisit" target="_blank" rel="noopener noreferrer">Visit website &#8599;</a><button id="inspectorView">View placement</button><button id="inspectorShare">Copy location link</button><details><summary>Explore nearby</summary><div id="nearbyPlacements"></div></details><small id="inspectorStatus" role="status"></small></aside><section class="buy-panel glass" id="buyPanel" aria-hidden="true" inert aria-label="Placement studio">
+    <aside id="placementInspector" class="glass" hidden aria-label="Placement details"><button id="pinInspector" aria-pressed="false" title="Keep details open when exploring">Pin HUD</button><h2 id="inspectorName"></h2><p id="inspectorInfo"></p><p id="inspectorDate"></p><p id="inspectorDescription"></p><small id="inspectorClicks"></small><small id="inspectorHex"></small><a id="inspectorVisit" target="_blank" rel="noopener noreferrer">Visit website &#8599;</a><small class="link-hint">Ctrl / Cmd + click to open in the background</small><button id="inspectorShare">Copy location link</button><details><summary>Explore nearby</summary><div id="nearbyPlacements"></div></details><small id="inspectorStatus" role="status"></small></aside><details id="claimFeed" class="glass"><summary>Latest activity <span>Session previews</span></summary><div id="claimFeedItems">Your new previews will appear here.</div></details><section class="buy-panel glass" id="buyPanel" aria-hidden="true" inert aria-label="Placement studio">
       <button class="close" id="closeBuy" aria-label="Close">×</button>
       <p class="eyebrow">PLACEMENT STUDIO</p>
       <div class="flow-progress" aria-label="Creation progress"><i class="active">1</i><span></span><i>2</i><span></span><i>3</i><small>Design</small><small>Place</small><small>Review</small></div>
@@ -111,7 +111,7 @@
         <p class="panel-intro">Your exact design, in its chosen place. Take a look around before adding it.</p>
         <div class="review-card"><canvas id="reviewCanvas" width="680" height="400"></canvas><div><span id="reviewKind">Logo placement</span><b id="reviewCount">150 hexagons</b></div></div>
         <button class="text-button" id="reviewEditDesign">Edit artwork &amp; size</button><p class="review-warning" id="reviewWarning" hidden></p>
-        <label>Website to open when clicked <span class="optional">Optional</span><input id="website" type="url" placeholder="https://yourcompany.com" /></label>
+        <label>Company name <span class="optional">Optional</span><input id="companyName" maxlength="60" placeholder="Your company" /></label><label>Company description <span class="optional">Optional &middot; 160 characters</span><textarea id="companyDescription" maxlength="160" rows="2" placeholder="A little about your company"></textarea></label><label>Website to open when clicked <span class="optional">Optional</span><input id="website" type="url" placeholder="https://yourcompany.com" /></label>
         <p id="websiteError" role="alert" hidden></p><div class="review-footer"><div class="price review-price"><span>Total</span><b id="reviewPrice">$150</b><small>$1 per cell · one-time</small></div>
         <button class="primary full" id="previewPurchase">Add this preview to the globe</button>
         <small class="mock-note">Prototype checkout — no payment will be taken.</small></div>
