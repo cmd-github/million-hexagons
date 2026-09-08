@@ -6,8 +6,28 @@
     <meta name="theme-color" content="#050b14" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Million Hexagons — Own a piece of the world</title>
+    <style>
+      html,body{margin:0;background:#050b14}
+      body.booting>:not(#appLoading):not(script){visibility:hidden}
+      #appLoading{position:fixed;inset:0;z-index:1000;display:grid;place-content:center;justify-items:center;gap:18px;background:#050b14;color:#d4ff58;font:13px system-ui,sans-serif}
+      #appLoading[hidden]{display:none}
+      #appLoading[data-context=editor]{background:#050b14dd;backdrop-filter:blur(8px)}
+      .loading-hex{width:60px;height:60px;overflow:visible;filter:drop-shadow(0 0 12px #d4ff5833)}
+      .loading-hex polygon{fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}
+      .loading-hex .hex-trail{stroke-dasharray:38 130;animation:hex-trace 1.6s linear infinite}
+      .loading-hex .hex-core{fill:currentColor;stroke:none;transform-origin:30px 30px;animation:hex-breathe 1.6s ease-in-out infinite}
+      #loadingError{max-width:260px;margin:0;text-align:center;color:#c3d0d4}
+      #loadingRetry{border:1px solid #d4ff5866;border-radius:9px;padding:9px 18px;background:#d4ff5815;color:#d4ff58;cursor:pointer}
+      @keyframes hex-trace{to{stroke-dashoffset:-168}}
+      @keyframes hex-breathe{50%{opacity:.4;transform:scale(.8)}}
+      @media(prefers-reduced-motion:reduce){.loading-hex .hex-trail,.loading-hex .hex-core{animation:none}}
+    </style>
   </head>
-  <body>
+  <body class="booting" aria-busy="true">
+    <div id="appLoading" role="status" aria-label="Loading Million Hexagons">
+      <svg class="loading-hex" viewBox="0 0 60 60" aria-hidden="true"><polygon points="30,3 54,16.5 54,43.5 30,57 6,43.5 6,16.5" opacity=".15"/><polygon class="hex-trail" points="30,3 54,16.5 54,43.5 30,57 6,43.5 6,16.5"/><polygon class="hex-core" points="30,21 38,25.5 38,34.5 30,39 22,34.5 22,25.5"/></svg>
+      <p id="loadingError" hidden></p><button id="loadingRetry" hidden onclick="location.reload()">Try again</button>
+    </div>
     <canvas id="world" aria-label="Interactive advertising globe. Drag to rotate; use the zoom controls to explore."></canvas>
     <div class="demo-badge">EXPERIENCE PREVIEW <span>No payments &middot; sample brands</span></div>
     <header class="topbar">
@@ -99,6 +119,16 @@
     </section>
 
     <div class="toast glass" id="toast" role="status"><b>Welcome to the world.</b><span>Your preview is on the globe for this session.</span><a id="placementWebsite" hidden target="_blank" rel="noopener noreferrer">Visit website</a><button id="dismissToast" aria-label="Dismiss confirmation">&times;</button></div>
-    <script type="module" src="/src/main.js"></script>
+    <script type="module">
+      import('/src/main.js').catch(() => {
+        const loader=document.querySelector('#appLoading');
+        loader.hidden=false;
+        loader.querySelector('svg').style.display='none';
+        document.querySelector('#loadingError').hidden=false;
+        document.querySelector('#loadingError').textContent='Could not load the globe. Please try again.';
+        document.querySelector('#loadingRetry').hidden=false;
+        document.body.setAttribute('aria-busy','false');
+      });
+    </script>
   </body>
 </html>

@@ -12,11 +12,20 @@ import './studio.css';
 
 const canvas = document.querySelector('#world');
 document.querySelector('#claimButton').disabled = true;
-const loading = document.createElement('div');
-loading.textContent = 'Loading the canvas…';
-loading.setAttribute('role', 'status');
-loading.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);color:#d4ff58;z-index:20;font:16px sans-serif';
-document.body.append(loading);
+const loading = document.querySelector('#appLoading');
+let openingEditor=false;
+function showLoading(){
+  loading.dataset.context='editor';loading.hidden=false;
+  loading.setAttribute('aria-label','Preparing your editor');
+  loading.querySelector('svg').style.display='';
+  document.querySelector('#loadingError').hidden=true;document.querySelector('#loadingRetry').hidden=true;
+  document.body.setAttribute('aria-busy','true');
+}
+function hideLoading(){
+  loading.hidden=true;document.body.classList.remove('booting');
+  document.body.setAttribute('aria-busy','false');
+}
+const nextPaint=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
 renderer.setSize(innerWidth, innerHeight);
@@ -36,7 +45,7 @@ async function ensureTopology() {
     topology=value;
     cellDetail=createCellDetail(topology,globe,radius,{occupancy:occupancyTexture,selection:selectionColourTexture},selectionModeUniform,hoverCellUniform);
     return topology;
-  }).catch(error=>{topologyPromise=null;loading.textContent=error.message;throw error;});
+  }).catch(error=>{topologyPromise=null;throw error;});
   return topologyPromise;
 }
 const textureColumns = 1024, textureRows = 977;
@@ -399,10 +408,16 @@ canvas.addEventListener('pointercancel', stopPainting);
 canvas.addEventListener('pointerleave', () => { clearTimeout(hoverTimer); if (!painting) clearHover(); if(!pinnedCell)tooltip.classList.remove('show'); });
 
 async function openBuy(anchor = null) {
-  if(publishing)return;
+  if(publishing||openingEditor)return;
+  openingEditor=true;showLoading();await nextPaint();
   document.body.classList.remove('inspecting');document.querySelector('#placementInspector').hidden=true;
   document.querySelector('#toast').classList.remove('show');
-  if(!topology){loading.textContent='Preparing exact cell selection…';document.body.append(loading);try{await ensureTopology();}catch{return;}loading.remove();}
+  try{await ensureTopology();}catch{
+    hideLoading();openingEditor=false;
+    const toast=document.querySelector('#toast');toast.querySelector('b').textContent='Editor unavailable';
+    toast.querySelector('span').textContent='Please try Create a placement again.';document.querySelector('#placementWebsite').hidden=true;toast.classList.add('show');
+    return;
+  }
   selecting = false;
   selectionModeUniform.value = 0;
   controls.autoRotate = false;
@@ -442,6 +457,7 @@ async function openBuy(anchor = null) {
   exactGlobeArea=true;designSurface='globe';document.body.dataset.surface='globe';
   configureCreation();setDesignSurface('globe');
   if(!requestedAnchor)orientToCell(designAnchor,radius+.3);
+  await nextPaint();hideLoading();openingEditor=false;
 
 }
 function closeBuy() {
@@ -1329,7 +1345,7 @@ function animate() {
   renderer.render(scene, camera);
 }
 animate();
-loading.remove();
+await nextPaint();hideLoading();
 document.querySelector('#claimButton').disabled = false;
 canvas.dataset.ready = 'true';
 
