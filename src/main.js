@@ -103,7 +103,9 @@ for (let i = 0; i < 950; i += 1) {
 }
 const starGeometry = new THREE.BufferGeometry();
 starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(stars, 3));
-scene.add(new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xb7dce7, size: .035, transparent: true, opacity: .55 })));
+const starArt=document.createElement('canvas');starArt.width=32;starArt.height=32;const starContext=starArt.getContext('2d');starContext.strokeStyle='#ffffff';starContext.lineWidth=2;starContext.beginPath();for(let i=0;i<6;i++){const angle=i*Math.PI/3;const x=16+12*Math.cos(angle),y=16+12*Math.sin(angle);if(i)starContext.lineTo(x,y);else starContext.moveTo(x,y);}starContext.closePath();starContext.stroke();
+const starTexture=new THREE.CanvasTexture(starArt);
+scene.add(new THREE.Points(starGeometry,new THREE.PointsMaterial({map:starTexture,color:0xd7ff55,size:.11,transparent:true,opacity:.18,depthWrite:false})));
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
@@ -114,7 +116,7 @@ controls.rotateSpeed = .42;
 controls.zoomSpeed = .28;
 const zoom = smoothZoom(canvas,camera,controls,radius,()=>{cameraDistanceTarget=null;});
 controls.autoRotate = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-controls.autoRotateSpeed = .22;
+controls.autoRotateSpeed = -.22;
 const reducedMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 const cameraFlight=createCameraFlight(camera,globe,controls,reducedMotion);
 for(const event of ['pointerdown','wheel','keydown'])document.addEventListener(event,()=>cameraFlight.cancel(),{capture:true,passive:true});
@@ -497,8 +499,12 @@ document.querySelector('#claimCell').addEventListener('click', (event) => {
   if(anchor)openBuy(anchor);
 });
 document.querySelector('#closeBuy').addEventListener('click', closeBuy);
-document.querySelector('#rotationToggle').addEventListener('click', () => { controls.autoRotate = !controls.autoRotate; updateRotationControl(); });
-for(const [id,direction] of [['rotateLeft',-1],['rotateRight',1]])document.getElementById(id).onclick=()=>{controls.autoRotateSpeed=direction*.22;controls.autoRotate=true;updateRotationControl();};
+let rotationCycle=0;
+document.querySelector('#rotationToggle').addEventListener('click',()=>{
+  if(controls.autoRotate){rotationCycle=controls.autoRotateSpeed<0?1:3;controls.autoRotate=false;}
+  else {rotationCycle=rotationCycle===1?2:0;controls.autoRotateSpeed=rotationCycle===0?-.22:.22;controls.autoRotate=true;}
+  updateRotationControl();
+});
 document.querySelector('.brand').addEventListener('click',event=>{event.preventDefault();if(document.body.classList.contains('creating'))closeBuy();document.querySelector('#homeView').click();});
 document.querySelector('#zoomIn').addEventListener('click', () => {
   zoom.change(.8);
@@ -1339,11 +1345,11 @@ let displayedRotationState=null;
 function updateRotationControl(){
   const rotating=controls.autoRotate&&!demoTour.active;
   const state=String(rotating)+Math.sign(controls.autoRotateSpeed);if(state===displayedRotationState)return;displayedRotationState=state;
-  document.querySelector('#rotateLeft').setAttribute('aria-pressed',String(rotating&&controls.autoRotateSpeed<0));document.querySelector('#rotateRight').setAttribute('aria-pressed',String(rotating&&controls.autoRotateSpeed>0));
-  rotationToggle.textContent=rotating?'\u23f8':'\u25b6';
+  rotationToggle.textContent=rotating?(controls.autoRotateSpeed<0?'\u21ba':'\u21bb'):'\u23f8';
   rotationToggle.setAttribute('aria-pressed',String(rotating));
-  rotationToggle.setAttribute('aria-label',rotating?'Pause globe rotation':'Start globe rotation');
-  rotationToggle.title=rotating?'Pause globe rotation':'Start globe rotation';
+  const next=rotating?'Pause globe rotation':rotationCycle===1?'Rotate globe right':'Rotate globe left';
+  rotationToggle.setAttribute('aria-label',next);rotationToggle.title=next;
+
 }
 function animate() {
   requestAnimationFrame(animate);
@@ -1479,7 +1485,7 @@ function inspectPlacement(id){
   }
   inspectedCells=queue;
   document.querySelector('#inspectorInfo').textContent=(record?.count||queue.length).toLocaleString()+' hexagons';
-  document.querySelector('#inspectorDate').textContent=record?'Added '+new Date(record.createdAt).toLocaleDateString('en-GB'):'Example claim 08/09/26';
+  document.querySelector('#inspectorDate').textContent='Claimed: '+(record?new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'}):'08/08/26');
   document.querySelector('#inspectorDescription').textContent=record?.description||'';
   document.querySelector('#inspectorDescription').hidden=!record?.description;
 
@@ -1509,7 +1515,7 @@ document.addEventListener('pointerdown',event=>{
   if(!tooltip.contains(event.target)){pinnedCell=null;tooltip.classList.remove('show','pinned');}
 });
 document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeInspector(true);showHexSearch(false);tooltip.classList.remove('show','pinned');}});
-function renderLinkClicks(){const value=linkClicks[cellForId(inspectedId).destination],sample=!sessionPlacements.has(inspectedId),visits=(Number.isSafeInteger(value)&&value>=0?value:0)+(sample?328:0);document.querySelector('#inspectorClicks').textContent=visits.toLocaleString()+' visits';if(sample)document.querySelector('#inspectorAudience').textContent='Example: 12,429 views \u00b7 '+(visits/12429*100).toFixed(2)+'% visit rate';}
+function renderLinkClicks(){const value=linkClicks[cellForId(inspectedId).destination],sample=!sessionPlacements.has(inspectedId),visits=(Number.isSafeInteger(value)&&value>=0?value:0)+(sample?328:0);document.querySelector('#inspectorClicks').textContent=visits.toLocaleString()+' visits';if(sample)document.querySelector('#inspectorAudience').textContent='12,429 views \u00b7 '+(visits/12429*100).toFixed(2)+'% visit rate';}
 for(const id of ['inspectorVisit','placementWebsite'])for(const type of ['click','auxclick'])document.getElementById(id).addEventListener(type,event=>{
   if(type==='auxclick'&&event.button!==1)return;
   const url=event.currentTarget.href;const current=linkClicks[url];linkClicks[url]=(Number.isSafeInteger(current)&&current>=0?current:0)+1;try{localStorage.setItem(clickStorageKey,JSON.stringify(linkClicks));}catch{}if(inspectedId)renderLinkClicks();
@@ -1526,13 +1532,13 @@ function renderCompanyResults(){
 hexSearchInput.addEventListener('input',()=>{hexSearchInput.removeAttribute('aria-invalid');hexSearchStatus.textContent='';renderCompanyResults();});
 function renderClaimFeed(){
   const target=document.querySelector('#claimFeedItems');target.replaceChildren();
-  document.querySelector('#claimFeed summary span').textContent=sessionPlacements.size?'Previews + examples':'Examples';
+  document.querySelector('#claimFeed summary span').textContent='';
   for(const record of [...new Set(sessionPlacements.values())].sort((a,b)=>b.createdAt-a.createdAt).slice(0,5)){
     const button=document.createElement('button');button.textContent=new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})+' - '+record.count.toLocaleString()+' \u2b21 '+(record.name||'You');
     button.onclick=()=>{inspectPlacement(record.anchor);viewInspectedPlacement();};target.append(button);
   }
   const examples=[['Spotify claimed 350 hexagons','4m ago',10],['Nike is trending','1,284 views today',8],['IKEA reached 1,000 website visits','Milestone',4],['284,391 / 1,000,000 claimed','Around the globe',null]];
-  for(const [headline,detail,campaign] of examples){const button=document.createElement(campaign===null?'div':'button');button.className='example-activity';const title=document.createElement('span');title.textContent=headline;const meta=document.createElement('small');meta.textContent=detail;button.append(title,meta);if(campaign!==null)button.onclick=async()=>{await ensureTopology();inspectPlacement(bootstrap.sampleAreas.find(area=>area.campaign===campaign).anchor);viewInspectedPlacement();};target.append(button);}
+  for(const [headline,detail,campaign] of examples){const button=document.createElement(campaign===null?'div':'button');button.className='example-activity';const title=document.createElement('span');title.textContent=headline;const meta=document.createElement('small');meta.textContent=detail;const icon=document.createElement('span');icon.className='activity-icon';icon.setAttribute('aria-hidden','true');icon.textContent=campaign===10?'\u2b21':campaign===8?'\u2197':campaign===4?'\u2192':'\u25ce';button.append(icon,title,meta);if(campaign!==null)button.onclick=async()=>{await ensureTopology();inspectPlacement(bootstrap.sampleAreas.find(area=>area.campaign===campaign).anchor);viewInspectedPlacement();};target.append(button);}
 
 }
 renderClaimFeed();
@@ -1581,4 +1587,13 @@ document.querySelector('#panEditor').innerHTML='<svg viewBox="0 0 24 24" aria-hi
 
 const globalMetricExamples=['284,391 / 1,000,000 claimed','715,609 remaining','1,842 placements','8,392,410 placement views','126,482 website visits sent'];
 let globalMetricIndex=0;
-setInterval(()=>{if(document.hidden||document.body.classList.contains('creating'))return;const text=document.querySelector('#globalMetricText');text.textContent=globalMetricExamples[++globalMetricIndex%globalMetricExamples.length];if(!reducedMotion())text.animate([{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}],{duration:400,easing:'ease-out'});},6000);
+let metricTimer;
+setInterval(()=>{
+  if(document.hidden||document.body.classList.contains('creating'))return;
+  const text=document.querySelector('#globalMetricText'),next=globalMetricExamples[++globalMetricIndex%globalMetricExamples.length];
+  clearTimeout(metricTimer);
+  if(reducedMotion()){text.textContent=next;return;}
+  const previous=text.textContent;let length=previous.length;
+  text.classList.add('typing');
+  const erase=()=>{length=Math.max(0,length-3);text.textContent=previous.slice(0,length);if(length)metricTimer=setTimeout(erase,20);else{let cursor=0;const type=()=>{cursor=Math.min(next.length,cursor+2);text.textContent=next.slice(0,cursor);if(cursor<next.length)metricTimer=setTimeout(type,32);else text.classList.remove('typing');};metricTimer=setTimeout(type,120);}};erase();
+},6500);

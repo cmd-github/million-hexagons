@@ -8,7 +8,7 @@ try{for(const mobile of [false,true]){
  const p=await browser.newPage({viewport:mobile?{width:390,height:844}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile});p.on('pageerror',e=>errors.push(e.message));
  await p.goto('http://127.0.0.1:4180/?geodesicQA');await p.waitForFunction(()=>window.geodesicQA);
  await p.locator('#toggleHexSearch').click();await p.locator('#hexSearchInput').fill('Nike');await p.locator('#companyResults button').first().click();await p.locator('#placementInspector').waitFor({state:'visible'});
- assert.match(await p.locator('#inspectorDate').textContent(),/^Example claim/);
+ assert.match(await p.locator('#inspectorDate').textContent(),/^Claimed:/);
  assert.equal(await p.locator('#companyResults button').count(),1);
  assert.equal(await p.locator('.example-activity').count(),4);
  assert.ok(await p.locator('#inspectorLogo').evaluate(e=>e.complete&&e.naturalWidth>0));
