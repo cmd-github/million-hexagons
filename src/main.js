@@ -76,11 +76,7 @@ const hoverCellUniform = { value: -2 };
 const globeMaterial = new THREE.MeshStandardMaterial({ color: '#071c2b', emissive:'#102735',emissiveIntensity:.85, roughness: .7, metalness: .04 });
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius - .0005, 192, 128), globeMaterial);
 globe.add(sphere);
-const atmosphere=new THREE.Mesh(new THREE.SphereGeometry(radius*1.012,64,48),new THREE.ShaderMaterial({
- transparent:true,depthWrite:false,side:THREE.BackSide,blending:THREE.AdditiveBlending,
- vertexShader:'varying vec3 n; varying vec3 v; void main(){vec4 p=modelViewMatrix*vec4(position,1.);n=normalize(normalMatrix*normal);v=normalize(-p.xyz);gl_Position=projectionMatrix*p;}',
- fragmentShader:'varying vec3 n; varying vec3 v; void main(){float rim=pow(1.-abs(dot(normalize(n),normalize(v))),3.);gl_FragColor=vec4(.64,.9,.24,rim*.13);}'
-}));globe.add(atmosphere);
+
 const artworkTiles = new ArtworkTiles(globe,radius,{base:millionFixture?'/artwork/million':'/artwork/sample-hq',maxTiles:innerWidth<700?64:128,anisotropy:Math.min(8,renderer.capabilities.getMaxAnisotropy())});
 await artworkTiles.ready;
 let designAnchor = bootstrap.anchor;
@@ -241,8 +237,8 @@ function intersect(event) {
 }
 
 function updateTooltip(event, cell, pinned = false) {
-  document.querySelector('#cellOwner').textContent = cell.owner;
-  document.querySelector('#cellNumber').textContent = '#'+cell.id.toLocaleString();
+  document.querySelector('#cellOwner').textContent = cell.owner;document.querySelector('#cellOwner').hidden=!cell.occupied;
+  document.querySelector('#cellNumber').textContent = 'Hexagon #'+cell.id.toLocaleString();
   const destination=document.querySelector('#cellDestination');
   destination.hidden=!cell.destination;
   destination.textContent=cell.destination?new URL(cell.destination).hostname.replace(/^www\./,''):'';
@@ -502,6 +498,8 @@ document.querySelector('#claimCell').addEventListener('click', (event) => {
 });
 document.querySelector('#closeBuy').addEventListener('click', closeBuy);
 document.querySelector('#rotationToggle').addEventListener('click', () => { controls.autoRotate = !controls.autoRotate; updateRotationControl(); });
+for(const [id,direction] of [['rotateLeft',-1],['rotateRight',1]])document.getElementById(id).onclick=()=>{controls.autoRotateSpeed=direction*.22;controls.autoRotate=true;updateRotationControl();};
+document.querySelector('.brand').addEventListener('click',event=>{event.preventDefault();if(document.body.classList.contains('creating'))closeBuy();document.querySelector('#homeView').click();});
 document.querySelector('#zoomIn').addEventListener('click', () => {
   zoom.change(.8);
 });
@@ -511,7 +509,7 @@ document.querySelector('#zoomOut').addEventListener('click', () => {
 document.querySelector('#homeView').addEventListener('click', () => {
   zoom.cancel();cameraDistanceTarget=null;demoTour.stop();closeInspector(true);showHexSearch(false);
   controls.autoRotate=false;controls.target.set(0,0,0);
-  ++flightVersion;const fit=globeFitDistance();cameraFlight.start({position:new THREE.Vector3(0,fit*.018,fit),duration:1300,onComplete(){controls.autoRotate=!reducedMotion();updateRotationControl();}});
+  ++flightVersion;const fit=globeFitDistance();cameraFlight.start({position:new THREE.Vector3(0,fit*.018,fit),quaternion:new THREE.Quaternion(),duration:2200,onComplete(){controls.autoRotate=!reducedMotion();updateRotationControl();}});
 });
 
 const hexSearch = document.querySelector('#hexSearch');
@@ -1340,15 +1338,16 @@ const rotationToggle=document.querySelector('#rotationToggle');
 let displayedRotationState=null;
 function updateRotationControl(){
   const rotating=controls.autoRotate&&!demoTour.active;
-  if(rotating===displayedRotationState)return;
-  displayedRotationState=rotating;
-  rotationToggle.innerHTML=rotating?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2 6"/></svg>';
+  const state=String(rotating)+Math.sign(controls.autoRotateSpeed);if(state===displayedRotationState)return;displayedRotationState=state;
+  document.querySelector('#rotateLeft').setAttribute('aria-pressed',String(rotating&&controls.autoRotateSpeed<0));document.querySelector('#rotateRight').setAttribute('aria-pressed',String(rotating&&controls.autoRotateSpeed>0));
+  rotationToggle.textContent=rotating?'\u23f8':'\u25b6';
   rotationToggle.setAttribute('aria-pressed',String(rotating));
   rotationToggle.setAttribute('aria-label',rotating?'Pause globe rotation':'Start globe rotation');
   rotationToggle.title=rotating?'Pause globe rotation':'Start globe rotation';
 }
 function animate() {
   requestAnimationFrame(animate);
+  controls.rotateSpeed=.42*Math.min(1,Math.max(.045,(camera.position.length()-radius)/4));
   controls.target.set(0, 0, 0);
   if(!demoTour.active&&!cameraFlight.active)controls.update();
   cameraFlight.update(performance.now());
@@ -1380,7 +1379,7 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('geodesicQA'
       controls.autoRotate=false;orientToCell(id,radius+distance);
     },
     place(id) { choosePatternOrigin({uv:new THREE.Vector2(),point:pointForCell({id})},cellForId(id));focusSelection(); },
-    state() { return { selected: selectedCells.map(c=>c.id), design: previewCells().map(c=>c.id), designAnchor, requestedAnchor, sold, committed: [...sessionPlacements.keys()], connected: topology.isConnected(selectedCells), camera:camera.position.toArray(), detailVertices:cellDetail?.mesh.geometry.attributes.position?.count||0, drawCalls:renderer.info.render.calls,tiles:{...artworkTiles.stats},retainedPlacements:placementLayers.children.length }; },
+    state() { return { inspectedId, rotationSpeed:controls.rotateSpeed, orientation:globe.quaternion.toArray(), selected: selectedCells.map(c=>c.id), design: previewCells().map(c=>c.id), designAnchor, requestedAnchor, sold, committed: [...sessionPlacements.keys()], connected: topology.isConnected(selectedCells), camera:camera.position.toArray(), detailVertices:cellDetail?.mesh.geometry.attributes.position?.count||0, drawCalls:renderer.info.render.calls,tiles:{...artworkTiles.stats},retainedPlacements:placementLayers.children.length }; },
     screen(id) { const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return {x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2}; },
   };
 }
@@ -1465,7 +1464,7 @@ function createHudThumbnail(source){const art=document.createElement('canvas');c
 function inspectPlacement(id){
   cameraFlight.cancel();
   const sameOwner=inspectedOwner===ownerKey(id);inspectedOwner=ownerKey(id);
-  inspectedId=id;document.querySelector('#inspectorHex').textContent='#'+id.toLocaleString();
+  inspectedId=id;
   if(sameOwner&&!document.querySelector('#placementInspector').hidden)return;
   document.body.classList.add('inspecting');resize();pinnedCell=null;tooltip.classList.remove('show','pinned');
   const cell=cellForId(id),record=sessionPlacements.get(id),panel=document.querySelector('#placementInspector');
@@ -1479,12 +1478,14 @@ function inspectPlacement(id){
     if(record?sessionPlacements.get(next)===record:owner&&sampleOwners[next-1]===owner)queue.push(next);
   }
   inspectedCells=queue;
-  document.querySelector('#inspectorInfo').textContent=(record?.count||queue.length).toLocaleString()+' \u2b21';
-  document.querySelector('#inspectorDate').textContent=record?new Date(record.createdAt).toLocaleDateString('en-GB'):'Sample';
+  document.querySelector('#inspectorInfo').textContent=(record?.count||queue.length).toLocaleString()+' hexagons';
+  document.querySelector('#inspectorDate').textContent=record?'Added '+new Date(record.createdAt).toLocaleDateString('en-GB'):'Example claim 08/09/26';
   document.querySelector('#inspectorDescription').textContent=record?.description||'';
   document.querySelector('#inspectorDescription').hidden=!record?.description;
-  document.querySelector('#inspectorHex').textContent='#'+id.toLocaleString();
+
   renderLinkClicks();
+  const audience=document.querySelector('#inspectorAudience');audience.hidden=!!record;audience.title='Illustrative metrics, not measured traffic';
+  document.querySelector('#inspectorContext').textContent=((record?.count||queue.length)/10000).toFixed(2)+'% of the globe';
   clearSelectionColours();for(const cellId of queue)writeCellColour(selectionColourData,{id:cellId},'#d7ff55');
   selectionColourTexture.needsUpdate=true;selectionModeUniform.value=1;
   const nearby=document.querySelector('#nearbyPlacements');nearby.replaceChildren();
@@ -1508,7 +1509,7 @@ document.addEventListener('pointerdown',event=>{
   if(!tooltip.contains(event.target)){pinnedCell=null;tooltip.classList.remove('show','pinned');}
 });
 document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeInspector(true);showHexSearch(false);tooltip.classList.remove('show','pinned');}});
-function renderLinkClicks(){const value=linkClicks[cellForId(inspectedId).destination];document.querySelector('#inspectorClicks').textContent=(Number.isSafeInteger(value)&&value>=0?value:0).toLocaleString()+' clicks';}
+function renderLinkClicks(){const value=linkClicks[cellForId(inspectedId).destination],sample=!sessionPlacements.has(inspectedId),visits=(Number.isSafeInteger(value)&&value>=0?value:0)+(sample?328:0);document.querySelector('#inspectorClicks').textContent=visits.toLocaleString()+' visits';if(sample)document.querySelector('#inspectorAudience').textContent='Example: 12,429 views \u00b7 '+(visits/12429*100).toFixed(2)+'% visit rate';}
 for(const id of ['inspectorVisit','placementWebsite'])for(const type of ['click','auxclick'])document.getElementById(id).addEventListener(type,event=>{
   if(type==='auxclick'&&event.button!==1)return;
   const url=event.currentTarget.href;const current=linkClicks[url];linkClicks[url]=(Number.isSafeInteger(current)&&current>=0?current:0)+1;try{localStorage.setItem(clickStorageKey,JSON.stringify(linkClicks));}catch{}if(inspectedId)renderLinkClicks();
@@ -1530,7 +1531,9 @@ function renderClaimFeed(){
     const button=document.createElement('button');button.textContent=new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})+' - '+record.count.toLocaleString()+' \u2b21 '+(record.name||'You');
     button.onclick=()=>{inspectPlacement(record.anchor);viewInspectedPlacement();};target.append(button);
   }
-  for(const [index,count] of [[8,204],[4,96],[10,350]]){const entry=bootstrap.sampleAreas.find(area=>area.campaign===index);const button=document.createElement('button');button.className='example-activity';button.textContent=bootstrap.sampleCampaigns[index].name+' \u00b7 '+count+' \u2b21';const badge=document.createElement('small');badge.textContent='Example';button.append(badge);button.onclick=async()=>{await ensureTopology();inspectPlacement(entry.anchor);viewInspectedPlacement();};target.append(button);}
+  const examples=[['Spotify claimed 350 hexagons','4m ago',10],['Nike is trending','1,284 views today',8],['IKEA reached 1,000 website visits','Milestone',4],['284,391 / 1,000,000 claimed','Around the globe',null]];
+  for(const [headline,detail,campaign] of examples){const button=document.createElement(campaign===null?'div':'button');button.className='example-activity';const title=document.createElement('span');title.textContent=headline;const meta=document.createElement('small');meta.textContent=detail;button.append(title,meta);if(campaign!==null)button.onclick=async()=>{await ensureTopology();inspectPlacement(bootstrap.sampleAreas.find(area=>area.campaign===campaign).anchor);viewInspectedPlacement();};target.append(button);}
+
 }
 renderClaimFeed();
 if(innerWidth>900)document.querySelector('#claimFeed').open=true;
@@ -1575,3 +1578,7 @@ document.querySelector('#paintCells').innerHTML='<svg viewBox="0 0 24 24" aria-h
 document.querySelector('#editHexMode').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 3 12 0 5 9-5 9H6L1 12z M8 12h8 M12 8v8"/></svg>';document.querySelector('#editHexMode').setAttribute('aria-label','Add hexagons');document.querySelector('#editHexMode').title='Add hexagons';
 document.querySelector('#removeHexMode').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 3 12 0 5 9-5 9H6L1 12z M8 12h8"/></svg>';document.querySelector('#removeHexMode').setAttribute('aria-label','Remove hexagons');document.querySelector('#removeHexMode').title='Remove hexagons';
 document.querySelector('#panEditor').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20 M2 12h20 M8 6l4-4 4 4 M8 18l4 4 4-4 M6 8l-4 4 4 4 M18 8l4 4-4 4"/></svg>';document.querySelector('#panEditor').setAttribute('aria-label','Pan');document.querySelector('#panEditor').title='Pan';
+
+const globalMetricExamples=['284,391 / 1,000,000 claimed','715,609 remaining','1,842 placements','8,392,410 placement views','126,482 website visits sent'];
+let globalMetricIndex=0;
+setInterval(()=>{if(document.hidden||document.body.classList.contains('creating'))return;const text=document.querySelector('#globalMetricText');text.textContent=globalMetricExamples[++globalMetricIndex%globalMetricExamples.length];if(!reducedMotion())text.animate([{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}],{duration:400,easing:'ease-out'});},6000);

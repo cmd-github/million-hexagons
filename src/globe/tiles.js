@@ -110,7 +110,8 @@ export class ArtworkTiles {
       view.mesh.renderOrder=1;
     }
     this.queue=this.queue.filter(t=>{const keep=this.cache.get(t.key)===t&&t.queued&&(t.level===0||wanted.has(t.key));if(!keep)t.queued=false;return keep;});
-    this.queue.sort((a,b)=>a.level-b.level);
+    // Load missing overview roots first, then the sharpest requested pages.
+    this.queue.sort((a,b)=>(a.level===0?-1:b.level===0?1:b.level-a.level));
     while(this.inflight<this.concurrency&&this.queue.length){const tile=this.queue.shift();tile.queued=false;void this.fetchTile(tile);}
     for(const tile of [...this.cache.values()].sort((a,b)=>a.used-b.used)){
       if(this.cache.size<=this.capacity)break;

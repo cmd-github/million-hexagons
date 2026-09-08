@@ -21,7 +21,7 @@ try{for(const mobile of [false,true]){
  await page.locator('#closeBuy').click();await page.locator('#homeView').click();await page.waitForTimeout(1500);
  await page.locator('#toggleHexSearch').click();await page.locator('#hexSearchInput').fill('Nike');await page.locator('#companyResults button').click();await page.waitForTimeout(200);await page.mouse.click(8,100);const paused=await page.evaluate(()=>window.geodesicQA.state().camera);await page.waitForTimeout(1700);const after=await page.evaluate(()=>window.geodesicQA.state().camera);assert.ok(Math.hypot(...paused.map((v,i)=>v-after[i]))<.005,'Cancelled flight continued');
  await page.locator('#toggleHexSearch').click();await page.locator('#hexSearchInput').fill('Nike');await page.locator('#companyResults button').click();await page.waitForTimeout(1800);await page.locator('#placementInspector').waitFor({state:'visible'});
- if(mobile){const id=Number((await page.locator('#inspectorHex').textContent()).replace(/[^0-9]/g,'')),point=await page.evaluate(id=>window.geodesicQA.screen(id),id),hud=await page.locator('#placementInspector').boundingBox();assert.ok(point.y<hud.y-30&&point.y>230);}
+ if(mobile){const id=await page.evaluate(()=>window.geodesicQA.state().inspectedId),point=await page.evaluate(id=>window.geodesicQA.screen(id),id),hud=await page.locator('#placementInspector').boundingBox();assert.ok(point.y<hud.y-30&&point.y>230);}
  await page.screenshot({path:`artifacts/artwork-camera/${mobile}-arrival.png`});
  await page.emulateMedia({reducedMotion:'reduce'});await page.locator('#homeView').click();assert.equal(await page.locator('#rotationToggle').getAttribute('aria-pressed'),'false');
  await page.close();
