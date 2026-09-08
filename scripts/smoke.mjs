@@ -68,11 +68,11 @@ if (!secondTourCell||secondTourCell===firstTourCell) errors.push('Tour did not v
 await page.mouse.wheel(0,100);
 
 await page.click('#claimButton');
-await page.waitForSelector('#typeStep', {state:'visible',timeout:60000});
-if (!(await page.locator('#typeStep').isVisible())) errors.push('Creation type step did not open');
-await page.click('#logoArtwork');
+await page.waitForSelector('#designStep', {state:'visible',timeout:60000});
+if (!(await page.locator('#designStep').isVisible())) errors.push('Unified editor did not open');
+
 if (!(await page.locator('#designStep').isVisible())) errors.push('Logo design step did not open');
-if (await page.locator('#toPlacement').isEnabled()) errors.push('Logo placement enabled before upload');
+if (!(await page.locator('#toPlacement').isEnabled())) errors.push('Colour design should work without upload');
 await page.setInputFiles('#logoUpload', 'scripts/fixtures/test-logo.svg');
 await page.locator('#logoOptions summary').click();
 await page.selectOption('#logoOrientation', '180');
@@ -91,12 +91,13 @@ await page.click('#previewPurchase');
 await page.waitForFunction(()=>document.querySelector('#buyPanel').getAttribute('aria-hidden')==='true',null,{timeout:60000});
 
 await page.click('#claimButton');
-await page.click('#paintArtwork');
+await page.click('#paintCells');
+await page.locator('#designCanvas').scrollIntoViewIfNeeded();
 const editor = await page.locator('#designCanvas').boundingBox();
 if (!editor) throw new Error('Design canvas was unavailable');
-await page.locator('#brandColor').fill('#ff4d6d');
+await page.locator('#brushColor').fill('#ff4d6d');
 await page.mouse.click(editor.x + editor.width * .48, editor.y + editor.height * .48);
-await page.locator('#brandColor').fill('#4d7cff');
+await page.locator('#brushColor').fill('#4d7cff');
 await page.mouse.click(editor.x + editor.width * .53, editor.y + editor.height * .52);
 const paintedCount = await page.locator('#designCount').textContent();
 if (paintedCount === '0 hexagons') errors.push('Flat paint editor did not create cells');

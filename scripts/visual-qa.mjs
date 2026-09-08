@@ -25,10 +25,12 @@ try {
   await page.screenshot({path:`artifacts/visual-qa/${prefix}-explore-hex-1.png`});
   await page.locator('#toggleHexSearch').click();
   for(const type of ['logo','colour','paint']) {
-   for(const count of type==='paint'?[2]:type==='logo'?[1,50,150,400,500]:[50,150,400]) {
+   for(const count of type==='paint'?[50]:type==='logo'?[1,50,150,400,500]:[50,150,400]) {
     await page.locator('#claimButton').click();
     assert.equal(await page.locator('#toggleHexSearch').isVisible(),false);
-    await page.locator(`#${type}Artwork`).click();
+    assert.equal(await page.locator('#designStep').isVisible(),true);
+    if(type!=='logo' && await page.locator('#removeImage').isVisible()) await page.locator('#removeImage').click();
+    await page.locator('#clearPaint').click();
     if(type==='logo') {
       await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');
       await page.locator('#toPlacement').waitFor({state:'visible'});
@@ -36,7 +38,7 @@ try {
       await page.selectOption('#logoOrientation',count===150?'90':count===400?'180':'0');
       await page.locator(`[data-treatment="${count===400?'repeat':'span'}"]`).click();
     }
-    if(type!=='paint') {
+    {
       const preset=page.locator(`[data-size="${count}"]`);
       if(await preset.count()) await preset.click();
       else {
@@ -62,6 +64,7 @@ try {
       const countBefore = await page.locator('#designCount').textContent();
       const original = await page.locator('#designCanvas').evaluate(c=>c.toDataURL());
       await page.locator('#logoScale').fill('250');
+      const beforeDrag=await page.locator('#designCanvas').evaluate(c=>c.toDataURL());
       await page.locator('#designCanvas').scrollIntoViewIfNeeded();
       const box = await page.locator('#designCanvas').boundingBox();
       if(mobile) {
@@ -76,28 +79,61 @@ try {
         await page.mouse.move(box.x+box.width*.6,box.y+box.height*.55,{steps:4});
         await page.mouse.up();
       }
-      assert.notEqual(await page.locator('#logoPositionX').inputValue(),'0');
+
+      assert.notEqual(await page.locator('#designCanvas').evaluate(c=>c.toDataURL()),beforeDrag,'Dragging must move image independently of zoom');
       assert.equal(await page.locator('#designCount').textContent(),countBefore);
       assert.notEqual(await page.locator('#designCanvas').evaluate(c=>c.toDataURL()),original);
       await page.screenshot({path:`artifacts/visual-qa/${prefix}-logo-${count}-cropped.png`});
       await page.locator('#resetLogo').click();
       assert.equal(await page.locator('#logoScale').inputValue(),'100');
-      assert.equal(await page.locator('#logoPositionX').inputValue(),'0');
+
       await page.locator('#logoScale').fill('200');
-      await page.locator('#logoPositionX').fill('12');
-      await page.locator('#logoPositionY').fill('-8');
+
     }
-    if(type==='paint') {
-      const rect=await page.locator('#designCanvas').boundingBox();
+    if(type==='paint' || type==='logo') {
+      const editor=page.locator('#designCanvas');
+      const pixels=()=>editor.evaluate(c=>c.toDataURL());
+      const original=await pixels();
+      await page.locator('#paintCells').click();
+      await page.locator('#brushColor').fill('#ff4d6d');
+      await editor.scrollIntoViewIfNeeded();
+      let rect=await editor.boundingBox();
       await page.mouse.click(rect.x+rect.width*.48,rect.y+rect.height*.48);
-      await page.locator('#brandColor').fill('#ff4d6d');
-      await page.mouse.click(rect.x+rect.width*.65,rect.y+rect.height*.52);
-      const painted=await page.locator('#designCount').textContent();
-      await page.locator('#clearPaint').click();
-      assert.equal(await page.locator('#toPlacement').isDisabled(),true);
+      assert.notEqual(await pixels(),original,'Painting must override a cell, including its image');
+      const painted=await pixels();
       await page.locator('#undoPaint').click();
-      assert.equal(await page.locator('#designCount').textContent(),painted);
+      assert.equal(await pixels(),original,'Undo must restore the original artwork');
+      await page.locator('#redoPaint').click();
+      assert.equal(await pixels(),painted);
+      await page.locator('#eraseCells').click();
+      await editor.scrollIntoViewIfNeeded();rect=await editor.boundingBox();
+      await page.mouse.click(rect.x+rect.width*.48,rect.y+rect.height*.48);
+      assert.notEqual(await pixels(),painted,'Transparent must clear the painted cell');
+      const transparent=await pixels();
+      const hasClearPixel=await editor.evaluate(c=>{const d=c.getContext('2d').getImageData(Math.floor(c.width*.48),Math.floor(c.height*.48),1,1).data;return d[3]===0;});
+      assert.ok(hasClearPixel,'Transparent cell must have zero alpha');
+      await page.locator('#restoreCells').click();
+      await editor.scrollIntoViewIfNeeded();rect=await editor.boundingBox();
+      await page.mouse.click(rect.x+rect.width*.48,rect.y+rect.height*.48);
+      assert.equal(await pixels(),original,'Restore artwork must recover the source image/background');
+      await page.locator('#undoPaint').click();
+      assert.equal(await pixels(),transparent);
+      await page.locator('#paintCells').click();
+      await page.locator('#brushColor').fill('#4d7cff');
+      await editor.scrollIntoViewIfNeeded();rect=await editor.boundingBox();
+      if(count>1)await page.mouse.click(rect.x+rect.width*.60,rect.y+rect.height*.52);
     }
+    const draftBefore=await page.locator('#designCanvas').evaluate(c=>c.toDataURL());
+    const whitePixels=async selector=>page.locator(selector).evaluate(c=>{const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let i=0;i<d.length;i+=4)if(d[i]>230&&d[i+1]>230&&d[i+2]>230&&d[i+3]>230)n++;return n;});
+    const designInk=await whitePixels('#designCanvas');
+    for(let repeat=0;repeat<2;repeat++) {
+      await page.locator('#toPlacement').click();
+      await page.locator('#suggestLocation').click();
+      if(repeat===1) {await page.locator('#toReview').click();await page.locator('#reviewEditDesign').click();}
+      else await page.locator('#backToDesign').click();
+      assert.equal(await page.locator('#designCanvas').evaluate(c=>c.toDataURL()),draftBefore,'Returning from placement/review must preserve the exact editable design');
+    }
+    await page.locator('#designCanvas').evaluate(c=>c.scrollIntoView({block:'center'}));
     await page.screenshot({path:`artifacts/visual-qa/${prefix}-${type}-${count}-design.png`});
     await page.locator('#toPlacement').click();
     assert.equal(await page.locator('#toReview').isEnabled(),true);
@@ -113,6 +149,7 @@ try {
     assert.equal(await page.locator('#toReview').isEnabled(),true);
     await page.screenshot({path:`artifacts/visual-qa/${prefix}-${type}-${count}-place.png`});
     await page.locator('#toReview').click();
+    if(type==='logo' && [50,150,500].includes(count)) assert.ok(await whitePixels('#reviewCanvas')>=designInk*.8,'Relocation must not shrink the source image framing');
     const price=await page.locator('#reviewPrice').textContent();
     if(type!=='paint') assert.equal(price,`$${count}`);
     await page.screenshot({path:`artifacts/visual-qa/${prefix}-${type}-${count}-review.png`});

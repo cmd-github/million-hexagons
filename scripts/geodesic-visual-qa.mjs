@@ -21,8 +21,12 @@ try {
   assert.equal(await page.locator('#cellId').count(),0);
   await page.screenshot({path:`${directory}/${prefix}-available-claim-cta.png`});
   await page.locator('#claimCell').click();
-  await page.locator('#typeStep').waitFor({state:'visible'});
-  assert.equal((await page.evaluate(()=>geodesicQA.state())).designAnchor,available);
+  await page.locator('#designStep').waitFor({state:'visible'});
+  await page.locator('#toPlacement').click();
+  assert.ok((await page.evaluate(()=>geodesicQA.state())).selected.includes(available),'Claim this space retains the requested placement anchor');
+  const firstSpot=await page.evaluate(()=>geodesicQA.state().selected);
+  await page.locator('#suggestLocation').click();
+  assert.notDeepEqual(await page.evaluate(()=>geodesicQA.state().selected),firstSpot,'Find another spot must move away from the requested anchor');
   await page.locator('#closeBuy').click();
   await page.evaluate(id=>geodesicQA.focus(id,10),locations.equator);await page.waitForTimeout(300);
   await page.screenshot({path:`${directory}/${prefix}-equator-overview.png`});
@@ -37,13 +41,13 @@ try {
   if(process.env.QA_QUICK) { console.log({errors});break; }
   for(const [name,id] of Object.entries(locations)) {
     if(process.env.QA_LOCATION && name!==process.env.QA_LOCATION)continue;
-    await page.locator('#claimButton').click();await page.locator('#logoArtwork').click();
+    await page.locator('#claimButton').click();
     await page.locator('#logoUpload').setInputFiles('scripts/fixtures/geodesic-reference.svg');
-    await page.waitForFunction(()=>!document.querySelector('#toPlacement').disabled);
-    await page.locator('[data-size="150"]').click();await page.locator('#toPlacement').click();
+    await page.locator('#removeImage').waitFor({state:'visible'});
+    await page.locator('[data-size="150"]').click();const originalDesign=await page.evaluate(()=>geodesicQA.state().design);await page.locator('#toPlacement').click();
     await page.evaluate(id=>geodesicQA.place(id),id);await page.waitForTimeout(350);
     const before=await page.evaluate(()=>geodesicQA.state());assert.equal(before.selected.length,150);assert.equal(before.connected,true);
-    assert.deepEqual(before.design,before.selected);
+    assert.deepEqual(before.design,originalDesign);
     await page.screenshot({path:`${directory}/${prefix}-${name}-logo-place.png`});
     await page.locator('#toReview').click();await page.waitForTimeout(300);
     assert.deepEqual((await page.evaluate(()=>geodesicQA.state())).selected,before.selected);

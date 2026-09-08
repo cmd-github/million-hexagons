@@ -134,6 +134,8 @@ let selectedCells = [];
 let uploadedLogo = null;
 let uploadedLogoCrop = null;
 let logoEditorMode = 'move', logoDrag = null;
+const logoPosition = { x: 0, y: 0 };
+let lastPaintedCell = null;
 let editorArtworkSize = { width: 1, height: 1 };
 let sold = occupiedCells.reduce((total, value) => total + (value ? 1 : 0), 0);
 let cameraDistanceTarget = null;
@@ -141,12 +143,9 @@ let painting = false;
 let paintAction = 'paint';
 let lastPaintedCellId = null;
 let selectionError = '';
-let fixedArtworkMode = 'colour';
 let creationType = null;
 let buyInteractionMode = 'move';
-let designCells = [];
 let logoCells = null;
-let colourCells = null;
 let footprintEdited = false;
 let draftArtwork = null;
 let editorPainting = false;
@@ -243,7 +242,7 @@ function connectedPattern(origin, amount, shape) {
 
 function refreshSelection() {
   const shape = document.querySelector('#selectionShape').value;
-  const amount = shape === 'painted' ? designCells.length : Math.max(1, Math.min(10000, Number(document.querySelector('#hexAmount').value) || 1));
+  const amount = Math.max(1, Math.min(10000, Number(document.querySelector('#hexAmount').value) || 1));
   if (selectedCell) {
     const candidateCells = connectedPattern(selectedCell, amount, shape);
     const blocked = candidateCells.find((cell) => occupiedCells[cell.id - 1]);
@@ -252,11 +251,7 @@ function refreshSelection() {
       selectionError = 'That area overlaps purchased hexagons. Try another location, shape or quantity.';
     } else {
       selectedCells = candidateCells;
-      if (designAnchor !== selectedCell.id) { undoStack.length=0; redoStack.length=0; updateHistory(); }
-      designAnchor = selectedCell.id;
-      if (creationType === 'logo') logoCells = candidateCells;
-      else if (creationType === 'paint') designCells = candidateCells;
-      else colourCells = candidateCells;
+      // Placement geometry is a projection of the draft, never the editable source.
       draftArtwork = renderArtwork(selectedCells);
       updateTotals();
       selectionError = '';
@@ -272,7 +267,7 @@ function refreshSelection() {
   status.innerHTML = selectionError || (count
     ? selectedSummary
     : 'Switch to Place design, then click an available area.');
-  const artworkReady = fixedArtworkMode === 'colour' || Boolean(uploadedLogo);
+  const artworkReady = true;
   document.querySelector('#previewPurchase').disabled = !count || !artworkReady;
   document.querySelector('#toReview').disabled = !count || !artworkReady;
   renderSelectionPreview();
@@ -409,7 +404,8 @@ async function openBuy(anchor = null) {
   selectedNormal = null;
   selectedCells = [];
   requestedAnchor = Number.isInteger(anchor) ? anchor : null;
-  if(requestedAnchor)designAnchor=requestedAnchor;
+  suggestionIndex = 0;
+
   pinnedCell = null;
   tooltip.classList.remove('show', 'pinned');
   clearPlacementPreview();
@@ -421,7 +417,7 @@ async function openBuy(anchor = null) {
   panel.classList.add('open');
   panel.setAttribute('aria-hidden', 'false');
   panel.scrollTop = 0;
-  showFlowStep('type');
+  configureCreation();
 }
 function closeBuy() {
   if(publishing)return;
@@ -452,15 +448,6 @@ document.querySelector('#claimCell').addEventListener('click', (event) => {
   if(anchor)openBuy(anchor);
 });
 document.querySelector('#closeBuy').addEventListener('click', closeBuy);
-function setPaintAction(action) {
-  paintAction = action;
-  document.querySelector('#paintCells').setAttribute('aria-pressed', String(action === 'paint'));
-  document.querySelector('#eraseCells').setAttribute('aria-pressed', String(action === 'erase'));
-  selectionError = '';
-  refreshSelection();
-}
-document.querySelector('#paintCells').addEventListener('click', () => setPaintAction('paint'));
-document.querySelector('#eraseCells').addEventListener('click', () => setPaintAction('erase'));
 document.querySelector('#rotationToggle').addEventListener('click', () => { controls.autoRotate = !controls.autoRotate; updateRotationControl(); });
 document.querySelector('#zoomIn').addEventListener('click', () => {
   zoom.change(.8);
@@ -512,13 +499,8 @@ function updateLogoGuidance(message) {
   guidance.textContent = message || 'Check small text in the preview. Simpler artwork stays clearer at a distance.';
 }
 
-function setFixedArtworkMode(mode) {
-  fixedArtworkMode = mode;
-  updateLogoGuidance();
-  refreshSelection();
-}
 function updatePaintColour() {
-  document.querySelector('#paintColourChip').style.background = document.querySelector('#brandColor').value;
+  document.querySelector('#paintColourChip').style.background = document.querySelector('#brushColor').value;
   renderSelectionPreview();
   drawDesignPreview();
 }
@@ -530,7 +512,7 @@ function updateLogoPreviewOrientation() {
 }
 document.querySelector('#logoOrientation').addEventListener('change', updateLogoPreviewOrientation);
 
-const flowScreens = { type: document.querySelector('#typeStep'), design: document.querySelector('#designStep'), place: document.querySelector('#placeStep'), review: document.querySelector('#reviewStep') };
+const flowScreens = { design: document.querySelector('#designStep'), place: document.querySelector('#placeStep'), review: document.querySelector('#reviewStep') };
 function showFlowStep(step) {
   document.body.dataset.flow = step;
   resize();
@@ -545,7 +527,7 @@ function showFlowStep(step) {
 }
 
 function placementCount() {
-  return creationType === 'paint' ? designCells.length : Math.max(1, Math.min(10000, Math.floor(Number(amountInput.value)) || 1));
+  return Math.max(1, Math.min(10000, Math.floor(Number(amountInput.value)) || 1));
 }
 
 function updateTotals() {
@@ -559,7 +541,7 @@ function updateTotals() {
   document.querySelector('#placePrice').textContent = priceText;
   document.querySelector('#reviewCount').textContent = countText;
   document.querySelector('#reviewPrice').textContent = priceText;
-  document.querySelector('#toPlacement').disabled = !count || (creationType === 'logo' && !uploadedLogo);
+  document.querySelector('#toPlacement').disabled = !count;
   document.querySelectorAll('.size-presets button').forEach((button) => button.classList.toggle('active', Number(button.dataset.size) === count));
   updateLogoGuidance();
 }
@@ -567,14 +549,12 @@ function updateTotals() {
 let editorHitRegions = [];
 function previewCells() {
   if(!topology)return [];
-  if (creationType === 'paint') return topology.cells(designCells, designAnchor);
   if (creationType === 'logo' && logoCells) return topology.cells(logoCells, designAnchor);
-  if (creationType === 'colour' && colourCells) return topology.cells(colourCells, designAnchor);
   const aspect = creationType === 'logo' && uploadedLogo ? (uploadedLogoCrop?.width || uploadedLogo.naturalWidth)/(uploadedLogoCrop?.height || uploadedLogo.naturalHeight) : 1.25;
   return topology.connected(designAnchor, placementCount(), aspect);
 }
 function relocateDesign(draft, anchor) {
-  if (creationType !== 'paint' && !footprintEdited) {
+  if (!footprintEdited) {
     const aspect = creationType === 'logo' && uploadedLogo ? (uploadedLogoCrop?.width || uploadedLogo.naturalWidth)/(uploadedLogoCrop?.height || uploadedLogo.naturalHeight) : 1.25;
     return topology.connected(anchor, draft.length, aspect);
   }
@@ -590,7 +570,7 @@ function relocateDesign(draft, anchor) {
       const distance=(p.x-source.x)**2+(p.y-source.y)**2;
       if(distance<best) {best=distance;bestId=id;}
     }
-    chosen.push({id:bestId,color:source.color});frontier.delete(bestId);used.add(bestId);
+    chosen.push({...source,id:bestId});frontier.delete(bestId);used.add(bestId);
     for(const id of topology.neighboursOf(bestId))if(!used.has(id)&&!frontier.has(id))frontier.set(id,topology.project(topology.centre(id),frame));
   }
   return topology.cells(chosen, anchor);
@@ -619,7 +599,7 @@ function drawDesignPreview(target = document.querySelector('#designCanvas')) {
   const review=target.id==='reviewCanvas', cells=review?selectedCells:previewCells();
   if(!review) draftArtwork=null;
   const context=target.getContext('2d'); context.clearRect(0,0,target.width,target.height);
-  const guides=review?[]:creationType==='paint'?topology.connected(designAnchor,135,1.5).filter(c=>!cells.some(a=>a.id===c.id)):creationType==='logo'?adjacentLogoCandidates(cells):[];
+  const guides=review||!topology?[]:adjacentLogoCandidates(cells);
   const display=[...cells,...guides]; if(!display.length) return;
   const bounds=footprintBounds(display), scale=Math.min((target.width-44)/bounds.width,(target.height-36)/bounds.height);
   const ox=(target.width-bounds.width*scale)/2,oy=(target.height-bounds.height*scale)/2;
@@ -634,53 +614,48 @@ function drawDesignPreview(target = document.querySelector('#designCanvas')) {
   document.querySelector('#editorEmpty').hidden=Boolean(cells.length);
 }
 function paintEditorAt(event) {
-  if(!['paint','logo'].includes(creationType))return;
   const rect=event.currentTarget.getBoundingClientRect(), x=(event.clientX-rect.left)*event.currentTarget.width/rect.width,y=(event.clientY-rect.top)*event.currentTarget.height/rect.height;
-  const hit=editorHitRegions.find(r=>pointInPolygon(x,y,r.polygon))?.cell; if(!hit)return;
+  const hit=editorHitRegions.find(r=>pointInPolygon(x,y,r.polygon))?.cell;
+  if(!hit || lastPaintedCell === hit.id)return;
+  lastPaintedCell = hit.id;
   const cells=previewCells(),index=cells.findIndex(c=>c.id===hit.id);
-  if(creationType==='logo') {
-    const next=index<0?[...cells,hit]:cells.filter(c=>c.id!==hit.id);
+  let next = cells.map(c=>({...c}));
+  if(logoEditorMode === 'hex') {
+    next=index<0?[...next,{id:hit.id}]:next.filter(c=>c.id!==hit.id);
     if(!topology.isConnected(next)) {updateLogoGuidance('Keep at least one connected cell.');return;}
-    logoCells=next;footprintEdited=true;amountInput.value=next.length;
   } else {
-    let next=cells.map(c=>({...c}));
-    if(paintAction==='erase')next=next.filter(c=>c.id!==hit.id);
-    else if(index>=0)next[index].color=document.querySelector('#brandColor').value;
-    else {
-      // Fill the shortest adjacency path when painting beyond the current edge.
-      const pending=[hit.id],parent=new Map([[hit.id,null]]),active=new Set(next.map(c=>c.id));
-      let end=hit.id;
-      if(next.length) {
-        for(let i=0;i<pending.length;i++) { end=pending[i];if(active.has(end))break;for(const id of topology.neighboursOf(end))if(!parent.has(id)){parent.set(id,end);pending.push(id);} }
-      }
-      while(end!==null) {if(!active.has(end))next.push({id:end,color:document.querySelector('#brandColor').value});end=parent.get(end);}
-    }
-    if(next.length&&!topology.isConnected(next))return;
-    designCells=next;amountInput.value=next.length;
+    if(index<0)return;
+    if(logoEditorMode === 'paint') { next[index].color=document.querySelector('#brushColor').value; next[index].transparent=false; }
+    else if(logoEditorMode === 'transparent') { next[index].transparent=true; delete next[index].color; }
+    else if(logoEditorMode === 'restore') { delete next[index].color; delete next[index].transparent; }
+    else return;
   }
+  logoCells=next; footprintEdited=true; amountInput.value=next.length;
   selectedCell=null;selectedCells=[];drawDesignPreview();updateTotals();
 }
 
-function configureCreation(type) {
-  logoCells = null; colourCells = null; footprintEdited = false;
-  creationType = type;
-  fixedArtworkMode = type === 'logo' ? 'logo' : 'colour';
-  document.querySelector('#selectionShape').value = type === 'logo' ? 'logo' : type === 'paint' ? 'painted' : 'compact';
-  document.querySelector('#designTitle').textContent = type === 'logo' ? 'Make your logo look great' : type === 'paint' ? 'Paint your design' : 'Choose your colour and size';
-  document.querySelector('#designIntro').textContent = type === 'paint' ? 'Every coloured hexagon becomes part of your placement.' : 'This is a true hex-mosaic preview of your placement.';
-  document.querySelector('#logoControls').hidden = type !== 'logo';
-  document.querySelector('#logoPositionControls').hidden = type !== 'logo';
-  document.querySelector('#logoOptions').hidden = type !== 'logo';
-  document.querySelector('#colourControls').hidden = type === 'logo';
-  document.querySelector('#customPaintTools').hidden = type !== 'paint';
-  document.querySelector('#logoFootprintHelp').hidden = type !== 'logo';
-  document.querySelector('#sizeControls').hidden = type === 'paint';
-  if (type === 'logo') amountInput.value = 150;
-  if (type === 'colour') amountInput.value = 50;
-  if (type === 'paint' && !designCells.length) amountInput.value = 0;
+function configureCreation() {
+  creationType = 'logo';
+  document.querySelector('#selectionShape').value = 'logo';
+  document.querySelector('#designTitle').textContent = 'Design your placement';
+  document.querySelector('#designIntro').textContent = 'Combine an image, colours and transparent cells in one design.';
+  for(const id of ['logoControls','colourControls','customPaintTools','logoFootprintHelp','sizeControls']) document.querySelector(`#${id}`).hidden=false;
+  updateImageControls();
   showFlowStep('design');
-  drawDesignPreview();
-  updateTotals();
+  drawDesignPreview();updateTotals();
+}
+function updateImageControls() {
+  for(const id of ['logoOptions','logoPositionControls','removeImage']) document.querySelector(`#${id}`).hidden=!uploadedLogo;
+  document.querySelector('#moveImageMode').disabled=!uploadedLogo;
+  if(!uploadedLogo && logoEditorMode==='move') setEditorMode('paint');
+}
+function setEditorMode(mode) {
+  logoEditorMode=mode; logoDrag=null; lastPaintedCell=null;
+  for(const [id,value] of [['moveImageMode','move'],['editHexMode','hex'],['paintCells','paint'],['eraseCells','transparent'],['restoreCells','restore']]) {
+    const button=document.querySelector(`#${id}`), active=value===mode;
+    button.setAttribute('aria-pressed',String(active));button.classList.toggle('active',active);
+  }
+  document.querySelector('#designCanvas').style.cursor=mode==='move'?'grab':'crosshair';
 }
 
 function setInteractionMode(mode) {
@@ -734,7 +709,7 @@ let suggestionIndex = 0;
 function suggestLocation() {
   const draft=previewCells();
   for(let attempt=0;attempt<120;attempt++) {
-    const id=attempt===0&&suggestionIndex===0?designAnchor:1+(++suggestionIndex*7919)%CELL_COUNT;
+    const id=attempt===0&&suggestionIndex===0&&requestedAnchor?requestedAnchor:attempt===0&&suggestionIndex===0?designAnchor:1+(++suggestionIndex*7919)%CELL_COUNT;
     if(occupiedCells[id-1])continue;
     const cells=id===designAnchor?draft:relocateDesign(draft,id);
     if(cells.some(c=>occupiedCells[c.id-1]))continue;
@@ -751,16 +726,17 @@ document.querySelector('#reviewEditDesign').addEventListener('click', () => docu
 document.querySelector('#dismissToast').addEventListener('click', () => document.querySelector('#toast').classList.remove('show'));
 document.addEventListener('keydown', (event) => { if(event.key === 'Escape' && !document.querySelector('#buyPanel').inert) closeBuy(); });
 const undoStack = [], redoStack = [];
-function rememberPaint() { undoStack.push(structuredClone(designCells)); if(undoStack.length>50) undoStack.shift(); redoStack.length=0; updateHistory(); }
-function updateHistory() { document.querySelector('#undoPaint').disabled=!undoStack.length; document.querySelector('#redoPaint').disabled=!redoStack.length; }
-function restorePaint(from,to) { if(!from.length) return; to.push(structuredClone(designCells)); designCells=from.pop(); drawDesignPreview(); updateTotals(); updateHistory(); }
+function rememberPaint() { undoStack.push({cells:structuredClone(previewCells()),edited:footprintEdited}); if(undoStack.length>50)undoStack.shift();redoStack.length=0;updateHistory(); }
+function updateHistory() { document.querySelector('#undoPaint').disabled=!undoStack.length;document.querySelector('#redoPaint').disabled=!redoStack.length; }
+function restorePaint(from,to) {
+  if(!from.length)return;
+  to.push({cells:structuredClone(previewCells()),edited:footprintEdited});
+  const state=from.pop();logoCells=state.cells;footprintEdited=state.edited;amountInput.value=logoCells.length;
+  selectedCell=null;selectedCells=[];drawDesignPreview();updateTotals();updateHistory();
+}
 document.querySelector('#undoPaint').addEventListener('click',()=>restorePaint(undoStack,redoStack));
 document.querySelector('#redoPaint').addEventListener('click',()=>restorePaint(redoStack,undoStack));
 
-document.querySelector('#logoArtwork').addEventListener('click', () => configureCreation('logo'));
-document.querySelector('#colourArtwork').addEventListener('click', () => configureCreation('colour'));
-document.querySelector('#paintArtwork').addEventListener('click', () => configureCreation('paint'));
-document.querySelector('#backToType').addEventListener('click', () => showFlowStep('type'));
 document.querySelector('#toPlacement').addEventListener('click', enterPlacement);
 document.querySelector('#backToDesign').addEventListener('click', () => { clearPlacementPreview(); selecting = false; selectionModeUniform.value = 0; document.body.classList.remove('selecting', 'placing-design'); controls.enableRotate = true; showFlowStep('design'); drawDesignPreview(); updateTotals(); });
 document.querySelector('#moveGlobeMode').addEventListener('click', () => setInteractionMode('move'));
@@ -770,52 +746,50 @@ document.querySelector('#toReview').addEventListener('click', () => {
   showFlowStep('review');
   setInteractionMode('move');
   focusSelection();
-  document.querySelector('#reviewKind').textContent = creationType === 'logo' ? 'Logo placement' : creationType === 'paint' ? 'Painted placement' : 'Colour placement';
+  document.querySelector('#reviewKind').textContent = uploadedLogo ? 'Image & colour placement' : 'Colour placement';
   const reviewCanvas = document.querySelector('#reviewCanvas');
   drawDesignPreview(reviewCanvas);
   const warning = document.querySelector('#reviewWarning');
-  warning.hidden = creationType !== 'logo';
+  warning.hidden = !uploadedLogo;
   warning.textContent = 'Small text can be hard to read from a distance. Zoom out to check your artwork before adding it.';
   clearPlacementPreview();
   addHighResolutionPlacement(document.querySelector('#brandColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
 });
 document.querySelector('#backToPlacement').addEventListener('click', () => { clearPlacementPreview(); showFlowStep('place'); setInteractionMode('move'); refreshSelection(); });
-document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size; logoCells = null; colourCells = null; footprintEdited = false; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); }));
+document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size; logoCells = null; footprintEdited = false; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); }));
 amountInput.addEventListener('change', () => { amountInput.value = placementCount(); });
-amountInput.addEventListener('input', () => { logoCells = null; colourCells = null; footprintEdited = false; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); });
+amountInput.addEventListener('input', () => { logoCells = null; footprintEdited = false; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); });
 document.querySelectorAll('[data-treatment]').forEach((button) => button.addEventListener('click', () => { document.querySelector('#logoTreatment').value = button.dataset.treatment; document.querySelectorAll('[data-treatment]').forEach((item) => item.classList.toggle('active', item === button)); drawDesignPreview(); updateLogoGuidance(); }));
 document.querySelector('#logoScale').addEventListener('input', () => { document.querySelector('#logoScaleValue').textContent = `${document.querySelector('#logoScale').value}%`; drawDesignPreview(); });
-for (const id of ['logoPositionX', 'logoPositionY']) document.querySelector(`#${id}`).addEventListener('input', () => drawDesignPreview());
-for (const [id, mode] of [['moveImageMode', 'move'], ['editHexMode', 'hex']]) document.querySelector(`#${id}`).addEventListener('click', () => {
-  logoEditorMode = mode;
-  for (const button of ['moveImageMode', 'editHexMode']) { const active = button === id; document.querySelector(`#${button}`).classList.toggle('active', active); document.querySelector(`#${button}`).setAttribute('aria-pressed', String(active)); }
-});
+for(const [id,mode] of [['moveImageMode','move'],['editHexMode','hex'],['paintCells','paint'],['eraseCells','transparent'],['restoreCells','restore']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode));
+document.querySelector('#brushColor').addEventListener('input',()=>{document.querySelector('#paintColourChip').style.background=document.querySelector('#brushColor').value;});
+document.querySelector('#fillCells').addEventListener('click',()=>{rememberPaint();logoCells=previewCells().map(c=>({...c,color:document.querySelector('#brushColor').value,transparent:false}));footprintEdited=true;drawDesignPreview();});
+document.querySelector('#removeImage').addEventListener('click',()=>{uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();});
 function resetLogoTransform() {
   document.querySelector('#logoScale').value = 100;
   document.querySelector('#logoScaleValue').textContent = '100%';
-  document.querySelector('#logoPositionX').value = 0;
-  document.querySelector('#logoPositionY').value = 0;
+  logoPosition.x=0;logoPosition.y=0;
   document.querySelector('#logoOrientation').value = '0';
 }
 
 document.querySelector('#logoOrientation').addEventListener('change', () => { updateLogoPreviewOrientation(); drawDesignPreview(); });
 document.querySelector('#resetLogo').addEventListener('click', () => { resetLogoTransform(); updateLogoPreviewOrientation(); drawDesignPreview(); });
-document.querySelector('#clearPaint').addEventListener('click', () => { rememberPaint(); designCells = []; amountInput.value = 0; drawDesignPreview(); updateTotals(); });
+document.querySelector('#clearPaint').addEventListener('click', () => { rememberPaint(); logoCells=previewCells().map(({color,transparent,...cell})=>cell); drawDesignPreview(); updateTotals(); });
 const designCanvas = document.querySelector('#designCanvas');
 designCanvas.addEventListener('pointerdown', (event) => {
-  if(creationType === 'logo' && logoEditorMode === 'move') {
-    logoDrag = { x: event.clientX, y: event.clientY, offsetX: Number(document.querySelector('#logoPositionX').value), offsetY: Number(document.querySelector('#logoPositionY').value) };
+  if(uploadedLogo && logoEditorMode === 'move') {
+    logoDrag = { x: event.clientX, y: event.clientY, offsetX: logoPosition.x, offsetY: logoPosition.y };
     designCanvas.setPointerCapture(event.pointerId); return;
   }
-  if(creationType === 'paint') rememberPaint(); editorPainting = true; designCanvas.setPointerCapture(event.pointerId); paintEditorAt(event); });
+  rememberPaint(); lastPaintedCell=null; editorPainting = true; designCanvas.setPointerCapture(event.pointerId); paintEditorAt(event); });
 designCanvas.addEventListener('pointermove', (event) => {
   if(logoDrag) {
     const rect = designCanvas.getBoundingClientRect();
-    document.querySelector('#logoPositionX').value = logoDrag.offsetX + (event.clientX-logoDrag.x)*designCanvas.width/rect.width/editorArtworkSize.width*100;
-    document.querySelector('#logoPositionY').value = logoDrag.offsetY + (event.clientY-logoDrag.y)*designCanvas.height/rect.height/editorArtworkSize.height*100;
+    logoPosition.x = Math.max(-100,Math.min(100,logoDrag.offsetX + (event.clientX-logoDrag.x)*designCanvas.width/rect.width/editorArtworkSize.width*100));
+    logoPosition.y = Math.max(-100,Math.min(100,logoDrag.offsetY + (event.clientY-logoDrag.y)*designCanvas.height/rect.height/editorArtworkSize.height*100));
     drawDesignPreview(); return;
   }
-  if (editorPainting && creationType === 'paint') paintEditorAt(event); });
+  if (editorPainting && logoEditorMode !== 'hex') paintEditorAt(event); });
 designCanvas.addEventListener('pointerup', () => { editorPainting = false; logoDrag = null; });
 designCanvas.addEventListener('pointercancel', () => { editorPainting = false; logoDrag = null; });
 updatePaintColour();
@@ -969,6 +943,7 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
     uploadedLogo = raster;
     uploadedLogoCrop = findLogoContentBounds(raster);
     resetLogoTransform();
+    updateImageControls();setEditorMode('move');
     const preview = document.querySelector('#logoPreview');
     const previewImage = document.createElement('img');
     previewImage.src = raster.toDataURL();
@@ -1041,11 +1016,12 @@ function renderArtwork(cells) {
   art.height = Math.ceil(bounds.height * unit);
   const context = art.getContext('2d');
   const px = art.width / bounds.width, py = art.height / bounds.height;
+  const sourceCells = previewCells(), sourceBounds = footprintBounds(sourceCells);
   const drawRotated = (x, y, width, height) => {
     const rotation = Number(document.querySelector('#logoOrientation').value) || 0;
     const repeat = document.querySelector('#logoTreatment').value === 'repeat';
-    const shiftX = Number(document.querySelector('#logoPositionX').value)/100 * (repeat ? width : art.width);
-    const shiftY = Number(document.querySelector('#logoPositionY').value)/100 * (repeat ? height : art.height);
+    const shiftX = logoPosition.x/100 * (repeat ? width : sourceBounds.width * px);
+    const shiftY = logoPosition.y/100 * (repeat ? height : sourceBounds.height * py);
     context.save(); context.translate(x + width / 2 + shiftX, y + height / 2 + shiftY);
     context.rotate(THREE.MathUtils.degToRad(rotation));
     const quarterTurn = Math.abs(rotation) === 90;
@@ -1059,7 +1035,7 @@ function renderArtwork(cells) {
     // Slightly overlap texture fills so antialiased seams do not become holes in
     // the artwork-safe area. The globe geometry still supplies the visible seams.
     polygonPath(context, cell, bounds, px, py);
-    context.fillStyle = cell.color || document.querySelector('#brandColor').value; context.fill();
+    context.fillStyle = document.querySelector('#brandColor').value; context.fill();
   });
   if (creationType === 'logo' && uploadedLogo) {
     context.save(); context.beginPath();
@@ -1071,9 +1047,19 @@ function renderArtwork(cells) {
       const source = uploadedLogoCrop || { width: uploadedLogo.naturalWidth, height: uploadedLogo.naturalHeight };
       const rotation = Math.abs(Number(document.querySelector('#logoOrientation').value) || 0);
       const sourceAspect = source.width / source.height;
-      const safeRect = largestLogoRect(cells, bounds, rotation === 90 ? 1 / sourceAspect : sourceAspect, art.width, art.height);
-      drawRotated(safeRect.x, safeRect.y, safeRect.width, safeRect.height);
+      // Fit once in the editor's local coordinate system. A new destination
+      // clips that same framing; it must not shrink/recentre the source image.
+      const safeRect = largestLogoRect(sourceCells, sourceBounds, rotation === 90 ? 1 / sourceAspect : sourceAspect, sourceBounds.width, sourceBounds.height);
+      drawRotated((sourceBounds.left + safeRect.x - bounds.left) * px, (sourceBounds.top + safeRect.y - bounds.top) * py, safeRect.width * px, safeRect.height * py);
     }
+    context.restore();
+  }
+  // Cell overrides are a separate editable layer above the untouched source image.
+  for(const cell of cells) {
+    if(!cell.transparent && !cell.color)continue;
+    context.save();polygonPath(context,cell,bounds,px,py);context.clip();
+    context.clearRect(0,0,art.width,art.height);
+    if(!cell.transparent) {context.fillStyle=cell.color;context.fillRect(0,0,art.width,art.height);}
     context.restore();
   }
   return art;

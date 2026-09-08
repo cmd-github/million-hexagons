@@ -1,7 +1,7 @@
 # Product and delivery contract
 
 Status: current source of truth
-Last updated: 7 September 2026
+Last updated: 8 September 2026
 
 ## Product
 
@@ -17,12 +17,12 @@ Preserve the staged Design -> Place -> Review journey.
 
 ### Design
 
-- Start with three choices: Logo or image, Solid colour, and Paint hexagons. Prioritise Logo for business buyers.
+- Open one editor directly, with optional image upload, background colour, per-cell paint and transparency. No artwork-type selection screen.
 - Use a face-on hex mosaic for editing. Keep price and cell count visible whenever either can change.
 - Accept PNG, JPG, WebP, and SVG artwork up to 4 MB. Trim empty margins, preserve aspect ratio, and show the real cell-clipped result.
-- Default logos to one spread image. Fit the image as large as possible without cropping by default. Expose zoom (50?400%) and drag/slider positioning with cropping at the cell boundary, separately from hexagon editing. Keep repeat-per-cell, quarter-turn rotation, reset, and Custom sizing secondary.
+- Default logos to one spread image. Fit the image as large as possible without cropping by default. Expose zoom (50-400%) and drag positioning with cropping at the cell boundary, separately from hexagon editing. Keep repeat-per-cell, quarter-turn rotation, reset, and Custom sizing secondary.
 - Use Small, Medium, and Large presets based initially on 50, 150, and 400 cells. Presets are not readability guarantees.
-- Paint supports colour changes, erase, clear, undo, and redo while retaining a connected footprint.
+- Paint overrides individual cells above the image. Transparent clears a cell without removing it from the count or price. Restore artwork removes that override. Support paint all, reset cell edits, undo and redo. Add/remove cells is a separate tool and retains a connected footprint.
 
 ### Place
 
@@ -53,6 +53,6 @@ Preserve the staged Design -> Place -> Review journey.
 
 ## Current scope boundaries
 
-Included now: globe exploration and search, sample campaigns, all three creation paths, exact availability/conflict states, responsive layouts, mock session publication, and destination reopening.
+Included now: globe exploration and search, sample campaigns, the unified image and colour editor, exact availability/conflict states, responsive layouts, mock session publication, and destination reopening.
 
 Not yet production-ready: durable drafts or ownership, accounts, authoritative inventory, reservations, checkout, tax/refunds, receipts, production artwork storage, moderation, recovery, support tooling, physical-device certification, or analytics. Do not represent the prototype as a paid or durable service.

@@ -26,9 +26,9 @@ try {
   } else {await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+110,y+25,{steps:10});await page.mouse.up();}
   await page.waitForTimeout(300);assert.notDeepEqual(await page.evaluate(()=>geodesicQA.state().camera),before,'Drag must rotate');
   await page.screenshot({path:`artifacts/geodesic-qa/${mobile?'mobile':'desktop'}-drag.png`});
-  await page.locator('#claimButton').click();await page.locator('#colourArtwork').click();await page.locator('#toPlacement').click();
+  await page.locator('#claimButton').click();await page.locator('[data-size="50"]').click();const designBefore=await page.evaluate(()=>geodesicQA.state().design);await page.locator('#toPlacement').click();
   const selected=await page.evaluate(()=>geodesicQA.state().selected);await page.locator('#toReview').click();await page.locator('#reviewEditDesign').click();
-  assert.deepEqual(await page.evaluate(()=>geodesicQA.state().design),selected,'Edit design preserves chosen IDs');
+  assert.deepEqual(await page.evaluate(()=>geodesicQA.state().design),designBefore,'Edit design preserves source IDs');
   await page.locator('#toPlacement').click();await page.locator('#placeDesignMode').click();
   const placeBox=await page.locator('#world').boundingBox(),cx=placeBox.x+placeBox.width/2,cy=placeBox.y+placeBox.height/2;
   const distance=await page.evaluate(()=>Math.hypot(...geodesicQA.state().camera));
@@ -45,7 +45,7 @@ try {
   const placement=await page.evaluate(()=>geodesicQA.state());assert.equal(placement.selected.length,50);assert.ok(placement.selected.includes(id));assert.equal(placement.connected,true);
   await page.locator('#toReview').click();await page.locator('#previewPurchase').click();
   await page.waitForFunction(()=>document.querySelector('#buyPanel').getAttribute('aria-hidden')==='true',null,{timeout:60000});
-  await page.locator('#claimButton').click();await page.locator('#colourArtwork').click();await page.locator('#toPlacement').click();
+  await page.locator('#claimButton').click();await page.locator('#toPlacement').click();
   await page.locator('#placeDesignMode').click();await page.evaluate(id=>geodesicQA.focus(id,.6),id);await page.waitForTimeout(200);
   const occupiedPoint=await page.evaluate(id=>geodesicQA.screen(id),id);
   if(mobile)await page.touchscreen.tap(occupiedPoint.x,occupiedPoint.y);else await page.mouse.click(occupiedPoint.x,occupiedPoint.y);

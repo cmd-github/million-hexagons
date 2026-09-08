@@ -16,7 +16,7 @@ The packed topology loads in a worker only when exact detail or interaction requ
 
 ## Artwork and placement
 
-Design, Place, Review, and publication share exact polygon IDs and one placement-local gnomonic frame. Artwork is clipped to the true polygon union and retains its source aspect ratio. Moving a draft reassigns the same count through real adjacency; its outline may change near a pentagon.
+Design, Place, Review, and publication share exact polygon IDs and one placement-local gnomonic frame. Artwork is clipped to the true polygon union and retains its source aspect ratio. Placement projects a draft onto the same count through real adjacency; its outline may change near a pentagon. Placement never overwrites the editor anchor, source footprint, image, transform or cell overrides. Image fitting and drag offsets remain in the source editor frame when projected onto a destination, so relocation cannot shrink or recenter the image. Per-cell paint and transparency are applied after the source image and travel with their mapped cells.
 
 Published/sample artwork uses a six-face, six-level cube tile pyramid with 512-pixel interiors and gutters. The renderer chooses detail from projected pixel density across the complete visible surface, requests four pages concurrently, and uses cached ancestors only while target pages load. It uses crisp replacements and anisotropic filtering, without crossfading blurry parent imagery.
 

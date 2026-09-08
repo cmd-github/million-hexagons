@@ -47,27 +47,28 @@
       <p class="eyebrow">PLACEMENT STUDIO</p>
       <div class="flow-progress" aria-label="Creation progress"><i class="active">1</i><span></span><i>2</i><span></span><i>3</i><small>Design</small><small>Place</small><small>Review</small></div>
 
-      <div class="flow-screen active" id="typeStep">
-        <h2>Make your mark.</h2>
-        <p class="panel-intro">Start with your artwork. We will help you find its place in the world.</p>
-        <div class="creation-types">
-          <button type="button" id="logoArtwork"><i>◎</i><b>Logo or image <em>START HERE</em></b><span>The easiest way to put your brand on the globe</span></button>
-          <button type="button" id="colourArtwork"><i>■</i><b>Solid colour</b><span>Create a clean block of connected hexagons</span></button>
-          <button type="button" id="paintArtwork"><i>✦</i><b>Paint hexagons</b><span>Make a multicolour design, hex by hex</span></button>
-        </div>
-      </div>
-
       <div class="flow-screen" id="designStep" hidden>
-        <button class="back-link" type="button" id="backToType">← Change type</button>
         <h2 id="designTitle">Design your placement</h2>
         <p class="panel-intro" id="designIntro">This hex preview is what people will see.</p>
         <select id="selectionShape" hidden><option value="compact">Compact</option><option value="logo">Logo proportion</option><option value="painted">Painted design</option></select>
 
         <div class="logo-controls" id="logoControls" hidden>
-          <label class="upload-zone">Logo image <span>PNG, JPG, WebP or SVG · up to 4 MB</span><input id="logoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
-          <p id="uploadStatus" role="status" aria-live="polite">Your artwork stays on this device.</p><div class="logo-preview" id="logoPreview"><span>UPLOAD YOUR LOGO</span></div>
-          <div class="logo-palette" id="logoPalette" hidden><span>Colours detected in your logo</span><div id="logoSwatches"></div></div>
+          <label class="upload-zone">Image (optional) <span>PNG, JPG, WebP or SVG · up to 4 MB</span><input id="logoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
+          <button class="text-button" type="button" id="removeImage" hidden>Remove image</button><p id="uploadStatus" role="status" aria-live="polite">Your artwork stays on this device.</p><div class="logo-preview" id="logoPreview"><span>UPLOAD YOUR LOGO</span></div>
+          <details class="logo-palette" id="logoPalette" hidden><summary>Colours from your image</summary><div id="logoSwatches"></div></details>
         </div>
+
+        <div class="custom-paint-tools" id="customPaintTools">
+          <div class="editor-tools" role="group" aria-label="Editor tools">
+            <button type="button" id="moveImageMode" aria-pressed="true">Move image</button><button type="button" id="editHexMode" aria-pressed="false">Add / remove cells</button>
+            <button type="button" id="paintCells" aria-pressed="false"><i id="paintColourChip"></i>Paint cells</button><button type="button" id="eraseCells" aria-pressed="false">Transparent</button><button type="button" id="restoreCells" aria-pressed="false">Restore artwork</button>
+          </div>
+          <div class="brush-controls"><label>Brush colour<input id="brushColor" type="color" value="#ff4d6d" /></label><button type="button" id="fillCells">Paint all</button></div>
+          <div><button type="button" id="clearPaint">Reset cell edits</button><button type="button" id="undoPaint" disabled aria-label="Undo painting">Undo</button><button type="button" id="redoPaint" disabled aria-label="Redo painting">Redo</button></div>
+        </div>
+        <div id="logoPositionControls" hidden><label>Zoom <output id="logoScaleValue">100%</output><input id="logoScale" type="range" min="50" max="400" value="100" /></label></div>
+        <div class="hex-editor"><canvas id="designCanvas" width="680" height="400" aria-label="Placement footprint editor"></canvas><span id="editorEmpty">Your placement preview</span></div>
+        <small class="logo-footprint-help" id="logoFootprintHelp" hidden>Drag to move the image. Choose a tool to paint, clear or restore individual cells. Transparent cells still count towards your price.</small>
 
         <div id="sizeControls">
           <span class="field-label">Choose a size</span>
@@ -75,16 +76,7 @@
           <details class="custom-options"><summary>Choose a custom size</summary><label class="custom-size">Custom number of hexagons<input id="hexAmount" type="number" min="1" max="10000" step="1" value="150" /></label></details>
         </div>
 
-        <div class="colour-controls" id="colourControls" hidden><label><span id="brandColourLabel">Placement colour</span><input id="brandColor" type="color" value="#5967b0" /></label></div>
-        <div class="custom-paint-tools" id="customPaintTools" hidden>
-          <div><button type="button" id="paintCells" aria-pressed="true"><i id="paintColourChip"></i>Paint</button><button type="button" id="eraseCells" aria-pressed="false">Erase</button><button type="button" id="clearPaint">Clear</button><button type="button" id="undoPaint" disabled aria-label="Undo painting">Undo</button><button type="button" id="redoPaint" disabled aria-label="Redo painting">Redo</button></div>
-          <small>Choose a colour, then click or drag over the flat hex canvas.</small>
-        </div>
-
-        <div id="logoPositionControls" hidden><div class="segmented"><button type="button" id="moveImageMode" class="active" aria-pressed="true">Move image</button><button type="button" id="editHexMode" aria-pressed="false">Edit hexagons</button></div><label>Zoom <output id="logoScaleValue">100%</output><input id="logoScale" type="range" min="50" max="400" value="100" /></label><div class="field-row"><label>Horizontal position<input id="logoPositionX" type="range" min="-100" max="100" value="0" /></label><label>Vertical position<input id="logoPositionY" type="range" min="-100" max="100" value="0" /></label></div></div>
-        <div class="hex-editor"><canvas id="designCanvas" width="680" height="400" aria-label="Placement footprint editor"></canvas><span id="editorEmpty">Your placement preview</span></div>
-        <small class="logo-footprint-help" id="logoFootprintHelp" hidden>Drag to position your image, or use the position sliders. Zoom in to crop. Choose Edit hexagons to add or remove cells.</small>
-
+        <div class="colour-controls" id="colourControls" hidden><label><span id="brandColourLabel">Background colour</span><input id="brandColor" type="color" value="#5967b0" /></label></div>
         <details class="logo-options" id="logoOptions" hidden><summary>Fine-tune your artwork</summary>
           <div class="segmented"><button type="button" data-treatment="span" class="active">One logo across area</button><button type="button" data-treatment="repeat">Repeat in each hex</button></div>
           <select id="logoTreatment" hidden><option value="span">span</option><option value="repeat">repeat</option></select>
