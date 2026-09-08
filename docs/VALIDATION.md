@@ -11,7 +11,8 @@ npm run preview -- --port 4181
 $env:SMOKE_URL = 'http://127.0.0.1:4181'
 npm test
 npm run test:geometry
-npm run test:visual
+node scripts/globe-design-qa.mjs
+node scripts/globe-navigation-qa.mjs
 npm run test:studio-scale
 ```
 
@@ -62,4 +63,10 @@ npm run test:performance
 For changes under `coming-soon/`, run `npm run build:coming-soon`, `npm --prefix functions test`, and `npm run test:coming-soon` against its preview server. Inspect desktop/mobile output, form validation and states, keyboard focus, the X link, and globe drag behaviour before deploying functions and hosting together.
 
 
-Globe editing: run `node scripts/globe-design-qa.mjs` against localhost:4180. It checks desktop/mobile globe painting and undo, identical cell IDs across Canvas/Globe/Place/Review, discovery inspector and starting a one-cell area nearby. Inspect artifacts/globe-design. Also manually check connected add/remove and occupied-cell rejection around an existing placement.
+Globe editing: run `node scripts/globe-design-qa.mjs` against localhost:4180. It checks desktop/mobile globe editing and exact cell IDs across Design/Place/Review, plus discovery HUD actions. Inspect artifacts/globe-design. Also manually check connected add/remove and occupied-cell rejection around an existing placement.
+
+
+Current globe-only UI checks replace the earlier canvas interaction journeys: scripts/globe-design-qa.mjs covers desktop/mobile brush growth, separate removal, undo, continuous rotation, clean restart, source preservation and review IDs; scripts/globe-navigation-qa.mjs covers viewport fit, claim camera preservation, detail gating, double-click zoom and shared-link arrival. The older canvas-specific visual/scale scripts need migration before being used as release evidence for this UI. Do not interpret earlier canvas results as a current pass.
+
+
+8 September globe-only TODO pass: production build and four geometry tests passed. The updated test:visual command runs the two globe suites; desktop/mobile publication and exact committed cell IDs, source reset, brush growth/removal/undo, image rotation and review round trips passed. Navigation checks cover 320x568, 390x844, 1024x768 and 1440x900 without pane overflow, claim zoom preservation, detail gating, double-click zoom and link arrival. Desktop/mobile screenshots were inspected. The current pass does not rerun the earlier 100,000-cell publication benchmark.

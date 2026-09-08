@@ -65,6 +65,11 @@ const hoverCellUniform = { value: -2 };
 const globeMaterial = new THREE.MeshStandardMaterial({ color: '#071c2b', emissive:'#102735',emissiveIntensity:.85, roughness: .7, metalness: .04 });
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius - .0005, 192, 128), globeMaterial);
 globe.add(sphere);
+const atmosphere=new THREE.Mesh(new THREE.SphereGeometry(radius*1.012,64,48),new THREE.ShaderMaterial({
+ transparent:true,depthWrite:false,side:THREE.BackSide,blending:THREE.AdditiveBlending,
+ vertexShader:'varying vec3 n; varying vec3 v; void main(){vec4 p=modelViewMatrix*vec4(position,1.);n=normalize(normalMatrix*normal);v=normalize(-p.xyz);gl_Position=projectionMatrix*p;}',
+ fragmentShader:'varying vec3 n; varying vec3 v; void main(){float rim=pow(1.-abs(dot(normalize(n),normalize(v))),3.);gl_FragColor=vec4(.64,.9,.24,rim*.13);}'
+}));globe.add(atmosphere);
 const artworkTiles = new ArtworkTiles(globe,radius,{base:millionFixture?'/artwork/million':'/artwork/sample-hq',maxTiles:innerWidth<700?64:128,anisotropy:Math.min(8,renderer.capabilities.getMaxAnisotropy())});
 await artworkTiles.ready;
 let designAnchor = bootstrap.anchor;
@@ -162,13 +167,14 @@ let explorationStart = null;
 let requestedAnchor = null;
 let pinnedCell = null;
 let designSurface = "canvas", exactGlobeArea = false;
-let hoverTimer, globeStroke = null;
+let hoverTimer, globeStroke = null, flightVersion=0;
+for(const type of ['pointerdown','wheel'])canvas.addEventListener(type,()=>flightVersion++,{capture:true});
 canvas.addEventListener('pointerdown', event => { explorationStart = {x:event.clientX,y:event.clientY}; });
 canvas.addEventListener('pointerup', event => {
   if (document.body.classList.contains('creating') || !explorationStart || Math.hypot(event.clientX-explorationStart.x,event.clientY-explorationStart.y)>6) return;
   if (camera.position.length() < globeFitDistance() * .82) controls.autoRotate = false;
   const hit=intersect(event); if(!hit?.uv) return;
-  if (!hit.cell.occupied) { pinnedCell=hit.cell; updateTooltip(event,hit.cell,true); return; }
+  if (!hit.cell.occupied) { if(camera.position.length()>radius+.8)return; pinnedCell=hit.cell; updateTooltip(event,hit.cell,true); return; }
   inspectPlacement(hit.cell.id);
 
 });
@@ -224,7 +230,7 @@ function updateTooltip(event, cell, pinned = false) {
   destination.hidden=!cell.destination;
   destination.textContent=cell.destination?new URL(cell.destination).hostname.replace(/^www\./,''):'';
   const claim=document.querySelector('#claimCell');
-  claim.hidden=cell.occupied;
+  claim.hidden=cell.occupied || camera.position.length()>radius+.8;
   claim.dataset.anchor=cell.occupied?'':String(cell.id);
   tooltip.style.left = `${Math.min(innerWidth - 205, event.clientX + 16)}px`;
   tooltip.style.top = `${Math.min(innerHeight - (cell.occupied ? 90 : 130), event.clientY + 16)}px`;
@@ -418,13 +424,25 @@ async function openBuy(anchor = null) {
   panel.classList.add('open');
   panel.setAttribute('aria-hidden', 'false');
   panel.scrollTop = 0;
-  configureCreation();
-  if(requestedAnchor) {
-    designAnchor=requestedAnchor; logoCells=topology.cells([designAnchor],designAnchor);
-    footprintEdited=true; amountInput.value=1; undoStack.length=0;redoStack.length=0;
-    exactGlobeArea=true; setDesignSurface('globe'); setEditorMode('hex',false);
-    orientToCell(designAnchor,radius+.12);
-  } else {exactGlobeArea=false;setDesignSurface('canvas');}
+  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;draftArtwork=null;
+  document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();
+  document.querySelector('#brandColor').value='#5967b0';document.querySelector('#logoTreatment').value='span';document.querySelector('#areaBrush').value='0';document.querySelector('#areaBrushValue').textContent='1 cell';showUploadMessage('');document.querySelector('#uploadStatus').hidden=true;
+  resetLogoTransform();undoStack.length=0;redoStack.length=0;updateHistory();
+  logoCells=null;footprintEdited=true;logoEditorMode='pan';
+  const centreHit=intersect({clientX:canvas.getBoundingClientRect().width/2,clientY:canvas.getBoundingClientRect().height/2});
+  designAnchor=requestedAnchor||centreHit?.cell.id||bootstrap.anchor;
+  if(occupiedCells[designAnchor-1]){
+    const queue=[designAnchor],seen=new Set(queue);
+    for(let i=0;i<queue.length;i++){
+      const id=queue[i];if(!occupiedCells[id-1]){designAnchor=id;break;}
+      for(const n of topology.neighboursOf(id))if(!seen.has(n)){seen.add(n);queue.push(n);}
+    }
+  }
+  logoCells=topology.cells([designAnchor],designAnchor);amountInput.value=1;
+  exactGlobeArea=true;designSurface='globe';document.body.dataset.surface='globe';
+  configureCreation();setDesignSurface('globe');
+  if(!requestedAnchor)orientToCell(designAnchor,radius+.3);
+
 }
 function closeBuy() {
   if(publishing)return;
@@ -709,14 +727,15 @@ function updateImageControls() {
 function setEditorMode(mode, zoomToCells=true) {
   if(designSurface==='globe')controls.enableRotate=mode==='pan';
   logoEditorMode=mode;logoDrag=null;editorPan=null;lastPaintedCell=null;
+  document.querySelector('#areaBrushControls').hidden=!['hex','remove','paint','transparent','restore'].includes(mode);
   const brushing=['paint','transparent','restore'].includes(mode);
-  for(const [id,value] of [['moveImageMode','move'],['editHexMode','hex'],['paintCells','paint'],['panEditor','pan'],['colourBrush','paint'],['eraseCells','transparent'],['restoreCells','restore']]) {
+  for(const [id,value] of [['moveImageMode','move'],['editHexMode','hex'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan'],['colourBrush','paint'],['eraseCells','transparent'],['restoreCells','restore']]) {
     const button=document.querySelector(`#${id}`),active=id==='paintCells'?brushing:value===mode;
     button.setAttribute('aria-pressed',String(active));button.classList.toggle('active',active);
   }
   document.querySelector('#brushControls').hidden=!brushing;
   document.querySelector('#logoPositionControls').hidden=mode!=='move'||!uploadedLogo;
-  const hint=mode==='move'?'Drag the image to frame it.':mode==='hex'?'Click an edge cell to remove it, or a neighbouring space to add one.':mode==='transparent'?'Click or drag to clear cells. They remain part of your area.':mode==='restore'?'Click or drag to restore the image and background.':mode==='paint'?'Click or drag to paint cells.':'Drag to pan. Scroll or pinch to zoom.';
+  const hint=mode==='move'?'Drag the image to frame it.':mode==='hex'?'Add cells: drag across available neighbouring spaces.':mode==='remove'?'Remove cells: drag to erase the footprint. Undo recovers it.':mode==='transparent'?'Click or drag to clear cells. They remain part of your area.':mode==='restore'?'Click or drag to restore the image and background.':mode==='paint'?'Click or drag to paint cells.':'Drag to pan. Scroll or pinch to zoom.';
   document.querySelector('#toolHint').textContent=hint;
   document.querySelector('#logoFootprintHelp').textContent=hint;
   document.querySelector('#designCanvas').style.cursor=['move','pan'].includes(mode)?'grab':'crosshair';
@@ -840,7 +859,7 @@ document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesig
 document.querySelectorAll('[data-treatment]').forEach((button) => button.addEventListener('click', () => { document.querySelector('#logoTreatment').value = button.dataset.treatment; document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
 document.querySelectorAll('[data-treatment]').forEach((item) => item.classList.toggle('active', item === button)); drawDesignPreview(); updateLogoGuidance(); }));
 document.querySelector('#logoScale').addEventListener('input', () => { document.querySelector('#logoScaleValue').textContent = `${document.querySelector('#logoScale').value}%`; drawDesignPreview(); });
-for(const [id,mode] of [['moveImageMode','move'],['editHexMode','hex'],['paintCells','paint'],['panEditor','pan'],['colourBrush','paint'],['eraseCells','transparent'],['restoreCells','restore']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode));
+for(const [id,mode] of [['moveImageMode','move'],['editHexMode','hex'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan'],['colourBrush','paint'],['eraseCells','transparent'],['restoreCells','restore']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode));
 document.querySelector('#brushColor').addEventListener('input',()=>{document.querySelector('#paintColourChip').style.background=document.querySelector('#brushColor').value;});
 document.querySelector('#fillCells').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;rememberPaint();logoCells=previewCells().map(c=>({...c,color:document.querySelector('#brushColor').value,transparent:false}));footprintEdited=true;drawDesignPreview();});
 document.querySelector('#removeImage').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();});
@@ -849,6 +868,7 @@ function resetLogoTransform() {
   document.querySelector('#logoScaleValue').textContent = '100%';
   logoPosition.x=0;logoPosition.y=0;
   document.querySelector('#logoOrientation').value = '0';
+  document.querySelector('#rotationValue').textContent='0\u00b0';
 }
 
 document.querySelector('#logoOrientation').addEventListener('change', () => { updateLogoPreviewOrientation(); drawDesignPreview(); });
@@ -1143,6 +1163,7 @@ function renderArtwork(cells) {
       // Fit once in the editor's local coordinate system. A new destination
       // clips that same framing; it must not shrink/recentre the source image.
       const aspect=rotation===90?1/sourceAspect:sourceAspect;
+      if(sourceLayout.fits.size>12)sourceLayout.fits.clear();
       if(!sourceLayout.fits.has(aspect))sourceLayout.fits.set(aspect,largestLogoRect(sourceCells,sourceBounds,aspect,sourceBounds.width,sourceBounds.height));
       const safeRect=sourceLayout.fits.get(aspect);
       drawRotated((sourceBounds.left + safeRect.x - bounds.left) * px, (sourceBounds.top + safeRect.y - bounds.top) * py, safeRect.width * px, safeRect.height * py);
@@ -1196,7 +1217,7 @@ function addHighResolutionPlacement(color, treatment, targetLayer = placementLay
 let publishing=false;
 async function paintPlacement() {
   if(publishing)return;
-  if (!selectedUV || !selectedCells.length) return;
+  if (!selectedCell || !selectedCells.length) return;
   const rawWebsite = document.querySelector('#website').value.trim();
   let website = '';
   try { if(rawWebsite) { const parsed = new URL(rawWebsite); if(!['https:', 'http:'].includes(parsed.protocol)) throw new Error(); website=parsed.href; } } catch { const error=document.querySelector('#websiteError'); error.hidden=false; error.textContent='Enter a full website address starting with https://'; document.querySelector('#website').focus(); return; }
@@ -1237,7 +1258,7 @@ async function paintPlacement() {
 document.querySelector('#previewPurchase').addEventListener('click', paintPlacement);
 
 function resize() {
-  const active = document.body.dataset.flow==='design' && designSurface==='globe'?'place':document.body.dataset.flow||(document.body.classList.contains('inspecting')?'inspect':null);
+  const active = document.body.dataset.flow==='design' && designSurface==='globe'?'place':document.body.dataset.flow;
   const narrow = innerWidth <= 700 || (innerWidth <= 900 && innerHeight > innerWidth);
   const width = active && !narrow ? innerWidth - 490 : innerWidth;
   canvas.style.left='0px';
@@ -1331,56 +1352,58 @@ if(import.meta.env.DEV)window.performanceQA={tiles:artworkTiles.stats,focus(dire
 function syncGlobeDesign(){
   controls.enableRotate=logoEditorMode==='pan';
   selectedCell=cellForId(designAnchor);
-  selectedCells=previewCells(); draftArtwork=renderArtwork(selectedCells);
+  selectedCells=previewCells();
+  const blocked=selectedCells.some(c=>occupiedCells[c.id-1]);
+  document.querySelector('#toPlacement').disabled=blocked;
+  if(blocked)document.querySelector('#toolHint').textContent='This size overlaps occupied cells. Reduce the count or use Add to shape the area.';
+  draftArtwork=renderArtwork(selectedCells);
   clearPlacementPreview();
   addHighResolutionPlacement(document.querySelector('#brandColor').value,document.querySelector('#logoTreatment').value,previewPlacementLayers);
   updateTotals();
 }
 function setDesignSurface(surface){
   designSurface=surface;document.body.dataset.surface=surface;
-  for(const name of ['canvas','globe'])document.querySelector('#'+name+'Surface').setAttribute('aria-pressed',String(name===surface));
-  document.querySelector('#surfaceStatus').textContent=surface==='globe'?'Edit actual cells. Pan to move the globe.':exactGlobeArea?'Same cells, flat view. Your location is kept.':'Design freely, then choose a location.';
-  controls.enableRotate=surface!=='globe'||logoEditorMode==='pan';
-  if(surface==='canvas')clearPlacementPreview();
-  document.querySelector('#toPlacement').textContent=exactGlobeArea?'Keep this space \u2192':'Find my spot \u2192';
+  controls.enableRotate=logoEditorMode==='pan';
+  document.querySelector('#toPlacement').textContent='Keep this space \u2192';
   resize();drawDesignPreview();
 }
-document.querySelector('#canvasSurface').onclick=()=>setDesignSurface('canvas');
-document.querySelector('#globeSurface').onclick=async()=>{
-  if(!exactGlobeArea){
-    const cells=previewCells();
-    if(cells.some(c=>occupiedCells[c.id-1])){
-      document.querySelector('#surfaceStatus').textContent='Choose a location first, then select Design in this space.';
-      enterPlacement();return;
-    }
-    exactGlobeArea=true;
-  }
-  setDesignSurface('globe');orientToCell(designAnchor,radius+.25);
-};
 document.querySelector('#editThisSpace').onclick=()=>{
   if(!selectedCells.length)return;
   designAnchor=selectedCell.id;logoCells=topology.cells(selectedCells,designAnchor);
   footprintEdited=true;exactGlobeArea=true;undoStack.length=0;redoStack.length=0;updateHistory();
   document.querySelector('#backToDesign').click();setDesignSurface('globe');
 };
+document.querySelector('#removeHexMode').onclick=()=>setEditorMode('remove',false);
+document.querySelector('#areaBrush').oninput=event=>{
+ const r=Number(event.target.value);document.querySelector('#areaBrushValue').textContent=(1+3*r*(r+1)).toLocaleString()+' cells';
+};
 function editGlobeCell(id){
   if(globeStroke.last===id)return;globeStroke.last=id;
-  let cells=previewCells(),index=cells.findIndex(c=>c.id===id),next=cells.map(c=>({...c}));
+  const cells=previewCells(),next=new Map(cells.map(c=>[c.id,{...c}]));
+  const brush=[id],seen=new Set(brush),reach=Number(document.querySelector('#areaBrush').value);
+  let start=0,end=1;
+  for(let ring=0;ring<reach;ring++){for(let i=start;i<end;i++)for(const n of topology.neighboursOf(brush[i]))if(!seen.has(n)){seen.add(n);brush.push(n);}start=end;end=brush.length;}
   if(logoEditorMode==='hex'){
-    if(index>=0){if(cells.length===1)return;next.splice(index,1);if(!topology.isConnected(next))return;}
-    else {if(occupiedCells[id-1]||cells.length>=100000||!topology.neighboursOf(id).some(n=>cells.some(c=>c.id===n)))return;next=topology.cells([...next,{id}],designAnchor);}
-  }else{
-    if(index<0)return;
-    if(logoEditorMode==='paint'){next[index].color=document.querySelector('#brushColor').value;delete next[index].transparent;}
-    else if(logoEditorMode==='transparent')next[index].transparent=true;
-    else if(logoEditorMode==='restore'){delete next[index].color;delete next[index].transparent;}
-    else return;
+    let pending=brush.filter(n=>!occupiedCells[n-1]&&!next.has(n));
+    for(let pass=0;pending.length&&pass<=reach+1;pass++){
+      const rest=[];for(const n of pending){
+        if(next.size<100000&&topology.neighboursOf(n).some(k=>next.has(k)))next.set(n,{id:n});else rest.push(n);
+      }if(rest.length===pending.length)break;pending=rest;
+    }
+  }else if(logoEditorMode==='remove'){
+    for(const n of brush)next.delete(n);
+    if(!next.size||!topology.isConnected([...next.values()]))return;
+  }else for(const n of brush){
+    const cell=next.get(n);if(!cell)continue;
+    if(logoEditorMode==='paint'){cell.color=document.querySelector('#brushColor').value;delete cell.transparent;}
+    else if(logoEditorMode==='transparent')cell.transparent=true;
+    else if(logoEditorMode==='restore'){delete cell.color;delete cell.transparent;}
   }
-  logoCells=next;footprintEdited=true;exactGlobeArea=true;amountInput.value=next.length;queueDesignPreview();
+  logoCells=topology.cells([...next.values()],designAnchor);footprintEdited=true;exactGlobeArea=true;amountInput.value=next.size;queueDesignPreview();
 }
 canvas.addEventListener('pointerdown',event=>{
   clearTimeout(hoverTimer);
-  if(document.body.dataset.flow!=='design'||designSurface!=='globe'||logoEditorMode==='pan')return;
+  if(document.body.dataset.flow!=='design'||designSurface!=='globe'||logoEditorMode==='pan'||event.button!==0)return;
   const hit=intersect(event);if(!hit)return;
   globeStroke={last:null,x:event.clientX,y:event.clientY,position:{...logoPosition}};
   rememberPaint();canvas.setPointerCapture(event.pointerId);
@@ -1438,14 +1461,6 @@ document.querySelector('#inspectorShare').onclick=async()=>{
   try{await navigator.clipboard.writeText(url.href);document.querySelector('#inspectorStatus').textContent='Location copied. Session artwork is not shared.';}
   catch{document.querySelector('#inspectorStatus').textContent=url.href;}
 };
-document.querySelector('#inspectorNearby').onclick=()=>{
-  const seen=new Set([inspectedId]),queue=[inspectedId];
-  for(let i=0;i<queue.length&&i<20000;i++)for(const id of topology.neighboursOf(queue[i])){
-    if(seen.has(id))continue;seen.add(id);
-    if(!occupiedCells[id-1]){document.querySelector('#placementInspector').hidden=true;openBuy(id);return;}queue.push(id);
-  }
-  document.querySelector('#inspectorStatus').textContent='No nearby space found. Explore another area.';
-};
 document.querySelector('#discoverPlacement').onclick=async()=>{
   await ensureTopology();const areas=bootstrap.sampleAreas,area=areas[Math.floor(Math.random()*areas.length)];
   inspectPlacement(area.anchor);viewInspectedPlacement();
@@ -1453,7 +1468,21 @@ document.querySelector('#discoverPlacement').onclick=async()=>{
 async function openLocationLink(){
   const match=location.hash.match(/^#cell=(\d+)$/);if(!match)return;
   const id=Number(match[1]);if(id<1||id>CELL_COUNT)return;
-  await ensureTopology();orientToCell(id,radius+.12);
-  if(occupiedCells[id-1]){inspectPlacement(id);viewInspectedPlacement();}
+  await ensureTopology();
+  const flight=++flightVersion,from=globe.quaternion.clone(),position=camera.position.clone();
+  if(occupiedCells[id-1]){inspectPlacement(id);viewInspectedPlacement();}else orientToCell(id,radius+.12);
+  const destination=globe.quaternion.clone(),target=camera.position.clone();
+  globe.quaternion.copy(from);camera.position.copy(position);controls.autoRotate=false;
+  const began=performance.now(),duration=matchMedia('(prefers-reduced-motion: reduce)').matches?0:1800;
+  const travel=now=>{if(flight!==flightVersion)return;const t=duration?Math.min(1,(now-began)/duration):1,e=t*t*(3-2*t);globe.quaternion.slerpQuaternions(from,destination,e);camera.position.lerpVectors(position,target,e);if(t<1)requestAnimationFrame(travel);};
+  requestAnimationFrame(travel);
 }
 addEventListener('hashchange',openLocationLink);void openLocationLink();
+
+canvas.addEventListener('dblclick',event=>{
+  if(document.body.dataset.flow==='design'&&logoEditorMode!=='pan')return;
+  event.preventDefault();controls.autoRotate=false;zoom.change(.5);
+});
+document.querySelector('#logoOrientation').addEventListener('input',event=>{
+ document.querySelector('#rotationValue').textContent=event.target.value+'\u00b0';queueDesignPreview();
+});

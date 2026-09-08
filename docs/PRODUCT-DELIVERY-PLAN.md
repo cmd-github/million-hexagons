@@ -18,17 +18,17 @@ Preserve the staged Design -> Place -> Review journey.
 ### Design
 
 - Open one editor directly, with optional image upload, background colour, per-cell paint and transparency. No artwork-type selection screen.
-- Offer Globe and Canvas surfaces for the same editable source. Starting at an available cell creates a one-cell anchored footprint; Cells adds/removes connected available neighbours on the globe. Paint, clear, restore and image framing work in place. Design in this space adopts the selected location explicitly; ordinary navigation never replaces the original image. Keeping this space preserves the exact cell IDs through Place and Review.
-- Use a face-on, canvas-first editor that fits without pane scrolling. Use the same right-hand studio shell and progress navigation across Design, Place and Review. Keep Add image, exact cell count, background and price visible; expose advanced controls contextually.
-- Support 1-100,000 cells with a fit-to-area overview, independent canvas zoom/pan, and automatic close-up for cell editing. Image zoom changes the crop; canvas zoom changes only the view.
+- Use the globe as the only design surface. Starting at an available cell creates a one-cell anchored footprint; Separate Add and Remove tools edit connected neighbours with an adjustable 1-2,791-cell brush. Paint, clear, restore and image framing work in place. Design in this space adopts the selected location explicitly; ordinary navigation never replaces the original image. Keeping this space preserves the exact cell IDs through Place and Review.
+- Use a globe-first editor that fits without pane scrolling. Use the same right-hand studio shell and progress navigation across Design, Place and Review. Keep Add image, exact cell count, background and price visible; expose advanced controls contextually.
+- Support 1-100,000 cells with globe zoom and Pan for navigation. Image zoom changes the crop; globe zoom changes only the view.
 - Accept PNG, JPG, WebP, and SVG artwork up to 4 MB. Trim empty margins, preserve aspect ratio, and show the real cell-clipped result.
-- Default logos to one spread image. Fit the image as large as possible without cropping by default. Expose zoom (50-400%) and drag positioning with cropping at the cell boundary, separately from hexagon editing. Keep repeat-per-cell, quarter-turn rotation, reset, and Custom sizing secondary.
-- Keep size presets in a compact menu alongside the exact count input. Presets are not readability guarantees.
+- Default logos to one spread image. Fit the image as large as possible without cropping by default. Expose zoom (50-400%) and drag positioning with cropping at the cell boundary, separately from hexagon editing. Expose continuous rotation (-180 to 180 degrees) alongside image zoom. Keep repeat-per-cell and reset secondary.
+- Use a direct count input without a preset dropdown. A fresh placement resets artwork, transforms, tools and history. Editing an existing draft preserves them.
 - Paint overrides individual cells above the image. Transparent clears a cell without removing it from the count or price. Restore artwork removes that override. Support paint all, reset cell edits, undo and redo. Add/remove cells is a separate tool and retains a connected footprint.
 
 ### Place
 
-- While exploring, clicking an available cell offers a compact Claim this space action. Starting there opens Design first and retains that cell as the intended placement anchor.
+- While exploring, clicking an available cell offers a compact Claim this space action. Starting there opens Design first and retains that cell as the intended placement anchor and preserves the current zoom/orientation. Only expose Claim when individual cells are visible.
 - Suggest a complete available location automatically and provide Find another spot.
 - Keep Move globe as the default. Movement and placement must never share an ambiguous gesture.
 - Move globe drag rotates; Place design click or tap positions the complete design. Wheel or pinch zooms in either mode.
@@ -62,8 +62,8 @@ Not yet production-ready: durable drafts or ownership, accounts, authoritative i
 
 ## Interaction review (8 September 2026)
 
-The LLM proposal in public/interactions.md describes area selection but did not specify shared globe/canvas editing. The implemented path above closes that gap.
+The LLM proposal in public/interactions.md describes area selection but did not specify direct globe editing. The implemented path above closes that gap.
 
-Implemented: delayed stationary hover, click/tap inspection, separate outbound Visit, connected sample-placement highlighting/count, View placement, location-copy links, nearby sample discovery, Start nearby and random discovery. Links use stable #cell= IDs; session artwork is not durable or shared. Sample branding stays explicitly labelled.
+Implemented: delayed stationary hover, click/tap inspection, separate outbound Visit, connected sample-placement highlighting/count, View placement, location-copy links, nearby sample discovery and random discovery. Start nearby was removed after user review. The compact translucent HUD leaves the globe viewport stable. Double-click halves viewing altitude; shared links animate to their destination and manual gestures cancel the journey. Links use stable #cell= IDs; session artwork is not durable or shared. Sample branding stays explicitly labelled.
 
 Deferred until durable inventory and consent-aware event storage exist: purchase dates, permanent placement URLs/artwork, ownership certificates, advertiser dashboards, geographic analytics, popular/newest rankings and historical snapshots. Never substitute fake statistics or ownership claims. A history scrubber is not a launch requirement. A generated social share image remains follow-up; current sharing copies an exact globe location.

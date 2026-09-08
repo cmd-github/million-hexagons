@@ -37,3 +37,41 @@ body[data-surface=globe][data-flow=design] .studio-workspace{flex:0}
 @media(max-width:700px),(max-width:900px) and (orientation:portrait){body[data-surface=globe][data-flow=design] .buy-panel{top:auto;max-height:48vh;bottom:8px}body[data-surface=globe][data-flow=design] .studio-heading,body[data-surface=globe][data-flow=design] .flow-progress{display:none}#placementInspector{right:12px;bottom:80px;width:250px}.design-surfaces{margin:3px 0}}
 body[data-flow=design][data-surface=globe] #world{opacity:1;pointer-events:auto}
 @media(max-width:700px),(max-width:900px) and (orientation:portrait){#placementInspector{left:8px;right:8px;bottom:74px;width:auto;padding:16px}#placementInspector h2{font-size:23px;margin:8px 0}#placementInspector button:not(#closeInspector),#placementInspector a{display:inline-block;margin:3px 3px 3px 0;padding:8px 10px}#placementInspector details{margin-top:8px}#placementInspector p{margin:7px 0}#placementInspector small{display:block}}
+/* Globe-first studio and lightweight discovery HUD. */
+#areaBrushControls{display:flex;align-items:center;gap:9px;font-size:11px;color:#a4bac5}#areaBrushControls[hidden]{display:none}#areaBrushControls input{flex:1;min-width:40px;accent-color:#d7ff55}#areaBrushValue{min-width:62px}
+body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;margin-top:7px}
+#customPaintTools button[aria-pressed=true]{background:#d7ff5530;box-shadow:inset 0 -2px #d7ff55;color:#e5ff94}
+#customPaintTools #removeHexMode[aria-pressed=true]{background:#ff596d22;color:#ff92a0;box-shadow:inset 0 -2px #ff596d}
+#placementInspector{background:linear-gradient(130deg,#0b2029c9,#0b202955);backdrop-filter:blur(12px);border:1px solid #d7ff5540;box-shadow:0 8px 40px #0002;border-radius:14px;width:280px;right:80px;bottom:80px;padding:17px}
+#placementInspector .eyebrow{font-size:9px;color:#d7ff55;margin:0}
+#placementInspector h2{font-size:25px;margin:10px 0 6px}
+#placementInspector button:not(#closeInspector),#placementInspector a{display:inline-block;padding:8px 10px;font-size:11px;margin:3px 3px 3px 0;background:#ffffff06}
+#placementInspector details{font-size:11px;margin-top:9px}#placementInspector #inspectorInfo{font-size:11px}
+@media(max-width:700px),(max-width:900px) and (orientation:portrait){
+ #placementInspector{left:10px;right:10px;bottom:76px;width:auto;padding:12px 15px}
+ #placementInspector h2{font-size:21px;margin:5px 0}
+ #placementInspector .eyebrow{display:none}
+ body[data-flow=design] #customPaintTools{gap:2px}body[data-flow=design] #customPaintTools button{padding:7px 6px;font-size:10px}
+ body[data-flow=design] .studio-context{padding:5px 0}
+}
+#designStep .studio-context{height:auto;min-height:44px;flex-wrap:wrap;align-content:center}
+#designStep #logoPositionControls{display:grid;grid-template-columns:1fr;gap:3px}
+#designStep #logoPositionControls[hidden]{display:none}
+#designStep #logoPositionControls label{display:grid;grid-template-columns:64px minmax(0,1fr) 38px;gap:7px;min-width:0}
+#designStep #logoPositionControls input{min-width:0;width:100%}
+#designStep #areaBrushControls{width:100%}
+#designStep #toolHint{margin:0;width:100%}
+@media(max-height:650px) and (max-width:700px){
+ body[data-flow=design][data-surface=globe] .buy-panel{max-height:58vh;padding:10px 14px}
+ body[data-flow=design] #designStep{gap:5px}
+ body[data-flow=design] #designStep .studio-heading h2{font-size:20px}
+ body[data-flow=design] .studio-heading{margin:0}
+}
+@media(max-width:360px){
+ body[data-flow=design] #customPaintTools{gap:0}
+ body[data-flow=design] #customPaintTools button{padding:6px 4px;font-size:9px}
+ body[data-flow=design] #customPaintTools .studio-more summary{padding:4px;min-width:20px}
+ #designStep .studio-count input{width:66px}
+ #designStep .add-image{padding:0 6px}
+}
+@media(max-height:650px) and (max-width:700px){body[data-flow=design][data-surface=globe] .buy-panel{padding-top:36px}}

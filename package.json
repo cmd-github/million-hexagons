@@ -16,7 +16,7 @@
     "build:topology": "node scripts/build-geodesic.mjs && node scripts/build-geodesic-samples.mjs",
     "test:geodesic-visual": "node scripts/geodesic-visual-qa.mjs",
     "test:geodesic-gestures": "node scripts/geodesic-gestures.mjs",
-    "test:visual": "node scripts/visual-qa.mjs",
+    "test:visual": "node scripts/globe-design-qa.mjs && node scripts/globe-navigation-qa.mjs",
     "test:studio-scale": "node scripts/studio-scale-qa.mjs",
     "build:runtime": "node scripts/build-runtime-assets.mjs",
     "build:artwork": "node scripts/build-artwork-tiles.mjs sample",
