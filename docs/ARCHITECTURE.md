@@ -18,6 +18,10 @@ Editable staging design bundles store exact cell edits, image transform data and
 
 Staging reservations use the same sharded inventory bitmap as placements. Claiming up to 100,000 cells and creating the reservation record happen in one Firestore transaction. Release or expiry clears the same exact cells transactionally; status checks make duplicate expiry delivery idempotent. This proves the inventory boundary but is not yet connected to quotes, payment attempts or permanent fulfillment.
 
+Moderation state is stored on the authoritative placement separately from ownership and payment. Field-level visibility rules silently omit optional links/descriptions, hidden artwork resolves to a neutral placeholder state, and full suspension returns only “Claimed placement” plus “Content currently unavailable.” Immutable source versions remain private and recoverable. Administrator actions have separate audit records; revocation releases cells without erasing the placement or payment history.
+
+Credits use an append-only ledger with a transactionally maintained owner balance. One credit funds one hexagon. Issue and redemption commands require idempotency keys, redemption rejects insufficient balance, and moderation compensation links to the revocation rather than masquerading as a payment refund. Stripe-funded credits and permanent placement fulfillment remain later work.
+
 The staging build separates `staging-dist/` (Workers Static Assets) from `staging-runtime/releases/<sha256>/` (public R2). `src/runtime-assets.js` shares the pinned runtime URL and gzip decoding across the app and topology worker; normal development keeps same-origin paths. Explicit deployment allowlists exclude canonical binaries, stress fixtures and working notes. The uploader/deployer verify immutable objects before switching the app. This hosts the session prototype, not durable inventory or production publication; see [STAGING.md](STAGING.md).
 
 ## Cell topology

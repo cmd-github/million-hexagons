@@ -10,6 +10,8 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { defineBoolean, defineSecret, defineString } from 'firebase-functions/params';
 import { normaliseSignup } from './signup.js';
 import { normaliseDesignState, normaliseDraft } from './drafts.js';
+import { issueCredits, redeemCredits } from './credits.js';
+import { applyModeration, normaliseModeration, publicPlacement } from './moderation.js';
 import { createTestPlacement, decodeCells, deleteTestPlacement, normalisePlacementClaim, placementClaimDiagnostics, updateTestPlacementContent } from './placements.js';
 import { decodeArtworkSource, designObjectPath, publicationObjects, sourceObjectPath } from './publication.js';
 import { releaseTestReservation, reserveTestCells } from './reservations.js';
@@ -121,7 +123,7 @@ export const stagingPlacements = onRequest(
     let identity;
     const qaOwner = request.get('X-MH-QA-Owner');
     if (request.get('X-MH-QA-Key') === stagingQaKey.value() && /^staging-qa-[0-9a-f-]{36}$/.test(String(qaOwner || ''))) {
-      identity = { uid: qaOwner, email_verified: true, stagingAdmin: false };
+      identity = { uid: qaOwner, email_verified: true, stagingAdmin: true };
     }
     else {
       const token = request.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];
@@ -196,6 +198,15 @@ export const stagingPlacements = onRequest(
         response.status(201).json({ ok: true, reservation: result });
         return;
       }
+      if (action === 'moderate') {
+        if(identity.stagingAdmin!==true){response.status(403).json({ok:false,error:'administrator-required'});return;}
+        const command=normaliseModeration(request.body.command),placementId=String(request.body.placementId||'');if(!command){response.status(400).json({ok:false,error:'invalid-moderation'});return;}
+        const reference=getFirestore().collection('stagingPlacements').doc(placementId),placement=await reference.get();if(!placement.exists){response.status(404).json({ok:false,error:'placement-not-found'});return;}
+        let versionContent=null;if(command.action==='restore-version'){const version=await getFirestore().collection('stagingPlacementVersions').doc(`${placementId}-v${command.version}`).get();if(!version.exists){response.status(404).json({ok:false,error:'version-not-found'});return;}versionContent=version.data();}
+        const publicState=applyModeration(placement.data().publicState,command,versionContent),caseId=randomUUID();await getFirestore().runTransaction(async transaction=>{transaction.set(reference,{publicState,updatedAt:FieldValue.serverTimestamp()},{merge:true});transaction.create(getFirestore().collection('stagingModerationActions').doc(caseId),{caseId,placementId,command,actorId:identity.uid,createdAt:FieldValue.serverTimestamp()});});response.status(200).json({ok:true,placement:{placementId,publicState}});return;
+      }
+      if (action === 'grant-credits') {if(identity.stagingAdmin!==true){response.status(403).json({ok:false,error:'administrator-required'});return;}const result=await issueCredits(getFirestore(),{ownerId:String(request.body.ownerId||''),amount:request.body.amount,reason:String(request.body.reason||''),actorId:identity.uid,idempotencyKey:String(request.body.idempotencyKey||randomUUID())},FieldValue.serverTimestamp());response.status(200).json({ok:true,credits:result});return;}
+      if (action === 'redeem-credits') {const result=await redeemCredits(getFirestore(),{ownerId:identity.uid,amount:request.body.amount,placementId:String(request.body.placementId||''),idempotencyKey:String(request.body.idempotencyKey||randomUUID())},FieldValue.serverTimestamp());response.status(200).json({ok:true,credits:result});return;}
       if (action === 'release-reservation' || action === 'expire-reservation') {
         const result = await releaseTestReservation(getFirestore(), String(request.body.reservationId || ''), identity.uid, Date.now(), { expiredOnly: action === 'expire-reservation' });
         response.status(200).json({ ok: true, reservation: result });
@@ -209,17 +220,25 @@ export const stagingPlacements = onRequest(
         response.status(200).json({ ok: true, placement: result });
         return;
       }
+      if (action === 'revoke') {
+        if(identity.stagingAdmin!==true){response.status(403).json({ok:false,error:'administrator-required'});return;}
+        const placementId=String(request.body.placementId||''),reference=getFirestore().collection('stagingPlacements').doc(placementId),snapshot=await reference.get();if(!snapshot.exists){response.status(404).json({ok:false,error:'placement-not-found'});return;}
+        const reason=String(request.body.reason||'').trim().slice(0,300);if(!reason){response.status(400).json({ok:false,error:'reason-required'});return;}
+        const released=await deleteTestPlacement(getFirestore(),placementId,FieldValue.serverTimestamp(),null);await reference.set({status:'revoked',revokedAt:FieldValue.serverTimestamp(),revocationReason:reason},{merge:true});
+        let credits=null;if(Number(request.body.creditAmount)>0)credits=await issueCredits(getFirestore(),{ownerId:snapshot.data().ownerId,amount:request.body.creditAmount,reason:`Placement revocation: ${reason}`,actorId:identity.uid,idempotencyKey:`revoke-${placementId}`},FieldValue.serverTimestamp());
+        await getFirestore().collection('stagingModerationActions').doc(randomUUID()).set({placementId,action:'revoke',reason,creditAmount:Number(request.body.creditAmount)||0,actorId:identity.uid,createdAt:FieldValue.serverTimestamp()});response.status(200).json({ok:true,placement:{placementId,status:'revoked',releasedCells:released.releasedCells},credits});return;
+      }
       if (action === 'list') {
         const snapshot = await getFirestore().collection('stagingPlacements').where('ownerId', '==', identity.uid).get();
-        const active = snapshot.docs.map(document => document.data()).filter(placement => placement.status !== 'deleted');
-        const versions = await Promise.all(active.map(placement => getFirestore().collection('stagingPlacementVersions').doc(`${placement.placementId}-v${placement.currentVersion || 1}`).get()));
-        const placements = active.map((placement, index) => { const content = versions[index].data() || {}; return { placementId: placement.placementId, topologyVersion: placement.topologyVersion, anchor: placement.anchor, cells: decodeCells(placement.cellsData), cellCount: placement.cellCount, title: content.title || placement.title, description: content.description || '', destinationUrl: content.destinationUrl || '', artworkDataUrl: content.publication?.artworkUrl || content.artworkDataUrl || '', publicationStatus: content.publication?.status || 'preview-only', status: placement.status, createdAt: placement.createdAt?.toMillis?.() || null }; });
+        const active = snapshot.docs.map(document => document.data()).filter(placement => !['deleted','revoked'].includes(placement.status));
+        const versions = await Promise.all(active.map(placement => getFirestore().collection('stagingPlacementVersions').doc(`${placement.placementId}-v${placement.publicState?.publicVersion || placement.currentVersion || 1}`).get()));
+        const placements = active.map((placement, index) => { const content = versions[index].data() || {},visible=publicPlacement(content,placement.publicState); return { placementId: placement.placementId, topologyVersion: placement.topologyVersion, anchor: placement.anchor, cells: decodeCells(placement.cellsData), cellCount: placement.cellCount, ...visible, publicationStatus: content.publication?.status || 'preview-only', status: placement.status, createdAt: placement.createdAt?.toMillis?.() || null }; });
         response.status(200).json({ ok: true, placements });
         return;
       }
       response.status(400).json({ ok: false, error: 'unknown-action' });
     } catch (error) {
-      const status = ['cells-unavailable','reservation-not-expired','reservation-exists'].includes(error.code) ? 409 : ['placement-not-found','reservation-not-found'].includes(error.code) ? 404 : ['placement-forbidden','reservation-forbidden'].includes(error.code) ? 403 : ['invalid-placement','invalid-reservation'].includes(error.code) ? 400 : 500;
+      const status = ['cells-unavailable','reservation-not-expired','reservation-exists','insufficient-credits'].includes(error.code) ? 409 : ['placement-not-found','reservation-not-found'].includes(error.code) ? 404 : ['placement-forbidden','reservation-forbidden'].includes(error.code) ? 403 : ['invalid-placement','invalid-reservation','invalid-credit-entry'].includes(error.code) ? 400 : 500;
       if (status === 500) logger.error('Staging placement request failed', error);
       response.status(status).json({ ok: false, error: status === 500 ? 'request-failed' : error.code, ...(error.cellId ? { cellId: error.cellId } : {}) });
     }

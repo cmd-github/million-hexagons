@@ -117,14 +117,30 @@ try{
   const v2Metadata=await (await fetch(`https://assets-staging.millionhexagons.com/releases/placements/${created.placementId}/versions/2/placement.json`)).json();
   assert.equal(v2Metadata.title,'Updated publication QA');
   assert.equal(JSON.stringify(v2Metadata).includes(qaOwner),false);
+  const creditKey=crypto.randomUUID();
+  const granted=await request({action:'grant-credits',ownerId:qaOwner,amount:3,reason:'Automated service-credit acceptance',idempotencyKey:creditKey});
+  assert.ok(granted.response.ok,JSON.stringify(granted.result));assert.equal(granted.result.credits.available,3);
+  const duplicateGrant=await request({action:'grant-credits',ownerId:qaOwner,amount:3,reason:'Automated service-credit acceptance',idempotencyKey:creditKey});
+  assert.equal(duplicateGrant.result.credits.available,3);
+  const redeemed=await request({action:'redeem-credits',amount:2,placementId:created.placementId,idempotencyKey:crypto.randomUUID()});
+  assert.ok(redeemed.response.ok,JSON.stringify(redeemed.result));assert.equal(redeemed.result.credits.available,1);
+
+  const removeLink=await request({action:'moderate',placementId:created.placementId,command:{action:'remove-link',reason:'Automated unsafe-link test'}});assert.ok(removeLink.response.ok,JSON.stringify(removeLink.result));
+  let moderated=(await request({action:'list'})).result.placements.find(item=>item.placementId===created.placementId);assert.equal(moderated.destinationUrl,'');assert.equal(moderated.description,'Immutable version two');
+  const removeDescription=await request({action:'moderate',placementId:created.placementId,command:{action:'remove-description',reason:'Automated description test'}});assert.ok(removeDescription.response.ok);moderated=(await request({action:'list'})).result.placements.find(item=>item.placementId===created.placementId);assert.equal(moderated.description,'');
+  const removeArtwork=await request({action:'moderate',placementId:created.placementId,command:{action:'remove-artwork',reason:'Automated artwork test'}});assert.ok(removeArtwork.response.ok);moderated=(await request({action:'list'})).result.placements.find(item=>item.placementId===created.placementId);assert.equal(moderated.artworkDataUrl,'');assert.equal(moderated.moderationStatus,'artwork-hidden');
+  const suspended=await request({action:'moderate',placementId:created.placementId,command:{action:'suspend',reason:'Automated suspension test'}});assert.ok(suspended.response.ok);moderated=(await request({action:'list'})).result.placements.find(item=>item.placementId===created.placementId);assert.equal(moderated.title,'Claimed placement');assert.equal(moderated.description,'Content currently unavailable');
+  const restored=await request({action:'moderate',placementId:created.placementId,command:{action:'restore-version',version:1,reason:'Automated rollback test'}});assert.ok(restored.response.ok);moderated=(await request({action:'list'})).result.placements.find(item=>item.placementId===created.placementId);assert.equal(moderated.title,'Automated publication QA');assert.match(moderated.artworkDataUrl,/\/versions\/1\/artwork\.webp$/);
   const deletedDraft=await request({action:'delete-draft',draftId});
   assert.ok(deletedDraft.response.ok,JSON.stringify(deletedDraft.result));
   draftIds.splice(draftIds.indexOf(draftId),1);
   const missingDraft=await request({action:'get-draft',draftId});
   assert.equal(missingDraft.response.status,404);
 
-  const removed=await request({action:'delete',placementId:created.placementId});
+  const removed=await request({action:'revoke',placementId:created.placementId,reason:'Automated repeated-policy-violation test',creditAmount:1});
   assert.ok(removed.response.ok,JSON.stringify(removed.result));
+  assert.equal(removed.result.placement.status,'revoked');
+  assert.equal(removed.result.credits.available,2);
   createdIds.splice(createdIds.indexOf(created.placementId),1);
 
   const reused=await request({action:'create',placement:placementInput(cell)});
@@ -135,7 +151,7 @@ try{
   assert.ok(reuseRemoved.response.ok,JSON.stringify(reuseRemoved.result));
   createdIds.splice(createdIds.indexOf(reused.result.placement.placementId),1);
 
-  console.log(JSON.stringify({reservation100k:true,reservationConflictSafety:true,expiryRace:true,privateSource:true,recoverableDraft:true,editableDesignSource:true,immutableContentV2:true,backgroundPublication:true,immutableArtwork:true,publicMetadata:true,ownerReload:true,overlapRejected:true,deleteRelease:true,cellReuse:true,cell},null,2));
+  console.log(JSON.stringify({creditLedger:true,creditIdempotency:true,fieldTakedown:true,fullSuspension:true,versionRollback:true,revocationWithCredit:true,reservation100k:true,reservationConflictSafety:true,expiryRace:true,privateSource:true,recoverableDraft:true,editableDesignSource:true,immutableContentV2:true,backgroundPublication:true,immutableArtwork:true,publicMetadata:true,ownerReload:true,overlapRejected:true,deleteRelease:true,cellReuse:true,cell},null,2));
 } finally {
   for(const draftId of draftIds)await request({action:'delete-draft',draftId}).catch(()=>{});
   for(const placementId of createdIds)await request({action:'delete',placementId}).catch(()=>{});

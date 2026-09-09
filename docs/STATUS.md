@@ -6,7 +6,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Build immediate publication with reversible artwork/link takedown, last-acceptable-version restoration and coherent release promotion.
+- [ ] Build the founder admin interface for the verified takedown, restoration, revocation and account-credit operations.
 
 ## Next
 
@@ -38,6 +38,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [x] Designer waits for saved-inventory restoration before enabling placement, so a returning owner cannot select over an existing claim during load.
 - [x] Private editable design bundles and original artwork are recoverable for owner drafts and placement versions; live draft save/load/delete and immutable v2 publication passed.
 - [x] Atomic reservations passed at the 100,000-cell maximum, including conflict rejection, exact release/reuse, premature-expiry rejection and concurrent expiry idempotency.
+- [x] Secured staging content controls passed live: silent artwork/link/description removal, full suspension placeholder, immutable-version rollback and audited revocation with exact cell release.
+- [x] Owner credit ledger passed live: one credit represents one hex, grants and redemptions are immutable/idempotent, overspending is rejected, and revocation compensation is separately recorded.
 
 ## Blocked / Needs Craig
 
@@ -52,7 +54,7 @@ Launch readiness: ~25%
 - Production foundation: IN PROGRESS
 - Durable ownership/domain: IN PROGRESS (staging ownership, versions and editable sources verified)
 - Inventory + checkout: IN PROGRESS (atomic staging reservations verified; quotes/payment not started)
-- Publication: IN PROGRESS (durable staging pipeline verified; reversible takedown, replacement and release promotion remain)
+- Publication: IN PROGRESS (immediate publication and backend takedown/rollback verified; founder UI and public release projection remain)
 - Owner experience: NOT STARTED
 - Growth/sharing: IN PROGRESS (cell links only)
 - Analytics: NOT STARTED (illustrative/local counters only)

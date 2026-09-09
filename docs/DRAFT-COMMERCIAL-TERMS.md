@@ -43,6 +43,15 @@ Each intervention should record the affected placement/version, action, reason, 
 
 Refund eligibility, cancellation rights, mistaken or duplicate purchases, payment disputes, prolonged service failure and the effect of a refund on ownership remain to be decided. These rules must be reflected consistently in checkout copy, receipts, support procedures and payment fulfilment code.
 
+## Account credits
+
+- One account credit can be redeemed to claim one available hexagon.
+- Credits belong to an owner account and do not become cell ownership until successfully redeemed.
+- Credits are non-transferable, cannot be traded or resold at launch, and do not represent money, an investment or an entitlement to financial return.
+- Credits should not expire initially unless later commercial and legal review supports a clearly disclosed expiry rule.
+- Purchased, promotional and customer-service credits must be recorded in an auditable ledger. Moderation compensation must link back to the relevant placement and action.
+- Account credit is not a cash refund and does not replace any refund or cancellation right required by law.
+
 ## Owner responsibilities
 
 - Owners must keep their destination safe and functioning.
