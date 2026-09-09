@@ -1,18 +1,15 @@
 # Million Hexagons — Status
 
-Updated: 9 September 2026, 13:21 UK time (BST)
+Updated: 9 September 2026, 13:24 UK time (BST)
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
 ## Now
 
-- [ ] Finish live staging verification.
-  - Recheck SSL; the last live browser attempt failed before loading.
-  - Verify desktop/mobile journeys and inspect screenshots.
+- [ ] Finish production foundation: custom-domain caching, rollback and monitoring.
 
 ## Next
 
-- [ ] Finish production foundation: custom-domain caching, rollback and monitoring.
 - [ ] Validate first-time purchase intent and physical-device performance.
 - [ ] Implement durable domain: stable placement IDs, owners, fixed cell sets and grants.
 - [ ] Retain private design sources, content versions and recoverable drafts.
@@ -30,7 +27,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [x] Image framing, rotation, paint, transparency and connected editing (local QA).
 - [x] Globe exploration, search, navigation and cell-location sharing (local QA).
 - [x] Session-only publication with streamed artwork tiles (local QA).
-- [x] Separate Cloudflare staging app deployed; live usability still needs verification.
+- [x] Cloudflare staging: SSL and live desktop/mobile preview journeys verified.
+- [x] Live Review/Edit, publication, reload and failure recovery; screenshots inspected.
 - [x] Versioned R2 topology/artwork uploaded and all 8,196 objects publicly verified.
 
 ## Blocked / Needs Craig
