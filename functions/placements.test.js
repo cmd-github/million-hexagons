@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createTestPlacement, decodeCells, decodeInventory, deleteTestPlacement, encodeCells, groupCellsByShard, mutateInventory, normalisePlacementClaim, placementClaimDiagnostics } from './placements.js';
+import { createTestPlacement, decodeCells, decodeInventory, deleteTestPlacement, encodeCells, groupCellsByShard, mutateInventory, normalisePlacementClaim, placementClaimDiagnostics, updateTestPlacementContent } from './placements.js';
 
 const valid = { ownerId: 'test-owner', title: 'Test placement', description: 'A durable test.', destinationUrl: 'https://example.com', topologyVersion: 'geodesic-v1', anchor: 2, cells: [1, 2, 4097] };
 
@@ -76,4 +76,17 @@ test('records a private source reference and queued publication without source b
   assert.deepEqual(version.source,source);
   assert.deepEqual(version.publication,{status:'queued',attempts:0});
   assert.equal(JSON.stringify(version).includes('data:image'),false);
+});
+
+test('creates immutable content versions without changing ownership or cells', async () => {
+  const db=new MemoryFirestore(),created=await createTestPlacement(db,valid,'created');
+  const source={bucket:'private',path:'v2.webp',mimeType:'image/webp',extension:'webp',size:9,sha256:'v2'};
+  const designSource={bucket:'private',path:'design.json',size:20,sha256:'design'};
+  const updated=await updateTestPlacementContent(db,created.placementId,'test-owner',{title:'Updated title',description:'Updated',destinationUrl:'https://updated.example',artworkDataUrl:''},'updated',source,designSource);
+  assert.equal(updated.version,2);
+  assert.equal(db.documents.get(`stagingPlacements/${created.placementId}`).currentVersion,2);
+  assert.equal(decodeCells(db.documents.get(`stagingPlacements/${created.placementId}`).cellsData).join(','),'1,2,4097');
+  assert.equal(db.documents.get(`stagingOwnershipGrants/${created.placementId}`).ownerId,'test-owner');
+  assert.deepEqual(db.documents.get(`stagingPlacementVersions/${created.placementId}-v2`).designSource,designSource);
+  await assert.rejects(updateTestPlacementContent(db,created.placementId,'other-owner',{title:'No',destinationUrl:''},'updated',source,designSource),error=>error.code==='placement-forbidden');
 });

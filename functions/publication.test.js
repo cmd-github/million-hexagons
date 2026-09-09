@@ -15,8 +15,9 @@ test('accepts bounded PNG and WebP sources and rejects public-unsafe input', () 
 test('uses immutable placement/version object paths without owner data', () => {
   const source={extension:'webp',sha256:'abc'};
   assert.equal(sourceObjectPath('placement-1',2,'webp'),'staging-placement-sources/placement-1/v2/artwork.webp');
-  const output=publicationObjects({placementId:'placement-1',version:2,topologyVersion:'geodesic-v1',anchor:42,cellCount:50,source});
+  const output=publicationObjects({placementId:'placement-1',version:2,topologyVersion:'geodesic-v1',anchor:42,cellCount:50,title:'Example',description:'Description',destinationUrl:'https://example.com/',source});
   assert.equal(output.artworkKey,'releases/placements/placement-1/versions/2/artwork.webp');
   assert.equal(output.metadataKey,'releases/placements/placement-1/versions/2/placement.json');
   assert.equal(JSON.stringify(output.metadata).includes('owner'),false);
+  assert.equal(output.metadata.title,'Example');
 });

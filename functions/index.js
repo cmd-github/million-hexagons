@@ -1,5 +1,5 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
@@ -9,8 +9,10 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import { defineBoolean, defineSecret, defineString } from 'firebase-functions/params';
 import { normaliseSignup } from './signup.js';
-import { createTestPlacement, decodeCells, deleteTestPlacement, normalisePlacementClaim, placementClaimDiagnostics } from './placements.js';
-import { decodeArtworkSource, publicationObjects, sourceObjectPath } from './publication.js';
+import { normaliseDesignState, normaliseDraft } from './drafts.js';
+import { createTestPlacement, decodeCells, deleteTestPlacement, normalisePlacementClaim, placementClaimDiagnostics, updateTestPlacementContent } from './placements.js';
+import { decodeArtworkSource, designObjectPath, publicationObjects, sourceObjectPath } from './publication.js';
+import { releaseTestReservation, reserveTestCells } from './reservations.js';
 
 initializeApp();
 const stagingSandboxEnabled = defineBoolean('MH_STAGING_SANDBOX', { default: false });
@@ -69,6 +71,40 @@ function stagingOrigin(origin) {
   return !origin || origin === 'https://million-hexagons-staging.million-hexagons.workers.dev' || /^https:\/\/([a-z0-9-]+\.)*millionhexagons\.com$/.test(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 }
 
+async function savePrivateArtwork(path, artworkDataUrl, metadata = {}) {
+  const source = decodeArtworkSource(artworkDataUrl);
+  if (!source) return null;
+  const reference = { bucket: privateSourceBucket, path: `${path}.${source.extension}`, mimeType: source.mimeType, extension: source.extension, size: source.bytes.length, sha256: source.sha256 };
+  await getStorage().bucket(privateSourceBucket).file(reference.path).save(source.bytes, { resumable: false, contentType: source.mimeType, metadata: { cacheControl: 'private,no-store', metadata: { ...metadata, sha256: source.sha256 } } });
+  return reference;
+}
+
+async function savePrivateDesign(ownerId, identity, designState, originalArtworkDataUrl = '') {
+  const state = normaliseDesignState(designState);
+  if (!state) return null;
+  const base = designObjectPath(ownerId, identity, 1).replace(/\/design\.json$/, '');
+  const original = originalArtworkDataUrl ? await savePrivateArtwork(`${base}/original`, originalArtworkDataUrl, { ownerId, identity }) : null;
+  if (originalArtworkDataUrl && !original) return null;
+  const bytes = Buffer.from(JSON.stringify({ schemaVersion: 1, designState: state, original }));
+  const path = `${base}/design.json`, sha256 = createHash('sha256').update(bytes).digest('hex');
+  await getStorage().bucket(privateSourceBucket).file(path).save(bytes, { resumable: false, contentType: 'application/json', metadata: { cacheControl: 'private,no-store', metadata: { ownerId, identity, sha256 } } });
+  return { bucket: privateSourceBucket, path, size: bytes.length, sha256, hasOriginal: Boolean(original) };
+}
+
+async function loadPrivateDesign(reference) {
+  if (!reference?.bucket || !reference?.path) return null;
+  const [bytes] = await getStorage().bucket(reference.bucket).file(reference.path).download();
+  if (createHash('sha256').update(bytes).digest('hex') !== reference.sha256) throw new Error('private-design-checksum-mismatch');
+  const bundle = JSON.parse(bytes.toString('utf8'));
+  if (bundle.original) {
+    const [original] = await getStorage().bucket(bundle.original.bucket).file(bundle.original.path).download();
+    if (createHash('sha256').update(original).digest('hex') !== bundle.original.sha256) throw new Error('private-original-checksum-mismatch');
+    bundle.originalArtworkDataUrl = `data:${bundle.original.mimeType};base64,${original.toString('base64')}`;
+  }
+  delete bundle.original;
+  return bundle;
+}
+
 export const stagingPlacements = onRequest(
   { region: 'europe-west1', maxInstances: 3, timeoutSeconds: 60, memory: '512MiB', secrets: [stagingQaKey] },
   async (request, response) => {
@@ -114,6 +150,57 @@ export const stagingPlacements = onRequest(
         response.status(201).json({ ok: true, placement: result });
         return;
       }
+      if (action === 'save-draft') {
+        const draft = normaliseDraft(request.body.draft);
+        if (!draft) { response.status(400).json({ ok: false, error: 'invalid-draft' }); return; }
+        const designSource = await savePrivateDesign(identity.uid, `draft-${draft.draftId}`, draft.designState, request.body.draft.originalArtworkDataUrl);
+        if (!designSource) { response.status(400).json({ ok: false, error: 'invalid-design-source' }); return; }
+        await getFirestore().collection('stagingDrafts').doc(`${identity.uid}-${draft.draftId}`).set({ ...draft, ownerId: identity.uid, designState: FieldValue.delete(), designSource, environment: 'staging', updatedAt: FieldValue.serverTimestamp(), createdAt: FieldValue.serverTimestamp() }, { merge: true });
+        response.status(200).json({ ok: true, draft: { draftId: draft.draftId, title: draft.title, updated: true } });
+        return;
+      }
+      if (action === 'get-draft') {
+        const draftId = String(request.body.draftId || ''), document = await getFirestore().collection('stagingDrafts').doc(`${identity.uid}-${draftId}`).get();
+        if (!document.exists || document.data().ownerId !== identity.uid || document.data().status === 'deleted') { response.status(404).json({ ok: false, error: 'draft-not-found' }); return; }
+        const data = document.data(), bundle = await loadPrivateDesign(data.designSource);
+        response.status(200).json({ ok: true, draft: { draftId: data.draftId, title: data.title, description: data.description, destinationUrl: data.destinationUrl, ...bundle } });
+        return;
+      }
+      if (action === 'delete-draft') {
+        const draftId = String(request.body.draftId || ''), reference = getFirestore().collection('stagingDrafts').doc(`${identity.uid}-${draftId}`), document = await reference.get();
+        if (!document.exists || document.data().ownerId !== identity.uid) { response.status(404).json({ ok: false, error: 'draft-not-found' }); return; }
+        await reference.set({ status: 'deleted', deletedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        response.status(200).json({ ok: true, draft: { draftId, status: 'deleted' } });
+        return;
+      }
+      if (action === 'update-content') {
+        const placementId = String(request.body.placementId || ''), operationId = randomUUID();
+        const source = await savePrivateArtwork(`staging-placement-sources/${placementId}/pending/${operationId}/artwork`, request.body.content?.sourceArtworkDataUrl || request.body.content?.artworkDataUrl, { placementId, ownerId: identity.uid });
+        const designSource = await savePrivateDesign(identity.uid, `placement-${placementId}-${operationId}`, request.body.content?.designState, request.body.content?.originalArtworkDataUrl);
+        if (!source || !designSource) { response.status(400).json({ ok: false, error: 'invalid-design-source' }); return; }
+        const result = await updateTestPlacementContent(getFirestore(), placementId, identity.uid, request.body.content, FieldValue.serverTimestamp(), source, designSource);
+        response.status(200).json({ ok: true, placement: result });
+        return;
+      }
+      if (action === 'get-content-source') {
+        const placementId = String(request.body.placementId || ''), placement = await getFirestore().collection('stagingPlacements').doc(placementId).get();
+        if (!placement.exists || placement.data().ownerId !== identity.uid || placement.data().status === 'deleted') { response.status(404).json({ ok: false, error: 'placement-not-found' }); return; }
+        const version = Number(request.body.version || placement.data().currentVersion || 1), content = await getFirestore().collection('stagingPlacementVersions').doc(`${placementId}-v${version}`).get();
+        if (!content.exists || !content.data().designSource) { response.status(404).json({ ok: false, error: 'design-source-not-found' }); return; }
+        response.status(200).json({ ok: true, placement: { placementId, version, ...(await loadPrivateDesign(content.data().designSource)) } });
+        return;
+      }
+      if (action === 'reserve') {
+        const ttlMs = identity.uid.startsWith('staging-qa-') ? Math.max(1000, Math.min(15 * 60_000, Number(request.body.ttlMs) || 15 * 60_000)) : 15 * 60_000;
+        const result = await reserveTestCells(getFirestore(), { ...request.body.reservation, ownerId: identity.uid }, Date.now(), ttlMs);
+        response.status(201).json({ ok: true, reservation: result });
+        return;
+      }
+      if (action === 'release-reservation' || action === 'expire-reservation') {
+        const result = await releaseTestReservation(getFirestore(), String(request.body.reservationId || ''), identity.uid, Date.now(), { expiredOnly: action === 'expire-reservation' });
+        response.status(200).json({ ok: true, reservation: result });
+        return;
+      }
       if (action === 'delete') {
         const placementId = String(request.body.placementId || ''), versionRef = getFirestore().collection('stagingPlacementVersions').doc(`${placementId}-v1`), version = await versionRef.get();
         const result = await deleteTestPlacement(getFirestore(), placementId, FieldValue.serverTimestamp(), identity.stagingAdmin === true ? null : identity.uid);
@@ -132,7 +219,7 @@ export const stagingPlacements = onRequest(
       }
       response.status(400).json({ ok: false, error: 'unknown-action' });
     } catch (error) {
-      const status = error.code === 'cells-unavailable' ? 409 : error.code === 'placement-not-found' ? 404 : error.code === 'placement-forbidden' ? 403 : error.code === 'invalid-placement' ? 400 : 500;
+      const status = ['cells-unavailable','reservation-not-expired','reservation-exists'].includes(error.code) ? 409 : ['placement-not-found','reservation-not-found'].includes(error.code) ? 404 : ['placement-forbidden','reservation-forbidden'].includes(error.code) ? 403 : ['invalid-placement','invalid-reservation'].includes(error.code) ? 400 : 500;
       if (status === 500) logger.error('Staging placement request failed', error);
       response.status(status).json({ ok: false, error: status === 500 ? 'request-failed' : error.code, ...(error.cellId ? { cellId: error.cellId } : {}) });
     }

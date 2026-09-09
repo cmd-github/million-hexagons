@@ -33,9 +33,41 @@ const waitForPublication=async placementId=>{
 const artwork=await sharp({create:{width:640,height:360,channels:4,background:'#17303b'}}).composite([{input:Buffer.from('<svg width="640" height="360"><text x="320" y="195" text-anchor="middle" font-size="64" fill="#d7ff55">QA</text></svg>')}]).webp({quality:95}).toBuffer();
 const artworkDataUrl=`data:image/webp;base64,${artwork.toString('base64')}`;
 const placementInput=cell=>({topologyVersion:'geodesic-v1',anchor:cell,cells:[cell],title:'Automated publication QA',description:'Disposable staging acceptance placement',destinationUrl:'https://example.com/',artworkDataUrl,sourceArtworkDataUrl:artworkDataUrl});
+const designState=cell=>({topologyVersion:'geodesic-v1',anchor:cell,cells:[{id:cell,color:'#d7ff55'}],baseColour:'#17303b',imageTransform:{scale:115,x:7,y:-4,rotation:12,treatment:'original'}});
 const createdIds=[];
+const draftIds=[];
+const reservationIds=[];
 
 try{
+  let largeReservation,largeConflictCell;
+  for(let block=0;block<10&&!largeReservation;block++){
+    const cells=Array.from({length:100_000},(_,index)=>block*100_000+index+1);
+    const candidate=await request({action:'reserve',reservation:{topologyVersion:'geodesic-v1',cells}});
+    if(candidate.response.status===409)continue;
+    assert.ok(candidate.response.ok,JSON.stringify(candidate.result));
+    largeReservation=candidate.result.reservation;largeConflictCell=cells[50_000];
+  }
+  assert.ok(largeReservation,'Could not find a free 100,000-cell reservation test range');
+  reservationIds.push(largeReservation.reservationId);
+  assert.equal(largeReservation.cellCount,100_000);
+  const reservedConflict=await request({action:'reserve',reservation:{topologyVersion:'geodesic-v1',cells:[largeConflictCell]}});
+  assert.equal(reservedConflict.response.status,409,JSON.stringify(reservedConflict.result));
+  const largeReleased=await request({action:'release-reservation',reservationId:largeReservation.reservationId});
+  assert.ok(largeReleased.response.ok,JSON.stringify(largeReleased.result));
+  reservationIds.splice(reservationIds.indexOf(largeReservation.reservationId),1);
+
+  const expiryCell=750000+Math.floor(Math.random()*50000);
+  const expiring=await request({action:'reserve',ttlMs:1000,reservation:{topologyVersion:'geodesic-v1',cells:[expiryCell]}});
+  assert.ok(expiring.response.ok,JSON.stringify(expiring.result));
+  reservationIds.push(expiring.result.reservation.reservationId);
+  const earlyExpiry=await request({action:'expire-reservation',reservationId:expiring.result.reservation.reservationId});
+  assert.equal(earlyExpiry.response.status,409,JSON.stringify(earlyExpiry.result));
+  await new Promise(resolve=>setTimeout(resolve,1100));
+  const expiryRace=await Promise.all([request({action:'expire-reservation',reservationId:expiring.result.reservation.reservationId}),request({action:'expire-reservation',reservationId:expiring.result.reservation.reservationId})]);
+  assert.equal(expiryRace.every(result=>result.response.ok),true,JSON.stringify(expiryRace.map(result=>result.result)));
+  assert.equal(expiryRace.reduce((total,result)=>total+result.result.reservation.releasedCells,0),1);
+  reservationIds.splice(reservationIds.indexOf(expiring.result.reservation.reservationId),1);
+
   let created,cell;
   for(let attempt=0;attempt<30&&!created;attempt++){
     cell=850000+Math.floor(Math.random()*140000);
@@ -63,6 +95,34 @@ try{
   assert.equal(metadata.placementId,created.placementId);
   assert.equal(JSON.stringify(metadata).includes(qaOwner),false);
 
+  const savedDraft=await request({action:'save-draft',draft:{title:'Recoverable QA draft',description:'Private editable state',destinationUrl:'https://draft.example.com/',designState:designState(cell),originalArtworkDataUrl:artworkDataUrl}});
+  assert.ok(savedDraft.response.ok,JSON.stringify(savedDraft.result));
+  const draftId=savedDraft.result.draft.draftId;
+  draftIds.push(draftId);
+  const loadedDraft=await request({action:'get-draft',draftId});
+  assert.ok(loadedDraft.response.ok,JSON.stringify(loadedDraft.result));
+  assert.deepEqual(loadedDraft.result.draft.designState,{schemaVersion:1,...designState(cell)});
+  assert.equal(loadedDraft.result.draft.originalArtworkDataUrl,artworkDataUrl);
+
+  const updated=await request({action:'update-content',placementId:created.placementId,content:{title:'Updated publication QA',description:'Immutable version two',destinationUrl:'https://updated.example.com/',artworkDataUrl,sourceArtworkDataUrl:artworkDataUrl,originalArtworkDataUrl:artworkDataUrl,designState:designState(cell)}});
+  assert.ok(updated.response.ok,JSON.stringify(updated.result));
+  assert.equal(updated.result.placement.placementId,created.placementId);
+  assert.equal(updated.result.placement.version,2);
+  const republished=await waitForPublication(created.placementId);
+  assert.match(republished.artworkDataUrl,/\/versions\/2\/artwork\.webp$/);
+  const recoveredSource=await request({action:'get-content-source',placementId:created.placementId,version:2});
+  assert.ok(recoveredSource.response.ok,JSON.stringify(recoveredSource.result));
+  assert.deepEqual(recoveredSource.result.placement.designState,{schemaVersion:1,...designState(cell)});
+  assert.equal(recoveredSource.result.placement.originalArtworkDataUrl,artworkDataUrl);
+  const v2Metadata=await (await fetch(`https://assets-staging.millionhexagons.com/releases/placements/${created.placementId}/versions/2/placement.json`)).json();
+  assert.equal(v2Metadata.title,'Updated publication QA');
+  assert.equal(JSON.stringify(v2Metadata).includes(qaOwner),false);
+  const deletedDraft=await request({action:'delete-draft',draftId});
+  assert.ok(deletedDraft.response.ok,JSON.stringify(deletedDraft.result));
+  draftIds.splice(draftIds.indexOf(draftId),1);
+  const missingDraft=await request({action:'get-draft',draftId});
+  assert.equal(missingDraft.response.status,404);
+
   const removed=await request({action:'delete',placementId:created.placementId});
   assert.ok(removed.response.ok,JSON.stringify(removed.result));
   createdIds.splice(createdIds.indexOf(created.placementId),1);
@@ -75,7 +135,9 @@ try{
   assert.ok(reuseRemoved.response.ok,JSON.stringify(reuseRemoved.result));
   createdIds.splice(createdIds.indexOf(reused.result.placement.placementId),1);
 
-  console.log(JSON.stringify({privateSource:true,backgroundPublication:true,immutableArtwork:true,publicMetadata:true,ownerReload:true,overlapRejected:true,deleteRelease:true,cellReuse:true,cell},null,2));
+  console.log(JSON.stringify({reservation100k:true,reservationConflictSafety:true,expiryRace:true,privateSource:true,recoverableDraft:true,editableDesignSource:true,immutableContentV2:true,backgroundPublication:true,immutableArtwork:true,publicMetadata:true,ownerReload:true,overlapRejected:true,deleteRelease:true,cellReuse:true,cell},null,2));
 } finally {
+  for(const draftId of draftIds)await request({action:'delete-draft',draftId}).catch(()=>{});
   for(const placementId of createdIds)await request({action:'delete',placementId}).catch(()=>{});
+  for(const reservationId of reservationIds)await request({action:'release-reservation',reservationId}).catch(()=>{});
 }

@@ -16,6 +16,10 @@ export function sourceObjectPath(placementId, version, extension) {
   return `staging-placement-sources/${placementId}/v${version}/artwork.${extension}`;
 }
 
+export function designObjectPath(ownerId, identity, version = 1) {
+  return `staging-design-sources/${ownerId}/${identity}/v${version}/design.json`;
+}
+
 export function publicationObjects(placement) {
   const prefix = `releases/placements/${placement.placementId}/versions/${placement.version}`;
   const artworkKey = `${prefix}/artwork.${placement.source.extension}`;
@@ -27,6 +31,9 @@ export function publicationObjects(placement) {
     topologyVersion: placement.topologyVersion,
     anchor: placement.anchor,
     cellCount: placement.cellCount,
+    title: placement.title,
+    description: placement.description,
+    destinationUrl: placement.destinationUrl,
     sourceSha256: placement.source.sha256,
     artwork: artworkKey
   };

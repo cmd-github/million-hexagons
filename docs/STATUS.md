@@ -6,13 +6,11 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Retain editable design sources, content versions and recoverable drafts beyond the published flattened artwork.
+- [ ] Build moderated background publication, safe replacement and coherent release promotion.
 
 ## Next
 
 - [ ] Validate first-time purchase intent and physical-device performance.
-- [ ] Prove atomic inventory/reservations up to 100,000 cells, including expiry races.
-- [ ] Build moderated background publication, safe replacement and coherent releases.
 - [ ] Add passwordless owner access and purchase recovery.
 - [ ] Add server quotes and Stripe test checkout; prove fulfillment/refunds before live payments.
 - [ ] Build My Globe: owned placements and versioned content editing.
@@ -38,6 +36,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [x] Durable staging publication: private Firebase Storage source, checksum reference, retry-enabled background publication and immutable R2 artwork/metadata.
 - [x] Automated live publication acceptance: create, owner reload, overlap rejection, R2 delivery/cache policy, deletion, exact-cell release and reuse all passed.
 - [x] Designer waits for saved-inventory restoration before enabling placement, so a returning owner cannot select over an existing claim during load.
+- [x] Private editable design bundles and original artwork are recoverable for owner drafts and placement versions; live draft save/load/delete and immutable v2 publication passed.
+- [x] Atomic reservations passed at the 100,000-cell maximum, including conflict rejection, exact release/reuse, premature-expiry rejection and concurrent expiry idempotency.
 
 ## Blocked / Needs Craig
 
@@ -50,8 +50,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 Launch readiness: ~25%
 
 - Production foundation: IN PROGRESS
-- Durable ownership/domain: NOT STARTED (design proposed)
-- Inventory + checkout: NOT STARTED
+- Durable ownership/domain: IN PROGRESS (staging ownership, versions and editable sources verified)
+- Inventory + checkout: IN PROGRESS (atomic staging reservations verified; quotes/payment not started)
 - Publication: IN PROGRESS (durable staging pipeline verified; moderation, replacement and release promotion remain)
 - Owner experience: NOT STARTED
 - Growth/sharing: IN PROGRESS (cell links only)

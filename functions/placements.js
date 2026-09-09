@@ -123,6 +123,24 @@ export async function createTestPlacement(db, input, timestamp, options = {}) {
   return { placementId, cellCount: claim.cells.length, status: 'draft' };
 }
 
+export async function updateTestPlacementContent(db, placementId, ownerId, input, timestamp, source, designSource = null) {
+  const placementRef = db.collection('stagingPlacements').doc(placementId);
+  return db.runTransaction(async transaction => {
+    const placement = await transaction.get(placementRef);
+    if (!placement.exists || placement.data().status === 'deleted') throw Object.assign(new Error('placement-not-found'), { code: 'placement-not-found' });
+    const current = placement.data();
+    if (current.ownerId !== ownerId) throw Object.assign(new Error('placement-forbidden'), { code: 'placement-forbidden' });
+    const claim = normalisePlacementClaim({ ...input, ownerId, topologyVersion: current.topologyVersion, anchor: current.anchor, cells: decodeCells(current.cellsData) });
+    if (!claim || !source) throw Object.assign(new Error('invalid-placement'), { code: 'invalid-placement' });
+    const version = Number(current.currentVersion || 1) + 1;
+    const contentRef = db.collection('stagingPlacementVersions').doc(`${placementId}-v${version}`);
+    transaction.create(contentRef, { schemaVersion: 1, placementId, version, topologyVersion: current.topologyVersion, anchor: current.anchor, cellCount: current.cellCount, title: claim.title, description: claim.description, destinationUrl: claim.destinationUrl, source, designSource, publication: { status: 'queued', attempts: 0 }, status: 'current', environment: 'staging', createdAt: timestamp });
+    transaction.update(placementRef, { title: claim.title, currentVersion: version, updatedAt: timestamp });
+    transaction.set(db.collection('stagingDomainEvents').doc(`${placementId}-content-v${version}`), { schemaVersion: 1, eventId: `${placementId}-content-v${version}`, type: 'placement_content_updated', placementId, ownerId, version, environment: 'staging', occurredAt: timestamp });
+    return { placementId, version, status: 'draft', cellCount: current.cellCount };
+  });
+}
+
 export async function deleteTestPlacement(db, placementId, timestamp, ownerId = null) {
   const placementRef = db.collection('stagingPlacements').doc(placementId);
   const grantRef = db.collection('stagingOwnershipGrants').doc(placementId);
