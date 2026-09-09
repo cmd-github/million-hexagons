@@ -1257,6 +1257,7 @@ let publishing=false;
 let stagingClient=null,stagingUser=null;
 let restoredStagingOwner=null,restoringStagingOwner=null;
 function persistentArtwork(canvas){const limit=900,scale=Math.min(1,limit/Math.max(canvas.width,canvas.height)),copy=document.createElement('canvas');copy.width=Math.max(1,Math.round(canvas.width*scale));copy.height=Math.max(1,Math.round(canvas.height*scale));copy.getContext('2d').drawImage(canvas,0,0,copy.width,copy.height);return copy.toDataURL('image/webp',.86);}
+function publicationArtwork(canvas){return canvas.toDataURL('image/webp',.95);}
 async function restoreTestPlacements(){
   const records=await stagingClient.listTestClaims();if(!records.length)return [];
   await ensureTopology();
@@ -1278,11 +1279,10 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
     status.textContent=user?`Signed in as ${user.email}.`:'Sign in before creating a persistent test placement.';
     if(!user||restoredStagingOwner===user.uid||restoringStagingOwner===user.uid)return;
     restoringStagingOwner=user.uid;
-    try{const records=await restoreTestPlacements();restoredStagingOwner=user.uid;if(records.length)status.textContent=`Signed in as ${user.email}. Restored ${records.length} saved test ${records.length===1?'placement':'placements'}.`;}
+    try{const records=await restoreTestPlacements();restoredStagingOwner=user.uid;if(records.length){const published=records.filter(record=>record.publicationStatus==='published').length;status.textContent=`Signed in as ${user.email}. Restored ${records.length} saved test ${records.length===1?'placement':'placements'}${published===records.length?' from published artwork':` · ${published} published`}.`;}}
     catch(error){status.textContent=`Signed in, but saved placements could not be loaded: ${error.message}`;}
     finally{restoringStagingOwner=null;}
   };
-  stagingClient.watchOwner(user=>{void reflectStagingUser(user);});
   try{
     const completedUser=await stagingClient.completeEmailSignIn();
     await reflectStagingUser(completedUser||await stagingClient.currentUser());
@@ -1294,6 +1294,7 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
     }
   }
   catch(error){status.textContent=error.message;}
+  stagingClient.watchOwner(user=>{void reflectStagingUser(user);});
   document.querySelector('#sendOwnerLink').onclick=async event=>{event.currentTarget.disabled=true;try{await stagingClient.sendOwnerLink(document.querySelector('#stagingOwnerEmail').value);status.textContent='Sign-in link sent. Keep this placement tab open; after signing in, return here to finish.';}catch(error){status.textContent=error.message;}finally{event.currentTarget.disabled=false;}};
 }
 async function paintPlacement() {
@@ -1312,8 +1313,8 @@ async function paintPlacement() {
     publishing=true;
     stagingUser=await stagingClient.currentUser();
     if(!stagingUser){publishing=false;const status=document.querySelector('#stagingOwnerStatus');status.textContent='Sign in before creating this test placement.';document.querySelector('#stagingOwnerEmail').focus();return;}
-    try{durablePlacement=await stagingClient.createTestClaim({topologyVersion:'geodesic-v1',anchor:selectedCell.id,cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(draftArtwork||renderArtwork(previewCells()))});}
-    catch(error){publishing=false;const target=document.querySelector('#websiteError');target.hidden=false;target.textContent=error.code==='cells-unavailable'?`Hexagon ${error.cellId} was just claimed. Choose another location.`:'Could not save the test placement. Your design is still here.';return;}
+    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells());durablePlacement=await stagingClient.createTestClaim({topologyVersion:'geodesic-v1',anchor:selectedCell.id,cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)});}
+    catch(error){publishing=false;const target=document.querySelector('#websiteError');target.hidden=false;target.textContent=error.code==='cells-unavailable'?`Hexagon ${error.cellId} was just claimed. Choose another location.`:error.code==='invalid-artwork-source'?'The full-resolution artwork could not be stored. Your design is still here.':error.code==='invalid-placement'?'The placement details or selected cells were rejected. Your design is still here.':'Could not save the test placement. Your design is still here.';return;}
   }
   publishing=true;
   document.querySelector('#buyPanel').inert=true;
@@ -1341,7 +1342,7 @@ async function paintPlacement() {
   closeBuy();
   const toast = document.querySelector('#toast');
   toast.querySelector('b').textContent='Welcome to the world.';
-  toast.querySelector('span').textContent=durablePlacement?'Your test placement has been saved. Artwork persistence is the next sandbox step.':'Your preview is on the globe for this session.';
+  toast.querySelector('span').textContent=durablePlacement?'Your test placement is saved and its artwork is queued for publication.':'Your preview is on the globe for this session.';
   toast.classList.add('show');
 
 }

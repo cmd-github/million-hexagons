@@ -36,6 +36,17 @@ export function normalisePlacementClaim(input) {
   return { ownerId, title, description, destinationUrl, artworkDataUrl, anchor, topologyVersion: TOPOLOGY_VERSION, cells };
 }
 
+export function placementClaimDiagnostics(input) {
+  const cells=Array.isArray(input?.cells)?input.cells:[];
+  return {
+    hasObject:Boolean(input&&typeof input==='object'),topologyVersion:String(input?.topologyVersion||''),
+    cellCount:cells.length,uniqueCellCount:new Set(cells.map(Number)).size,anchor:Number(input?.anchor),
+    anchorIncluded:cells.map(Number).includes(Number(input?.anchor)),titleLength:typeof input?.title==='string'?input.title.trim().length:-1,
+    destinationProtocol:(()=>{try{return new URL(String(input?.destinationUrl||'')).protocol;}catch{return input?.destinationUrl?'invalid':'empty';}})(),
+    fallbackArtworkLength:typeof input?.artworkDataUrl==='string'?input.artworkDataUrl.length:-1
+  };
+}
+
 export function shardNumber(cellId) { return Math.floor((cellId - 1) / INVENTORY_SHARD_SIZE); }
 export function shardId(number) { return String(number).padStart(3, '0'); }
 
@@ -82,10 +93,10 @@ export function decodeCells(encoded) {
   return cells;
 }
 
-export async function createTestPlacement(db, input, timestamp) {
+export async function createTestPlacement(db, input, timestamp, options = {}) {
   const claim = normalisePlacementClaim(input);
   if (!claim) throw Object.assign(new Error('invalid-placement'), { code: 'invalid-placement' });
-  const placementId = randomUUID(), groups = groupCellsByShard(claim.cells);
+  const placementId = options.placementId || randomUUID(), groups = groupCellsByShard(claim.cells);
   const placementRef = db.collection('stagingPlacements').doc(placementId);
   const contentRef = db.collection('stagingPlacementVersions').doc(`${placementId}-v1`);
   const grantRef = db.collection('stagingOwnershipGrants').doc(placementId);
@@ -105,7 +116,7 @@ export async function createTestPlacement(db, input, timestamp) {
       title: claim.title, currentVersion: 1,
       status: 'draft', environment: 'staging', createdAt: timestamp, updatedAt: timestamp
     });
-    transaction.create(contentRef, { schemaVersion: 1, placementId, version: 1, title: claim.title, description: claim.description, destinationUrl: claim.destinationUrl, artworkDataUrl: claim.artworkDataUrl, status: 'current', environment: 'staging', createdAt: timestamp });
+    transaction.create(contentRef, { schemaVersion: 1, placementId, version: 1, topologyVersion: claim.topologyVersion, anchor: claim.anchor, cellCount: claim.cells.length, title: claim.title, description: claim.description, destinationUrl: claim.destinationUrl, artworkDataUrl: claim.artworkDataUrl, source: options.source || null, publication: options.source ? { status: 'queued', attempts: 0 } : { status: 'preview-only', attempts: 0 }, status: 'current', environment: 'staging', createdAt: timestamp });
     transaction.create(grantRef, { placementId, ownerId: claim.ownerId, topologyVersion: claim.topologyVersion, status: 'active', environment: 'staging', grantedAt: timestamp });
     transaction.create(eventRef, { schemaVersion: 1, eventId: eventRef.id, type: 'placement_created', placementId, ownerId: claim.ownerId, environment: 'staging', occurredAt: timestamp });
   });

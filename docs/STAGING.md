@@ -1,6 +1,6 @@
 # Cloudflare staging
 
-This is the first production-plan implementation slice: a separately deployable, non-payment product demo. It still uses sample inventory and session-only publication. It does not alter Firebase Hosting or live DNS.
+This is a separately deployable, non-payment staging product. Test-owner claims persist in Firestore and publish immutable derived artwork through private Firebase Storage and R2; the original sample catalogue remains immutable runtime data. It does not alter Firebase Hosting or the coming-soon site.
 
 ## One-time account setup
 
@@ -83,6 +83,10 @@ Asset hostname: `assets-staging.millionhexagons.com`, attached only to `million-
 The 9 September 2026 nameserver cutover preserved the complete three-record Hostinger zone: Firebase apex A, `www` CNAME and hosting-verification TXT. DNSSEC had no DS record. Cloudflare authoritative record parity, apex HTTPS coming-soon delivery and the `www` redirect were verified during propagation.
 
 The R2 custom hostname has a narrowly scoped Cache Rule: hostname equals `assets-staging.millionhexagons.com` and path starts with `/releases/`; responses are eligible only when origin cache-control is present. Retain the old R2 origin/releases for rollback.
+
+Durable staging publication stores its authoritative flattened source privately in Firebase Storage, then a Firebase background Function publishes deterministic immutable objects under `releases/placements/<placementId>/versions/<version>/`. Configure `MH_R2_ACCOUNT_ID`, `MH_R2_ACCESS_KEY_ID` and `MH_R2_SECRET_ACCESS_KEY` as Firebase Function secrets; never place them in a `VITE_*` variable or commit them. The R2 token must remain restricted to Object Read & Write for `million-hexagons-staging-public`. Rotate and revoke a token immediately if its access-key material appears in logs or command output.
+
+Run `npm.cmd run test:staging-publication` to exercise the live pipeline using a secret-protected disposable staging identity. It creates a claim, verifies owner reload and overlap rejection, waits for background publication, fetches immutable artwork and public metadata from the custom R2 hostname, deletes the claim, reclaims the exact cell, republishes it and cleans up. The ignored `.env.staging.local` must contain `MH_STAGING_QA_KEY` (or the staging-only R2 secret used when the QA secret was provisioned). This is operational acceptance access, not a browser or customer authentication path.
 
 When updating the monitor to the custom asset hostname, set `requireAssetCacheHit` in `deploy/staging-monitor.json` to `true`. The monitor warms and repeats representative JSON and opaque-gzip requests, requires `CF-Cache-Status: HIT`, and verifies that cached bytes are unchanged. Keep it `false` only while the temporary `r2.dev` origin is in use because that development URL does not expose CDN cache status.
 

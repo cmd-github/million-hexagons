@@ -26,7 +26,8 @@
     "build:staging": "node scripts/build-staging.mjs",
     "upload:staging": "node scripts/upload-staging.mjs",
     "deploy:staging": "node scripts/deploy-staging.mjs",
-    "test:deployment": "node --test scripts/runtime-assets.test.mjs"
+    "test:deployment": "node --test scripts/runtime-assets.test.mjs",
+    "test:staging-publication": "node scripts/staging-publication-qa.mjs"
   },
   "dependencies": {
     "firebase": "^12.3.0",

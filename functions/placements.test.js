@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createTestPlacement, decodeCells, decodeInventory, deleteTestPlacement, encodeCells, groupCellsByShard, mutateInventory, normalisePlacementClaim } from './placements.js';
+import { createTestPlacement, decodeCells, decodeInventory, deleteTestPlacement, encodeCells, groupCellsByShard, mutateInventory, normalisePlacementClaim, placementClaimDiagnostics } from './placements.js';
 
 const valid = { ownerId: 'test-owner', title: 'Test placement', description: 'A durable test.', destinationUrl: 'https://example.com', topologyVersion: 'geodesic-v1', anchor: 2, cells: [1, 2, 4097] };
 
@@ -15,6 +15,12 @@ test('rejects duplicates, invalid topology, unsafe URLs and oversized claims', (
   assert.equal(normalisePlacementClaim({ ...valid, topologyVersion: 'other' }), null);
   assert.equal(normalisePlacementClaim({ ...valid, destinationUrl: 'javascript:alert(1)' }), null);
   assert.equal(normalisePlacementClaim({ ...valid, cells: Array.from({ length: 100_001 }, (_, index) => index + 1) }), null);
+});
+
+test('diagnoses placement structure without exposing content',()=>{
+  const diagnostics=placementClaimDiagnostics(valid);
+  assert.equal(diagnostics.anchorIncluded,true);assert.equal(diagnostics.cellCount,3);assert.equal(diagnostics.destinationProtocol,'https:');
+  assert.equal(JSON.stringify(diagnostics).includes(valid.description),false);
 });
 
 test('groups the complete million-cell inventory into at most 245 transaction shards', () => {
@@ -61,4 +67,13 @@ test('creates durable domain records, rejects conflicts, then releases a deleted
   assert.equal(db.documents.get(`stagingPlacements/${first.placementId}`).status, 'deleted');
   const replacement = await createTestPlacement(db, { ...valid, ownerId: 'other-owner' }, timestamp);
   assert.equal(replacement.cellCount, 3);
+});
+
+test('records a private source reference and queued publication without source bytes', async () => {
+  const db=new MemoryFirestore(),source={bucket:'private-bucket',path:'private/path.webp',mimeType:'image/webp',extension:'webp',size:7,sha256:'abc'};
+  const created=await createTestPlacement(db,valid,'test-time',{placementId:'fixed-placement',source});
+  const version=db.documents.get(`stagingPlacementVersions/${created.placementId}-v1`);
+  assert.deepEqual(version.source,source);
+  assert.deepEqual(version.publication,{status:'queued',attempts:0});
+  assert.equal(JSON.stringify(version).includes('data:image'),false);
 });

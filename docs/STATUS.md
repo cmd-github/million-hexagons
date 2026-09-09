@@ -6,15 +6,11 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Retain private full-resolution artwork sources and publish derived globe artwork through a recoverable background job.
-  - Keep authoritative source content private and separate from public R2 output.
-  - Create immutable placement versions and retry-safe publication jobs.
-  - Keep the previous public version live until its replacement is complete.
+- [ ] Retain editable design sources, content versions and recoverable drafts beyond the published flattened artwork.
 
 ## Next
 
 - [ ] Validate first-time purchase intent and physical-device performance.
-- [ ] Retain private design sources, content versions and recoverable drafts.
 - [ ] Prove atomic inventory/reservations up to 100,000 cells, including expiry races.
 - [ ] Build moderated background publication, safe replacement and coherent releases.
 - [ ] Add passwordless owner access and purchase recovery.
@@ -39,6 +35,9 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [x] Custom R2 hostname deployed; JSON, gzip, manifests and artwork verified as CDN cache hits.
 - [x] Implement and test the staging placement-domain core: stable IDs, exact encoded cell sets, ownership grants, domain events and reversible test deletion.
 - [x] Live persistent sandbox acceptance: authenticated create, reload/restore, delete/release, same-cell reclaim and second persistence all passed.
+- [x] Durable staging publication: private Firebase Storage source, checksum reference, retry-enabled background publication and immutable R2 artwork/metadata.
+- [x] Automated live publication acceptance: create, owner reload, overlap rejection, R2 delivery/cache policy, deletion, exact-cell release and reuse all passed.
+- [x] Designer waits for saved-inventory restoration before enabling placement, so a returning owner cannot select over an existing claim during load.
 
 ## Blocked / Needs Craig
 
@@ -53,7 +52,7 @@ Launch readiness: ~25%
 - Production foundation: IN PROGRESS
 - Durable ownership/domain: NOT STARTED (design proposed)
 - Inventory + checkout: NOT STARTED
-- Publication: NOT STARTED (durable pipeline; session prototype works)
+- Publication: IN PROGRESS (durable staging pipeline verified; moderation, replacement and release promotion remain)
 - Owner experience: NOT STARTED
 - Growth/sharing: IN PROGRESS (cell links only)
 - Analytics: NOT STARTED (illustrative/local counters only)
