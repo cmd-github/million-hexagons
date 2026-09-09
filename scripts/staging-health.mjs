@@ -4,7 +4,7 @@ import { gunzipSync } from 'node:zlib';
 
 const config = JSON.parse(await readFile('deploy/staging-monitor.json', 'utf8'));
 const report = { checkedAt: new Date().toISOString(), ...config, checks: [], ok: false };
-async function get(url, type, runtime = false) {
+async function get(url, type, runtime = false, requireCacheHit = false) {
   const start = performance.now();
   const response = await fetch(url, { signal: AbortSignal.timeout(20000), headers: runtime ? { Origin: config.appOrigin } : {} });
   assert.equal(response.status, 200, `${url}: HTTP ${response.status}`);
@@ -15,6 +15,16 @@ async function get(url, type, runtime = false) {
   }
   const bytes = Buffer.from(await response.arrayBuffer());
   report.checks.push({ url, bytes: bytes.length, ms: Math.round(performance.now() - start), cache: response.headers.get('cf-cache-status') });
+  if (requireCacheHit) {
+    const warmStart = performance.now();
+    const warm = await fetch(url, { signal: AbortSignal.timeout(20000), headers: { Origin: config.appOrigin } });
+    assert.equal(warm.status, 200, `${url}: warm-cache HTTP ${warm.status}`);
+    const cache = warm.headers.get('cf-cache-status');
+    const warmBytes = Buffer.from(await warm.arrayBuffer());
+    report.checks.push({ url, attempt: 'warm', bytes: warmBytes.length, ms: Math.round(performance.now() - warmStart), cache });
+    assert.equal(cache, 'HIT', `${url}: expected Cloudflare cache HIT after warm request, received ${cache || 'no CF-Cache-Status'}`);
+    assert.deepEqual(warmBytes, bytes, `${url}: cached response bytes changed`);
+  }
   return { response, bytes };
 }
 try {
@@ -40,12 +50,12 @@ try {
   }
   assert.ok(runtimeReferenced, 'App no longer references the expected runtime release; review monitor configuration');
   const base = `${config.assetOrigin}/releases/${config.release}`;
-  const bootstrap = JSON.parse((await get(`${base}/topology/bootstrap.json`, 'application/json', true)).bytes);
+  const bootstrap = JSON.parse((await get(`${base}/topology/bootstrap.json`, 'application/json', true, config.requireAssetCacheHit)).bytes);
   assert.equal(bootstrap.cells, 1000000);
   const manifest = JSON.parse((await get(`${base}/artwork/sample-hq/manifest.json`, 'application/json', true)).bytes);
   assert.equal(manifest.files, 8190);
   for (const name of ['occupancy-v1.gz', 'sample-owners-v1.gz']) {
-    let { bytes } = await get(`${base}/topology/${name}`, 'application/octet-stream', true);
+    let { bytes } = await get(`${base}/topology/${name}`, 'application/octet-stream', true, config.requireAssetCacheHit && name === 'occupancy-v1.gz');
     if (bytes[0] === 31 && bytes[1] === 139) bytes = gunzipSync(bytes);
     assert.equal(bytes.length, 1000000, `${name}: incomplete data`);
   }

@@ -72,6 +72,8 @@ Run `node scripts/staging-health.mjs` for a small public check of HTTPS, app JS/
 
 `.github/workflows/staging-health.yml` runs on relevant pushes, manually and approximately every 30 minutes, retaining reports for 14 days. GitHub schedules can be delayed; this is basic availability monitoring, not a guaranteed alerting service. Configure Craig's GitHub Actions failure notifications and confirm receipt; no email/webhook destination has been configured by the agent. Account budget alerts remain a Cloudflare dashboard task. No visitor identifiers or business events are collected.
 
+To verify notification delivery without breaking staging, run the workflow manually in GitHub Actions with **Send a test failure notification after the live health check** enabled. The live health check runs first and its report is retained; the final intentional step makes that one run fail. Confirm the failure email arrives, then leave the option disabled for ordinary manual runs.
+
 Update `deploy/staging-monitor.json` whenever the expected runtime release/origin changes. The monitor intentionally fails if deployed bundles no longer reference that release. It is separate from the full pre-deployment checksum verification.
 
 ## Custom-domain preparation
@@ -81,6 +83,8 @@ Proposed asset hostname: `assets-staging.millionhexagons.com`, attached only to 
 Before changing nameservers, obtain the complete Hostinger DNS export (including mail/TXT/subdomains) and DNSSEC status. Review/import those records into Cloudflare, preserving the Firebase website and mail records. Then Craig can change the registrar nameservers to the assigned Cloudflare pair after record parity is checked; handle existing DNSSEC/DS configuration as part of that reviewed cutover. No DNS changes have been made.
 
 After the zone is active: attach the proposed R2 hostname, wait for TLS, and configure cache eligibility for that hostname's `/releases/` paths with origin cache-control respected. Verify CORS and repeated GET responses show an actual cache HIT, including JSON and opaque gzip assets. Only then change `MH_ASSET_ORIGIN`, rebuild and deploy, update the monitor origin, and rerun browser QA. Retain the old R2 origin/releases for rollback.
+
+When updating the monitor to the custom asset hostname, set `requireAssetCacheHit` in `deploy/staging-monitor.json` to `true`. The monitor warms and repeats representative JSON and opaque-gzip requests, requires `CF-Cache-Status: HIT`, and verifies that cached bytes are unchanged. Keep it `false` only while the temporary `r2.dev` origin is in use because that development URL does not expose CDN cache status.
 
 Provider reference: https://developers.cloudflare.com/r2/buckets/public-buckets/
 

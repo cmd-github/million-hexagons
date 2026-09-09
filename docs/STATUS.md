@@ -1,13 +1,14 @@
 # Million Hexagons — Status
 
-Updated: 9 September 2026, 13:30 UK time (BST)
+Updated: 9 September 2026, 13:50 UK time (BST)
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
 ## Now
 
 - [ ] Finish production foundation: custom-domain caching and alert delivery.
-  - DNS preparation needs Craig; rollback and local monitor checks passed.
+  - Cloudflare nameserver cutover is propagating; Firebase coming-soon routing and authoritative record parity passed.
+  - Custom-host cache assertion and a safe GitHub notification-delivery test are prepared; final live checks remain.
 
 ## Next
 
@@ -37,8 +38,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Blocked / Needs Craig
 
-- [ ] Export Hostinger DNS records and confirm DNSSEC status before Cloudflare DNS cutover.
-- [ ] Configure/confirm GitHub failure notifications and Cloudflare budget alerts.
+- [ ] Confirm Cloudflare zone activation, then attach and verify the isolated R2 asset hostname.
+- [ ] Configure/confirm GitHub failure notifications and a $10 Cloudflare budget alert.
 - [ ] Agree final pricing and commercial terms, including refunds and permanent-use wording.
 - [ ] Provide physical iOS/Android testing and observed first-time-user feedback.
 
