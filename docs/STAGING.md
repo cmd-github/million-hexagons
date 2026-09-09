@@ -64,6 +64,26 @@ Local evidence, 9 September 2026: five deployment tests and four geometry tests 
 
 ## Rollback and remaining gates
 
+Rollback rehearsal (9 September 2026): deployed version `7a1235fc-2d95-40b9-a313-420aabda5b54` with a temporary marker file, verified it publicly, then restored `003fb40f-b99a-4472-935c-254e0ed7c054`. The marker returned 404 after rollback and the public health check passed. R2 objects were retained unchanged.
+
+## Availability monitoring
+
+Run `node scripts/staging-health.mjs` for a small public check of HTTPS, app JS/CSS/worker bundles, runtime release references, inventory lengths, CORS, cache headers and six root artwork tiles. Reports go to `artifacts/staging/health.json`. A simulated HTTP 503 was confirmed to fail the check. It does not download all tiles or the 17 MB topology on every run and does not replace browser QA.
+
+`.github/workflows/staging-health.yml` runs on relevant pushes, manually and approximately every 30 minutes, retaining reports for 14 days. GitHub schedules can be delayed; this is basic availability monitoring, not a guaranteed alerting service. Configure Craig's GitHub Actions failure notifications and confirm receipt; no email/webhook destination has been configured by the agent. Account budget alerts remain a Cloudflare dashboard task. No visitor identifiers or business events are collected.
+
+Update `deploy/staging-monitor.json` whenever the expected runtime release/origin changes. The monitor intentionally fails if deployed bundles no longer reference that release. It is separate from the full pre-deployment checksum verification.
+
+## Custom-domain preparation
+
+Proposed asset hostname: `assets-staging.millionhexagons.com`, attached only to `million-hexagons-staging-public`. Keep the app on its existing Workers address for now. The R2 domain requires `millionhexagons.com` as a zone in the same Cloudflare account; the account currently has no such zone and authoritative DNS is still at Hostinger.
+
+Before changing nameservers, obtain the complete Hostinger DNS export (including mail/TXT/subdomains) and DNSSEC status. Review/import those records into Cloudflare, preserving the Firebase website and mail records. Then Craig can change the registrar nameservers to the assigned Cloudflare pair after record parity is checked; handle existing DNSSEC/DS configuration as part of that reviewed cutover. No DNS changes have been made.
+
+After the zone is active: attach the proposed R2 hostname, wait for TLS, and configure cache eligibility for that hostname's `/releases/` paths with origin cache-control respected. Verify CORS and repeated GET responses show an actual cache HIT, including JSON and opaque gzip assets. Only then change `MH_ASSET_ORIGIN`, rebuild and deploy, update the monitor origin, and rerun browser QA. Retain the old R2 origin/releases for rollback.
+
+Provider reference: https://developers.cloudflare.com/r2/buckets/public-buckets/
+
 Use `npm.cmd exec -- wrangler deployments list --config wrangler.staging.jsonc` to find the recorded working version, then `npm.cmd exec -- wrangler rollback <VERSION_ID> --config wrangler.staging.jsonc`. Retain its immutable R2 release and test loading/creation after rollback. Do not delete old releases while a retained Worker version references them. A future paid system must keep ownership/reconciliation running during frontend rollback.
 
 Before phase 1 can be called complete: perform a real upload/deploy and rollback, verify custom-domain cache behaviour, inspect real desktop/mobile delivery and physical-device memory/loading, set account cost alerts, and establish staging/production credentials and operational ownership. Accounts, durable ownership/publication, checkout and production domain cutover remain separate phases in [PRODUCTION-PLAN.md](PRODUCTION-PLAN.md).
@@ -71,3 +91,5 @@ Before phase 1 can be called complete: perform a real upload/deploy and rollback
 ## Live verification - 9 September 2026, 13:24 UK time (BST)
 
 Staging is live at https://million-hexagons-staging.million-hexagons.workers.dev. SSL now works. `scripts/staging-qa.mjs` passed desktop and emulated-mobile one-cell image creation, rotation, Review/Edit, session publication, warm reload, startup retry and missing-file 404 checks. The run recorded 165 runtime requests, zero Firestore requests and zero browser errors. Desktop/mobile screenshots were inspected; evidence is in ignored `artifacts/staging/`. This does not certify physical devices, larger live footprints, custom-domain caching or rollback.
+
+Post-rollback browser QA passed desktop/emulated-mobile creation, Review/Edit, publication and recovery with zero browser errors; screenshots inspected. Scheduled execution and notification delivery still need confirmation.

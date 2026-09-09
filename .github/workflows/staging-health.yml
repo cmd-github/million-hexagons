@@ -1,0 +1,31 @@
+name: Staging availability
+on:
+  schedule:
+    - cron: '17,47 * * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - deploy/staging-monitor.json
+      - scripts/staging-health.mjs
+      - .github/workflows/staging-health.yml
+permissions:
+  contents: read
+concurrency:
+  group: staging-health
+  cancel-in-progress: false
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/staging-health.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: staging-health
+          path: artifacts/staging/health.json
+          retention-days: 14

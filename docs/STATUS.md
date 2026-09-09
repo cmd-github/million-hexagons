@@ -1,12 +1,13 @@
 # Million Hexagons — Status
 
-Updated: 9 September 2026, 13:24 UK time (BST)
+Updated: 9 September 2026, 13:30 UK time (BST)
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
 ## Now
 
-- [ ] Finish production foundation: custom-domain caching, rollback and monitoring.
+- [ ] Finish production foundation: custom-domain caching and alert delivery.
+  - DNS preparation needs Craig; rollback and local monitor checks passed.
 
 ## Next
 
@@ -31,8 +32,13 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [x] Live Review/Edit, publication, reload and failure recovery; screenshots inspected.
 - [x] Versioned R2 topology/artwork uploaded and all 8,196 objects publicly verified.
 
+- [x] Live rollback rehearsal; desktop/mobile journeys passed after restore.
+- [x] Availability monitor verified live and against simulated HTTP failure.
+
 ## Blocked / Needs Craig
 
+- [ ] Export Hostinger DNS records and confirm DNSSEC status before Cloudflare DNS cutover.
+- [ ] Configure/confirm GitHub failure notifications and Cloudflare budget alerts.
 - [ ] Agree final pricing and commercial terms, including refunds and permanent-use wording.
 - [ ] Provide physical iOS/Android testing and observed first-time-user feedback.
 
