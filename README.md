@@ -4,6 +4,8 @@ A Vite/Three.js prototype of one shared advertising globe containing exactly 1,0
 
 Current product requirements are in [the product contract](docs/PRODUCT-DELIVERY-PLAN.md). See [architecture](docs/ARCHITECTURE.md), [roadmap](docs/ROADMAP.md), and [validation](docs/VALIDATION.md) for focused guidance.
 
+The [development-to-production plan](docs/PRODUCTION-PLAN.md) reviews the proposed Cloudflare/Firebase split and defines the implementation sequence and launch gates.
+
 ## Run
 
 ```powershell
