@@ -44,7 +44,7 @@ for(const mobile of [false,true]){
  assert.equal(await page.locator('#inspectorName').textContent(),'Orbit Studio');
  assert.equal(await page.locator('#inspectorLogo').isVisible(),true);assert.ok(await page.locator('#inspectorLogo').evaluate(e=>e.complete&&e.naturalWidth>0));
  assert.equal(await page.locator('#inspectorDescription').textContent(),'Independent design for curious people.');
- assert.match(await page.locator('#inspectorDate').textContent(),/\d{2}\/\d{2}\/\d{4}/);
+ assert.match(await page.locator('#inspectorDate').textContent(),/\d{2}\/\d{2}\/\d{2}/);
  assert.match(await page.locator('#claimFeedItems').textContent(),/Orbit Studio/);
  assert.equal(await page.locator('#discoverPlacement').count(),0);
  await page.locator('#pinInspector').click();await page.mouse.click(8,100);assert.equal(await page.locator('#placementInspector').isVisible(),true);

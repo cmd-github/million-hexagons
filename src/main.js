@@ -105,7 +105,7 @@ const starGeometry = new THREE.BufferGeometry();
 starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(stars, 3));
 const starArt=document.createElement('canvas');starArt.width=32;starArt.height=32;const starContext=starArt.getContext('2d');starContext.strokeStyle='#ffffff';starContext.lineWidth=2;starContext.beginPath();for(let i=0;i<6;i++){const angle=i*Math.PI/3;const x=16+12*Math.cos(angle),y=16+12*Math.sin(angle);if(i)starContext.lineTo(x,y);else starContext.moveTo(x,y);}starContext.closePath();starContext.stroke();
 const starTexture=new THREE.CanvasTexture(starArt);
-scene.add(new THREE.Points(starGeometry,new THREE.PointsMaterial({map:starTexture,color:0xd7ff55,size:.11,transparent:true,opacity:.18,depthWrite:false})));
+scene.add(new THREE.Points(starGeometry,new THREE.PointsMaterial({map:starTexture,color:0xd7ff55,size:7,sizeAttenuation:false,transparent:true,opacity:.26,depthWrite:false,fog:false})));
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
@@ -1476,7 +1476,7 @@ function inspectPlacement(id){
   const cell=cellForId(id),record=sessionPlacements.get(id),panel=document.querySelector('#placementInspector');
   document.querySelector('#inspectorName').textContent=cell.owner;
   const logo=document.querySelector('#inspectorLogo');const logoSource=record?.logo||(!record?'/brands/'+(sampleOwners[id-1]-1)+'.svg':'');logo.hidden=!logoSource;if(logoSource)logo.src=logoSource;else logo.removeAttribute('src');
-  document.querySelector('#inspectorInfo').textContent=record?record.count.toLocaleString()+' cells. Preview saved for this session.':'Example brand placement. No ownership or purchase implied.';
+  showNearby(false);
   const link=document.querySelector('#inspectorVisit');link.hidden=!cell.destination;link.href=cell.destination||'#';
   const owner=sampleOwners[id-1],seen=new Set([id]),queue=[id];
   for(let i=0;i<queue.length&&queue.length<100000;i++)for(const next of topology.neighboursOf(queue[i])){
@@ -1484,14 +1484,13 @@ function inspectPlacement(id){
     if(record?sessionPlacements.get(next)===record:owner&&sampleOwners[next-1]===owner)queue.push(next);
   }
   inspectedCells=queue;
-  document.querySelector('#inspectorInfo').textContent=(record?.count||queue.length).toLocaleString()+' hexagons';
-  document.querySelector('#inspectorDate').textContent='Claimed: '+(record?new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'}):'08/08/26');
+  const views=document.querySelector('#inspectorInfo');views.textContent=record?'\u2014':'12,429';views.title=record?'Views are not measured yet':'Illustrative views';
+  document.querySelector('#inspectorDate').textContent=(record?new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'}):'08/08/26');
   document.querySelector('#inspectorDescription').textContent=record?.description||'';
   document.querySelector('#inspectorDescription').hidden=!record?.description;
 
   renderLinkClicks();
-  const audience=document.querySelector('#inspectorAudience');audience.hidden=!!record;audience.title='Illustrative metrics, not measured traffic';
-  document.querySelector('#inspectorContext').textContent=((record?.count||queue.length)/10000).toFixed(2)+'% of the globe';
+  const context=document.querySelector('#inspectorContext');context.textContent=record?'New arrival':owner===9?'Trending today':'Featured placement';context.title=record?'Claimed in this session':'Illustrative campaign highlight';
   clearSelectionColours();for(const cellId of queue)writeCellColour(selectionColourData,{id:cellId},'#d7ff55');
   selectionColourTexture.needsUpdate=true;selectionModeUniform.value=1;
   const nearby=document.querySelector('#nearbyPlacements');nearby.replaceChildren();
@@ -1499,8 +1498,8 @@ function inspectPlacement(id){
   const areas=[...bootstrap.sampleAreas].sort((a,b)=>{
     const dot=x=>topology.centre(x.anchor).reduce((sum,v,i)=>sum+v*centre[i],0);
     return dot(b)-dot(a);
-  }).filter(a=>a.campaign!==owner-1).slice(0,3);
-  for(const area of areas){const button=document.createElement('button');button.textContent=bootstrap.sampleCampaigns[area.campaign].name;button.onclick=()=>{inspectPlacement(area.anchor);viewInspectedPlacement();};nearby.append(button);}
+  }).filter((a,index,all)=>a.campaign!==owner-1&&all.findIndex(other=>other.campaign===a.campaign)===index).slice(0,3);
+  for(const area of areas){const button=document.createElement('button');const image=document.createElement('img');image.src='/brands/'+area.campaign+'.svg';image.alt='';const name=document.createElement('span');name.textContent=bootstrap.sampleCampaigns[area.campaign].name;const arrow=document.createElement('span');arrow.textContent='\u2197';arrow.setAttribute('aria-hidden','true');button.append(image,name,arrow);button.onclick=()=>{inspectPlacement(area.anchor);viewInspectedPlacement();};nearby.append(button);}
   document.querySelector('#inspectorStatus').textContent='';panel.hidden=false;controls.autoRotate=false;
 }
 function closeInspector(force=false){
@@ -1508,14 +1507,22 @@ function closeInspector(force=false){
   document.querySelector('#placementInspector').hidden=true;document.body.classList.remove('inspecting');resize();
   if(!document.body.classList.contains('creating')){clearSelectionColours();selectionModeUniform.value=0;}
 }
+function showNearby(open,focus=false){
+  document.querySelector('#placementInspector').classList.toggle('show-nearby',open);
+  for(const [id,active] of [['hudDetails',!open],['hudNearby',open]]){const page=document.getElementById(id);page.inert=!active;page.setAttribute('aria-hidden',String(!active));}
+  document.querySelector('#showNearby').setAttribute('aria-expanded',String(open));
+  if(focus)document.getElementById(open?'backNearby':'showNearby').focus();
+}
+document.querySelector('#showNearby').onclick=()=>showNearby(true,true);
+document.querySelector('#backNearby').onclick=()=>showNearby(false,true);
 document.querySelector('#pinInspector').onclick=event=>{hudPinned=!hudPinned;event.currentTarget.setAttribute('aria-checked',String(hudPinned));};
 document.addEventListener('pointerdown',event=>{
   if(!hexSearch.contains(event.target))showHexSearch(false);
   if(!event.target.closest('#placementInspector,#hexSearch,#claimFeed')&&event.target!==canvas)closeInspector();
   if(!tooltip.contains(event.target)){pinnedCell=null;tooltip.classList.remove('show','pinned');}
 });
-document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeInspector(true);showHexSearch(false);tooltip.classList.remove('show','pinned');}});
-function renderLinkClicks(){const value=linkClicks[cellForId(inspectedId).destination],sample=!sessionPlacements.has(inspectedId),visits=(Number.isSafeInteger(value)&&value>=0?value:0)+(sample?328:0);document.querySelector('#inspectorClicks').textContent=visits.toLocaleString()+' visits';if(sample)document.querySelector('#inspectorAudience').textContent='12,429 views \u00b7 '+(visits/12429*100).toFixed(2)+'% visit rate';}
+document.addEventListener('keydown',event=>{if(event.key==='Escape'){if(document.querySelector('#placementInspector.show-nearby:not([hidden])')){showNearby(false,true);return;}closeInspector(true);showHexSearch(false);tooltip.classList.remove('show','pinned');}});
+function renderLinkClicks(){const value=linkClicks[cellForId(inspectedId).destination],sample=!sessionPlacements.has(inspectedId),visits=(Number.isSafeInteger(value)&&value>=0?value:0)+(sample?328:0);const metric=document.querySelector('#inspectorClicks');metric.textContent=visits.toLocaleString();metric.title=sample?'Illustrative visits plus your browser total':'Website visits from this browser';}
 for(const id of ['inspectorVisit','placementWebsite'])for(const type of ['click','auxclick'])document.getElementById(id).addEventListener(type,event=>{
   if(type==='auxclick'&&event.button!==1)return;
   const url=event.currentTarget.href;const current=linkClicks[url];linkClicks[url]=(Number.isSafeInteger(current)&&current>=0?current:0)+1;try{localStorage.setItem(clickStorageKey,JSON.stringify(linkClicks));}catch{}if(inspectedId)renderLinkClicks();
@@ -1530,15 +1537,19 @@ function renderCompanyResults(){
   }
 }
 hexSearchInput.addEventListener('input',()=>{hexSearchInput.removeAttribute('aria-invalid');hexSearchStatus.textContent='';renderCompanyResults();});
+function activityIcon(kind){
+ const paths={claim:'<path d="m12 2 9 5v10l-9 5-9-5V7z M8 12l3 3 5-6"/>',trend:'<path d="m3 17 6-6 4 4 8-10 M15 5h6v6"/>',milestone:'<path d="M8 3h8v5a4 4 0 0 1-8 0z M8 5H4v2a4 4 0 0 0 4 4 M16 5h4v2a4 4 0 0 1-4 4 M12 12v6 M8 21v-3h8v3z"/>',globe:'<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>'};
+ return '<svg viewBox="0 0 24 24" aria-hidden="true">'+paths[kind]+'</svg>';
+}
 function renderClaimFeed(){
   const target=document.querySelector('#claimFeedItems');target.replaceChildren();
   document.querySelector('#claimFeed summary span').textContent='';
   for(const record of [...new Set(sessionPlacements.values())].sort((a,b)=>b.createdAt-a.createdAt).slice(0,5)){
-    const button=document.createElement('button');button.textContent=new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})+' - '+record.count.toLocaleString()+' \u2b21 '+(record.name||'You');
+    const button=document.createElement('button');button.className='example-activity';const icon=document.createElement('span');icon.className='activity-icon';icon.innerHTML=activityIcon('claim');const title=document.createElement('span');title.textContent=(record.name||'You')+' claimed '+record.count.toLocaleString()+' hexagons';const date=document.createElement('small');date.textContent=new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'});button.append(icon,title,date);
     button.onclick=()=>{inspectPlacement(record.anchor);viewInspectedPlacement();};target.append(button);
   }
   const examples=[['Spotify claimed 350 hexagons','4m ago',10],['Nike is trending','1,284 views today',8],['IKEA reached 1,000 website visits','Milestone',4],['284,391 / 1,000,000 claimed','Around the globe',null]];
-  for(const [headline,detail,campaign] of examples){const button=document.createElement(campaign===null?'div':'button');button.className='example-activity';const title=document.createElement('span');title.textContent=headline;const meta=document.createElement('small');meta.textContent=detail;const icon=document.createElement('span');icon.className='activity-icon';icon.setAttribute('aria-hidden','true');icon.textContent=campaign===10?'\u2b21':campaign===8?'\u2197':campaign===4?'\u2192':'\u25ce';button.append(icon,title,meta);if(campaign!==null)button.onclick=async()=>{await ensureTopology();inspectPlacement(bootstrap.sampleAreas.find(area=>area.campaign===campaign).anchor);viewInspectedPlacement();};target.append(button);}
+  for(const [headline,detail,campaign] of examples){const button=document.createElement(campaign===null?'div':'button');button.className='example-activity';const title=document.createElement('span');title.textContent=headline;const meta=document.createElement('small');meta.textContent=detail;const icon=document.createElement('span');icon.className='activity-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML=activityIcon(campaign===10?'claim':campaign===8?'trend':campaign===4?'milestone':'globe');button.append(icon,title,meta);if(campaign!==null)button.onclick=async()=>{await ensureTopology();inspectPlacement(bootstrap.sampleAreas.find(area=>area.campaign===campaign).anchor);viewInspectedPlacement();};target.append(button);}
 
 }
 renderClaimFeed();
@@ -1596,4 +1607,4 @@ setInterval(()=>{
   const previous=text.textContent;let length=previous.length;
   text.classList.add('typing');
   const erase=()=>{length=Math.max(0,length-3);text.textContent=previous.slice(0,length);if(length)metricTimer=setTimeout(erase,20);else{let cursor=0;const type=()=>{cursor=Math.min(next.length,cursor+2);text.textContent=next.slice(0,cursor);if(cursor<next.length)metricTimer=setTimeout(type,32);else text.classList.remove('typing');};metricTimer=setTimeout(type,120);}};erase();
-},6500);
+},14000);
