@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import test from 'node:test';
 import crypto from 'node:crypto';
 import { SphericalTopology } from '../src/globe/topology.js';
+import { footprintBounds } from '../src/placements/geometry.js';
 const bytes = fs.readFileSync('public/topology/geodesic-v1.bin');
 const manifest = JSON.parse(fs.readFileSync('public/topology/geodesic-v1.json'));
 const grid = new SphericalTopology(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), manifest);
@@ -62,6 +63,14 @@ test('connected footprints preserve exact counts across all special locations', 
       assert.ok(cells.every(c=>c.polygon.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y))));
     }
   }
+});
+
+test('persisted cell IDs reconstruct renderable placement geometry', () => {
+  const anchor=manifest.pentagons[0],ids=grid.connected(anchor,50,1.5).map(cell=>cell.id);
+  const restored=grid.cells(ids,anchor),bounds=footprintBounds(restored);
+  assert.deepEqual(restored.map(cell=>cell.id),ids);
+  assert.ok(restored.every(cell=>cell.polygon.length===grid.degrees[cell.id-1]));
+  assert.ok(bounds.width>0&&bounds.height>0);
 });
 
 test('large connected counts and early conflict rejection', () => {

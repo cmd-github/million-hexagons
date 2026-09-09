@@ -20,12 +20,12 @@ await copyFiles(path.join(root, 'public'), runtimeDir, files);
 // Detect a source mutation during preparation rather than publishing mixed bytes.
 for (const object of objects) if (sha256(await readFile(path.join(runtimeDir, object.path))) !== object.sha256) throw Error(`Asset changed during build: ${object.path}`);
 const base = `${origin}/${prefix}`;
-await build({ mode: 'staging', build: { outDir: 'staging-dist', emptyOutDir: true }, define: { 'import.meta.env.VITE_RUNTIME_ASSET_BASE': JSON.stringify(base) } });
+await build({ mode: 'staging', build: { outDir: 'staging-dist', emptyOutDir: true }, define: { 'import.meta.env.VITE_RUNTIME_ASSET_BASE': JSON.stringify(base), 'import.meta.env.VITE_STAGING_SANDBOX': JSON.stringify(settings.MH_STAGING_SANDBOX === 'true'), 'import.meta.env.VITE_STAGING_API_URL': JSON.stringify(settings.MH_STAGING_API_URL || 'https://europe-west1-million-hexagons.cloudfunctions.net/stagingPlacements') } });
 
 // The page contains dynamic styles and an inline retry handler. Restrict scripts
 // to self plus that exact handler; Vite emits the module bootstrap as a file.
 const retryHash = (await import('node:crypto')).createHash('sha256').update('location.reload()').digest('base64');
-const csp = `default-src 'self'; script-src 'self' 'unsafe-hashes' 'sha256-${retryHash}'; worker-src 'self' blob:; connect-src 'self' ${origin}; img-src 'self' data: blob: ${origin}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`;
+const csp = `default-src 'self'; script-src 'self' 'unsafe-hashes' 'sha256-${retryHash}'; worker-src 'self' blob:; connect-src 'self' ${origin} https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://europe-west1-million-hexagons.cloudfunctions.net; img-src 'self' data: blob: ${origin}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`;
 await writeFile('staging-dist/_headers', `/*\n  Cache-Control: no-cache\n  Content-Security-Policy: ${csp}\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  X-Robots-Tag: noindex, nofollow\n/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n`);
 await writeFile('staging-dist/robots.txt', 'User-agent: *\nDisallow: /\n');
 const appObjects = [];

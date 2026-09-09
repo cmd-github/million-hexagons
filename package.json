@@ -29,6 +29,7 @@
     "test:deployment": "node --test scripts/runtime-assets.test.mjs"
   },
   "dependencies": {
+    "firebase": "^12.3.0",
     "simple-icons": "^16.29.0",
     "three": "^0.180.0"
   },

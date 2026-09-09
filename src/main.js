@@ -1233,18 +1233,19 @@ function clearPlacementPreview() {
   });
 }
 
-function addHighResolutionPlacement(color, treatment, targetLayer = placementLayers) {
-  if (!selectedCell || !selectedCells.length) return;
-  const bounds = footprintBounds(selectedCells);
-  const texture = new THREE.CanvasTexture(draftArtwork || renderArtwork(previewCells()));
+function addHighResolutionPlacement(color, treatment, targetLayer = placementLayers, persisted = null) {
+  const placementCells=persisted?.cells||selectedCells,anchorCell=persisted?.anchor||selectedCell;
+  if (!anchorCell || !placementCells.length) return;
+  const bounds = footprintBounds(placementCells);
+  const texture = new THREE.CanvasTexture(persisted?.artwork||draftArtwork || renderArtwork(previewCells()));
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   const material = new THREE.MeshBasicMaterial({ map: texture, toneMapped: false, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
-  const vertexCount=selectedCells.reduce((sum,cell)=>sum+topology.degrees[cell.id-1]*3,0);
-  const positions=new Float32Array(vertexCount*3),uvs=new Float32Array(vertexCount*2),frame=topology.frame(selectedCell.id);
+  const vertexCount=placementCells.reduce((sum,cell)=>sum+topology.degrees[cell.id-1]*3,0);
+  const positions=new Float32Array(vertexCount*3),uvs=new Float32Array(vertexCount*2),frame=topology.frame(anchorCell.id);
   let pi=0,ui=0;
-  const add=p=>{positions[pi++]=p[0]*(radius+.0006);positions[pi++]=p[1]*(radius+.0006);positions[pi++]=p[2]*(radius+.0006);const local=topology.project(p,frame);uvs[ui++]=(local.x-bounds.left)/bounds.width;uvs[ui++]=1-(local.y-bounds.top)/bounds.height;};
-  for(const cell of selectedCells){const polygon=topology.polygon(cell.id),middle=topology.centre(cell.id);for(let k=0;k<polygon.length;k++){add(middle);add(polygon[k]);add(polygon[(k+1)%polygon.length]);}}
+  const add=p=>{positions[pi++]=p[0]*(radius+.0012);positions[pi++]=p[1]*(radius+.0012);positions[pi++]=p[2]*(radius+.0012);const local=topology.project(p,frame);uvs[ui++]=(local.x-bounds.left)/bounds.width;uvs[ui++]=1-(local.y-bounds.top)/bounds.height;};
+  for(const cell of placementCells){const polygon=topology.polygon(cell.id),middle=topology.centre(cell.id);for(let k=0;k<polygon.length;k++){add(middle);add(polygon[k]);add(polygon[(k+1)%polygon.length]);}}
   const mergedGeometry=new THREE.BufferGeometry();mergedGeometry.setAttribute('position',new THREE.BufferAttribute(positions,3));mergedGeometry.setAttribute('uv',new THREE.BufferAttribute(uvs,2));
   const territory = new THREE.Mesh(mergedGeometry, material);
   territory.renderOrder = 6;
@@ -1253,6 +1254,48 @@ function addHighResolutionPlacement(color, treatment, targetLayer = placementLay
 }
 
 let publishing=false;
+let stagingClient=null,stagingUser=null;
+let restoredStagingOwner=null,restoringStagingOwner=null;
+function persistentArtwork(canvas){const limit=900,scale=Math.min(1,limit/Math.max(canvas.width,canvas.height)),copy=document.createElement('canvas');copy.width=Math.max(1,Math.round(canvas.width*scale));copy.height=Math.max(1,Math.round(canvas.height*scale));copy.getContext('2d').drawImage(canvas,0,0,copy.width,copy.height);return copy.toDataURL('image/webp',.86);}
+async function restoreTestPlacements(){
+  const records=await stagingClient.listTestClaims();if(!records.length)return [];
+  await ensureTopology();
+  for(const record of records){
+    const cells=topology.cells(record.cells,record.anchor),placementRecord={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor};
+    cells.forEach(cell=>{occupiedCells[cell.id-1]=255;sessionPlacements.set(cell.id,placementRecord);});
+    if(record.artworkDataUrl){const image=new Image();await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject;image.src=record.artworkDataUrl;});addHighResolutionPlacement('#000','contain',placementLayers,{cells,anchor:cellForId(record.anchor),artwork:image});placementRecord.logo=record.artworkDataUrl;}
+  }
+  occupancyTexture.needsUpdate=true;sold=Math.min(1000000,sold+records.reduce((sum,record)=>sum+record.cellCount,0));updateInventoryDisplay();renderClaimFeed();
+  const latest=[...records].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];
+  flyToCell(latest.anchor,.004,1200,()=>inspectPlacement(latest.anchor));
+  return records;
+}
+if(import.meta.env.VITE_STAGING_SANDBOX){
+  stagingClient=await import('./staging-client.js');
+  const access=document.querySelector('#stagingOwnerAccess'),status=document.querySelector('#stagingOwnerStatus');access.hidden=false;
+  const reflectStagingUser=async user=>{
+    stagingUser=user;
+    status.textContent=user?`Signed in as ${user.email}.`:'Sign in before creating a persistent test placement.';
+    if(!user||restoredStagingOwner===user.uid||restoringStagingOwner===user.uid)return;
+    restoringStagingOwner=user.uid;
+    try{const records=await restoreTestPlacements();restoredStagingOwner=user.uid;if(records.length)status.textContent=`Signed in as ${user.email}. Restored ${records.length} saved test ${records.length===1?'placement':'placements'}.`;}
+    catch(error){status.textContent=`Signed in, but saved placements could not be loaded: ${error.message}`;}
+    finally{restoringStagingOwner=null;}
+  };
+  stagingClient.watchOwner(user=>{void reflectStagingUser(user);});
+  try{
+    const completedUser=await stagingClient.completeEmailSignIn();
+    await reflectStagingUser(completedUser||await stagingClient.currentUser());
+    if(completedUser){
+      const toast=document.querySelector('#toast');
+      toast.querySelector('b').textContent='Signed in.';
+      toast.querySelector('span').textContent='Return to your original placement tab to finish adding it.';
+      toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),8000);
+    }
+  }
+  catch(error){status.textContent=error.message;}
+  document.querySelector('#sendOwnerLink').onclick=async event=>{event.currentTarget.disabled=true;try{await stagingClient.sendOwnerLink(document.querySelector('#stagingOwnerEmail').value);status.textContent='Sign-in link sent. Keep this placement tab open; after signing in, return here to finish.';}catch(error){status.textContent=error.message;}finally{event.currentTarget.disabled=false;}};
+}
 async function paintPlacement() {
   if(publishing)return;
   if (!selectedCell || !selectedCells.length) return;
@@ -1264,6 +1307,14 @@ async function paintPlacement() {
   const amount = selectedCells.length;
   const color = document.querySelector('#brandColor').value;
   const treatment = document.querySelector('#logoTreatment').value;
+  let durablePlacement=null;
+  if(stagingClient){
+    publishing=true;
+    stagingUser=await stagingClient.currentUser();
+    if(!stagingUser){publishing=false;const status=document.querySelector('#stagingOwnerStatus');status.textContent='Sign in before creating this test placement.';document.querySelector('#stagingOwnerEmail').focus();return;}
+    try{durablePlacement=await stagingClient.createTestClaim({topologyVersion:'geodesic-v1',anchor:selectedCell.id,cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(draftArtwork||renderArtwork(previewCells()))});}
+    catch(error){publishing=false;const target=document.querySelector('#websiteError');target.hidden=false;target.textContent=error.code==='cells-unavailable'?`Hexagon ${error.cellId} was just claimed. Choose another location.`:'Could not save the test placement. Your design is still here.';return;}
+  }
   publishing=true;
   document.querySelector('#buyPanel').inert=true;
   const button=document.querySelector('#previewPurchase'),label=button.textContent;
@@ -1281,7 +1332,7 @@ async function paintPlacement() {
   }
   clearPlacementPreview();
   const sum=cells.reduce((vector,cell)=>vector.add(new THREE.Vector3(...topology.centre(cell.id))),new THREE.Vector3()).normalize();
-  const placementRecord={angle:Math.acos(cells.reduce((dot,cell)=>Math.min(dot,sum.dot(new THREE.Vector3(...topology.centre(cell.id)))),1))+.004,logo:uploadedLogo?createHudThumbnail(uploadedLogo):null,website,name:document.querySelector('#companyName').value.trim().slice(0,60),description:document.querySelector('#companyDescription').value.trim().slice(0,160),createdAt:Date.now(),count:amount,anchor:cells.reduce((best,cell)=>sum.dot(new THREE.Vector3(...topology.centre(cell.id)))>sum.dot(new THREE.Vector3(...topology.centre(best.id)))?cell:best,cells[0]).id};
+  const placementRecord={placementId:durablePlacement?.placementId||null,angle:Math.acos(cells.reduce((dot,cell)=>Math.min(dot,sum.dot(new THREE.Vector3(...topology.centre(cell.id)))),1))+.004,logo:uploadedLogo?createHudThumbnail(uploadedLogo):null,website,name:document.querySelector('#companyName').value.trim().slice(0,60),description:document.querySelector('#companyDescription').value.trim().slice(0,160),createdAt:Date.now(),count:amount,anchor:cells.reduce((best,cell)=>sum.dot(new THREE.Vector3(...topology.centre(cell.id)))>sum.dot(new THREE.Vector3(...topology.centre(best.id)))?cell:best,cells[0]).id};
   cells.forEach((cell) => { occupiedCells[cell.id - 1] = 255; sessionPlacements.set(cell.id,placementRecord); });
   renderClaimFeed();
   occupancyTexture.needsUpdate = true;
@@ -1290,7 +1341,7 @@ async function paintPlacement() {
   closeBuy();
   const toast = document.querySelector('#toast');
   toast.querySelector('b').textContent='Welcome to the world.';
-  toast.querySelector('span').textContent='Your preview is on the globe for this session.';
+  toast.querySelector('span').textContent=durablePlacement?'Your test placement has been saved. Artwork persistence is the next sandbox step.':'Your preview is on the globe for this session.';
   toast.classList.add('show');
 
 }
@@ -1461,6 +1512,53 @@ canvas.addEventListener('pointermove',event=>{
 for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>globeStroke=null);
 let inspectedId=null, inspectedCells=[], hudPinned=false, inspectedOwner=null;
 const clickStorageKey='mh-link-totals-v1';
+const sampleDescriptions=[
+  'Sport, style and performance made for movement on and off the field.',
+  'Tools and experiences designed to help people create, connect and do their best work.',
+  'Refreshing moments shared with friends, families and communities around the world.',
+  'Making information useful and accessible through products people use every day.',
+  'Thoughtful, affordable design that helps everyday spaces feel more like home.',
+  'Connecting people and businesses through simple, secure ways to pay.',
+  'Familiar favourites, quick stops and shared moments served around the world.',
+  'Stories, films and series made to turn an ordinary evening into something memorable.',
+  'Inspiration and innovation for every athlete, from first steps to finish lines.',
+  'Technology designed to bring people closer to the moments that matter.',
+  'Music, podcasts and audio discovery for every mood, moment and journey.',
+  'A place to discover, watch and share the videos that shape culture.'
+];
+const sampleBadgeSets=[
+  [['early','Joined first 100'],['visits','Drove 10k visits']],
+  [['rank','Reached top 100'],['countries','Reached 25 countries'],['years','Stayed active 1 year']],
+  [['visits','Drove 10k visits'],['share','Shared 1k visits']],
+  [['rank','Reached top 100'],['early','Joined first 100'],['visits','Drove 10k visits']],
+  [['years','Stayed active 1 year'],['countries','Reached 25 countries']],
+  [['share','Shared 1k visits'],['visits','Drove 10k visits']],
+  [['early','Joined first 1,000'],['years','Stayed active 1 year']],
+  [['rank','Reached top 100'],['countries','Reached 25 countries'],['visits','Drove 10k visits']],
+  [['rank','Reached top 100'],['early','Joined first 100'],['share','Shared 1k visits']],
+  [['countries','Reached 25 countries'],['years','Stayed active 1 year']],
+  [['visits','Drove 10k visits'],['share','Shared 1k visits'],['rank','Reached top 100']],
+  [['rank','Reached top 100'],['visits','Drove 10k visits']]
+];
+function badgeIcon(kind){
+  const icons={
+    early:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2"/><path d="M3 19c0-4 2.5-6 6-6s6 2 6 6M15 14c3 0 5 1.5 5 4"/></svg>',
+    rank:'<svg viewBox="0 0 24 24"><path d="m5 8 3 3 4-6 4 6 3-3-1 9H6L5 8Z"/><path d="M8 20h8"/></svg>',
+    visits:'<svg viewBox="0 0 24 24"><path d="M4 18 10 12l4 4 6-9"/><path d="M15 7h5v5"/></svg>',
+    countries:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 4 6 4 9s-1 6-4 9M12 3c-3 3-4 6-4 9s1 6 4 9"/></svg>',
+    years:'<svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="14" rx="2"/><path d="M8 3v6M16 3v6M4 11h16M9 15l2 2 4-4"/></svg>',
+    share:'<svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8 11 7.5-4M8 13l7.5 4"/></svg>'
+  };
+  return icons[kind]||icons.visits;
+}
+function renderInspectorBadges(owner,isSample){
+  const target=document.querySelector('#inspectorBadges');target.replaceChildren();target.hidden=!isSample;
+  if(!isSample)return;
+  for(const [kind,label] of sampleBadgeSets[owner-1]||sampleBadgeSets[0]){
+    const badge=document.createElement('span');badge.className='hud-badge';badge.title='Illustrative achievement';badge.innerHTML=badgeIcon(kind);
+    const text=document.createElement('span');text.textContent=label;badge.append(text);target.append(badge);
+  }
+}
 let linkClicks={};
 try{const saved=JSON.parse(localStorage.getItem(clickStorageKey)||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))linkClicks=saved;}catch{}
 function ownerKey(id){const record=sessionPlacements.get(id);return record||'sample-'+sampleOwners[id-1];}
@@ -1484,11 +1582,14 @@ function inspectPlacement(id){
   inspectedCells=queue;
   const views=document.querySelector('#inspectorInfo');views.textContent=record?'\u2014':'12,429';views.title=record?'Views are not measured yet':'Illustrative views';
   document.querySelector('#inspectorDate').textContent=(record?new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'}):'08/08/26');
-  document.querySelector('#inspectorDescription').textContent=record?.description||'';
-  document.querySelector('#inspectorDescription').hidden=!record?.description;
+  const description=record?.description||sampleDescriptions[owner-1]||'';
+  document.querySelector('#inspectorDescription').textContent=description;
+  document.querySelector('#inspectorDescription').hidden=!description;
+  renderInspectorBadges(owner,!record);
 
   renderLinkClicks();
-  const context=document.querySelector('#inspectorContext');context.textContent=record?'New arrival':owner===9?'Trending today':'Featured placement';context.title=record?'Claimed in this session':'Illustrative campaign highlight';
+  const context=document.querySelector('#inspectorContext');context.textContent=record?'New arrival':'';context.hidden=!record;context.title=record?'Claimed in this session':'';
+  const deleteButton=document.querySelector('#deleteTestPlacement');deleteButton.hidden=!record?.placementId||!stagingClient;deleteButton.dataset.placementId=record?.placementId||'';
   clearSelectionColours();for(const cellId of queue)writeCellColour(selectionColourData,{id:cellId},'#d7ff55');
   selectionColourTexture.needsUpdate=true;selectionModeUniform.value=1;
   const nearby=document.querySelector('#nearbyPlacements');nearby.replaceChildren();
@@ -1541,17 +1642,19 @@ function activityIcon(kind){
 }
 function renderClaimFeed(){
   const target=document.querySelector('#claimFeedItems');target.replaceChildren();
-  document.querySelector('#claimFeed summary span').textContent='';
+  const ticker=[];
   for(const record of [...new Set(sessionPlacements.values())].sort((a,b)=>b.createdAt-a.createdAt).slice(0,5)){
     const button=document.createElement('button');button.className='example-activity';const icon=document.createElement('span');icon.className='activity-icon';icon.innerHTML=activityIcon('claim');const title=document.createElement('span');title.textContent=(record.name||'You')+' claimed '+record.count.toLocaleString()+(record.count===1?' hexagon':' hexagons');const date=document.createElement('small');date.textContent=new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'});button.append(icon,title,date);
     button.onclick=()=>{inspectPlacement(record.anchor);viewInspectedPlacement();};target.append(button);
+    ticker.push(title.textContent);
   }
   const examples=[['Spotify claimed 350 hexagons','4m ago',10],['Nike is trending','1,284 views today',8],['IKEA reached 1,000 website visits','Milestone',4],['284,391 / 1,000,000 claimed','Around the globe',null]];
-  for(const [headline,detail,campaign] of examples){const button=document.createElement(campaign===null?'div':'button');button.className='example-activity';const title=document.createElement('span');title.textContent=headline;const meta=document.createElement('small');meta.textContent=detail;const icon=document.createElement('span');icon.className='activity-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML=activityIcon(campaign===10?'claim':campaign===8?'trend':campaign===4?'milestone':'globe');button.append(icon,title,meta);if(campaign!==null)button.onclick=async()=>{await ensureTopology();inspectPlacement(bootstrap.sampleAreas.find(area=>area.campaign===campaign).anchor);viewInspectedPlacement();};target.append(button);}
+  for(const [headline,detail,campaign] of examples){const button=document.createElement(campaign===null?'div':'button');button.className='example-activity';const title=document.createElement('span');title.textContent=headline;const meta=document.createElement('small');meta.textContent=detail;const icon=document.createElement('span');icon.className='activity-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML=activityIcon(campaign===10?'claim':campaign===8?'trend':campaign===4?'milestone':'globe');button.append(icon,title,meta);if(campaign!==null)button.onclick=async()=>{await ensureTopology();inspectPlacement(bootstrap.sampleAreas.find(area=>area.campaign===campaign).anchor);viewInspectedPlacement();};target.append(button);ticker.push(headline);}
+  const tickerText=ticker.join('  ·  '),tickerElement=document.querySelector('#claimTicker'),track=tickerElement.querySelector('.ticker-track');
+  tickerElement.setAttribute('aria-label','Latest activity: '+ticker.join('. '));track.textContent=tickerText+'  ·  '+tickerText;
 
 }
 renderClaimFeed();
-if(innerWidth>900)document.querySelector('#claimFeed').open=true;
 
 function flyToCell(id,angle,duration=1500,onComplete=()=>{},onCancel=()=>{}){
   zoom.cancel();cameraDistanceTarget=null;
@@ -1570,6 +1673,7 @@ document.querySelector('#inspectorShare').onclick=async()=>{
   try{await navigator.clipboard.writeText(url.href);document.querySelector('#inspectorStatus').textContent='Copied \u2713';}
   catch{document.querySelector('#inspectorStatus').textContent=url.href;}
 };
+document.querySelector('#deleteTestPlacement').onclick=async event=>{const placementId=event.currentTarget.dataset.placementId;if(!placementId||!stagingClient)return;event.currentTarget.disabled=true;try{await stagingClient.deleteTestClaim(placementId);location.reload();}catch(error){document.querySelector('#inspectorStatus').textContent='Could not delete this test placement.';event.currentTarget.disabled=false;}};
 async function openLocationLink(){
   const match=location.hash.match(/^#cell=(\d+)$/);if(!match)return;
   const id=Number(match[1]);if(id<1||id>CELL_COUNT)return;

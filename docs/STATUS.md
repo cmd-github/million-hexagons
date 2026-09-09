@@ -1,18 +1,19 @@
 # Million Hexagons — Status
 
-Updated: 9 September 2026, 14:50 UK time (BST)
+Updated: 9 September 2026
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
 ## Now
 
-- [ ] Finish production foundation: Cloudflare budget alert and physical-device verification.
-  - Custom-domain CDN delivery, rollback, monitoring and GitHub failure email delivery are verified.
+- [ ] Retain private full-resolution artwork sources and publish derived globe artwork through a recoverable background job.
+  - Keep authoritative source content private and separate from public R2 output.
+  - Create immutable placement versions and retry-safe publication jobs.
+  - Keep the previous public version live until its replacement is complete.
 
 ## Next
 
 - [ ] Validate first-time purchase intent and physical-device performance.
-- [ ] Implement durable domain: stable placement IDs, owners, fixed cell sets and grants.
 - [ ] Retain private design sources, content versions and recoverable drafts.
 - [ ] Prove atomic inventory/reservations up to 100,000 cells, including expiry races.
 - [ ] Build moderated background publication, safe replacement and coherent releases.
@@ -36,6 +37,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [x] Availability monitor verified live and against simulated HTTP failure.
 - [x] Cloudflare DNS cutover preserved the Firebase coming-soon site and `www` redirect.
 - [x] Custom R2 hostname deployed; JSON, gzip, manifests and artwork verified as CDN cache hits.
+- [x] Implement and test the staging placement-domain core: stable IDs, exact encoded cell sets, ownership grants, domain events and reversible test deletion.
+- [x] Live persistent sandbox acceptance: authenticated create, reload/restore, delete/release, same-cell reclaim and second persistence all passed.
 
 ## Blocked / Needs Craig
 
