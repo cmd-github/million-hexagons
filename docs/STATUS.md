@@ -1,6 +1,6 @@
 # Million Hexagons — Status
 
-Updated: 9 September 2026
+Updated: 9 September 2026, 13:21 UK time (BST)
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
