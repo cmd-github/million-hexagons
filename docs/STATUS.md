@@ -6,7 +6,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Build moderated background publication, safe replacement and coherent release promotion.
+- [ ] Build immediate publication with reversible artwork/link takedown, last-acceptable-version restoration and coherent release promotion.
 
 ## Next
 
@@ -42,7 +42,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 ## Blocked / Needs Craig
 
 - [ ] Configure/confirm the $10 Cloudflare budget alert.
-- [ ] Agree final pricing and commercial terms, including refunds and permanent-use wording.
+- [ ] Review and complete [draft commercial terms](DRAFT-COMMERCIAL-TERMS.md), including final pricing, refunds, permanent-use wording and governing law.
 - [ ] Provide physical iOS/Android testing and observed first-time-user feedback.
 
 ## Launch progress
@@ -52,7 +52,7 @@ Launch readiness: ~25%
 - Production foundation: IN PROGRESS
 - Durable ownership/domain: IN PROGRESS (staging ownership, versions and editable sources verified)
 - Inventory + checkout: IN PROGRESS (atomic staging reservations verified; quotes/payment not started)
-- Publication: IN PROGRESS (durable staging pipeline verified; moderation, replacement and release promotion remain)
+- Publication: IN PROGRESS (durable staging pipeline verified; reversible takedown, replacement and release promotion remain)
 - Owner experience: NOT STARTED
 - Growth/sharing: IN PROGRESS (cell links only)
 - Analytics: NOT STARTED (illustrative/local counters only)

@@ -121,6 +121,14 @@ Deleting or changing content does not release cells.
 
 Account suspension or moderation does not automatically release cells.
 
+## Initial publication and takedown rule
+
+At launch, new placements and owner edits should publish immediately rather than waiting for pre-publication moderation. Manual review is initially reactive and can become more automated or approval-based if scale and abuse justify it.
+
+An artwork or destination takedown must not delete the placement, release its cells, erase its ownership grant or automatically reverse its payment. Operations must be able to disable the destination only, hide the artwork only, suspend all public content, restore the last acceptable version and reinstate corrected content. Hidden artwork should be replaced by a neutral product-owned placeholder. Every intervention must record the reason, time and acting administrator.
+
+Ownership, public content state and payment state are separate concerns. Refunds and ownership cancellation require their own explicit policy and workflow.
+
 Transfers, resale, subdivision and ownership trading are NOT launch requirements.
 
 ---
