@@ -78,11 +78,11 @@ Update `deploy/staging-monitor.json` whenever the expected runtime release/origi
 
 ## Custom-domain preparation
 
-Proposed asset hostname: `assets-staging.millionhexagons.com`, attached only to `million-hexagons-staging-public`. Keep the app on its existing Workers address for now. The R2 domain requires `millionhexagons.com` as a zone in the same Cloudflare account; the account currently has no such zone and authoritative DNS is still at Hostinger.
+Asset hostname: `assets-staging.millionhexagons.com`, attached only to `million-hexagons-staging-public`. The app remains on its Workers address; the Firebase coming-soon site remains on the apex and `www`.
 
-Before changing nameservers, obtain the complete Hostinger DNS export (including mail/TXT/subdomains) and DNSSEC status. Review/import those records into Cloudflare, preserving the Firebase website and mail records. Then Craig can change the registrar nameservers to the assigned Cloudflare pair after record parity is checked; handle existing DNSSEC/DS configuration as part of that reviewed cutover. No DNS changes have been made.
+The 9 September 2026 nameserver cutover preserved the complete three-record Hostinger zone: Firebase apex A, `www` CNAME and hosting-verification TXT. DNSSEC had no DS record. Cloudflare authoritative record parity, apex HTTPS coming-soon delivery and the `www` redirect were verified during propagation.
 
-After the zone is active: attach the proposed R2 hostname, wait for TLS, and configure cache eligibility for that hostname's `/releases/` paths with origin cache-control respected. Verify CORS and repeated GET responses show an actual cache HIT, including JSON and opaque gzip assets. Only then change `MH_ASSET_ORIGIN`, rebuild and deploy, update the monitor origin, and rerun browser QA. Retain the old R2 origin/releases for rollback.
+The R2 custom hostname has a narrowly scoped Cache Rule: hostname equals `assets-staging.millionhexagons.com` and path starts with `/releases/`; responses are eligible only when origin cache-control is present. Retain the old R2 origin/releases for rollback.
 
 When updating the monitor to the custom asset hostname, set `requireAssetCacheHit` in `deploy/staging-monitor.json` to `true`. The monitor warms and repeats representative JSON and opaque-gzip requests, requires `CF-Cache-Status: HIT`, and verifies that cached bytes are unchanged. Keep it `false` only while the temporary `r2.dev` origin is in use because that development URL does not expose CDN cache status.
 
@@ -94,6 +94,8 @@ Before phase 1 can be called complete: perform a real upload/deploy and rollback
 
 ## Live verification - 9 September 2026, 13:24 UK time (BST)
 
-Staging is live at https://million-hexagons-staging.million-hexagons.workers.dev. SSL now works. `scripts/staging-qa.mjs` passed desktop and emulated-mobile one-cell image creation, rotation, Review/Edit, session publication, warm reload, startup retry and missing-file 404 checks. The run recorded 165 runtime requests, zero Firestore requests and zero browser errors. Desktop/mobile screenshots were inspected; evidence is in ignored `artifacts/staging/`. This does not certify physical devices, larger live footprints, custom-domain caching or rollback.
+Staging is live at https://million-hexagons-staging.million-hexagons.workers.dev. SSL now works. `scripts/staging-qa.mjs` passed desktop and emulated-mobile one-cell image creation, rotation, Review/Edit, session publication, warm reload, startup retry and missing-file 404 checks. The latest custom-origin run recorded 158 runtime requests, zero Firestore requests and zero browser errors. Desktop/mobile screenshots were inspected; evidence is in ignored `artifacts/staging/`. This does not certify physical devices or larger live footprints.
 
-Post-rollback browser QA passed desktop/emulated-mobile creation, Review/Edit, publication and recovery with zero browser errors; screenshots inspected. Scheduled execution and notification delivery still need confirmation.
+Post-rollback browser QA passed desktop/emulated-mobile creation, Review/Edit, publication and recovery with zero browser errors; screenshots inspected. GitHub scheduled availability execution and failure email delivery are confirmed.
+
+Custom-origin deployment (9 September 2026, 14:50 UK time): Worker version `d589361e-84bb-4923-afb4-7f331cf8d9f2` references immutable release `bc9993d6498824b521e7362779f829c78fc8fb49c3b37eac696835dd1abfb6ce` through `assets-staging.millionhexagons.com`. All 8,196 objects passed upload and independent pre-deployment public verification. The strict live monitor passed with cache `HIT` for application bundles, JSON, opaque gzip, manifests and all six root artwork tiles.

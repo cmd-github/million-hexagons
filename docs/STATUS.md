@@ -1,15 +1,13 @@
 # Million Hexagons — Status
 
-Updated: 9 September 2026, 14:02 UK time (BST)
+Updated: 9 September 2026, 14:50 UK time (BST)
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
 ## Now
 
-- [ ] Finish production foundation: custom-domain caching and alert delivery.
-  - Cloudflare nameserver cutover is propagating; Firebase coming-soon routing and authoritative record parity passed.
-  - Custom-host cache assertion and a safe GitHub notification-delivery test are prepared; final live checks remain.
-  - GitHub failure email delivery is confirmed; the clean staging build and availability workflows pass.
+- [ ] Finish production foundation: Cloudflare budget alert and physical-device verification.
+  - Custom-domain CDN delivery, rollback, monitoring and GitHub failure email delivery are verified.
 
 ## Next
 
@@ -36,10 +34,11 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 - [x] Live rollback rehearsal; desktop/mobile journeys passed after restore.
 - [x] Availability monitor verified live and against simulated HTTP failure.
+- [x] Cloudflare DNS cutover preserved the Firebase coming-soon site and `www` redirect.
+- [x] Custom R2 hostname deployed; JSON, gzip, manifests and artwork verified as CDN cache hits.
 
 ## Blocked / Needs Craig
 
-- [ ] Confirm Cloudflare zone activation, then attach and verify the isolated R2 asset hostname.
 - [ ] Configure/confirm the $10 Cloudflare budget alert.
 - [ ] Agree final pricing and commercial terms, including refunds and permanent-use wording.
 - [ ] Provide physical iOS/Android testing and observed first-time-user feedback.
