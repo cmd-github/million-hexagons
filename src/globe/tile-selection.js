@@ -3,7 +3,7 @@ import {cubePoint,tileKey} from './cube.js';
 
 // Select by projected texture density, before consulting cache or download state.
 // A cache budget must never decide which half of the screen receives detail.
-export function selectArtworkTiles(globe,camera,radius,height,manifest) {
+export function selectArtworkTiles(globe,camera,radius,height,manifest,detailBranches) {
   globe.updateWorldMatrix(true,false);camera.updateMatrixWorld();
   const local=globe.worldToLocal(camera.position.clone()),direction=local.clone().normalize();
   const frustum=new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
@@ -21,7 +21,7 @@ export function selectArtworkTiles(globe,camera,radius,height,manifest) {
     let edge=0;
     for(let i=0;i<4;i++)edge=Math.max(edge,points[12].distanceTo(points[[10,14,2,22][i]])*2);
     const pixels=edge*focal/Math.max(.01,nearest-padding);
-    if(level<manifest.maxLevel&&pixels>manifest.tileSize*.8){
+    if((level<manifest.maxLevel||detailBranches?.has(tileKey(face,level,x,y)))&&pixels>manifest.tileSize*.8){
       for(let j=0;j<2;j++)for(let i=0;i<2;i++)visit(face,level+1,x*2+i,y*2+j);
     }else leaves.push({key:tileKey(face,level,x,y),face,level,x,y,pixels});
   };

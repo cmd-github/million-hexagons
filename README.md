@@ -25,7 +25,7 @@ npm run preview -- --port 4181
 - Sample advertising inventory, company/hex search, contextual hex IDs and hover details, bounded zoom, and an opt-in inventory-driven Tour.
 - Globe-only editing of the exact footprint: start from an available cell, grow around neighbours, or choose Design in this space during placement.
 - Placement inspection with explicit website visits, nearby exploration, a pinnable HUD, tour-stop details and shareable cell-location links.
-- Optional company names and 160-character descriptions, preview dates, browser-persistent running click totals, and a collapsible activity feed with illustrative activity. Sample brands are labelled; these are not paid claims or shared production analytics. The compact HUD shows logo thumbnails, a pin switch and evenly spaced views, visits and claim date; same-owner clicks preserve the card; hex IDs appear in hover/claim prompts.
+- Optional company names and 160-character descriptions, preview dates, browser-persistent running click totals, and a collapsible activity feed with illustrative activity. Sample brand/activity data are illustrative; these are not paid claims or shared production analytics. The compact HUD shows logo thumbnails, a pin switch and evenly spaced views, visits and claim date; same-owner clicks preserve the card; hex IDs appear in hover/claim prompts.
 - One Design -> Place -> Review journey for images, colour-only artwork, and mixed designs.
 - A shared right-hand studio carries Design, Place and Review with consistent navigation and controls. Image options and extra cell actions share one menu.
 - Compact globe-only editor for 1-100,000 cells: Add image, exact count, background colour, image zoom/rotation, separate Add/Remove brushes, paint/transparency and undo/redo. Fresh placements start clean; editing preserves the draft. Transparent cells retain count and price.
@@ -74,5 +74,7 @@ The output directory is `coming-soon-dist/`. The configured production domains a
 - `coming-soon/` — independently built public holding site
 
 Routine topology regeneration uses Node. The optional Python seed-discovery script changes the inventory identity basis and must not be used without an explicit migration decision.
+
+Published uploads retain close-up detail through source-sized, sparse tile refinement, with the same bounded streaming cache and no retained placement meshes.
 
 Exploration includes understated global metrics rotating every 14 seconds, SVG activity icons, and faint background hexagons. The HUD swaps details for a Nearby view with Back/Escape support without resizing. Sample views and highlights are illustrative; newly published previews show an unmeasured view count and browser-local website visits. Directional rotation uses one button, with slower close-range dragging.

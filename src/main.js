@@ -1545,7 +1545,7 @@ function renderClaimFeed(){
   const target=document.querySelector('#claimFeedItems');target.replaceChildren();
   document.querySelector('#claimFeed summary span').textContent='';
   for(const record of [...new Set(sessionPlacements.values())].sort((a,b)=>b.createdAt-a.createdAt).slice(0,5)){
-    const button=document.createElement('button');button.className='example-activity';const icon=document.createElement('span');icon.className='activity-icon';icon.innerHTML=activityIcon('claim');const title=document.createElement('span');title.textContent=(record.name||'You')+' claimed '+record.count.toLocaleString()+' hexagons';const date=document.createElement('small');date.textContent=new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'});button.append(icon,title,date);
+    const button=document.createElement('button');button.className='example-activity';const icon=document.createElement('span');icon.className='activity-icon';icon.innerHTML=activityIcon('claim');const title=document.createElement('span');title.textContent=(record.name||'You')+' claimed '+record.count.toLocaleString()+(record.count===1?' hexagon':' hexagons');const date=document.createElement('small');date.textContent=new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'});button.append(icon,title,date);
     button.onclick=()=>{inspectPlacement(record.anchor);viewInspectedPlacement();};target.append(button);
   }
   const examples=[['Spotify claimed 350 hexagons','4m ago',10],['Nike is trending','1,284 views today',8],['IKEA reached 1,000 website visits','Milestone',4],['284,391 / 1,000,000 claimed','Around the globe',null]];

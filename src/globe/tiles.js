@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { cubePoint,tileKey } from './cube.js';
 import {selectArtworkTiles} from './tile-selection.js';
+import {ancestorCrop} from './publication-detail.js';
 
 function describe(face,level,x,y,radius){
   return {key:tileKey(face,level,x,y),face,level,x,y};
@@ -9,7 +10,7 @@ function describe(face,level,x,y,radius){
 export class ArtworkTiles {
   constructor(globe,radius,{base='/artwork/sample',maxTiles=128,concurrency=4,anisotropy=8}={}) {
     this.globe=globe;this.radius=radius;this.base=base;this.maxTiles=maxTiles;this.concurrency=concurrency;this.anisotropy=anisotropy;
-    this.views=new Map();this.selection=[];this.lastSelection=-Infinity;
+    this.views=new Map();this.selection=[];this.lastSelection=-Infinity;this.detailBranches=new Set();
     this.cache=new Map();this.queue=[];this.inflight=0;this.epoch=0;this.revision=0;this.errors=0;
     this.group=new THREE.Group();globe.add(this.group);
     this.stats={resident:0,visible:0,pending:0,bytes:0,requests:0,evictions:0};
@@ -38,13 +39,45 @@ export class ArtworkTiles {
     } catch(error) {tile.queued=false;tile.failed=performance.now();this.errors++;}
     finally {tile.loading=false;this.inflight--;}
   }
+  async stored(key) {
+    if(!this.database)return;
+    return new Promise((resolve,reject)=>{const request=this.database.transaction('tiles').objectStore('tiles').get(key);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
+  }
   async read(key) {
-    if(this.database) {
-      const value=await new Promise((resolve,reject)=>{const request=this.database.transaction('tiles').objectStore('tiles').get(key);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
-      if(value)return value;
+    const saved=await this.stored(key);if(saved)return saved;
+    const [face,level,x,y]=key.split('/').map(Number);
+    if(level>this.manifest.maxLevel){
+      // Unpublished siblings inherit the nearest saved parent, including its
+      // gutter. They must not request nonexistent pages from the static CDN.
+      const total=this.manifest.tileSize+2*(this.manifest.gutter||0);
+      const canvas=document.createElement('canvas');canvas.width=canvas.height=total;
+      await this.drawTo(canvas.getContext('2d'),key);
+      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+      if(!blob)throw Error('Could not inherit artwork tile');
+      return blob;
     }
     const response=await fetch(`${this.base}/${key}.webp`);if(!response.ok)throw Error(`Missing tile ${key}`);return response.blob();
   }
+  async drawTo(context,key) {
+    const [face,level,x,y]=key.split('/').map(Number);
+    let parentLevel=level,blob;
+    for(;parentLevel>this.manifest.maxLevel;parentLevel--){
+      const divisor=2**(level-parentLevel);
+      blob=await this.stored(tileKey(face,parentLevel,Math.floor(x/divisor),Math.floor(y/divisor)));
+      if(blob)break;
+    }
+    const divisor=2**(level-parentLevel);
+    const bitmap=await createImageBitmap(blob||await this.read(tileKey(face,parentLevel,Math.floor(x/divisor),Math.floor(y/divisor))));
+    try{
+      const size=this.manifest.tileSize,gutter=this.manifest.gutter||0,total=size+2*gutter;
+      const crop=ancestorCrop(level,x,y,parentLevel,size,gutter);
+      context.imageSmoothingQuality='high';
+      // Publication draws from the parent directly instead of encoding and
+      // decoding a temporary inherited PNG for every new fine page.
+      context.drawImage(bitmap,crop.x,crop.y,crop.size,crop.size,0,0,total,total);
+    }finally{bitmap.close();}
+  }
+
   geometry(tile) {
     const segments=16,count=2**tile.level,positions=[],uvs=[],indices=[];
     const size=this.manifest.tileSize,gutter=this.manifest.gutter||0,total=size+gutter*2;
@@ -62,7 +95,7 @@ export class ArtworkTiles {
     if(!this.manifest)return;
     this.epoch++;
     if(time-this.lastSelection>=60){
-      this.selection=selectArtworkTiles(this.globe,camera,this.radius,height,this.manifest);
+      this.selection=selectArtworkTiles(this.globe,camera,this.radius,height,this.manifest,this.detailBranches);
       this.capacity=Math.max(this.maxTiles,this.selection.length+6+this.concurrency);
       this.lastSelection=time;
     }
