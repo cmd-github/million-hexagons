@@ -46,6 +46,14 @@
     <nav class="globe-controls glass" aria-label="Globe controls">
       <button type="button" id="rotationToggle" aria-pressed="true" aria-label="Pause globe rotation" title="Pause globe rotation">⏸</button>
       <button type="button" id="demoTour" aria-pressed="false" aria-label="Start globe tour" title="Start globe tour">✈</button>
+      <div class="account-access">
+        <button type="button" id="toggleAccount" aria-label="Owner sign in" aria-expanded="false" title="Owner sign in"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="3"/><path d="M10.5 13.5 20 4m-3 0h3v3m-6 0 3 3"/></svg></button>
+        <section id="accountPanel" hidden aria-label="Owner access">
+          <div id="accountSignedOut"><b>Access your placements</b><p>We’ll email you a secure link. No password needed.</p><label for="accountEmail">Email</label><input id="accountEmail" type="email" autocomplete="email" placeholder="you@example.com"><button type="button" id="sendAccountLink">Email me a sign-in link</button></div>
+          <div id="accountSignedIn" hidden><b>Your account</b><small id="accountIdentity"></small><div class="account-summary"><span><strong id="accountPlacementCount">0</strong> placements</span><span><strong id="accountCreditCount">0</strong> credits</span></div><button type="button" id="openAdmin" hidden>Content controls</button><button type="button" id="accountSignOut">Sign out</button></div>
+          <small id="accountStatus" role="status"></small>
+        </section>
+      </div>
       <form class="hex-search" id="hexSearch" role="search">
         <button type="button" id="toggleHexSearch" aria-label="Find company or hex" aria-expanded="false">⌕</button>
         <div id="hexSearchPanel" hidden><label for="hexSearchInput" class="visually-hidden">Company or hex number</label><span><input id="hexSearchInput" autocomplete="off" placeholder="Company or #123" aria-describedby="hexSearchStatus"><button type="submit" aria-label="Go to hexagon">&#8594;</button></span><div id="companyResults"></div><small id="hexSearchStatus" role="status"></small></div>

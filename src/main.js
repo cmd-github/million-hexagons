@@ -1273,10 +1273,15 @@ async function restoreTestPlacements(){
 }
 if(import.meta.env.VITE_STAGING_SANDBOX){
   stagingClient=await import('./staging-client.js');
-  const access=document.querySelector('#stagingOwnerAccess'),status=document.querySelector('#stagingOwnerStatus');access.hidden=false;
+  const access=document.querySelector('#stagingOwnerAccess'),status=document.querySelector('#stagingOwnerStatus'),accountPanel=document.querySelector('#accountPanel'),accountStatus=document.querySelector('#accountStatus'),accountToggle=document.querySelector('#toggleAccount');access.hidden=false;
+  accountToggle.onclick=()=>{const opening=accountPanel.hidden;accountPanel.hidden=!opening;accountToggle.setAttribute('aria-expanded',String(opening));if(opening&&!stagingUser)document.querySelector('#accountEmail').focus();};
+  document.addEventListener('pointerdown',event=>{if(!accountPanel.hidden&&!event.target.closest('.account-access')){accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');}});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!accountPanel.hidden){accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');accountToggle.focus();}});
   const reflectStagingUser=async user=>{
     stagingUser=user;
     status.textContent=user?`Signed in as ${user.email}.`:'Sign in before creating a persistent test placement.';
+    document.querySelector('#accountSignedOut').hidden=Boolean(user);document.querySelector('#accountSignedIn').hidden=!user;accountToggle.classList.toggle('signed-in',Boolean(user));accountToggle.title=user?'Your account':'Owner sign in';accountToggle.setAttribute('aria-label',user?'Open your account':'Owner sign in');accountStatus.textContent='';
+    if(user){document.querySelector('#accountIdentity').textContent=user.email||'Signed-in owner';try{const summary=await stagingClient.getAccountSummary();document.querySelector('#accountPlacementCount').textContent=summary.placements;document.querySelector('#accountCreditCount').textContent=summary.credits;document.querySelector('#openAdmin').hidden=!summary.administrator;}catch(error){accountStatus.textContent='Account details could not be refreshed.';}}
     if(!user||restoredStagingOwner===user.uid||restoringStagingOwner===user.uid)return;
     restoringStagingOwner=user.uid;
     try{const records=await restoreTestPlacements();restoredStagingOwner=user.uid;if(records.length){const published=records.filter(record=>record.publicationStatus==='published').length;status.textContent=`Signed in as ${user.email}. Restored ${records.length} saved test ${records.length===1?'placement':'placements'}${published===records.length?' from published artwork':` · ${published} published`}.`;}}
@@ -1295,7 +1300,12 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
   }
   catch(error){status.textContent=error.message;}
   stagingClient.watchOwner(user=>{void reflectStagingUser(user);});
-  document.querySelector('#sendOwnerLink').onclick=async event=>{event.currentTarget.disabled=true;try{await stagingClient.sendOwnerLink(document.querySelector('#stagingOwnerEmail').value);status.textContent='Sign-in link sent. Keep this placement tab open; after signing in, return here to finish.';}catch(error){status.textContent=error.message;}finally{event.currentTarget.disabled=false;}};
+  const sendLink=async(email,button,target)=>{button.disabled=true;try{await stagingClient.sendOwnerLink(email);target.textContent='Sign-in link sent. Open it in this browser to continue.';}catch(error){target.textContent=error.message;}finally{button.disabled=false;}};
+  document.querySelector('#sendOwnerLink').onclick=event=>sendLink(document.querySelector('#stagingOwnerEmail').value,event.currentTarget,status);
+  document.querySelector('#sendAccountLink').onclick=event=>sendLink(document.querySelector('#accountEmail').value,event.currentTarget,accountStatus);
+  document.querySelector('#accountSignOut').onclick=async event=>{event.currentTarget.disabled=true;try{await stagingClient.signOutOwner();accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');}finally{event.currentTarget.disabled=false;}};
+}else{
+  document.querySelector('#toggleAccount').hidden=true;
 }
 async function paintPlacement() {
   if(publishing)return;
