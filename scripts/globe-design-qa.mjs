@@ -1,4 +1,5 @@
 import {chromium} from 'playwright';
+const base=(process.env.SMOKE_URL||'http://127.0.0.1:4180').replace(/\/$/,'');
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
@@ -7,7 +8,7 @@ try{
 for(const mobile of [false,true]){
  const page=await browser.newPage({viewport:mobile?{width:390,height:844}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile});
  page.setDefaultTimeout(20000);page.on('pageerror',e=>errors.push(e.message));
- await page.goto('http://127.0.0.1:4180/?geodesicQA');await page.waitForSelector('#world[data-ready=true]',{timeout:60000});
+ await page.goto(base+'/?geodesicQA');await page.waitForSelector('#world[data-ready=true]',{timeout:60000});
  await page.locator('#claimButton').click();await page.locator('#designStep').waitFor();
  assert.equal(await page.locator('#canvasSurface').count(),0);
  assert.equal(await page.locator('.size-menu').count(),0);

@@ -6,3 +6,8 @@ public/artwork/million/
 *.log
 xcreds.txt
 .firebase/
+staging-dist/
+staging-runtime/
+.wrangler/
+.env*
+!.env.staging.example

@@ -142,6 +142,8 @@ Inventory current DNS, certificates and mail records before changing domains. Ve
 
 ## First implementation slice
 
+Implementation update (9 September 2026): the repository now has a staging build, immutable runtime packaging, verified R2 upload/Workers deploy commands, CI checks and [manual setup instructions](STAGING.md). Local separated-origin desktop/mobile journeys and deployment checks passed. Cloudflare authentication, real R2 delivery/deployment, rollback, custom-domain caching and physical-device evidence are still outstanding; phase 1 is not complete.
+
 Start with phase 1: product staging deployment, public/private asset separation, shared runtime URL configuration and clean-build verification. Keep transactional implementation behind phase 0's demand gate, then make phase 2 the first backend task. This gives a reviewable hosted product early while exposing the largest database risk before payment work.
 
-Track each phase with one implementation issue and its exit evidence. Re-estimate after staging asset measurements and the inventory spike; a credible paid-launch date depends on those results and observed user acceptance. This review changed documentation only and did not deploy infrastructure or run production-readiness tests.
+Track each phase with one implementation issue and its exit evidence. Re-estimate after staging asset measurements and the inventory spike; a credible paid-launch date depends on those results and observed user acceptance. The original architecture review changed documentation only; the implementation status above records subsequent work.

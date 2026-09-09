@@ -1,0 +1,21 @@
+name: Staging build checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:deployment
+      - run: npm run test:geometry
+      - run: npm run build:staging
+        env:
+          MH_ASSET_ORIGIN: https://assets.invalid
+      - run: node --input-type=module -e "import {checkedRelease} from './scripts/staging-release.mjs'; await checkedRelease();"
+      - run: npx wrangler deploy --config wrangler.staging.jsonc --dry-run

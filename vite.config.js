@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import { cp, stat } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { appFiles, runtimeFiles, copyFiles } from './scripts/deployment-assets.mjs';
 
 // Ship visitor assets; the optional stress fixture and canonical compiler inputs
 // stay local. Use Vite's resolved paths so other project roots still work.
@@ -36,11 +38,11 @@ export default defineConfig({
     },
     async closeBundle() {
       if(config.command!=='build'||!config.publicDir)return;
-      const omitted=new Set(['artwork/million','artwork/sample','topology/geodesic-v1.bin','topology/geodesic-v1.bin.gz','topology/samples-v1.json']);
-      await cp(config.publicDir,path.resolve(config.root,config.build.outDir),{
-        recursive:true,
-        filter:source=>!omitted.has(path.relative(config.publicDir,source).split(path.sep).join('/')),
-      });
+      const output=path.resolve(config.root,config.build.outDir);
+      if(path.resolve(config.root)===path.dirname(fileURLToPath(import.meta.url))){
+        await copyFiles(config.publicDir,output,appFiles);
+        if(config.mode!=='staging')await copyFiles(config.publicDir,output,await runtimeFiles(config.publicDir));
+      }else await cp(config.publicDir,output,{recursive:true});
     },
   }],
   preview: { allowedHosts: true },

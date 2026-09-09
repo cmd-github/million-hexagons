@@ -6,6 +6,8 @@ The Vite/Three.js client is intentionally backend-free. `src/main.js` coordinate
 
 The separately built `coming-soon/` site is the Firebase Hosting target. Its same-origin `/api/launch-signup` route rewrites to the `launchSignup` HTTPS Function, which validates and deduplicates addresses into the server-only `launchSignups` Firestore collection. The product globe builds into `dist/` for local preview.
 
+The staging build separates `staging-dist/` (Workers Static Assets) from `staging-runtime/releases/<sha256>/` (public R2). `src/runtime-assets.js` shares the pinned runtime URL and gzip decoding across the app and topology worker; normal development keeps same-origin paths. Explicit deployment allowlists exclude canonical binaries, stress fixtures and working notes. The uploader/deployer verify immutable objects before switching the app. This hosts the session prototype, not durable inventory or production publication; see [STAGING.md](STAGING.md).
+
 ## Cell topology
 
 `public/topology/geodesic-v1.bin` is the frozen inventory basis. A frequency-127 subdivision of a 64-vertex degree-5/6 spherical triangulation produces exactly 1,000,000 dual cells: 999,988 hexagons and 12 pentagons. Public IDs are one-based and stable. Changing the seed or numbering requires an explicit inventory migration.

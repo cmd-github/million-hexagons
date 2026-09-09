@@ -40,12 +40,12 @@ Session previews use local browser storage and reset; they are not purchases. Ac
 
 ## Validation
 
-The common suite requires a preview server:
+The common suite uses a development server for the exact-cell QA hooks:
 
 ```powershell
-npm run preview -- --port 4181
+npm run dev -- --port 4180
 # In another terminal
-$env:SMOKE_URL = 'http://127.0.0.1:4181'
+$env:SMOKE_URL = 'http://127.0.0.1:4180'
 npm test
 npm run test:geometry
 npm run test:visual
@@ -54,6 +54,8 @@ npm run test:visual
 Screenshots are written beneath ignored `artifacts/` directories and require inspection. Additional topology, gesture, streaming, performance, and asset-generation commands are documented in [docs/VALIDATION.md](docs/VALIDATION.md).
 
 ## Hosting
+
+The product globe has a separate [Cloudflare staging workflow](docs/STAGING.md): `npm run build:staging`, `npm run upload:staging`, then `npm run deploy:staging`. It pins an immutable R2 runtime release and retains session-only preview behaviour. One-time account setup and local validation are documented there.
 
 Firebase Hosting currently publishes the separate `coming-soon/` site, not the product globe. Its launch signup posts to the `launchSignup` Firebase Function, which stores deduplicated addresses in the server-only `launchSignups` Firestore collection.
 

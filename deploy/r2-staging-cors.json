@@ -1,0 +1,8 @@
+[
+  {
+    "AllowedOrigins": ["*"],
+    "AllowedMethods": ["GET", "HEAD"],
+    "ExposeHeaders": ["Content-Encoding", "ETag", "Cache-Control"],
+    "MaxAgeSeconds": 3600
+  }
+]

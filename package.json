@@ -22,15 +22,26 @@
     "build:artwork": "node scripts/build-artwork-tiles.mjs sample",
     "build:artwork-million": "node scripts/build-artwork-tiles.mjs million",
     "test:streaming": "node --test scripts/artwork-stream.test.mjs",
-    "test:performance": "node scripts/performance-qa.mjs"
+    "test:performance": "node scripts/performance-qa.mjs",
+    "build:staging": "node scripts/build-staging.mjs",
+    "upload:staging": "node scripts/upload-staging.mjs",
+    "deploy:staging": "node scripts/deploy-staging.mjs",
+    "test:deployment": "node --test scripts/runtime-assets.test.mjs"
   },
   "dependencies": {
     "simple-icons": "^16.29.0",
     "three": "^0.180.0"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "3.1128.0",
     "playwright": "^1.62.1",
     "sharp": "^0.35.4",
-    "vite": "^7.1.3"
+    "vite": "^7.1.3",
+    "wrangler": "4.129.0"
+  },
+  "overrides": {
+    "miniflare": {
+      "sharp": "$sharp"
+    }
   }
 }

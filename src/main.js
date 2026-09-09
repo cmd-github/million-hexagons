@@ -1,4 +1,5 @@
 import { loadTopology, CELL_COUNT } from './globe/topology.js';
+import { runtimeAsset, fetchRuntimeJson, fetchRuntimeGzip } from './runtime-assets.js';
 import { createCellDetail } from './globe/detail.js';
 import { ArtworkTiles } from './globe/tiles.js';
 import { publishToTiles } from './globe/tile-baker.js';
@@ -39,7 +40,7 @@ const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x050b14, .018);
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .1, 100);
 let topology = null, topologyPromise = null, cellDetail = null;
-const bootstrap = await fetch('/topology/bootstrap.json').then(r=>r.json());
+const bootstrap = await fetchRuntimeJson('topology/bootstrap.json');
 const millionFixture = import.meta.env.DEV && new URLSearchParams(location.search).has('millionLogos');
 async function ensureTopology() {
   if(topology)return topology;
@@ -77,14 +78,11 @@ const globeMaterial = new THREE.MeshStandardMaterial({ color: '#071c2b', emissiv
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius - .0005, 192, 128), globeMaterial);
 globe.add(sphere);
 
-const artworkTiles = new ArtworkTiles(globe,radius,{base:millionFixture?'/artwork/million':'/artwork/sample-hq',maxTiles:innerWidth<700?64:128,anisotropy:Math.min(8,renderer.capabilities.getMaxAnisotropy())});
+const artworkTiles = new ArtworkTiles(globe,radius,{base:millionFixture?'/artwork/million':runtimeAsset('artwork/sample-hq'),maxTiles:innerWidth<700?64:128,anisotropy:Math.min(8,renderer.capabilities.getMaxAnisotropy())});
 await artworkTiles.ready;
 let designAnchor = bootstrap.anchor;
-async function fetchGzipBytes(path){
-  const response=await fetch(path);
-  return new Uint8Array(await (response.headers.get('content-encoding')==='gzip'?response:new Response(response.body.pipeThrough(new DecompressionStream('gzip')))).arrayBuffer());
-}
-const [occupancyBytes,sampleOwners]=await Promise.all([fetchGzipBytes('/topology/occupancy-v1.gz'),fetchGzipBytes('/topology/sample-owners-v1.gz')]);
+const [occupancyBytes,sampleOwners]=await Promise.all([fetchRuntimeGzip('topology/occupancy-v1.gz'),fetchRuntimeGzip('topology/sample-owners-v1.gz')]);
+if(occupancyBytes.length!==CELL_COUNT||sampleOwners.length!==CELL_COUNT)throw Error('Incomplete inventory data');
 occupiedCells.set(occupancyBytes);
 if(millionFixture)occupiedCells.fill(255,0,CELL_COUNT);
 occupancyTexture.needsUpdate=true;

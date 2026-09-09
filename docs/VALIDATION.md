@@ -2,13 +2,15 @@
 
 Run checks relevant to the changed area. A passing build or scripted assertion does not establish visual quality.
 
+For deployment/runtime-origin changes, run `npm run test:deployment` and the separated-build browser workflow in [STAGING.md](STAGING.md). Inspect its desktop/mobile screenshots. Cloudflare dry runs and a local R2 stand-in do not establish live CDN, rollback or physical-device readiness.
+
 ## Core checks
 
 ```powershell
 npm run build
-npm run preview -- --port 4181
+npm run dev -- --port 4180
 # In another terminal
-$env:SMOKE_URL = 'http://127.0.0.1:4181'
+$env:SMOKE_URL = 'http://127.0.0.1:4180'
 npm test
 npm run test:geometry
 node scripts/globe-design-qa.mjs
