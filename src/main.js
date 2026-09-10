@@ -1293,7 +1293,7 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!accountPanel.hidden){accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');accountToggle.focus();}});
   const reflectStagingUser=async user=>{
     stagingUser=user;
-    status.textContent=user?`Signed in as ${user.email}.`:'Sign in before creating a persistent test placement.';
+    status.textContent=user?`Signed in as ${user.email}.`:'Stripe securely collects your email and payment details. No account is required before checkout.';
     document.querySelector('#accountSignedOut').hidden=Boolean(user);document.querySelector('#accountSignedIn').hidden=!user;accountToggle.classList.toggle('signed-in',Boolean(user));accountToggle.title=user?'Your account':'Owner sign in';accountToggle.setAttribute('aria-label',user?'Open your account':'Owner sign in');accountStatus.textContent='';
     if(user){document.querySelector('#accountIdentity').textContent=user.email||'Signed-in owner';try{const summary=await stagingClient.getAccountSummary();document.querySelector('#accountPlacementCount').textContent=summary.placements;document.querySelector('#accountCreditCount').textContent=summary.credits;document.querySelector('#openAdmin').hidden=!summary.administrator;}catch(error){accountStatus.textContent='Account details could not be refreshed.';}}
     if(!user||restoredStagingOwner===user.uid||restoringStagingOwner===user.uid)return;
@@ -1364,10 +1364,9 @@ async function paintPlacement() {
   let durablePlacement=null;
   if(stagingClient){
     publishing=true;
-    stagingUser=await stagingClient.currentUser();
-    if(!stagingUser){publishing=false;const status=document.querySelector('#stagingOwnerStatus');status.textContent='Sign in before creating this test placement.';document.querySelector('#stagingOwnerEmail').focus();return;}
-    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),checkout=activeCheckoutReservation?{reservationId:activeCheckoutReservation.reservation.reservationId,checkoutToken:activeCheckoutReservation.checkoutToken}:null;durablePlacement=await stagingClient.createTestClaim({topologyVersion:'geodesic-v1',anchor:selectedCell.id,cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},checkout);if(checkout)clearCheckoutReservation();}
-    catch(error){publishing=false;const target=document.querySelector('#websiteError');target.hidden=false;target.textContent=error.code==='cells-unavailable'?`Hexagon ${error.cellId} was just claimed. Choose another location.`:error.code==='invalid-artwork-source'?'The full-resolution artwork could not be stored. Your design is still here.':error.code==='invalid-placement'?'The placement details or selected cells were rejected. Your design is still here.':'Could not save the test placement. Your design is still here.';return;}
+    if(!activeCheckoutReservation){publishing=false;const target=document.querySelector('#websiteError');target.hidden=false;target.textContent='This reservation expired. Choose the location again.';return;}
+    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),placement={topologyVersion:'geodesic-v1',anchor:selectedCell.id,cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},checkout=await stagingClient.createStripeCheckout(placement,activeCheckoutReservation.reservation.reservationId,activeCheckoutReservation.checkoutToken);location.assign(checkout.url);return;}
+    catch(error){publishing=false;const target=document.querySelector('#websiteError');target.hidden=false;target.textContent=error.code==='reservation-invalid'?'This reservation expired. Choose the location again.':'Could not open secure checkout. Your design is still here.';return;}
   }
   publishing=true;
   document.querySelector('#buyPanel').inert=true;

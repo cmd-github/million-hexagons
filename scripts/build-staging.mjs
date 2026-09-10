@@ -20,7 +20,7 @@ await copyFiles(path.join(root, 'public'), runtimeDir, files);
 // Detect a source mutation during preparation rather than publishing mixed bytes.
 for (const object of objects) if (sha256(await readFile(path.join(runtimeDir, object.path))) !== object.sha256) throw Error(`Asset changed during build: ${object.path}`);
 const base = `${origin}/${prefix}`;
-await build({ mode: 'staging', build: { outDir: 'staging-dist', emptyOutDir: true }, define: { 'import.meta.env.VITE_RUNTIME_ASSET_BASE': JSON.stringify(base), 'import.meta.env.VITE_STAGING_SANDBOX': JSON.stringify(settings.MH_STAGING_SANDBOX === 'true'), 'import.meta.env.VITE_STAGING_API_URL': JSON.stringify(settings.MH_STAGING_API_URL || 'https://europe-west1-million-hexagons.cloudfunctions.net/stagingPlacements') } });
+await build({ mode: 'staging', build: { outDir: 'staging-dist', emptyOutDir: true }, define: { 'import.meta.env.VITE_RUNTIME_ASSET_BASE': JSON.stringify(base), 'import.meta.env.VITE_STAGING_SANDBOX': JSON.stringify(settings.MH_STAGING_SANDBOX === 'true'), 'import.meta.env.VITE_STAGING_API_URL': JSON.stringify(settings.MH_STAGING_API_URL || 'https://europe-west1-million-hexagons.cloudfunctions.net/stagingPlacements'), 'import.meta.env.VITE_STAGING_CHECKOUT_URL': JSON.stringify(settings.MH_STAGING_CHECKOUT_URL || 'https://europe-west1-million-hexagons.cloudfunctions.net/stagingCheckout') } });
 
 // The page contains dynamic styles and an inline retry handler. Restrict scripts
 // to self plus that exact handler; Vite emits the module bootstrap as a file.

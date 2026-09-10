@@ -126,10 +126,10 @@
         <div class="review-card"><canvas id="reviewCanvas" width="680" height="400"></canvas><div><span id="reviewKind">Logo placement</span><b id="reviewCount">150 hexagons</b></div></div>
         <button class="text-button" id="reviewEditDesign">Edit design</button><p class="review-warning" id="reviewWarning" hidden></p>
         <label>Company name <span class="optional">Optional</span><input id="companyName" maxlength="60" placeholder="Your company" /></label><label>Company description <span class="optional">Optional &middot; 160 characters</span><textarea id="companyDescription" maxlength="160" rows="2" placeholder="A little about your company"></textarea></label><label>Website <span class="optional">Optional</span><input id="website" type="url" placeholder="https://yourcompany.com" /></label>
-        <div id="stagingOwnerAccess" class="staging-owner-access" hidden><label>Test owner email<input id="stagingOwnerEmail" type="email" autocomplete="email" placeholder="you@example.com"></label><button type="button" class="secondary" id="sendOwnerLink">Email me a sign-in link</button><small id="stagingOwnerStatus" role="status"></small></div>
+        <div id="stagingOwnerAccess" class="staging-owner-access" hidden><small id="stagingOwnerStatus" role="status">Stripe securely collects your email and payment details. No account is required before checkout.</small><div hidden><label>Test owner email<input id="stagingOwnerEmail" type="email" autocomplete="email" placeholder="you@example.com"></label><button type="button" class="secondary" id="sendOwnerLink">Email me a sign-in link</button></div></div>
         <p id="websiteError" role="alert" hidden></p><div class="review-footer"><div class="price review-price"><span>Total</span><b id="reviewPrice">$150</b><small id="serverQuoteStatus">Estimated at $1 per cell</small></div>
-        <button class="primary full" id="previewPurchase">Add to globe</button>
-        <small class="mock-note">Prototype checkout — no payment will be taken.</small></div>
+        <button class="primary full" id="previewPurchase">Continue to secure checkout</button>
+        <small class="mock-note">Stripe test mode — no real payment will be taken.</small></div>
       </div>
     </section>
 

@@ -17,6 +17,8 @@ import { createTestPlacement, decodeCells, deleteTestPlacement, normalisePlaceme
 import { decodeArtworkSource, designObjectPath, publicationObjects, sourceObjectPath } from './publication.js';
 import { releaseTestReservation, reserveTestCells } from './reservations.js';
 import { quoteCells } from './pricing.js';
+import Stripe from 'stripe';
+import { checkoutLineItem, checkoutOrderId, checkoutOwnerId, paidCheckoutEmail } from './payments.js';
 
 initializeApp();
 const stagingSandboxEnabled = defineBoolean('MH_STAGING_SANDBOX', { default: false });
@@ -24,6 +26,8 @@ const r2AccountId = defineSecret('MH_R2_ACCOUNT_ID');
 const r2AccessKeyId = defineSecret('MH_R2_ACCESS_KEY_ID');
 const r2SecretAccessKey = defineSecret('MH_R2_SECRET_ACCESS_KEY');
 const stagingQaKey = defineSecret('MH_STAGING_QA_KEY');
+const stripeSecretKey = defineSecret('STRIPE_SECRET_KEY');
+const stripeWebhookSecret = defineSecret('STRIPE_WEBHOOK_SECRET');
 const stagingPublicBucket = defineString('MH_STAGING_PUBLIC_BUCKET', { default: 'million-hexagons-staging-public' });
 const stagingAssetOrigin = defineString('MH_STAGING_ASSET_ORIGIN', { default: 'https://assets-staging.millionhexagons.com' });
 const privateSourceBucket = 'million-hexagons.firebasestorage.app';
@@ -293,6 +297,42 @@ export const expireStagingReservations=onSchedule({schedule:'every 5 minutes',re
   if(!stagingSandboxEnabled.value())return;
   const now=Date.now(),snapshot=await getFirestore().collection('stagingReservations').where('expiresAtMs','<=',now).limit(100).get();
   await Promise.all(snapshot.docs.filter(document=>document.data().status==='active').map(document=>releaseTestReservation(getFirestore(),document.id,document.data().ownerId,now,{expiredOnly:true}).catch(error=>logger.warn('Could not expire staging reservation',{reservationId:document.id,message:error.message}))));
+});
+
+export const stagingCheckout=onRequest({region:'europe-west1',maxInstances:3,timeoutSeconds:60,memory:'512MiB',secrets:[stripeSecretKey]},async(request,response)=>{
+  response.set('Cache-Control','no-store');const origin=request.get('Origin');if(!stagingOrigin(origin)){response.status(403).json({ok:false,error:'origin-not-allowed'});return;}if(origin)response.set('Access-Control-Allow-Origin',origin).set('Vary','Origin');response.set('Access-Control-Allow-Headers','content-type').set('Access-Control-Allow-Methods','POST, OPTIONS');if(request.method==='OPTIONS'){response.status(204).send('');return;}if(request.method!=='POST'){response.status(405).json({ok:false,error:'method-not-allowed'});return;}if(!stagingSandboxEnabled.value()){response.status(404).json({ok:false,error:'sandbox-disabled'});return;}
+  try{
+    const reservationId=String(request.body?.reservationId||''),checkoutToken=String(request.body?.checkoutToken||''),orderId=checkoutOrderId(reservationId),db=getFirestore(),reservationSnapshot=await db.collection('stagingReservations').doc(reservationId).get(),reservation=reservationSnapshot.data();
+    if(!reservationSnapshot.exists||reservation.status!=='active'||reservation.ownerId!==checkoutOwnerId(checkoutToken)||Number(reservation.expiresAtMs)<=Date.now()){response.status(409).json({ok:false,error:'reservation-invalid'});return;}
+    const candidate={...request.body.placement,ownerId:'pending-payment'};if(!normalisePlacementClaim(candidate)||candidate.cells.map(Number).sort((a,b)=>a-b).join(',')!==decodeCells(reservation.cellsData).join(',')){response.status(400).json({ok:false,error:'invalid-placement'});return;}
+    const orderRef=db.collection('stagingOrders').doc(orderId),existing=await orderRef.get();if(existing.exists&&existing.data().checkoutUrl){response.status(200).json({ok:true,checkout:{orderId,url:existing.data().checkoutUrl}});return;}
+    let placementId=existing.data()?.placementId,sourceReference=existing.data()?.source,placement=existing.data()?.placement;
+    if(!existing.exists){
+      const source=decodeArtworkSource(candidate.sourceArtworkDataUrl||candidate.artworkDataUrl);if(!source){response.status(400).json({ok:false,error:'invalid-artwork-source'});return;}
+      placementId=randomUUID();const path=sourceObjectPath(placementId,1,source.extension);sourceReference={bucket:privateSourceBucket,path,mimeType:source.mimeType,extension:source.extension,size:source.bytes.length,sha256:source.sha256};
+      await getStorage().bucket(privateSourceBucket).file(path).save(source.bytes,{resumable:false,contentType:source.mimeType,metadata:{cacheControl:'private,no-store',metadata:{placementId,orderId,sha256:source.sha256}}});
+      placement={topologyVersion:candidate.topologyVersion,anchor:candidate.anchor,cells:candidate.cells,title:candidate.title,description:candidate.description,destinationUrl:candidate.destinationUrl,artworkDataUrl:candidate.artworkDataUrl};
+      await orderRef.set({orderId,reservationId,reservationOwnerId:reservation.ownerId,placementId,placement,source:sourceReference,quote:reservation.quote,status:'checkout-creating',environment:'staging',createdAt:FieldValue.serverTimestamp()},{merge:false});
+    }
+    const stripe=new Stripe(stripeSecretKey.value());const session=await stripe.checkout.sessions.create({mode:'payment',line_items:[checkoutLineItem(reservation.quote)],customer_creation:'always',success_url:'https://million-hexagons-staging.million-hexagons.workers.dev/?checkout=success&session_id={CHECKOUT_SESSION_ID}',cancel_url:'https://million-hexagons-staging.million-hexagons.workers.dev/?checkout=cancelled',metadata:{orderId,reservationId,placementId},payment_intent_data:{metadata:{orderId,reservationId,placementId}}},{idempotencyKey:orderId});
+    await orderRef.set({stripeCheckoutSessionId:session.id,checkoutUrl:session.url,status:'checkout-open',updatedAt:FieldValue.serverTimestamp()},{merge:true});response.status(201).json({ok:true,checkout:{orderId,url:session.url}});
+  }catch(error){logger.error('Could not create Stripe checkout',error);response.status(500).json({ok:false,error:'checkout-failed'});}
+});
+
+export const stripeWebhook=onRequest({region:'europe-west1',maxInstances:3,timeoutSeconds:60,memory:'512MiB',secrets:[stripeSecretKey,stripeWebhookSecret]},async(request,response)=>{
+  if(request.method!=='POST'){response.status(405).send('method-not-allowed');return;}let event;try{event=new Stripe(stripeSecretKey.value()).webhooks.constructEvent(request.rawBody,request.get('stripe-signature'),stripeWebhookSecret.value());}catch(error){response.status(400).send(`invalid-signature: ${error.message}`);return;}
+  const eventRef=getFirestore().collection('stagingStripeEvents').doc(event.id),existingEvent=await eventRef.get();if(existingEvent.exists&&existingEvent.data().status==='processed'){response.status(200).json({received:true,duplicate:true});return;}
+  try{
+    await eventRef.set({eventId:event.id,type:event.type,status:'processing',receivedAt:FieldValue.serverTimestamp()},{merge:true});
+    if(event.type==='checkout.session.completed'){
+      const session=event.data.object,email=paidCheckoutEmail(session),orderId=String(session.metadata?.orderId||'');if(!email||!orderId)throw new Error('invalid-paid-session');
+      const db=getFirestore(),orderRef=db.collection('stagingOrders').doc(orderId),orderSnapshot=await orderRef.get();if(!orderSnapshot.exists)throw new Error('order-not-found');const order=orderSnapshot.data();
+      let user;try{user=await getAuth().getUserByEmail(email);}catch(error){if(error.code!=='auth/user-not-found')throw error;user=await getAuth().createUser({email,emailVerified:false,displayName:order.placement.title});}
+      const result=await createTestPlacement(db,{...order.placement,ownerId:user.uid},FieldValue.serverTimestamp(),{placementId:order.placementId,source:order.source,reservationId:order.reservationId,reservationOwnerId:order.reservationOwnerId,nowMs:Date.now()}).catch(async error=>{const placement=await db.collection('stagingPlacements').doc(order.placementId).get();if(placement.exists)return{placementId:order.placementId,cellCount:placement.data().cellCount,status:placement.data().status};throw error;});
+      await orderRef.set({status:'fulfilled',ownerId:user.uid,buyerEmail:email,stripePaymentIntentId:session.payment_intent,paidAmountMinor:session.amount_total,currency:session.currency,fulfilledAt:FieldValue.serverTimestamp(),placement:FieldValue.delete(),result},{merge:true});
+    }else if(event.type==='checkout.session.expired'){const orderId=String(event.data.object.metadata?.orderId||'');if(orderId)await getFirestore().collection('stagingOrders').doc(orderId).set({status:'checkout-expired',updatedAt:FieldValue.serverTimestamp()},{merge:true});}
+    await eventRef.set({status:'processed',processedAt:FieldValue.serverTimestamp()},{merge:true});response.status(200).json({received:true});
+  }catch(error){logger.error('Stripe webhook processing failed',{eventId:event.id,message:error.message});await eventRef.set({status:'failed',error:String(error.message).slice(0,200),updatedAt:FieldValue.serverTimestamp()},{merge:true});response.status(500).send('webhook-processing-failed');}
 });
 
 export const publishStagingPlacement = onDocumentCreated(

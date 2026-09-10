@@ -6,7 +6,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Add Stripe test checkout and idempotent payment fulfilment against the verified quote/reservation boundary.
+- [ ] Complete one end-to-end Stripe test payment and verify idempotent fulfilment, ownership and publication.
 
 ## Next
 
@@ -43,9 +43,11 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [x] Subtle key control deployed in the globe utility bar for passwordless owner access; signed-in state shows placement and credit summaries and reserves admin controls for administrator claims.
 - [x] Founder-only content controls deployed and browser-tested: placement/owner lookup, field takedown/editing, suspension, version restoration, revocation, compensating credits and combined moderation/credit audit history.
 - [x] Authoritative versioned server quotes and 15-minute exact-cell reservations deployed; anonymous quote, overlap rejection, atomic placement fulfilment, expiry/release and desktop/mobile Review passed live.
+- [x] Stripe test Checkout deployed from server-authoritative quotes; live session creation and idempotent retry passed, and signed webhook fulfilment is deployed.
 
 ## Blocked / Needs Craig
 
+- [ ] Complete the first Stripe test-card checkout so paid fulfilment can be verified against the real signed webhook event.
 - [ ] Configure/confirm the $10 Cloudflare budget alert.
 - [ ] Review and complete [draft commercial terms](DRAFT-COMMERCIAL-TERMS.md), including final pricing, refunds, permanent-use wording and governing law.
 - [ ] Provide physical iOS/Android testing and observed first-time-user feedback.
@@ -56,7 +58,7 @@ Launch readiness: ~25%
 
 - Production foundation: IN PROGRESS
 - Durable ownership/domain: IN PROGRESS (staging ownership, versions and editable sources verified)
-- Inventory + checkout: IN PROGRESS (atomic staging reservations verified; quotes/payment not started)
+- Inventory + checkout: IN PROGRESS (quotes, reservations and Stripe test Checkout verified; paid webhook fulfilment awaiting first end-to-end test)
 - Publication: IN PROGRESS (immediate publication and backend takedown/rollback verified; founder UI and public release projection remain)
 - Owner experience: NOT STARTED
 - Growth/sharing: IN PROGRESS (cell links only)
