@@ -6,7 +6,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Add authoritative server-generated quotes and connect Review to a temporary reservation-backed checkout boundary.
+- [ ] Deploy and live-test authoritative server quotes and reservation-backed Review after Firebase CLI reauthentication.
 
 ## Next
 
@@ -45,6 +45,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Blocked / Needs Craig
 
+- [ ] Run `firebase login --reauth`; the Firebase refresh credential expired before the quote/reservation functions could deploy.
 - [ ] Configure/confirm the $10 Cloudflare budget alert.
 - [ ] Review and complete [draft commercial terms](DRAFT-COMMERCIAL-TERMS.md), including final pricing, refunds, permanent-use wording and governing law.
 - [ ] Provide physical iOS/Android testing and observed first-time-user feedback.

@@ -9,7 +9,7 @@ export function normaliseReservation(input) {
   return ownerId?{ownerId,topologyVersion:TOPOLOGY_VERSION,cells}:null;
 }
 
-export async function reserveTestCells(db, input, nowMs, ttlMs = 15 * 60_000, reservationId = randomUUID()) {
+export async function reserveTestCells(db, input, nowMs, ttlMs = 15 * 60_000, reservationId = randomUUID(), metadata = {}) {
   const reservation=normaliseReservation(input);
   if (!reservation) throw Object.assign(new Error('invalid-reservation'),{code:'invalid-reservation'});
   const groups=groupCellsByShard(reservation.cells),reference=db.collection('stagingReservations').doc(reservationId);
@@ -19,7 +19,7 @@ export async function reserveTestCells(db, input, nowMs, ttlMs = 15 * 60_000, re
     if(existing.exists)throw Object.assign(new Error('reservation-exists'),{code:'reservation-exists'});
     const snapshots=await Promise.all(shardRefs.map(([,ref])=>transaction.get(ref)));
     shardRefs.forEach(([number,ref],index)=>transaction.set(ref,{bitmap:mutateInventory(decodeInventory(snapshots[index].data()?.bitmap),number,groups.get(number),true).toString('base64'),topologyVersion:TOPOLOGY_VERSION,updatedAtMs:nowMs},{merge:true}));
-    transaction.create(reference,{reservationId,ownerId:reservation.ownerId,topologyVersion:TOPOLOGY_VERSION,cellsEncoding:'uint32le-base64',cellsData:encodeCells(reservation.cells),cellCount:reservation.cells.length,status:'active',createdAtMs:nowMs,expiresAtMs:nowMs+ttlMs});
+    transaction.create(reference,{reservationId,ownerId:reservation.ownerId,topologyVersion:TOPOLOGY_VERSION,cellsEncoding:'uint32le-base64',cellsData:encodeCells(reservation.cells),cellCount:reservation.cells.length,status:'active',createdAtMs:nowMs,expiresAtMs:nowMs+ttlMs,...metadata});
   });
   return {reservationId,cellCount:reservation.cells.length,status:'active',expiresAtMs:nowMs+ttlMs};
 }

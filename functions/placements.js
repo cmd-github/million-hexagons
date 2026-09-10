@@ -103,18 +103,23 @@ export async function createTestPlacement(db, input, timestamp, options = {}) {
   const eventRef = db.collection('stagingDomainEvents').doc(`${placementId}-created`);
   const shardRefs = [...groups].map(([number]) => [number, db.collection('stagingInventory').doc(shardId(number))]);
   await db.runTransaction(async transaction => {
-    const snapshots = await Promise.all(shardRefs.map(([, reference]) => transaction.get(reference)));
-    const updates = shardRefs.map(([number, reference], index) => {
-      const bitmap = decodeInventory(snapshots[index].data()?.bitmap);
-      return [reference, mutateInventory(bitmap, number, groups.get(number), true).toString('base64')];
-    });
-    for (const [reference, bitmap] of updates) transaction.set(reference, { bitmap, topologyVersion: TOPOLOGY_VERSION, updatedAt: timestamp }, { merge: true });
+    let quote=null;
+    if(options.reservationId){
+      const reservationRef=db.collection('stagingReservations').doc(options.reservationId),snapshot=await transaction.get(reservationRef),reservation=snapshot.data();
+      if(!snapshot.exists||reservation.status!=='active'||reservation.ownerId!==options.reservationOwnerId||Number(reservation.expiresAtMs)<=Number(options.nowMs))throw Object.assign(new Error('reservation-invalid'),{code:'reservation-invalid'});
+      if(decodeCells(reservation.cellsData).join(',')!==claim.cells.join(','))throw Object.assign(new Error('reservation-mismatch'),{code:'reservation-mismatch'});
+      quote=reservation.quote||null;transaction.update(reservationRef,{status:'fulfilled',placementId,fulfilledAtMs:options.nowMs});
+    }else{
+      const snapshots = await Promise.all(shardRefs.map(([, reference]) => transaction.get(reference)));
+      const updates = shardRefs.map(([number, reference], index) => [reference,mutateInventory(decodeInventory(snapshots[index].data()?.bitmap),number,groups.get(number),true).toString('base64')]);
+      for (const [reference, bitmap] of updates) transaction.set(reference, { bitmap, topologyVersion: TOPOLOGY_VERSION, updatedAt: timestamp }, { merge: true });
+    }
     transaction.create(placementRef, {
       schemaVersion: PLACEMENT_SCHEMA_VERSION, placementId, ownerId: claim.ownerId,
       topologyVersion: claim.topologyVersion, cellCount: claim.cells.length, anchor: claim.anchor,
       cellsEncoding: 'uint32le-base64', cellsData: encodeCells(claim.cells),
       title: claim.title, currentVersion: 1,
-      status: 'draft', environment: 'staging', createdAt: timestamp, updatedAt: timestamp
+      status: 'draft', environment: 'staging', quote, createdAt: timestamp, updatedAt: timestamp
     });
     transaction.create(contentRef, { schemaVersion: 1, placementId, version: 1, topologyVersion: claim.topologyVersion, anchor: claim.anchor, cellCount: claim.cells.length, title: claim.title, description: claim.description, destinationUrl: claim.destinationUrl, artworkDataUrl: claim.artworkDataUrl, source: options.source || null, publication: options.source ? { status: 'queued', attempts: 0 } : { status: 'preview-only', attempts: 0 }, status: 'current', environment: 'staging', createdAt: timestamp });
     transaction.create(grantRef, { placementId, ownerId: claim.ownerId, topologyVersion: claim.topologyVersion, status: 'active', environment: 'staging', grantedAt: timestamp });

@@ -468,6 +468,7 @@ async function openBuy(anchor = null) {
 }
 function closeBuy() {
   if(publishing)return;
+  void releaseActiveCheckoutReservation();
   fitMaskCache=null;
   selecting = false;
   designSurface='canvas';delete document.body.dataset.surface;
@@ -866,8 +867,13 @@ document.querySelector('#toPlacement').addEventListener('click', enterPlacement)
 document.querySelector('#backToDesign').addEventListener('click', () => { clearPlacementPreview(); selecting = false; selectionModeUniform.value = 0; document.body.classList.remove('selecting', 'placing-design'); controls.enableRotate = true; showFlowStep('design'); drawDesignPreview(); updateTotals(); });
 document.querySelector('#moveGlobeMode').addEventListener('click', () => setInteractionMode('move'));
 document.querySelector('#placeDesignMode').addEventListener('click', () => setInteractionMode('place'));
-document.querySelector('#toReview').addEventListener('click', () => {
+document.querySelector('#toReview').addEventListener('click', async event => {
   if (!selectedCells.length) return;
+  const button=event.currentTarget,original=button.textContent;button.disabled=true;if(stagingClient)button.textContent='Checking availability…';
+  if(stagingClient){
+    try{await releaseActiveCheckoutReservation();activeCheckoutReservation=await stagingClient.quoteAndReserve(selectedCells.map(cell=>cell.id));document.querySelector('#reviewPrice').textContent=activeCheckoutReservation.quote.displayTotal;showCheckoutExpiry();}
+    catch(error){document.querySelector('#selectionStatus').textContent=error.code==='cells-unavailable'?`Hexagon ${error.cellId} was just reserved. Choose another location.`:'Could not reserve this location. Try again.';button.textContent=original;button.disabled=false;return;}
+  }
   showFlowStep('review');
   setInteractionMode('move');
   focusSelection();
@@ -879,8 +885,9 @@ document.querySelector('#toReview').addEventListener('click', () => {
   warning.textContent = 'Low resolution. Use SVG or a larger image for sharper artwork.';
   clearPlacementPreview();
   addHighResolutionPlacement(document.querySelector('#brandColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
+  button.textContent=original;button.disabled=false;
 });
-document.querySelector('#backToPlacement').addEventListener('click', () => { clearPlacementPreview(); showFlowStep('place'); setInteractionMode('move'); refreshSelection(); });
+document.querySelector('#backToPlacement').addEventListener('click', () => { void releaseActiveCheckoutReservation();clearPlacementPreview(); showFlowStep('place'); setInteractionMode('move'); refreshSelection(); });
 document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size; button.closest('details').open=false; resetEditorView();logoCells = null; footprintEdited = false; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); }));
 amountInput.addEventListener('change', () => { amountInput.value = placementCount(); });
 amountInput.addEventListener('input', () => { resetEditorView();logoCells = null; footprintEdited = false; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); });
@@ -1254,8 +1261,15 @@ function addHighResolutionPlacement(color, treatment, targetLayer = placementLay
 }
 
 let publishing=false;
-let stagingClient=null,stagingUser=null;
+let stagingClient=null,stagingUser=null,activeCheckoutReservation=null,checkoutExpiryTimer=null;
 let restoredStagingOwner=null,restoringStagingOwner=null;
+function clearCheckoutReservation(){activeCheckoutReservation=null;clearInterval(checkoutExpiryTimer);checkoutExpiryTimer=null;const message=document.querySelector('#serverQuoteStatus');if(message)message.textContent='Estimated at $1 per cell';}
+async function releaseActiveCheckoutReservation(){const active=activeCheckoutReservation;clearCheckoutReservation();if(active&&stagingClient)await stagingClient.releaseCheckoutReservation(active.reservation.reservationId,active.checkoutToken).catch(()=>{});}
+function showCheckoutExpiry(){
+  clearInterval(checkoutExpiryTimer);const message=document.querySelector('#serverQuoteStatus');
+  const update=()=>{if(!activeCheckoutReservation)return;const seconds=Math.max(0,Math.ceil((activeCheckoutReservation.reservation.expiresAtMs-Date.now())/1000)),minutes=Math.floor(seconds/60),remaining=String(seconds%60).padStart(2,'0');message.textContent=seconds?`Server confirmed · reserved for ${minutes}:${remaining}`:'Reservation expired · choose the location again';if(!seconds){document.querySelector('#previewPurchase').disabled=true;clearInterval(checkoutExpiryTimer);}};
+  update();checkoutExpiryTimer=setInterval(update,1000);
+}
 function persistentArtwork(canvas){const limit=900,scale=Math.min(1,limit/Math.max(canvas.width,canvas.height)),copy=document.createElement('canvas');copy.width=Math.max(1,Math.round(canvas.width*scale));copy.height=Math.max(1,Math.round(canvas.height*scale));copy.getContext('2d').drawImage(canvas,0,0,copy.width,copy.height);return copy.toDataURL('image/webp',.86);}
 function publicationArtwork(canvas){return canvas.toDataURL('image/webp',.95);}
 async function restoreTestPlacements(){
@@ -1352,7 +1366,7 @@ async function paintPlacement() {
     publishing=true;
     stagingUser=await stagingClient.currentUser();
     if(!stagingUser){publishing=false;const status=document.querySelector('#stagingOwnerStatus');status.textContent='Sign in before creating this test placement.';document.querySelector('#stagingOwnerEmail').focus();return;}
-    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells());durablePlacement=await stagingClient.createTestClaim({topologyVersion:'geodesic-v1',anchor:selectedCell.id,cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)});}
+    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),checkout=activeCheckoutReservation?{reservationId:activeCheckoutReservation.reservation.reservationId,checkoutToken:activeCheckoutReservation.checkoutToken}:null;durablePlacement=await stagingClient.createTestClaim({topologyVersion:'geodesic-v1',anchor:selectedCell.id,cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},checkout);if(checkout)clearCheckoutReservation();}
     catch(error){publishing=false;const target=document.querySelector('#websiteError');target.hidden=false;target.textContent=error.code==='cells-unavailable'?`Hexagon ${error.cellId} was just claimed. Choose another location.`:error.code==='invalid-artwork-source'?'The full-resolution artwork could not be stored. Your design is still here.':error.code==='invalid-placement'?'The placement details or selected cells were rejected. Your design is still here.':'Could not save the test placement. Your design is still here.';return;}
   }
   publishing=true;

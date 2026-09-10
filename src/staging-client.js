@@ -24,14 +24,17 @@ export async function sendOwnerLink(email) {
   await sendSignInLinkToEmail(auth, normalised, { url: `${location.origin}${location.pathname}?ownerSignIn=complete`, handleCodeInApp: true });
   localStorage.setItem('mh-staging-sign-in-email', normalised);
 }
-export async function createTestClaim(placement) {
+export async function createTestClaim(placement, checkout = null) {
   const user = await currentUser();
   if (!user) throw Object.assign(new Error('Sign in before creating a test placement.'), { code: 'authentication-required' });
-  const response = await fetch(import.meta.env.VITE_STAGING_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await user.getIdToken()}` }, body: JSON.stringify({ action: 'create', placement }) });
+  const response = await fetch(import.meta.env.VITE_STAGING_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await user.getIdToken()}` }, body: JSON.stringify({ action: 'create', placement, ...(checkout||{}) }) });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw Object.assign(new Error(result.error || 'Could not create the test placement.'), { code: result.error, cellId: result.cellId });
   return result.placement;
 }
+async function publicRequest(body){const response=await fetch(import.meta.env.VITE_STAGING_API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const result=await response.json().catch(()=>({}));if(!response.ok)throw Object.assign(new Error(result.error||'request-failed'),{code:result.error,cellId:result.cellId});return result;}
+export async function quoteAndReserve(cells){return publicRequest({action:'quote-reserve',reservation:{topologyVersion:'geodesic-v1',cells}});}
+export async function releaseCheckoutReservation(reservationId,checkoutToken){return(publicRequest({action:'release-checkout-reservation',reservationId,checkoutToken})).reservation;}
 async function ownerRequest(body) {
   const user = await currentUser(); if (!user) throw new Error('authentication-required');
   const response = await fetch(import.meta.env.VITE_STAGING_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await user.getIdToken()}` }, body: JSON.stringify(body) });

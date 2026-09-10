@@ -78,6 +78,16 @@ test('records a private source reference and queued publication without source b
   assert.equal(JSON.stringify(version).includes('data:image'),false);
 });
 
+test('atomically converts an exact active reservation without reclaiming its cells',async()=>{
+  const db=new MemoryFirestore(),cells=[1,2,4097];
+  db.documents.set('stagingReservations/reserved',{reservationId:'reserved',ownerId:'checkout:token',topologyVersion:'geodesic-v1',cellsData:encodeCells(cells),cellCount:3,status:'active',expiresAtMs:2000,quote:{quoteId:'q1',totalAmountMinor:300}});
+  const created=await createTestPlacement(db,valid,'time',{reservationId:'reserved',reservationOwnerId:'checkout:token',nowMs:1000});
+  assert.equal(db.documents.get('stagingReservations/reserved').status,'fulfilled');
+  assert.equal(db.documents.get('stagingReservations/reserved').placementId,created.placementId);
+  assert.equal(db.documents.get(`stagingPlacements/${created.placementId}`).quote.quoteId,'q1');
+  await assert.rejects(createTestPlacement(db,{...valid,ownerId:'other'},'time',{reservationId:'reserved',reservationOwnerId:'checkout:token',nowMs:1000}),error=>error.code==='reservation-invalid');
+});
+
 test('creates immutable content versions without changing ownership or cells', async () => {
   const db=new MemoryFirestore(),created=await createTestPlacement(db,valid,'created');
   const source={bucket:'private',path:'v2.webp',mimeType:'image/webp',extension:'webp',size:9,sha256:'v2'};

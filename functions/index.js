@@ -1,5 +1,5 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
@@ -7,6 +7,7 @@ import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { defineBoolean, defineSecret, defineString } from 'firebase-functions/params';
 import { normaliseSignup } from './signup.js';
 import { normaliseDesignState, normaliseDraft } from './drafts.js';
@@ -15,6 +16,7 @@ import { applyModeration, normaliseModeration, publicPlacement } from './moderat
 import { createTestPlacement, decodeCells, deleteTestPlacement, normalisePlacementClaim, placementClaimDiagnostics, updateTestPlacementContent } from './placements.js';
 import { decodeArtworkSource, designObjectPath, publicationObjects, sourceObjectPath } from './publication.js';
 import { releaseTestReservation, reserveTestCells } from './reservations.js';
+import { quoteCells } from './pricing.js';
 
 initializeApp();
 const stagingSandboxEnabled = defineBoolean('MH_STAGING_SANDBOX', { default: false });
@@ -120,6 +122,22 @@ export const stagingPlacements = onRequest(
     if (request.method !== 'POST') { response.set('Allow', 'POST, OPTIONS'); response.status(405).json({ ok: false, error: 'method-not-allowed' }); return; }
     if (!stagingSandboxEnabled.value()) { response.status(404).json({ ok: false, error: 'sandbox-disabled' }); return; }
 
+    const action=request.body?.action;
+    if(action==='quote-reserve'||action==='release-checkout-reservation'){
+      try{
+        const token=String(request.body.checkoutToken||'');
+        if(action==='release-checkout-reservation'){
+          if(token.length<32){response.status(400).json({ok:false,error:'invalid-checkout-token'});return;}
+          const ownerId=`checkout:${createHash('sha256').update(token).digest('hex')}`;
+          const reservation=await releaseTestReservation(getFirestore(),String(request.body.reservationId||''),ownerId,Date.now());response.status(200).json({ok:true,reservation});return;
+        }
+        const now=Date.now(),ttlMs=15*60_000,checkoutToken=randomBytes(32).toString('base64url'),ownerId=`checkout:${createHash('sha256').update(checkoutToken).digest('hex')}`,reservationId=randomUUID();
+        const cells=request.body.reservation?.cells,quote=quoteCells(Array.isArray(cells)?cells.length:0,now,ttlMs,randomUUID());
+        const reservation=await reserveTestCells(getFirestore(),{...request.body.reservation,ownerId},now,ttlMs,reservationId,{quote});
+        response.status(201).json({ok:true,quote,reservation,checkoutToken});return;
+      }catch(error){const status=error.code==='cells-unavailable'?409:400;response.status(status).json({ok:false,error:error.code||'invalid-reservation',...(error.cellId?{cellId:error.cellId}:{})});return;}
+    }
+
     let identity;
     const qaOwner = request.get('X-MH-QA-Owner');
     if (request.get('X-MH-QA-Key') === stagingQaKey.value() && /^staging-qa-[0-9a-f-]{36}$/.test(String(qaOwner || ''))) {
@@ -134,7 +152,6 @@ export const stagingPlacements = onRequest(
     if (!identity.email_verified) { response.status(403).json({ ok: false, error: 'verified-email-required' }); return; }
 
     try {
-      const action = request.body?.action;
       if (action === 'create') {
         const candidate = { ...request.body.placement, ownerId: identity.uid };
         // Older staging clients send only the bounded fallback rendition. Keep
@@ -147,7 +164,8 @@ export const stagingPlacements = onRequest(
         const sourceFile = getStorage().bucket(privateSourceBucket).file(path);
         await sourceFile.save(source.bytes, { resumable: false, contentType: source.mimeType, metadata: { cacheControl: 'private,no-store', metadata: { placementId, version: '1', ownerId: identity.uid, sha256: source.sha256 } } });
         let result;
-        try { result = await createTestPlacement(getFirestore(), candidate, FieldValue.serverTimestamp(), { placementId, source: sourceReference }); }
+        const checkoutToken=String(request.body.checkoutToken||''),reservationOwnerId=checkoutToken?`checkout:${createHash('sha256').update(checkoutToken).digest('hex')}`:'';
+        try { result = await createTestPlacement(getFirestore(), candidate, FieldValue.serverTimestamp(), { placementId, source: sourceReference, reservationId:String(request.body.reservationId||''), reservationOwnerId, nowMs:Date.now() }); }
         catch (error) { await sourceFile.delete({ ignoreNotFound: true }).catch(cleanupError => logger.warn('Could not remove unclaimed staging source', cleanupError)); throw error; }
         response.status(201).json({ ok: true, placement: result });
         return;
@@ -270,6 +288,12 @@ export const stagingPlacements = onRequest(
     }
   }
 );
+
+export const expireStagingReservations=onSchedule({schedule:'every 5 minutes',region:'europe-west1',maxInstances:1},async()=>{
+  if(!stagingSandboxEnabled.value())return;
+  const now=Date.now(),snapshot=await getFirestore().collection('stagingReservations').where('expiresAtMs','<=',now).limit(100).get();
+  await Promise.all(snapshot.docs.filter(document=>document.data().status==='active').map(document=>releaseTestReservation(getFirestore(),document.id,document.data().ownerId,now,{expiredOnly:true}).catch(error=>logger.warn('Could not expire staging reservation',{reservationId:document.id,message:error.message}))));
+});
 
 export const publishStagingPlacement = onDocumentCreated(
   { document: 'stagingPlacementVersions/{versionId}', region: 'europe-west1', retry: true, timeoutSeconds: 120, memory: '512MiB', maxInstances: 2, secrets: [r2AccountId, r2AccessKeyId, r2SecretAccessKey] },

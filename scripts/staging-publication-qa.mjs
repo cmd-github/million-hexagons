@@ -16,6 +16,7 @@ const request=async body=>{
   try{result=JSON.parse(responseText);}catch{result={raw:responseText};}
   return {response,result};
 };
+const publicRequest=async body=>{const response=await fetch(api,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});return{response,result:await response.json()};};
 
 const waitForPublication=async placementId=>{
   let placement;
@@ -37,6 +38,7 @@ const designState=cell=>({topologyVersion:'geodesic-v1',anchor:cell,cells:[{id:c
 const createdIds=[];
 const draftIds=[];
 const reservationIds=[];
+const checkoutReservations=[];
 
 try{
   let largeReservation,largeConflictCell;
@@ -67,6 +69,14 @@ try{
   assert.equal(expiryRace.every(result=>result.response.ok),true,JSON.stringify(expiryRace.map(result=>result.result)));
   assert.equal(expiryRace.reduce((total,result)=>total+result.result.reservation.releasedCells,0),1);
   reservationIds.splice(reservationIds.indexOf(expiring.result.reservation.reservationId),1);
+
+  let quoted,quoteCell;
+  for(let attempt=0;attempt<30&&!quoted;attempt++){
+    quoteCell=700000+Math.floor(Math.random()*40000);const candidate=await publicRequest({action:'quote-reserve',reservation:{topologyVersion:'geodesic-v1',cells:[quoteCell]}});if(candidate.response.status===409)continue;assert.ok(candidate.response.ok,JSON.stringify(candidate.result));quoted=candidate.result;
+  }
+  assert.ok(quoted,'Could not find an available quote/reservation cell');checkoutReservations.push(quoted);assert.equal(quoted.quote.totalAmountMinor,100);assert.equal(quoted.quote.currency,'usd');assert.equal(quoted.quote.displayTotal,'$1');
+  const fulfilled=await request({action:'create',placement:placementInput(quoteCell),reservationId:quoted.reservation.reservationId,checkoutToken:quoted.checkoutToken});assert.ok(fulfilled.response.ok,JSON.stringify(fulfilled.result));createdIds.push(fulfilled.result.placement.placementId);checkoutReservations.splice(checkoutReservations.indexOf(quoted),1);
+  const fulfilledDelete=await request({action:'delete',placementId:fulfilled.result.placement.placementId});assert.ok(fulfilledDelete.response.ok,JSON.stringify(fulfilledDelete.result));createdIds.splice(createdIds.indexOf(fulfilled.result.placement.placementId),1);
 
   let created,cell;
   for(let attempt=0;attempt<30&&!created;attempt++){
@@ -152,8 +162,9 @@ try{
   assert.ok(reuseRemoved.response.ok,JSON.stringify(reuseRemoved.result));
   createdIds.splice(createdIds.indexOf(reused.result.placement.placementId),1);
 
-  console.log(JSON.stringify({adminLookup:true,adminAudit:true,creditLedger:true,creditIdempotency:true,fieldTakedown:true,fullSuspension:true,versionRollback:true,revocationWithCredit:true,reservation100k:true,reservationConflictSafety:true,expiryRace:true,privateSource:true,recoverableDraft:true,editableDesignSource:true,immutableContentV2:true,backgroundPublication:true,immutableArtwork:true,publicMetadata:true,ownerReload:true,overlapRejected:true,deleteRelease:true,cellReuse:true,cell},null,2));
+  console.log(JSON.stringify({serverQuote:true,anonymousReservation:true,atomicReservationFulfillment:true,adminLookup:true,adminAudit:true,creditLedger:true,creditIdempotency:true,fieldTakedown:true,fullSuspension:true,versionRollback:true,revocationWithCredit:true,reservation100k:true,reservationConflictSafety:true,expiryRace:true,privateSource:true,recoverableDraft:true,editableDesignSource:true,immutableContentV2:true,backgroundPublication:true,immutableArtwork:true,publicMetadata:true,ownerReload:true,overlapRejected:true,deleteRelease:true,cellReuse:true,cell},null,2));
 } finally {
+  for(const checkout of checkoutReservations)await publicRequest({action:'release-checkout-reservation',reservationId:checkout.reservation.reservationId,checkoutToken:checkout.checkoutToken}).catch(()=>{});
   for(const draftId of draftIds)await request({action:'delete-draft',draftId}).catch(()=>{});
   for(const placementId of createdIds)await request({action:'delete',placementId}).catch(()=>{});
   for(const reservationId of reservationIds)await request({action:'release-reservation',reservationId}).catch(()=>{});
