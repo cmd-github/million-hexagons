@@ -13,7 +13,7 @@ try{
     const viewport=mobile?{width:390,height:844}:{width:1440,height:900};
     const page=await browser.newPage({viewport,isMobile:mobile,hasTouch:mobile});
     const errors=[];page.on('pageerror',error=>errors.push(error.message));page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
-    const response=await page.goto(url);assert.equal(response.status(),200);await page.waitForSelector('#world[data-ready=true]',{timeout:90000});
+    const response=await page.goto(url);assert.equal(response.status(),200);await page.waitForSelector('#world[data-ready=true]',{timeout:90000});await page.waitForFunction(()=>typeof document.querySelector('#openAdmin')?.onclick==='function',null,{timeout:90000});
     await page.locator('#openAdmin').evaluate(button=>{button.hidden=false;button.click();});
     const workspace=page.locator('#adminWorkspace');await workspace.waitFor({state:'visible'});assert.equal(await page.locator('#adminQuery').evaluate(element=>element===document.activeElement),true);
     for(const selector of ['#adminSearch','#closeAdmin'])assert.equal(await page.locator(selector).isVisible(),true);assert.equal(await page.locator('#adminResults').count(),1);

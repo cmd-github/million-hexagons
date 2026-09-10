@@ -13,6 +13,7 @@ const post=async(url,body)=>{
 const artwork=await sharp({create:{width:64,height:64,channels:4,background:'#d7ff55'}}).webp({quality:90}).toBuffer();
 const artworkDataUrl=`data:image/webp;base64,${artwork.toString('base64')}`;
 let reservation;
+let checkoutCreated=false;
 try{
   for(let attempt=0;attempt<30&&!reservation;attempt++){
     const cell=650000+Math.floor(Math.random()*40000);
@@ -26,9 +27,15 @@ try{
   assert.ok(checkout.response.ok,JSON.stringify(checkout.result));
   assert.match(checkout.result.checkout.clientSecret,/^cs_test_.+_secret_/);
   assert.match(checkout.result.checkout.placementId,/^[0-9a-f-]{36}$/);
+  checkoutCreated=true;
   const retry=await post(checkoutApi,{reservationId:reservation.reservation.reservationId,checkoutToken:reservation.checkoutToken,placement});
   assert.ok(retry.response.ok,JSON.stringify(retry.result));assert.equal(retry.result.checkout.clientSecret,checkout.result.checkout.clientSecret);assert.equal(retry.result.checkout.placementId,checkout.result.checkout.placementId);
   console.log(JSON.stringify({stripeCheckoutCreated:true,idempotentRetry:true,serverPrice:reservation.quote.displayTotal,orderId:checkout.result.checkout.orderId},null,2));
 }finally{
-  if(reservation)await post(placementsApi,{action:'release-checkout-reservation',reservationId:reservation.reservation.reservationId,checkoutToken:reservation.checkoutToken}).catch(()=>{});
+  if(reservation){
+    const release=await post(placementsApi,{action:'release-checkout-reservation',reservationId:reservation.reservation.reservationId,checkoutToken:reservation.checkoutToken});
+    assert.ok(release.response.ok,JSON.stringify(release.result));
+    assert.equal(release.result.checkoutClosed,checkoutCreated);
+    console.log(JSON.stringify({reservationReleased:true,checkoutClosed:release.result.checkoutClosed},null,2));
+  }
 }

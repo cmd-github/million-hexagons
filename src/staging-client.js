@@ -53,3 +53,4 @@ export async function adminLookup(query) { return (await ownerRequest({ action: 
 export async function moderateTestClaim(placementId, command) { return (await ownerRequest({ action: 'moderate', placementId, command })).placement; }
 export async function grantTestCredits(ownerId, amount, reason) { return (await ownerRequest({ action: 'grant-credits', ownerId, amount, reason, idempotencyKey: crypto.randomUUID() })).credits; }
 export async function revokeTestClaim(placementId, reason, creditAmount) { return (await ownerRequest({ action: 'revoke', placementId, reason, creditAmount })).placement; }
+export async function refundTestPayment(placementId, amountMinor, reason) { return (await ownerRequest({ action: 'admin-refund', placementId, amountMinor, reason })).refund; }
