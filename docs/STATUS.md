@@ -6,13 +6,13 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Deploy and live-test authoritative server quotes and reservation-backed Review after Firebase CLI reauthentication.
+- [ ] Add Stripe test checkout and idempotent payment fulfilment against the verified quote/reservation boundary.
 
 ## Next
 
 - [ ] Validate first-time purchase intent and physical-device performance.
 - [ ] Complete passwordless purchase recovery and the My Globe ownership experience.
-- [ ] Add Stripe test checkout; prove fulfillment, failures, refunds and reconciliation before live payments.
+- [ ] Prove payment failures, refunds and reconciliation before live payments.
 - [ ] Build My Globe: owned placements and versioned content editing.
 - [ ] Add public placement/share pages and cards, then placement-based analytics.
 
@@ -42,10 +42,10 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [x] Owner credit ledger passed live: one credit represents one hex, grants and redemptions are immutable/idempotent, overspending is rejected, and revocation compensation is separately recorded.
 - [x] Subtle key control deployed in the globe utility bar for passwordless owner access; signed-in state shows placement and credit summaries and reserves admin controls for administrator claims.
 - [x] Founder-only content controls deployed and browser-tested: placement/owner lookup, field takedown/editing, suspension, version restoration, revocation, compensating credits and combined moderation/credit audit history.
+- [x] Authoritative versioned server quotes and 15-minute exact-cell reservations deployed; anonymous quote, overlap rejection, atomic placement fulfilment, expiry/release and desktop/mobile Review passed live.
 
 ## Blocked / Needs Craig
 
-- [ ] Run `firebase login --reauth`; the Firebase refresh credential expired before the quote/reservation functions could deploy.
 - [ ] Configure/confirm the $10 Cloudflare budget alert.
 - [ ] Review and complete [draft commercial terms](DRAFT-COMMERCIAL-TERMS.md), including final pricing, refunds, permanent-use wording and governing law.
 - [ ] Provide physical iOS/Android testing and observed first-time-user feedback.
