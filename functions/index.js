@@ -175,7 +175,7 @@ export const stagingPlacements = onRequest(
 
     try {
       if(action==='admin-payment-status'&&identity.stagingAdmin){
-        const db=getFirestore(),[orders,events,refunds]=await Promise.all([db.collection('stagingOrders').limit(50).get(),db.collection('stagingStripeEvents').limit(50).get(),db.collection('stagingRefunds').limit(50).get()]);
+        const db=getFirestore(),requestedOrderId=String(request.body.orderId||''),[orders,events,refunds]=await Promise.all([requestedOrderId?db.collection('stagingOrders').where('orderId','==',requestedOrderId).limit(1).get():db.collection('stagingOrders').limit(50).get(),requestedOrderId?db.collection('stagingStripeEvents').where('orderId','==',requestedOrderId).limit(50).get():db.collection('stagingStripeEvents').limit(50).get(),requestedOrderId?db.collection('stagingRefunds').where('orderId','==',requestedOrderId).limit(50).get():db.collection('stagingRefunds').limit(50).get()]);
         response.status(200).json({ok:true,orders:orders.docs.map(document=>{const data=document.data();return{orderId:document.id,status:data.status,paymentStatus:data.paymentStatus,placementId:data.placementId,stripeCheckoutSessionId:data.stripeCheckoutSessionId,lastPaymentError:data.lastPaymentError,ownershipOutcome:data.ownershipOutcome};}),events:events.docs.map(document=>{const data=document.data();return{eventId:document.id,type:data.type,status:data.status,error:data.error};}),refunds:refunds.docs.map(document=>document.data())});return;
       }
       if (action === 'create') {
@@ -398,7 +398,7 @@ export const stripeWebhook=onRequest({region:'europe-west1',maxInstances:3,timeo
   if(request.method!=='POST'){response.status(405).send('method-not-allowed');return;}let event;try{event=new Stripe(stripeSecretKey.value()).webhooks.constructEvent(request.rawBody,request.get('stripe-signature'),stripeWebhookSecret.value());}catch(error){response.status(400).send(`invalid-signature: ${error.message}`);return;}
   const eventRef=getFirestore().collection('stagingStripeEvents').doc(event.id),existingEvent=await eventRef.get();if(existingEvent.exists&&existingEvent.data().status==='processed'){response.status(200).json({received:true,duplicate:true});return;}
   try{
-    await eventRef.set({eventId:event.id,type:event.type,status:'processing',receivedAt:FieldValue.serverTimestamp()},{merge:true});
+    await eventRef.set({eventId:event.id,type:event.type,orderId:String(event.data.object?.metadata?.orderId||''),status:'processing',receivedAt:FieldValue.serverTimestamp()},{merge:true});
     const db=getFirestore(),object=event.data.object;
     if(event.type==='checkout.session.completed'||event.type==='checkout.session.async_payment_succeeded'){
       if(checkoutSessionState(object)==='paid')await fulfilPaidCheckout(db,object,Number(event.created)*1000);

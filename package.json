@@ -33,6 +33,7 @@
     "test:admin-workspace": "node scripts/admin-workspace-qa.mjs",
     "test:checkout-reservation": "node scripts/checkout-reservation-qa.mjs",
     "test:persistent-checkout": "node scripts/persistent-checkout-qa.mjs",
+    "test:payment-lifecycle": "node scripts/payment-lifecycle-live-qa.mjs",
     "test:globe-startup": "node scripts/globe-startup-qa.mjs",
     "test:globe-detail": "node --test scripts/globe-detail.test.mjs"
   },

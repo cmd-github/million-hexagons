@@ -6,18 +6,17 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Complete disposable Stripe acceptance for a declined card, refund webhook and paid-order reconciliation before live payments.
+- [ ] Extend My Globe editing from versioned name/description/URL updates to recoverable artwork editing.
 
 ## Next
 
 - [ ] Reduce first-visit close-up latency by loading exact geometry for the visible region instead of the full 17.2 MB topology (reserved for a higher-capability model).
 - [ ] Validate first-time purchase intent and physical-device performance.
-- [ ] Extend My Globe editing from versioned name/description/URL updates to recoverable artwork editing.
 - [ ] Add public placement/share pages and cards, then placement-based analytics.
 
 ## Done
 
-- [x] Payment resilience deployed to staging (`aea27f1a-485c-44bd-bada-6861afe9a8bb`). Failed and expired Checkout sessions now release reservations idempotently, processing payments retain their cells, paid sessions fulfil during cleanup/reconciliation, and cancelling after Checkout creation expires the Stripe session before freeing inventory. Refunds and disputes have separate audit records and retain ownership pending the final commercial policy; founder controls expose payment state and can request bounded test-mode refunds. Backend tests (29), live Checkout creation/retry/cancel, and desktop/mobile founder workspace passed. A real declined-card event, disposable refund webhook and reconciliation recovery still require end-to-end acceptance.
+- [x] Payment resilience and server-side Stripe acceptance deployed. Failed and expired Checkout sessions release reservations idempotently, processing payments retain cells, and paid sessions fulfil during cleanup/reconciliation. Stripe's test webhook subscription now includes asynchronous success/failure, payment failure, refund and dispute events. A real declined test payment and disposable successful charge/refund reached the signed webhook; the refund retained its explicit ownership outcome. Forced reconciliation closed an externally expired Checkout reservation with zero failures. Backend tests (29), live Checkout creation/retry/cancel, and desktop/mobile founder workspace passed. The staging UI remains at `aea27f1a-485c-44bd-bada-6861afe9a8bb`.
 - [x] Passwordless purchase recovery and My Globe deployed to staging (`031bc04b-e711-4b2a-9c05-2be6552c9b79`). Verified email sign-in now recovers both Firebase-UID and Stripe-email-owned placements, including cross-device link completion by re-entering the receiving email. My Globe shows placement artwork, status, acquisition date, versions and total cells; owners can return to a placement and publish immutable name, description or URL updates. Backend identity tests and desktop/mobile controlled browser journeys passed; live staging owner-access layout passed. Live inbox delivery and a real owner metadata edit remain unverified.
 - [x] Globe performance audit and staging startup/cache/grid repair deployed (`ddae8c82-7756-4546-8db7-3a5ba1e3cac7`). Live desktop/mobile first draw improved from roughly 18 seconds to 0.9–1.2 seconds; repeat saved close-ups reached 2.7–2.9 seconds. Obsolete wide grid work is cancelled after zooming. Exact first-visit close-ups still took 20–32 seconds across the observed runs, including CPU-throttled mobile emulation. Image/zoom checks and remaining memory/scaling limits are recorded in [Globe performance audit](GLOBE-PERFORMANCE-AUDIT.md).
 - [x] Fixed missing awaits in public placement listing and reservation release. Reproduced the live restoration error, then verified saved artwork/cell links and activity entries on live desktop/mobile. Final staging deployment, including reduced-motion repair: `dc620bda-1efc-41d7-a2df-6b84767ebe8e`.
@@ -70,7 +69,7 @@ Launch readiness: ~25%
 
 - Production foundation: IN PROGRESS
 - Durable ownership/domain: IN PROGRESS (staging ownership, versions and editable sources verified)
-- Inventory + checkout: IN PROGRESS (fresh embedded test-card payment, automatic completion and reload verified; failure/refund/reconciliation handling is deployed, with final Stripe acceptance remaining)
+- Inventory + checkout: IN PROGRESS (successful and declined test payments, refund handling, signed webhooks and forced reconciliation verified; final commercial terms and production configuration remain)
 - Publication: IN PROGRESS (immediate publication, public staging projection and backend takedown/rollback verified)
 - Owner experience: IN PROGRESS (passwordless recovery, owned-placement dashboard and versioned metadata editing deployed; artwork editing remains)
 - Growth/sharing: IN PROGRESS (cell links only)
