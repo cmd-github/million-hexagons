@@ -47,6 +47,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [x] Staging builds now force the persistent sandbox client and fail if Checkout is tree-shaken; served Worker assets were verified after redeploy.
 - [x] First Stripe test payment recovered and verified: one paid order fulfilled 12 exact cells under hashed buyer ownership and published immutable artwork; five-minute paid-order reconciliation now backs up webhooks.
 - [x] Embedded Stripe Checkout is deployed inside the Review panel; live server session creation/idempotent retry pass, and anonymous public placement restoration is wired into staging startup.
+- [x] The Review-to-Stripe wait now shows the shared branded hex loader immediately; the boot, editor and checkout states all inherit the same animation source and the staging bundle is deployed.
 
 ## Blocked / Needs Craig
 

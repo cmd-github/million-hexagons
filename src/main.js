@@ -1292,16 +1292,24 @@ async function stripeBrowser(){
   if(!window.Stripe)await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://js.stripe.com/clover/stripe.js';script.onload=resolve;script.onerror=()=>reject(new Error('Could not load secure payment.'));document.head.append(script);});
   return window.Stripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 }
+function showEmbeddedCheckoutLoading(){
+  const panel=document.querySelector('#embeddedCheckoutPanel'),container=document.querySelector('#embeddedCheckout'),status=document.querySelector('#embeddedCheckoutStatus'),indicator=document.createElement('div');
+  indicator.className='branded-loader checkout-loading';indicator.setAttribute('role','status');indicator.setAttribute('aria-label','Loading secure checkout');indicator.append(loading.querySelector('.loading-hex').cloneNode(true));
+  const message=document.createElement('p');message.textContent='Loading secure checkout…';indicator.append(message);container.replaceChildren(indicator);status.textContent='';panel.hidden=false;document.querySelector('#buyPanel').scrollTop=0;
+}
+function hideEmbeddedCheckout(){
+  embeddedCheckoutInstance?.destroy();embeddedCheckoutInstance=null;document.querySelector('#embeddedCheckout').replaceChildren();document.querySelector('#embeddedCheckoutPanel').hidden=true;
+}
 async function showEmbeddedCheckout(checkout){
-  const panel=document.querySelector('#embeddedCheckoutPanel'),status=document.querySelector('#embeddedCheckoutStatus');panel.hidden=false;status.textContent='';document.querySelector('#buyPanel').scrollTop=0;
+  const panel=document.querySelector('#embeddedCheckoutPanel'),container=document.querySelector('#embeddedCheckout'),status=document.querySelector('#embeddedCheckoutStatus');panel.hidden=false;status.textContent='';document.querySelector('#buyPanel').scrollTop=0;
   if(embeddedCheckoutInstance)embeddedCheckoutInstance.destroy();
   const stripe=await stripeBrowser();embeddedCheckoutInstance=await stripe.initEmbeddedCheckout({fetchClientSecret:async()=>checkout.clientSecret,onComplete:async()=>{
-    embeddedCheckoutInstance?.destroy();embeddedCheckoutInstance=null;document.querySelector('#embeddedCheckout').replaceChildren();status.textContent='Payment received. Adding your placement to the globe…';
+    embeddedCheckoutInstance?.destroy();embeddedCheckoutInstance=null;container.replaceChildren();status.textContent='Payment received. Adding your placement to the globe…';
     for(let attempt=0;attempt<30;attempt++){const records=await restorePublicPlacements();const match=records.find(record=>record.cells.length===selectedCells.length&&record.cells.every(cell=>selectedCells.some(selected=>selected.id===cell)));if(match){status.textContent='Placement added to the globe.';clearCheckoutReservation();setTimeout(()=>{panel.hidden=true;closeBuy();inspectPlacement(match.anchor);},700);return;}await new Promise(resolve=>setTimeout(resolve,1000));}
     status.textContent='Payment received. Publication is still processing; the placement will appear automatically.';
-  }});embeddedCheckoutInstance.mount('#embeddedCheckout');
+  }});container.replaceChildren();embeddedCheckoutInstance.mount('#embeddedCheckout');
 }
-document.querySelector('#closeEmbeddedCheckout').onclick=()=>{embeddedCheckoutInstance?.destroy();embeddedCheckoutInstance=null;document.querySelector('#embeddedCheckout').replaceChildren();document.querySelector('#embeddedCheckoutPanel').hidden=true;};
+document.querySelector('#closeEmbeddedCheckout').onclick=hideEmbeddedCheckout;
 if(import.meta.env.VITE_STAGING_SANDBOX){
   stagingClient=await import('./staging-client.js');
   try{await restorePublicPlacements();}catch(error){console.error('Could not load public staging placements',error);}
@@ -1383,8 +1391,9 @@ async function paintPlacement() {
   if(stagingClient){
     publishing=true;
     if(!activeCheckoutReservation){publishing=false;const target=document.querySelector('#websiteError');target.hidden=false;target.textContent='This reservation expired. Choose the location again.';return;}
+    showEmbeddedCheckoutLoading();await nextPaint();
     try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),placement={topologyVersion:'geodesic-v1',anchor:selectedCell.id,cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},checkout=await stagingClient.createStripeCheckout(placement,activeCheckoutReservation.reservation.reservationId,activeCheckoutReservation.checkoutToken);await showEmbeddedCheckout(checkout);publishing=false;return;}
-    catch(error){publishing=false;const target=document.querySelector('#websiteError');target.hidden=false;target.textContent=error.code==='reservation-invalid'?'This reservation expired. Choose the location again.':'Could not open secure checkout. Your design is still here.';return;}
+    catch(error){publishing=false;hideEmbeddedCheckout();const target=document.querySelector('#websiteError');target.hidden=false;target.textContent=error.code==='reservation-invalid'?'This reservation expired. Choose the location again.':'Could not open secure checkout. Your design is still here.';return;}
   }
   publishing=true;
   document.querySelector('#buyPanel').inert=true;

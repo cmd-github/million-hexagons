@@ -24,7 +24,7 @@
     </style>
   </head>
   <body class="booting" aria-busy="true">
-    <div id="appLoading" role="status" aria-label="Loading Million Hexagons">
+    <div id="appLoading" class="branded-loader" role="status" aria-label="Loading Million Hexagons">
       <svg class="loading-hex" viewBox="0 0 60 60" aria-hidden="true"><polygon points="30,3 54,16.5 54,43.5 30,57 6,43.5 6,16.5" opacity=".15"/><polygon class="hex-trail" points="30,3 54,16.5 54,43.5 30,57 6,43.5 6,16.5"/><polygon class="hex-core" points="30,21 38,25.5 38,34.5 30,39 22,34.5 22,25.5"/></svg>
       <p id="loadingError" hidden></p><button id="loadingRetry" hidden onclick="location.reload()">Try again</button>
     </div>
