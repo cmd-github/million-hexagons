@@ -50,7 +50,7 @@
         <button type="button" id="toggleAccount" aria-label="Owner sign in" aria-expanded="false" title="Owner sign in"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="3"/><path d="M10.5 13.5 20 4m-3 0h3v3m-6 0 3 3"/></svg></button>
         <section id="accountPanel" hidden aria-label="Owner access">
           <div id="accountSignedOut"><b>Access your placements</b><p>We’ll email you a secure link. No password needed.</p><label for="accountEmail">Email</label><input id="accountEmail" type="email" autocomplete="email" placeholder="you@example.com"><button type="button" id="sendAccountLink">Email me a sign-in link</button></div>
-          <div id="accountSignedIn" hidden><b>Your account</b><small id="accountIdentity"></small><div class="account-summary"><span><strong id="accountPlacementCount">0</strong> placements</span><span><strong id="accountCreditCount">0</strong> credits</span></div><button type="button" id="openAdmin" hidden>Content controls</button><button type="button" id="accountSignOut">Sign out</button></div>
+          <div id="accountSignedIn" hidden><b>Your account</b><small id="accountIdentity"></small><div class="account-summary"><span><strong id="accountPlacementCount">0</strong> placements</span><span><strong id="accountCreditCount">0</strong> credits</span></div><button type="button" id="openMyGlobe">Open My Globe</button><button type="button" id="openAdmin" hidden>Content controls</button><button type="button" id="accountSignOut">Sign out</button></div>
           <small id="accountStatus" role="status"></small>
         </section>
       </div>
@@ -60,6 +60,10 @@
       </form>
       <button id="zoomIn" aria-label="Zoom in">+</button><button id="zoomOut" aria-label="Zoom out">−</button><button id="homeView" aria-label="Re-centre globe">⌂</button>
     </nav>
+    <section id="myGlobe" class="my-globe" hidden aria-label="My Globe">
+      <header><div><small>YOUR SPACE ON THE WORLD</small><h2>My Globe</h2><p id="myGlobeSummary"></p></div><button type="button" id="closeMyGlobe" aria-label="Close My Globe">&times;</button></header>
+      <p id="myGlobeStatus" role="status"></p><div id="myGlobePlacements" class="my-globe-grid"></div>
+    </section>
     <section id="adminWorkspace" class="admin-workspace" hidden aria-label="Founder content controls">
       <header><div><small>FOUNDER CONTROLS</small><h2>Placement moderation</h2></div><button type="button" id="closeAdmin" aria-label="Close content controls">&times;</button></header>
       <form id="adminSearch"><label for="adminQuery">Placement ID, owner email or owner ID</label><div><input id="adminQuery" autocomplete="off" required><button type="submit">Find</button></div></form>

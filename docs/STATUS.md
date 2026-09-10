@@ -6,18 +6,18 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Reduce first-visit close-up latency by loading exact geometry for the visible region instead of the full 17.2 MB topology.
+- [ ] Prove payment failures, refunds and reconciliation before live payments.
 
 ## Next
 
-- [ ] Complete passwordless purchase recovery and the My Globe ownership experience.
+- [ ] Reduce first-visit close-up latency by loading exact geometry for the visible region instead of the full 17.2 MB topology (reserved for a higher-capability model).
 - [ ] Validate first-time purchase intent and physical-device performance.
-- [ ] Prove payment failures, refunds and reconciliation before live payments.
-- [ ] Build My Globe: owned placements and versioned content editing.
+- [ ] Extend My Globe editing from versioned name/description/URL updates to recoverable artwork editing.
 - [ ] Add public placement/share pages and cards, then placement-based analytics.
 
 ## Done
 
+- [x] Passwordless purchase recovery and My Globe deployed to staging (`031bc04b-e711-4b2a-9c05-2be6552c9b79`). Verified email sign-in now recovers both Firebase-UID and Stripe-email-owned placements, including cross-device link completion by re-entering the receiving email. My Globe shows placement artwork, status, acquisition date, versions and total cells; owners can return to a placement and publish immutable name, description or URL updates. Backend identity tests and desktop/mobile controlled browser journeys passed; live staging owner-access layout passed. Live inbox delivery and a real owner metadata edit remain unverified.
 - [x] Globe performance audit and staging startup/cache/grid repair deployed (`ddae8c82-7756-4546-8db7-3a5ba1e3cac7`). Live desktop/mobile first draw improved from roughly 18 seconds to 0.9–1.2 seconds; repeat saved close-ups reached 2.7–2.9 seconds. Obsolete wide grid work is cancelled after zooming. Exact first-visit close-ups still took 20–32 seconds across the observed runs, including CPU-throttled mobile emulation. Image/zoom checks and remaining memory/scaling limits are recorded in [Globe performance audit](GLOBE-PERFORMANCE-AUDIT.md).
 - [x] Fixed missing awaits in public placement listing and reservation release. Reproduced the live restoration error, then verified saved artwork/cell links and activity entries on live desktop/mobile. Final staging deployment, including reduced-motion repair: `dc620bda-1efc-41d7-a2df-6b84767ebe8e`.
 - [x] Fresh embedded Stripe test-card payment completed, automatically closed checkout, appeared without refresh and restored artwork on a fresh page. Verification placement: `cb963840-0598-4e78-a1d6-90d2cb79ed84`, cell `31677` (test mode only). Backend tests: 24 passed. Automated client/renderer regression coverage: `npm run test:persistent-checkout`; physical devices remain unverified.
@@ -71,6 +71,6 @@ Launch readiness: ~25%
 - Durable ownership/domain: IN PROGRESS (staging ownership, versions and editable sources verified)
 - Inventory + checkout: IN PROGRESS (fresh embedded test-card payment, automatic completion and reload verified; payment failure/refund/reconciliation acceptance remains)
 - Publication: IN PROGRESS (immediate publication, public staging projection and backend takedown/rollback verified)
-- Owner experience: NOT STARTED
+- Owner experience: IN PROGRESS (passwordless recovery, owned-placement dashboard and versioned metadata editing deployed; artwork editing remains)
 - Growth/sharing: IN PROGRESS (cell links only)
 - Analytics: NOT STARTED (illustrative/local counters only)

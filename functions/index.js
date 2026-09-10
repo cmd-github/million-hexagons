@@ -19,6 +19,7 @@ import { releaseTestReservation, reserveTestCells } from './reservations.js';
 import { quoteCells } from './pricing.js';
 import Stripe from 'stripe';
 import { checkoutLineItem, checkoutOrderId, checkoutOwnerId, paidCheckoutEmail, paidEmailOwnerId } from './payments.js';
+import { ownerIdsForIdentity } from './owner-access.js';
 
 initializeApp();
 const stagingSandboxEnabled = defineBoolean('MH_STAGING_SANDBOX', { default: false });
@@ -77,6 +78,13 @@ export const launchSignup = onRequest(
 
 function stagingOrigin(origin) {
   return !origin || origin === 'https://million-hexagons-staging.million-hexagons.workers.dev' || /^https:\/\/([a-z0-9-]+\.)*millionhexagons\.com$/.test(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+}
+
+async function ownerPlacementDocuments(db, ownerIds) {
+  const snapshots = await Promise.all(ownerIds.map(ownerId => db.collection('stagingPlacements').where('ownerId', '==', ownerId).get()));
+  const documents = new Map();
+  snapshots.forEach(snapshot => snapshot.docs.forEach(document => documents.set(document.id, document)));
+  return [...documents.values()];
 }
 
 async function savePrivateArtwork(path, artworkDataUrl, metadata = {}) {
@@ -160,6 +168,7 @@ export const stagingPlacements = onRequest(
       catch { response.status(401).json({ ok: false, error: 'invalid-authentication' }); return; }
     }
     if (!identity.email_verified) { response.status(403).json({ ok: false, error: 'verified-email-required' }); return; }
+    const ownerIds=ownerIdsForIdentity(identity);
 
     try {
       if(action==='admin-payment-status'&&identity.stagingAdmin){
@@ -216,9 +225,18 @@ export const stagingPlacements = onRequest(
         response.status(200).json({ ok: true, placement: result });
         return;
       }
+      if (action === 'update-metadata') {
+        const placementId=String(request.body.placementId||''),db=getFirestore(),placementSnapshot=await db.collection('stagingPlacements').doc(placementId).get();
+        if(!placementSnapshot.exists||!ownerIds.includes(placementSnapshot.data().ownerId)||['deleted','revoked'].includes(placementSnapshot.data().status)){response.status(404).json({ok:false,error:'placement-not-found'});return;}
+        const currentVersion=Number(placementSnapshot.data().currentVersion||1),contentSnapshot=await db.collection('stagingPlacementVersions').doc(`${placementId}-v${currentVersion}`).get(),current=contentSnapshot.data();
+        if(!current?.source){response.status(409).json({ok:false,error:'editable-source-unavailable'});return;}
+        const content={title:request.body.content?.title,description:request.body.content?.description,destinationUrl:request.body.content?.destinationUrl,artworkDataUrl:'',topologyVersion:placementSnapshot.data().topologyVersion,anchor:placementSnapshot.data().anchor,cells:decodeCells(placementSnapshot.data().cellsData)};
+        const result=await updateTestPlacementContent(db,placementId,placementSnapshot.data().ownerId,content,FieldValue.serverTimestamp(),current.source,current.designSource||null);
+        response.status(200).json({ok:true,placement:result});return;
+      }
       if (action === 'get-content-source') {
         const placementId = String(request.body.placementId || ''), placement = await getFirestore().collection('stagingPlacements').doc(placementId).get();
-        if (!placement.exists || placement.data().ownerId !== identity.uid || placement.data().status === 'deleted') { response.status(404).json({ ok: false, error: 'placement-not-found' }); return; }
+        if (!placement.exists || !ownerIds.includes(placement.data().ownerId) || placement.data().status === 'deleted') { response.status(404).json({ ok: false, error: 'placement-not-found' }); return; }
         const version = Number(request.body.version || placement.data().currentVersion || 1), content = await getFirestore().collection('stagingPlacementVersions').doc(`${placementId}-v${version}`).get();
         if (!content.exists || !content.data().designSource) { response.status(404).json({ ok: false, error: 'design-source-not-found' }); return; }
         response.status(200).json({ ok: true, placement: { placementId, version, ...(await loadPrivateDesign(content.data().designSource)) } });
@@ -239,7 +257,7 @@ export const stagingPlacements = onRequest(
       }
       if (action === 'grant-credits') {if(identity.stagingAdmin!==true){response.status(403).json({ok:false,error:'administrator-required'});return;}const result=await issueCredits(getFirestore(),{ownerId:String(request.body.ownerId||''),amount:request.body.amount,reason:String(request.body.reason||''),actorId:identity.uid,idempotencyKey:String(request.body.idempotencyKey||randomUUID())},FieldValue.serverTimestamp());response.status(200).json({ok:true,credits:result});return;}
       if (action === 'redeem-credits') {const result=await redeemCredits(getFirestore(),{ownerId:identity.uid,amount:request.body.amount,placementId:String(request.body.placementId||''),idempotencyKey:String(request.body.idempotencyKey||randomUUID())},FieldValue.serverTimestamp());response.status(200).json({ok:true,credits:result});return;}
-      if (action === 'account-summary') {const [placements,balance]=await Promise.all([getFirestore().collection('stagingPlacements').where('ownerId','==',identity.uid).get(),getFirestore().collection('stagingCreditBalances').doc(identity.uid).get()]);response.status(200).json({ok:true,summary:{placements:placements.docs.filter(doc=>!['deleted','revoked'].includes(doc.data().status)).length,credits:Number(balance.data()?.available||0),administrator:identity.stagingAdmin===true}});return;}
+      if (action === 'account-summary') {const db=getFirestore(),[placements,balances]=await Promise.all([ownerPlacementDocuments(db,ownerIds),Promise.all(ownerIds.map(ownerId=>db.collection('stagingCreditBalances').doc(ownerId).get()))]);response.status(200).json({ok:true,summary:{placements:placements.filter(doc=>!['deleted','revoked'].includes(doc.data().status)).length,credits:balances.reduce((sum,item)=>sum+Number(item.data()?.available||0),0),administrator:identity.stagingAdmin===true}});return;}
       if (action === 'admin-lookup') {
         if(identity.stagingAdmin!==true){response.status(403).json({ok:false,error:'administrator-required'});return;}
         const query=String(request.body.query||'').trim();if(!query){response.status(400).json({ok:false,error:'query-required'});return;}
@@ -272,7 +290,9 @@ export const stagingPlacements = onRequest(
       }
       if (action === 'delete') {
         const placementId = String(request.body.placementId || ''), versionRef = getFirestore().collection('stagingPlacementVersions').doc(`${placementId}-v1`), version = await versionRef.get();
-        const result = await deleteTestPlacement(getFirestore(), placementId, FieldValue.serverTimestamp(), identity.stagingAdmin === true ? null : identity.uid);
+        const owned=await getFirestore().collection('stagingPlacements').doc(placementId).get();
+        if(identity.stagingAdmin!==true&&(!owned.exists||!ownerIds.includes(owned.data().ownerId))){response.status(404).json({ok:false,error:'placement-not-found'});return;}
+        const result = await deleteTestPlacement(getFirestore(), placementId, FieldValue.serverTimestamp(), identity.stagingAdmin === true ? null : owned.data().ownerId);
         const source = version.data()?.source;
         if (source?.bucket && source?.path) await getStorage().bucket(source.bucket).file(source.path).delete({ ignoreNotFound: true }).catch(error => logger.warn('Could not remove deleted staging source', { placementId, message: error.message }));
         response.status(200).json({ ok: true, placement: result });
@@ -287,10 +307,11 @@ export const stagingPlacements = onRequest(
         await getFirestore().collection('stagingModerationActions').doc(randomUUID()).set({placementId,action:'revoke',reason,creditAmount:Number(request.body.creditAmount)||0,actorId:identity.uid,createdAt:FieldValue.serverTimestamp()});response.status(200).json({ok:true,placement:{placementId,status:'revoked',releasedCells:released.releasedCells},credits});return;
       }
       if (action === 'list') {
-        const snapshot = await getFirestore().collection('stagingPlacements').where('ownerId', '==', identity.uid).get();
-        const active = snapshot.docs.map(document => document.data()).filter(placement => !['deleted','revoked'].includes(placement.status));
-        const versions = await Promise.all(active.map(placement => getFirestore().collection('stagingPlacementVersions').doc(`${placement.placementId}-v${placement.publicState?.publicVersion || placement.currentVersion || 1}`).get()));
-        const placements = active.map((placement, index) => { const content = versions[index].data() || {},visible=publicPlacement(content,placement.publicState); return { placementId: placement.placementId, topologyVersion: placement.topologyVersion, anchor: placement.anchor, cells: decodeCells(placement.cellsData), cellCount: placement.cellCount, ...visible, publicationStatus: content.publication?.status || 'preview-only', status: placement.status, createdAt: placement.createdAt?.toMillis?.() || null }; });
+        const documents=await ownerPlacementDocuments(getFirestore(),ownerIds);
+        const active = documents.map(document => document.data()).filter(placement => !['deleted','revoked'].includes(placement.status));
+        const versions = await Promise.all(active.map(placement => getFirestore().collection('stagingPlacementVersions').doc(`${placement.placementId}-v${placement.currentVersion || 1}`).get()));
+        const publishedVersions=await Promise.all(active.map((placement,index)=>Number(placement.currentPublishedVersion||0)&&Number(placement.currentPublishedVersion)!==Number(placement.currentVersion||1)?getFirestore().collection('stagingPlacementVersions').doc(`${placement.placementId}-v${placement.currentPublishedVersion}`).get():versions[index]));
+        const placements = active.map((placement, index) => { const content = versions[index].data() || {},published=publishedVersions[index].data()||{}; return { placementId: placement.placementId, topologyVersion: placement.topologyVersion, anchor: placement.anchor, cells: decodeCells(placement.cellsData), cellCount: placement.cellCount,title:content.title||placement.title||'',description:content.description||'',destinationUrl:content.destinationUrl||'',artworkDataUrl:content.publication?.artworkUrl||published.publication?.artworkUrl||content.artworkDataUrl||'',publicationStatus:content.publication?.status||'preview-only',currentVersion:Number(placement.currentVersion||1),publicStatus:placement.publicState?.status||'active', status: placement.status, createdAt: placement.createdAt?.toMillis?.() || null }; });
         response.status(200).json({ ok: true, placements });
         return;
       }
