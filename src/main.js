@@ -1264,6 +1264,11 @@ let publishing=false;
 let stagingClient=null,stagingUser=null,activeCheckoutReservation=null,checkoutExpiryTimer=null,embeddedCheckoutInstance=null;
 let restoredStagingOwner=null,restoringStagingOwner=null;
 const restoredPlacementIds=new Set();
+let persistentNavigationReady=false,pendingPersistentFocus=null;
+function focusPersistentPlacement(record){
+  if(!persistentNavigationReady){pendingPersistentFocus=record;return;}
+  flyToCell(record.anchor,.004,1200,()=>inspectPlacement(record.anchor));
+}
 function clearCheckoutReservation(){activeCheckoutReservation=null;clearInterval(checkoutExpiryTimer);checkoutExpiryTimer=null;const message=document.querySelector('#serverQuoteStatus');if(message)message.textContent='Estimated at $1 per cell';}
 async function releaseActiveCheckoutReservation(){const active=activeCheckoutReservation;clearCheckoutReservation();if(active&&stagingClient)await stagingClient.releaseCheckoutReservation(active.reservation.reservationId,active.checkoutToken).catch(()=>{});}
 function showCheckoutExpiry(){
@@ -1283,7 +1288,7 @@ async function applyPersistentPlacements(records,{focus=false}={}){
     return{record,cells,placementRecord};
   });
   occupancyTexture.needsUpdate=true;sold=Math.min(1000000,sold+fresh.reduce((sum,record)=>sum+record.cellCount,0));updateInventoryDisplay();renderClaimFeed();
-  const latest=[...fresh].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];if(focus&&latest)flyToCell(latest.anchor,.004,1200,()=>inspectPlacement(latest.anchor));
+  const latest=[...fresh].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];if(focus&&latest)focusPersistentPlacement(latest);
   for(const {record,cells,placementRecord} of restored)if(record.artworkDataUrl){const image=new Image();image.crossOrigin='anonymous';image.onload=()=>{addHighResolutionPlacement('#000','contain',placementLayers,{cells,anchor:cellForId(record.anchor),artwork:image});placementRecord.logo=record.artworkDataUrl;};image.onerror=()=>console.error('Could not load persistent placement artwork',record.placementId);image.src=record.artworkDataUrl;}
   return records;
 }
@@ -1766,7 +1771,12 @@ async function openLocationLink(){
   if(occupiedCells[id-1]){inspectPlacement(id);viewInspectedPlacement();}else flyToCell(id,.004,1800);
 
 }
-addEventListener('hashchange',openLocationLink);void openLocationLink();
+// Reduced-motion flights complete synchronously, so the inspector must be initialized first.
+persistentNavigationReady=true;
+addEventListener('hashchange',openLocationLink);
+if(/^#cell=\d+$/.test(location.hash))void openLocationLink();
+else if(pendingPersistentFocus)focusPersistentPlacement(pendingPersistentFocus);
+pendingPersistentFocus=null;
 
 canvas.addEventListener('dblclick',event=>{
   if(document.body.dataset.flow==='design'&&logoEditorMode!=='pan')return;

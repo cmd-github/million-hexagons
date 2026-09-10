@@ -6,6 +6,8 @@ For deployment/runtime-origin changes, run `npm run test:deployment` and the sep
 
 ## Core checks
 
+`npm run test:persistent-checkout` starts its own staging-enabled development server and checks the real browser client on desktop/mobile using controlled API and Stripe responses. Covers delayed request results/errors, restoration despite stalled artwork, reduced-motion startup, the branded checkout loader, permanent-ID completion, full reload with artwork, and occupied-cell rejection. It creates no live payments or placements. Inspect `artifacts/persistent-checkout/`; a separate live Stripe test payment is required to verify Stripe and webhook integration.
+
 ```powershell
 npm run build
 npm run dev -- --port 4180
