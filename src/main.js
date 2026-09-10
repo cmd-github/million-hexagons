@@ -1279,7 +1279,7 @@ async function applyPersistentPlacements(records,{focus=false}={}){
   for(const record of fresh){
     const cells=topology.cells(record.cells,record.anchor),placementRecord={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor};
     cells.forEach(cell=>{occupiedCells[cell.id-1]=255;sessionPlacements.set(cell.id,placementRecord);});
-    if(record.artworkDataUrl){const image=new Image();await new Promise(resolve=>{image.onload=resolve;image.onerror=resolve;image.src=record.artworkDataUrl;});if(image.naturalWidth){addHighResolutionPlacement('#000','contain',placementLayers,{cells,anchor:cellForId(record.anchor),artwork:image});placementRecord.logo=record.artworkDataUrl;}}
+    if(record.artworkDataUrl){const image=new Image();image.crossOrigin='anonymous';await new Promise(resolve=>{image.onload=resolve;image.onerror=resolve;image.src=record.artworkDataUrl;});if(image.naturalWidth){addHighResolutionPlacement('#000','contain',placementLayers,{cells,anchor:cellForId(record.anchor),artwork:image});placementRecord.logo=record.artworkDataUrl;}}
     restoredPlacementIds.add(record.placementId);
   }
   occupancyTexture.needsUpdate=true;sold=Math.min(1000000,sold+fresh.reduce((sum,record)=>sum+record.cellCount,0));updateInventoryDisplay();renderClaimFeed();
@@ -1316,7 +1316,7 @@ async function showEmbeddedCheckout(checkout){
 document.querySelector('#closeEmbeddedCheckout').onclick=hideEmbeddedCheckout;
 if(import.meta.env.VITE_STAGING_SANDBOX){
   stagingClient=await import('./staging-client.js');
-  try{await restorePublicPlacements();}catch(error){console.error('Could not load public staging placements',error);}
+  try{await restorePublicPlacements({focus:true});}catch(error){console.error('Could not load public staging placements',error);}
   const access=document.querySelector('#stagingOwnerAccess'),status=document.querySelector('#stagingOwnerStatus'),accountPanel=document.querySelector('#accountPanel'),accountStatus=document.querySelector('#accountStatus'),accountToggle=document.querySelector('#toggleAccount');access.hidden=false;
   accountToggle.onclick=()=>{const opening=accountPanel.hidden;accountPanel.hidden=!opening;accountToggle.setAttribute('aria-expanded',String(opening));if(opening&&!stagingUser)document.querySelector('#accountEmail').focus();};
   document.addEventListener('pointerdown',event=>{if(!accountPanel.hidden&&!event.target.closest('.account-access')){accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');}});

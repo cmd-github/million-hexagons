@@ -49,6 +49,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [x] Embedded Stripe Checkout is deployed inside the Review panel; live server session creation/idempotent retry pass, and anonymous public placement restoration is wired into staging startup.
 - [x] The Review-to-Stripe wait now shows the shared branded hex loader immediately; the boot, editor and checkout states all inherit the same animation source and the staging bundle is deployed.
 - [x] A second paid 17-cell placement fulfilled and published, exposing a fragile post-payment cell-match; completion now follows the permanent placement ID, tolerates transient polling/render errors and provides a saved-placement fallback.
+- [x] Fresh staging loads restore published CDN artwork as explicit CORS textures and focus the newest persistent placement so saved custom work is immediately visible.
 
 ## Blocked / Needs Craig
 
