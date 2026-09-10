@@ -6,7 +6,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Complete one fresh embedded test-card payment in the Review panel and visually verify immediate placement plus reload persistence.
+- [ ] Retest one fresh embedded payment and confirm the permanent-ID completion handoff closes automatically and survives reload.
 
 ## Next
 
@@ -48,6 +48,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [x] First Stripe test payment recovered and verified: one paid order fulfilled 12 exact cells under hashed buyer ownership and published immutable artwork; five-minute paid-order reconciliation now backs up webhooks.
 - [x] Embedded Stripe Checkout is deployed inside the Review panel; live server session creation/idempotent retry pass, and anonymous public placement restoration is wired into staging startup.
 - [x] The Review-to-Stripe wait now shows the shared branded hex loader immediately; the boot, editor and checkout states all inherit the same animation source and the staging bundle is deployed.
+- [x] A second paid 17-cell placement fulfilled and published, exposing a fragile post-payment cell-match; completion now follows the permanent placement ID, tolerates transient polling/render errors and provides a saved-placement fallback.
 
 ## Blocked / Needs Craig
 

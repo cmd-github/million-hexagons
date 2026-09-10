@@ -1305,8 +1305,12 @@ async function showEmbeddedCheckout(checkout){
   if(embeddedCheckoutInstance)embeddedCheckoutInstance.destroy();
   const stripe=await stripeBrowser();embeddedCheckoutInstance=await stripe.initEmbeddedCheckout({fetchClientSecret:async()=>checkout.clientSecret,onComplete:async()=>{
     embeddedCheckoutInstance?.destroy();embeddedCheckoutInstance=null;container.replaceChildren();status.textContent='Payment received. Adding your placement to the globe…';
-    for(let attempt=0;attempt<30;attempt++){const records=await restorePublicPlacements();const match=records.find(record=>record.cells.length===selectedCells.length&&record.cells.every(cell=>selectedCells.some(selected=>selected.id===cell)));if(match){status.textContent='Placement added to the globe.';clearCheckoutReservation();setTimeout(()=>{panel.hidden=true;closeBuy();inspectPlacement(match.anchor);},700);return;}await new Promise(resolve=>setTimeout(resolve,1000));}
-    status.textContent='Payment received. Publication is still processing; the placement will appear automatically.';
+    for(let attempt=0;attempt<60;attempt++){
+      try{const records=await stagingClient.listPublicClaims(),match=records.find(record=>record.placementId===checkout.placementId);if(match){try{await applyPersistentPlacements([match]);}catch(error){console.error('Could not render the completed placement before closing checkout',error);}status.textContent='Placement added to the globe.';clearCheckoutReservation();setTimeout(()=>{panel.hidden=true;closeBuy();inspectPlacement(match.anchor);},700);return;}}
+      catch(error){console.error('Could not check completed placement',error);}
+      await new Promise(resolve=>setTimeout(resolve,1000));
+    }
+    status.textContent='Payment received and your placement is saved. Close this panel to return to the globe; it will appear after refresh.';
   }});container.replaceChildren();embeddedCheckoutInstance.mount('#embeddedCheckout');
 }
 document.querySelector('#closeEmbeddedCheckout').onclick=hideEmbeddedCheckout;

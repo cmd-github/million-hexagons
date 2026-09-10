@@ -25,8 +25,9 @@ try{
   const checkout=await post(checkoutApi,{reservationId:reservation.reservation.reservationId,checkoutToken:reservation.checkoutToken,placement});
   assert.ok(checkout.response.ok,JSON.stringify(checkout.result));
   assert.match(checkout.result.checkout.clientSecret,/^cs_test_.+_secret_/);
+  assert.match(checkout.result.checkout.placementId,/^[0-9a-f-]{36}$/);
   const retry=await post(checkoutApi,{reservationId:reservation.reservation.reservationId,checkoutToken:reservation.checkoutToken,placement});
-  assert.ok(retry.response.ok,JSON.stringify(retry.result));assert.equal(retry.result.checkout.clientSecret,checkout.result.checkout.clientSecret);
+  assert.ok(retry.response.ok,JSON.stringify(retry.result));assert.equal(retry.result.checkout.clientSecret,checkout.result.checkout.clientSecret);assert.equal(retry.result.checkout.placementId,checkout.result.checkout.placementId);
   console.log(JSON.stringify({stripeCheckoutCreated:true,idempotentRetry:true,serverPrice:reservation.quote.displayTotal,orderId:checkout.result.checkout.orderId},null,2));
 }finally{
   if(reservation)await post(placementsApi,{action:'release-checkout-reservation',reservationId:reservation.reservation.reservationId,checkoutToken:reservation.checkoutToken}).catch(()=>{});
