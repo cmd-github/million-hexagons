@@ -1276,14 +1276,15 @@ function publicationArtwork(canvas){return canvas.toDataURL('image/webp',.95);}
 async function applyPersistentPlacements(records,{focus=false}={}){
   const fresh=records.filter(record=>!restoredPlacementIds.has(record.placementId));if(!fresh.length)return records;
   await ensureTopology();
-  for(const record of fresh){
+  const restored=fresh.map(record=>{
     const cells=topology.cells(record.cells,record.anchor),placementRecord={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor};
     cells.forEach(cell=>{occupiedCells[cell.id-1]=255;sessionPlacements.set(cell.id,placementRecord);});
-    if(record.artworkDataUrl){const image=new Image();image.crossOrigin='anonymous';await new Promise(resolve=>{image.onload=resolve;image.onerror=resolve;image.src=record.artworkDataUrl;});if(image.naturalWidth){addHighResolutionPlacement('#000','contain',placementLayers,{cells,anchor:cellForId(record.anchor),artwork:image});placementRecord.logo=record.artworkDataUrl;}}
     restoredPlacementIds.add(record.placementId);
-  }
+    return{record,cells,placementRecord};
+  });
   occupancyTexture.needsUpdate=true;sold=Math.min(1000000,sold+fresh.reduce((sum,record)=>sum+record.cellCount,0));updateInventoryDisplay();renderClaimFeed();
   const latest=[...fresh].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];if(focus&&latest)flyToCell(latest.anchor,.004,1200,()=>inspectPlacement(latest.anchor));
+  for(const {record,cells,placementRecord} of restored)if(record.artworkDataUrl){const image=new Image();image.crossOrigin='anonymous';image.onload=()=>{addHighResolutionPlacement('#000','contain',placementLayers,{cells,anchor:cellForId(record.anchor),artwork:image});placementRecord.logo=record.artworkDataUrl;};image.onerror=()=>console.error('Could not load persistent placement artwork',record.placementId);image.src=record.artworkDataUrl;}
   return records;
 }
 async function restoreTestPlacements(){return applyPersistentPlacements(await stagingClient.listTestClaims(),{focus:true});}

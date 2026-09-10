@@ -50,6 +50,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [x] The Review-to-Stripe wait now shows the shared branded hex loader immediately; the boot, editor and checkout states all inherit the same animation source and the staging bundle is deployed.
 - [x] A second paid 17-cell placement fulfilled and published, exposing a fragile post-payment cell-match; completion now follows the permanent placement ID, tolerates transient polling/render errors and provides a saved-placement fallback.
 - [x] Fresh staging loads restore published CDN artwork as explicit CORS textures and focus the newest persistent placement so saved custom work is immediately visible.
+- [x] Persistent inventory restoration no longer waits serially for artwork: every saved cell is marked occupied immediately, while each image loads independently without blocking later placements.
 
 ## Blocked / Needs Craig
 
