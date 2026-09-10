@@ -208,6 +208,31 @@ export const stagingPlacements = onRequest(
       if (action === 'grant-credits') {if(identity.stagingAdmin!==true){response.status(403).json({ok:false,error:'administrator-required'});return;}const result=await issueCredits(getFirestore(),{ownerId:String(request.body.ownerId||''),amount:request.body.amount,reason:String(request.body.reason||''),actorId:identity.uid,idempotencyKey:String(request.body.idempotencyKey||randomUUID())},FieldValue.serverTimestamp());response.status(200).json({ok:true,credits:result});return;}
       if (action === 'redeem-credits') {const result=await redeemCredits(getFirestore(),{ownerId:identity.uid,amount:request.body.amount,placementId:String(request.body.placementId||''),idempotencyKey:String(request.body.idempotencyKey||randomUUID())},FieldValue.serverTimestamp());response.status(200).json({ok:true,credits:result});return;}
       if (action === 'account-summary') {const [placements,balance]=await Promise.all([getFirestore().collection('stagingPlacements').where('ownerId','==',identity.uid).get(),getFirestore().collection('stagingCreditBalances').doc(identity.uid).get()]);response.status(200).json({ok:true,summary:{placements:placements.docs.filter(doc=>!['deleted','revoked'].includes(doc.data().status)).length,credits:Number(balance.data()?.available||0),administrator:identity.stagingAdmin===true}});return;}
+      if (action === 'admin-lookup') {
+        if(identity.stagingAdmin!==true){response.status(403).json({ok:false,error:'administrator-required'});return;}
+        const query=String(request.body.query||'').trim();if(!query){response.status(400).json({ok:false,error:'query-required'});return;}
+        const db=getFirestore();let documents=[];
+        const exact=await db.collection('stagingPlacements').doc(query).get();
+        if(exact.exists)documents=[exact];
+        else {
+          let ownerId=query;
+          if(query.includes('@')){try{ownerId=(await getAuth().getUserByEmail(query.toLowerCase())).uid;}catch{ownerId='';}}
+          if(ownerId)documents=(await db.collection('stagingPlacements').where('ownerId','==',ownerId).get()).docs;
+        }
+        const placements=await Promise.all(documents.slice(0,25).map(async document=>{
+          const placement=document.data(),currentVersion=Number(placement.currentVersion||1);
+          const [versions,actions,balance,creditEntries]=await Promise.all([
+            Promise.all(Array.from({length:Math.min(currentVersion,50)},(_,index)=>db.collection('stagingPlacementVersions').doc(`${placement.placementId}-v${index+1}`).get())),
+            db.collection('stagingModerationActions').where('placementId','==',placement.placementId).get(),
+            db.collection('stagingCreditBalances').doc(placement.ownerId).get(),
+            db.collection('stagingCreditLedger').where('ownerId','==',placement.ownerId).get()
+          ]);
+          const versionRows=versions.filter(item=>item.exists).map(item=>{const data=item.data();return{version:Number(data.version||item.id.match(/-v(\d+)$/)?.[1]||0),title:data.title||'',description:data.description||'',destinationUrl:data.destinationUrl||'',publicationStatus:data.publication?.status||'preview-only'};});
+          const actionRows=[...actions.docs.map(item=>{const data=item.data();return{caseId:data.caseId||item.id,action:data.command?.action||data.action,reason:data.command?.reason||data.reason||'',actorId:data.actorId||'',createdAt:data.createdAt?.toMillis?.()||null,creditAmount:Number(data.creditAmount||0)};}),...creditEntries.docs.map(item=>{const data=item.data();return{caseId:data.entryId||item.id,action:`credit-${data.type||'entry'}`,reason:data.reason||data.placementId||'',actorId:data.actorId||data.ownerId||'',createdAt:data.createdAt?.toMillis?.()||null,creditAmount:Number(data.delta||0)};})].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+          return{placementId:placement.placementId,ownerId:placement.ownerId,status:placement.status||'active',cellCount:Number(placement.cellCount||0),currentVersion,publicState:placement.publicState||{},createdAt:placement.createdAt?.toMillis?.()||null,credits:Number(balance.data()?.available||0),versions:versionRows,actions:actionRows};
+        }));
+        response.status(200).json({ok:true,result:{query,placements}});return;
+      }
       if (action === 'release-reservation' || action === 'expire-reservation') {
         const result = await releaseTestReservation(getFirestore(), String(request.body.reservationId || ''), identity.uid, Date.now(), { expiredOnly: action === 'expire-reservation' });
         response.status(200).json({ ok: true, reservation: result });

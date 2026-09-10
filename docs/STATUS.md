@@ -1,18 +1,18 @@
 # Million Hexagons — Status
 
-Updated: 9 September 2026
+Updated: 10 September 2026
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
 ## Now
 
-- [ ] Build the founder admin interface for the verified takedown, restoration, revocation and account-credit operations.
+- [ ] Add authoritative server-generated quotes and connect Review to a temporary reservation-backed checkout boundary.
 
 ## Next
 
 - [ ] Validate first-time purchase intent and physical-device performance.
-- [ ] Add passwordless owner access and purchase recovery.
-- [ ] Add server quotes and Stripe test checkout; prove fulfillment/refunds before live payments.
+- [ ] Complete passwordless purchase recovery and the My Globe ownership experience.
+- [ ] Add Stripe test checkout; prove fulfillment, failures, refunds and reconciliation before live payments.
 - [ ] Build My Globe: owned placements and versioned content editing.
 - [ ] Add public placement/share pages and cards, then placement-based analytics.
 
@@ -41,6 +41,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [x] Secured staging content controls passed live: silent artwork/link/description removal, full suspension placeholder, immutable-version rollback and audited revocation with exact cell release.
 - [x] Owner credit ledger passed live: one credit represents one hex, grants and redemptions are immutable/idempotent, overspending is rejected, and revocation compensation is separately recorded.
 - [x] Subtle key control deployed in the globe utility bar for passwordless owner access; signed-in state shows placement and credit summaries and reserves admin controls for administrator claims.
+- [x] Founder-only content controls deployed and browser-tested: placement/owner lookup, field takedown/editing, suspension, version restoration, revocation, compensating credits and combined moderation/credit audit history.
 
 ## Blocked / Needs Craig
 

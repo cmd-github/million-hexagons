@@ -40,3 +40,7 @@ async function ownerRequest(body) {
 export async function listTestClaims() { return (await ownerRequest({ action: 'list' })).placements; }
 export async function deleteTestClaim(placementId) { return (await ownerRequest({ action: 'delete', placementId })).placement; }
 export async function getAccountSummary() { return (await ownerRequest({ action: 'account-summary' })).summary; }
+export async function adminLookup(query) { return (await ownerRequest({ action: 'admin-lookup', query })).result; }
+export async function moderateTestClaim(placementId, command) { return (await ownerRequest({ action: 'moderate', placementId, command })).placement; }
+export async function grantTestCredits(ownerId, amount, reason) { return (await ownerRequest({ action: 'grant-credits', ownerId, amount, reason, idempotencyKey: crypto.randomUUID() })).credits; }
+export async function revokeTestClaim(placementId, reason, creditAmount) { return (await ownerRequest({ action: 'revoke', placementId, reason, creditAmount })).placement; }

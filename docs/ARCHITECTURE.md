@@ -22,6 +22,8 @@ Moderation state is stored on the authoritative placement separately from owners
 
 Credits use an append-only ledger with a transactionally maintained owner balance. One credit funds one hexagon. Issue and redemption commands require idempotency keys, redemption rejects insufficient balance, and moderation compensation links to the revocation rather than masquerading as a payment refund. Stripe-funded credits and permanent placement fulfillment remain later work.
 
+The founder moderation workspace is exposed only when the verified Firebase identity carries the `stagingAdmin` custom claim. Its backend lookup accepts an exact placement ID, owner UID or Firebase Auth email and returns placement/version state plus the moderation and credit audit trails. Every mutation is re-authorised server-side; hiding the interface is not the security boundary.
+
 The staging build separates `staging-dist/` (Workers Static Assets) from `staging-runtime/releases/<sha256>/` (public R2). `src/runtime-assets.js` shares the pinned runtime URL and gzip decoding across the app and topology worker; normal development keeps same-origin paths. Explicit deployment allowlists exclude canonical binaries, stress fixtures and working notes. The uploader/deployer verify immutable objects before switching the app. This hosts the session prototype, not durable inventory or production publication; see [STAGING.md](STAGING.md).
 
 ## Cell topology

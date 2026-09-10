@@ -60,6 +60,12 @@
       </form>
       <button id="zoomIn" aria-label="Zoom in">+</button><button id="zoomOut" aria-label="Zoom out">−</button><button id="homeView" aria-label="Re-centre globe">⌂</button>
     </nav>
+    <section id="adminWorkspace" class="admin-workspace" hidden aria-label="Founder content controls">
+      <header><div><small>FOUNDER CONTROLS</small><h2>Placement moderation</h2></div><button type="button" id="closeAdmin" aria-label="Close content controls">&times;</button></header>
+      <form id="adminSearch"><label for="adminQuery">Placement ID, owner email or owner ID</label><div><input id="adminQuery" autocomplete="off" required><button type="submit">Find</button></div></form>
+      <p id="adminStatus" role="status">Find a placement to review its public content and audit history.</p>
+      <div id="adminResults"></div>
+    </section>
     <div class="cell-tooltip glass" id="cellTooltip"><small id="cellNumber"></small><b id="cellOwner">Available</b><small id="cellDestination" hidden></small><button type="button" id="claimCell" hidden>Claim this space</button></div>
 
     <aside id="placementInspector" class="glass" hidden aria-label="Placement details">
