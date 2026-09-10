@@ -1261,8 +1261,9 @@ function addHighResolutionPlacement(color, treatment, targetLayer = placementLay
 }
 
 let publishing=false;
-let stagingClient=null,stagingUser=null,activeCheckoutReservation=null,checkoutExpiryTimer=null;
+let stagingClient=null,stagingUser=null,activeCheckoutReservation=null,checkoutExpiryTimer=null,embeddedCheckoutInstance=null;
 let restoredStagingOwner=null,restoringStagingOwner=null;
+const restoredPlacementIds=new Set();
 function clearCheckoutReservation(){activeCheckoutReservation=null;clearInterval(checkoutExpiryTimer);checkoutExpiryTimer=null;const message=document.querySelector('#serverQuoteStatus');if(message)message.textContent='Estimated at $1 per cell';}
 async function releaseActiveCheckoutReservation(){const active=activeCheckoutReservation;clearCheckoutReservation();if(active&&stagingClient)await stagingClient.releaseCheckoutReservation(active.reservation.reservationId,active.checkoutToken).catch(()=>{});}
 function showCheckoutExpiry(){
@@ -1272,21 +1273,38 @@ function showCheckoutExpiry(){
 }
 function persistentArtwork(canvas){const limit=900,scale=Math.min(1,limit/Math.max(canvas.width,canvas.height)),copy=document.createElement('canvas');copy.width=Math.max(1,Math.round(canvas.width*scale));copy.height=Math.max(1,Math.round(canvas.height*scale));copy.getContext('2d').drawImage(canvas,0,0,copy.width,copy.height);return copy.toDataURL('image/webp',.86);}
 function publicationArtwork(canvas){return canvas.toDataURL('image/webp',.95);}
-async function restoreTestPlacements(){
-  const records=await stagingClient.listTestClaims();if(!records.length)return [];
+async function applyPersistentPlacements(records,{focus=false}={}){
+  const fresh=records.filter(record=>!restoredPlacementIds.has(record.placementId));if(!fresh.length)return records;
   await ensureTopology();
-  for(const record of records){
+  for(const record of fresh){
     const cells=topology.cells(record.cells,record.anchor),placementRecord={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor};
     cells.forEach(cell=>{occupiedCells[cell.id-1]=255;sessionPlacements.set(cell.id,placementRecord);});
-    if(record.artworkDataUrl){const image=new Image();await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject;image.src=record.artworkDataUrl;});addHighResolutionPlacement('#000','contain',placementLayers,{cells,anchor:cellForId(record.anchor),artwork:image});placementRecord.logo=record.artworkDataUrl;}
+    if(record.artworkDataUrl){const image=new Image();await new Promise(resolve=>{image.onload=resolve;image.onerror=resolve;image.src=record.artworkDataUrl;});if(image.naturalWidth){addHighResolutionPlacement('#000','contain',placementLayers,{cells,anchor:cellForId(record.anchor),artwork:image});placementRecord.logo=record.artworkDataUrl;}}
+    restoredPlacementIds.add(record.placementId);
   }
-  occupancyTexture.needsUpdate=true;sold=Math.min(1000000,sold+records.reduce((sum,record)=>sum+record.cellCount,0));updateInventoryDisplay();renderClaimFeed();
-  const latest=[...records].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];
-  flyToCell(latest.anchor,.004,1200,()=>inspectPlacement(latest.anchor));
+  occupancyTexture.needsUpdate=true;sold=Math.min(1000000,sold+fresh.reduce((sum,record)=>sum+record.cellCount,0));updateInventoryDisplay();renderClaimFeed();
+  const latest=[...fresh].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];if(focus&&latest)flyToCell(latest.anchor,.004,1200,()=>inspectPlacement(latest.anchor));
   return records;
 }
+async function restoreTestPlacements(){return applyPersistentPlacements(await stagingClient.listTestClaims(),{focus:true});}
+async function restorePublicPlacements({focus=false}={}){return applyPersistentPlacements(await stagingClient.listPublicClaims(),{focus});}
+async function stripeBrowser(){
+  if(!window.Stripe)await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://js.stripe.com/clover/stripe.js';script.onload=resolve;script.onerror=()=>reject(new Error('Could not load secure payment.'));document.head.append(script);});
+  return window.Stripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+}
+async function showEmbeddedCheckout(checkout){
+  const panel=document.querySelector('#embeddedCheckoutPanel'),status=document.querySelector('#embeddedCheckoutStatus');panel.hidden=false;status.textContent='';document.querySelector('#buyPanel').scrollTop=0;
+  if(embeddedCheckoutInstance)embeddedCheckoutInstance.destroy();
+  const stripe=await stripeBrowser();embeddedCheckoutInstance=await stripe.initEmbeddedCheckout({fetchClientSecret:async()=>checkout.clientSecret,onComplete:async()=>{
+    embeddedCheckoutInstance?.destroy();embeddedCheckoutInstance=null;document.querySelector('#embeddedCheckout').replaceChildren();status.textContent='Payment received. Adding your placement to the globe…';
+    for(let attempt=0;attempt<30;attempt++){const records=await restorePublicPlacements();const match=records.find(record=>record.cells.length===selectedCells.length&&record.cells.every(cell=>selectedCells.some(selected=>selected.id===cell)));if(match){status.textContent='Placement added to the globe.';clearCheckoutReservation();setTimeout(()=>{panel.hidden=true;closeBuy();inspectPlacement(match.anchor);},700);return;}await new Promise(resolve=>setTimeout(resolve,1000));}
+    status.textContent='Payment received. Publication is still processing; the placement will appear automatically.';
+  }});embeddedCheckoutInstance.mount('#embeddedCheckout');
+}
+document.querySelector('#closeEmbeddedCheckout').onclick=()=>{embeddedCheckoutInstance?.destroy();embeddedCheckoutInstance=null;document.querySelector('#embeddedCheckout').replaceChildren();document.querySelector('#embeddedCheckoutPanel').hidden=true;};
 if(import.meta.env.VITE_STAGING_SANDBOX){
   stagingClient=await import('./staging-client.js');
+  try{await restorePublicPlacements();}catch(error){console.error('Could not load public staging placements',error);}
   const access=document.querySelector('#stagingOwnerAccess'),status=document.querySelector('#stagingOwnerStatus'),accountPanel=document.querySelector('#accountPanel'),accountStatus=document.querySelector('#accountStatus'),accountToggle=document.querySelector('#toggleAccount');access.hidden=false;
   accountToggle.onclick=()=>{const opening=accountPanel.hidden;accountPanel.hidden=!opening;accountToggle.setAttribute('aria-expanded',String(opening));if(opening&&!stagingUser)document.querySelector('#accountEmail').focus();};
   document.addEventListener('pointerdown',event=>{if(!accountPanel.hidden&&!event.target.closest('.account-access')){accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');}});
@@ -1365,7 +1383,7 @@ async function paintPlacement() {
   if(stagingClient){
     publishing=true;
     if(!activeCheckoutReservation){publishing=false;const target=document.querySelector('#websiteError');target.hidden=false;target.textContent='This reservation expired. Choose the location again.';return;}
-    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),placement={topologyVersion:'geodesic-v1',anchor:selectedCell.id,cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},checkout=await stagingClient.createStripeCheckout(placement,activeCheckoutReservation.reservation.reservationId,activeCheckoutReservation.checkoutToken);location.assign(checkout.url);return;}
+    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),placement={topologyVersion:'geodesic-v1',anchor:selectedCell.id,cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},checkout=await stagingClient.createStripeCheckout(placement,activeCheckoutReservation.reservation.reservationId,activeCheckoutReservation.checkoutToken);await showEmbeddedCheckout(checkout);publishing=false;return;}
     catch(error){publishing=false;const target=document.querySelector('#websiteError');target.hidden=false;target.textContent=error.code==='reservation-invalid'?'This reservation expired. Choose the location again.':'Could not open secure checkout. Your design is still here.';return;}
   }
   publishing=true;

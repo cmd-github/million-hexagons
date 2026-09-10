@@ -24,9 +24,9 @@ try{
   const placement={topologyVersion:'geodesic-v1',anchor:reservation.cell,cells:[reservation.cell],title:'Stripe checkout QA',description:'Disposable checkout-session test',destinationUrl:'https://example.com/',artworkDataUrl,sourceArtworkDataUrl:artworkDataUrl};
   const checkout=await post(checkoutApi,{reservationId:reservation.reservation.reservationId,checkoutToken:reservation.checkoutToken,placement});
   assert.ok(checkout.response.ok,JSON.stringify(checkout.result));
-  assert.match(checkout.result.checkout.url,/^https:\/\/checkout\.stripe\.com\//);
+  assert.match(checkout.result.checkout.clientSecret,/^cs_test_.+_secret_/);
   const retry=await post(checkoutApi,{reservationId:reservation.reservation.reservationId,checkoutToken:reservation.checkoutToken,placement});
-  assert.ok(retry.response.ok,JSON.stringify(retry.result));assert.equal(retry.result.checkout.url,checkout.result.checkout.url);
+  assert.ok(retry.response.ok,JSON.stringify(retry.result));assert.equal(retry.result.checkout.clientSecret,checkout.result.checkout.clientSecret);
   console.log(JSON.stringify({stripeCheckoutCreated:true,idempotentRetry:true,serverPrice:reservation.quote.displayTotal,orderId:checkout.result.checkout.orderId},null,2));
 }finally{
   if(reservation)await post(placementsApi,{action:'release-checkout-reservation',reservationId:reservation.reservation.reservationId,checkoutToken:reservation.checkoutToken}).catch(()=>{});

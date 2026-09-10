@@ -127,6 +127,12 @@ export const stagingPlacements = onRequest(
     if (!stagingSandboxEnabled.value()) { response.status(404).json({ ok: false, error: 'sandbox-disabled' }); return; }
 
     const action=request.body?.action;
+    if(action==='public-list'){
+      const snapshot=await getFirestore().collection('stagingPlacements').limit(1000).get(),active=snapshot.docs.map(document=>document.data()).filter(placement=>!['deleted','revoked'].includes(placement.status));
+      const versions=await Promise.all(active.map(placement=>getFirestore().collection('stagingPlacementVersions').doc(`${placement.placementId}-v${placement.publicState?.publicVersion||placement.currentVersion||1}`).get()));
+      const placements=active.map((placement,index)=>{const content=versions[index].data()||{},visible=publicPlacement(content,placement.publicState);return{placementId:placement.placementId,topologyVersion:placement.topologyVersion,anchor:placement.anchor,cells:decodeCells(placement.cellsData),cellCount:placement.cellCount,...visible,publicationStatus:content.publication?.status||'preview-only',status:placement.status,createdAt:placement.createdAt?.toMillis?.()||null};});
+      response.status(200).json({ok:true,placements});return;
+    }
     if(action==='quote-reserve'||action==='release-checkout-reservation'){
       try{
         const token=String(request.body.checkoutToken||'');
@@ -320,16 +326,16 @@ export const stagingCheckout=onRequest({region:'europe-west1',maxInstances:3,tim
     if(!reservationSnapshot.exists||reservation.status!=='active'||reservation.ownerId!==checkoutOwnerId(checkoutToken)||Number(reservation.expiresAtMs)<=Date.now()){response.status(409).json({ok:false,error:'reservation-invalid'});return;}
     const candidate={...request.body.placement,ownerId:'pending-payment'};if(!normalisePlacementClaim(candidate)||candidate.cells.map(Number).sort((a,b)=>a-b).join(',')!==decodeCells(reservation.cellsData).join(',')){response.status(400).json({ok:false,error:'invalid-placement'});return;}
     const orderRef=db.collection('stagingOrders').doc(orderId),existing=await orderRef.get();if(existing.exists&&existing.data().checkoutUrl){response.status(200).json({ok:true,checkout:{orderId,url:existing.data().checkoutUrl}});return;}
-    let placementId=existing.data()?.placementId,sourceReference=existing.data()?.source,placement=existing.data()?.placement;
+    let placementId=existing.data()?.placementId,sourceReference=existing.data()?.source,placement=existing.data()?.placement,checkoutExpiresAt=existing.data()?.checkoutExpiresAt||(existing.exists?Math.floor(Number(reservation.expiresAtMs)/1000):Math.floor(Date.now()/1000)+30*60);
     if(!existing.exists){
       const source=decodeArtworkSource(candidate.sourceArtworkDataUrl||candidate.artworkDataUrl);if(!source){response.status(400).json({ok:false,error:'invalid-artwork-source'});return;}
       placementId=randomUUID();const path=sourceObjectPath(placementId,1,source.extension);sourceReference={bucket:privateSourceBucket,path,mimeType:source.mimeType,extension:source.extension,size:source.bytes.length,sha256:source.sha256};
       await getStorage().bucket(privateSourceBucket).file(path).save(source.bytes,{resumable:false,contentType:source.mimeType,metadata:{cacheControl:'private,no-store',metadata:{placementId,orderId,sha256:source.sha256}}});
       placement={topologyVersion:candidate.topologyVersion,anchor:candidate.anchor,cells:candidate.cells,title:candidate.title,description:candidate.description,destinationUrl:candidate.destinationUrl,artworkDataUrl:candidate.artworkDataUrl};
-      await orderRef.set({orderId,reservationId,reservationOwnerId:reservation.ownerId,placementId,placement,source:sourceReference,quote:reservation.quote,status:'checkout-creating',environment:'staging',createdAt:FieldValue.serverTimestamp()},{merge:false});
+      await orderRef.set({orderId,reservationId,reservationOwnerId:reservation.ownerId,placementId,placement,source:sourceReference,quote:reservation.quote,checkoutExpiresAt,status:'checkout-creating',environment:'staging',createdAt:FieldValue.serverTimestamp()},{merge:false});
     }
-    const stripe=new Stripe(stripeSecretKey.value());const session=await stripe.checkout.sessions.create({mode:'payment',line_items:[checkoutLineItem(reservation.quote)],customer_creation:'always',expires_at:Math.floor(Date.now()/1000)+30*60,success_url:'https://million-hexagons-staging.million-hexagons.workers.dev/?checkout=success&session_id={CHECKOUT_SESSION_ID}',cancel_url:'https://million-hexagons-staging.million-hexagons.workers.dev/?checkout=cancelled',metadata:{orderId,reservationId,placementId},payment_intent_data:{metadata:{orderId,reservationId,placementId}}},{idempotencyKey:orderId});
-    await Promise.all([orderRef.set({stripeCheckoutSessionId:session.id,checkoutUrl:session.url,status:'checkout-open',updatedAt:FieldValue.serverTimestamp()},{merge:true}),db.collection('stagingReservations').doc(reservationId).set({expiresAtMs:Number(session.expires_at)*1000,checkoutSessionId:session.id},{merge:true})]);response.status(201).json({ok:true,checkout:{orderId,url:session.url}});
+    const stripe=new Stripe(stripeSecretKey.value());const session=await stripe.checkout.sessions.create({mode:'payment',ui_mode:'embedded_page',redirect_on_completion:'never',payment_method_types:['card'],line_items:[checkoutLineItem(reservation.quote)],customer_creation:'always',expires_at:checkoutExpiresAt,metadata:{orderId,reservationId,placementId},payment_intent_data:{metadata:{orderId,reservationId,placementId}}},{idempotencyKey:orderId});
+    await Promise.all([orderRef.set({stripeCheckoutSessionId:session.id,status:'checkout-open',updatedAt:FieldValue.serverTimestamp()},{merge:true}),db.collection('stagingReservations').doc(reservationId).set({expiresAtMs:Number(session.expires_at)*1000,checkoutSessionId:session.id},{merge:true})]);response.status(201).json({ok:true,checkout:{orderId,clientSecret:session.client_secret}});
   }catch(error){logger.error('Could not create Stripe checkout',error);response.status(500).json({ok:false,error:'checkout-failed'});}
 });
 

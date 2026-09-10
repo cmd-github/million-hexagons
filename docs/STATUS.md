@@ -6,7 +6,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Embed Stripe Checkout in the Review panel and load paid placements from a public persistent projection.
+- [ ] Complete one fresh embedded test-card payment in the Review panel and visually verify immediate placement plus reload persistence.
 
 ## Next
 
@@ -46,10 +46,10 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [x] Stripe test Checkout deployed from server-authoritative quotes; live session creation and idempotent retry passed, and signed webhook fulfilment is deployed.
 - [x] Staging builds now force the persistent sandbox client and fail if Checkout is tree-shaken; served Worker assets were verified after redeploy.
 - [x] First Stripe test payment recovered and verified: one paid order fulfilled 12 exact cells under hashed buyer ownership and published immutable artwork; five-minute paid-order reconciliation now backs up webhooks.
+- [x] Embedded Stripe Checkout is deployed inside the Review panel; live server session creation/idempotent retry pass, and anonymous public placement restoration is wired into staging startup.
 
 ## Blocked / Needs Craig
 
-- [ ] Provide the Stripe test publishable key (`pk_test_...`) for browser-side embedded Checkout; this key is intentionally public.
 - [ ] Configure/confirm the $10 Cloudflare budget alert.
 - [ ] Review and complete [draft commercial terms](DRAFT-COMMERCIAL-TERMS.md), including final pricing, refunds, permanent-use wording and governing law.
 - [ ] Provide physical iOS/Android testing and observed first-time-user feedback.
@@ -60,8 +60,8 @@ Launch readiness: ~25%
 
 - Production foundation: IN PROGRESS
 - Durable ownership/domain: IN PROGRESS (staging ownership, versions and editable sources verified)
-- Inventory + checkout: IN PROGRESS (first payment/fulfilment verified; embedded payment UI and public persistent projection remain)
-- Publication: IN PROGRESS (immediate publication and backend takedown/rollback verified; founder UI and public release projection remain)
+- Inventory + checkout: IN PROGRESS (first payment/fulfilment and embedded session API verified; fresh in-panel card journey remains)
+- Publication: IN PROGRESS (immediate publication, public staging projection and backend takedown/rollback verified)
 - Owner experience: NOT STARTED
 - Growth/sharing: IN PROGRESS (cell links only)
 - Analytics: NOT STARTED (illustrative/local counters only)
