@@ -34,7 +34,9 @@ The staging build separates `staging-dist/` (Workers Static Assets) from `stagin
 
 `src/globe/topology.js` is authoritative for polygon boundaries, centres, adjacency, picking, and local projections. The background `SphereGeometry` is not inventory. Picking intersects the mathematical sphere and resolves the actual polygon; the renderer never creates one scene object per cell.
 
-The packed topology loads in a worker only when exact detail or interaction requires it. It transfers as approximately 17.2 MB compressed and expands to a 92 MB canonical buffer. GPU state textures are ID storage, not geographic UV maps.
+The packed topology loads in a worker when exact detail, interaction or saved-placement rendering requires it. It transfers as approximately 17.2 MB compressed and expands to a 92 MB canonical buffer. Immutable release URLs are retained in a best-effort Cache Storage entry, with decoded-length validation and replacement of the previous release; denied storage falls back to downloading. GPU state textures are ID storage, not geographic UV maps.
+
+Staging renders the overview before public inventory, authentication and exact topology finish loading. Public cell IDs update occupancy without needing polygon geometry; artwork downloads run independently and create their exact meshes when topology is ready. Picking, editing and cell-link navigation wait for inventory. User input cancels automatic startup focus. This improves startup and repeat visits but does not eliminate the full topology transfer on a first visit.
 
 ## Artwork and placement
 
@@ -46,7 +48,7 @@ Availability suggestions abort blocked candidates during connected growth and yi
 
 Sample artwork uses a six-face, six-level cube tile pyramid with 512-pixel interiors and gutters. Published uploads add sparse detail through level 8 according to source pixel density; only affected branches subdivide. Unpublished siblings inherit cropped ancestor pixels and gutters without requesting nonexistent static assets. The renderer chooses detail from projected pixel density across the complete visible surface, requests four pages concurrently, and uses cached ancestors only while target pages load. It uses crisp replacements and anisotropic filtering, without crossfading blurry parent imagery.
 
-The normal cache target is 128 pages on desktop and 64 on narrow screens, expanding when the viewport-required set plus reserve exceeds that. It scales with screen demand, not advertiser count. Close grid geometry is one bounded, incrementally rebuilt patch.
+The normal cache target is 128 pages on desktop and 64 on narrow screens, expanding when the viewport-required set plus reserve exceeds that. It scales with screen demand, not advertiser count. Close grid geometry is one bounded, incrementally rebuilt patch. Substantial camera/zoom changes cancel an unfinished obsolete patch so close detail does not queue behind wide-view work.
 
 Session publication prepares at most four pages concurrently, writes affected lossless pages atomically to IndexedDB, and disposes temporary meshes and textures. Pixel rotation copies packed RGBA values; inherited artwork is drawn directly from ancestors to avoid intermediate PNG round trips. Detail metadata becomes visible only after the transaction succeeds. Later placements also update existing finer pages so neighbouring artwork cannot disappear when zooming. Extra detail adds publication work and close-up tile demand, but does not change tile dimensions, the cache policy, source raster limits or overview detail. Production publication will require validated source storage, background tile generation, immutable manifests, CDN delivery, authoritative placement metadata, and transactional inventory.
 

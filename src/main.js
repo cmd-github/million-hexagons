@@ -14,6 +14,8 @@ import './style.css';
 import './studio.css';
 
 const canvas = document.querySelector('#world');
+let initialPlacementFocusAllowed=true;
+let stagingInventoryLoaded=!import.meta.env.VITE_STAGING_SANDBOX;
 document.querySelector('#claimButton').disabled = true;
 const loading = document.querySelector('#appLoading');
 let openingEditor=false;
@@ -117,7 +119,7 @@ controls.autoRotate = !matchMedia('(prefers-reduced-motion: reduce)').matches;
 controls.autoRotateSpeed = -.22;
 const reducedMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 const cameraFlight=createCameraFlight(camera,globe,controls,reducedMotion);
-for(const event of ['pointerdown','wheel','keydown'])document.addEventListener(event,()=>cameraFlight.cancel(),{capture:true,passive:true});
+for(const event of ['pointerdown','wheel','keydown'])document.addEventListener(event,()=>{initialPlacementFocusAllowed=false;cameraFlight.cancel();},{capture:true,passive:true});
 addEventListener('resize',()=>cameraFlight.cancel());
 
 function globeFitDistance() {
@@ -227,7 +229,8 @@ function cellForId(id) {
   return { id, occupied, pentagon: topology.degrees[id-1]===5, owner: placement?(placement.name||'Your placement'):campaign?.name||(occupied?'Sample placement':'Available'), destination:placement?.website||campaign?.url||'' };
 }
 function intersect(event) {
-  if(!topology){if(camera.position.length()<radius+2)void ensureTopology();return null;}
+  if(!topology){if(camera.position.length()<radius+2)void ensureTopology().catch(()=>{});return null;}
+  if(!stagingInventoryLoaded)return null;
   const rect = canvas.getBoundingClientRect();
   pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
@@ -416,7 +419,7 @@ async function openBuy(anchor = null) {
   openingEditor=true;showLoading();await nextPaint();
   document.body.classList.remove('inspecting');document.querySelector('#placementInspector').hidden=true;
   document.querySelector('#toast').classList.remove('show');
-  try{await ensureTopology();}catch{
+  try{await Promise.all([ensureTopology(),ensureStagingInventory()]);}catch{
     hideLoading();openingEditor=false;
     const toast=document.querySelector('#toast');toast.querySelector('b').textContent='Editor unavailable';
     toast.querySelector('span').textContent='Please try Create a placement again.';document.querySelector('#placementWebsite').hidden=true;toast.classList.add('show');
@@ -537,7 +540,7 @@ hexSearch.addEventListener('submit', async (event) => {
     hexSearchInput.setAttribute('aria-invalid', 'true');
     return;
   }
-  await ensureTopology();
+  await Promise.all([ensureTopology(),ensureStagingInventory()]);
   const cell = cellForId(id);
   controls.autoRotate = false;
   cameraDistanceTarget = null;
@@ -1263,10 +1266,23 @@ function addHighResolutionPlacement(color, treatment, targetLayer = placementLay
 let publishing=false;
 let stagingClient=null,stagingUser=null,activeCheckoutReservation=null,checkoutExpiryTimer=null,embeddedCheckoutInstance=null;
 let restoredStagingOwner=null,restoringStagingOwner=null;
+let stagingInventoryPromise=null;
+function ensureStagingInventory(){
+  if(!import.meta.env.VITE_STAGING_SANDBOX)return Promise.resolve();
+  if(!stagingInventoryPromise)stagingInventoryPromise=(async()=>{
+    stagingClient=await import('./staging-client.js');
+    const records=await restorePublicPlacements({focus:true});
+    stagingInventoryLoaded=true;
+    return records;
+  })().catch(error=>{stagingInventoryPromise=null;throw error;});
+  return stagingInventoryPromise;
+}
 const restoredPlacementIds=new Set();
 let persistentNavigationReady=false,pendingPersistentFocus=null;
-function focusPersistentPlacement(record){
+async function focusPersistentPlacement(record){
   if(!persistentNavigationReady){pendingPersistentFocus=record;return;}
+  await ensureTopology();
+  if(!initialPlacementFocusAllowed||/^#cell=\d+$/.test(location.hash))return;
   flyToCell(record.anchor,.004,1200,()=>inspectPlacement(record.anchor));
 }
 function clearCheckoutReservation(){activeCheckoutReservation=null;clearInterval(checkoutExpiryTimer);checkoutExpiryTimer=null;const message=document.querySelector('#serverQuoteStatus');if(message)message.textContent='Estimated at $1 per cell';}
@@ -1280,16 +1296,15 @@ function persistentArtwork(canvas){const limit=900,scale=Math.min(1,limit/Math.m
 function publicationArtwork(canvas){return canvas.toDataURL('image/webp',.95);}
 async function applyPersistentPlacements(records,{focus=false}={}){
   const fresh=records.filter(record=>!restoredPlacementIds.has(record.placementId));if(!fresh.length)return records;
-  await ensureTopology();
   const restored=fresh.map(record=>{
-    const cells=topology.cells(record.cells,record.anchor),placementRecord={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor};
-    cells.forEach(cell=>{occupiedCells[cell.id-1]=255;sessionPlacements.set(cell.id,placementRecord);});
+    const placementRecord={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor};
+    record.cells.forEach(id=>{occupiedCells[id-1]=255;sessionPlacements.set(id,placementRecord);});
     restoredPlacementIds.add(record.placementId);
-    return{record,cells,placementRecord};
+    return{record,placementRecord};
   });
   occupancyTexture.needsUpdate=true;sold=Math.min(1000000,sold+fresh.reduce((sum,record)=>sum+record.cellCount,0));updateInventoryDisplay();renderClaimFeed();
-  const latest=[...fresh].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];if(focus&&latest)focusPersistentPlacement(latest);
-  for(const {record,cells,placementRecord} of restored)if(record.artworkDataUrl){const image=new Image();image.crossOrigin='anonymous';image.onload=()=>{addHighResolutionPlacement('#000','contain',placementLayers,{cells,anchor:cellForId(record.anchor),artwork:image});placementRecord.logo=record.artworkDataUrl;};image.onerror=()=>console.error('Could not load persistent placement artwork',record.placementId);image.src=record.artworkDataUrl;}
+  const latest=[...fresh].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];if(focus&&latest)void focusPersistentPlacement(latest).catch(error=>console.error('Could not focus saved placement',error));
+  for(const {record,placementRecord} of restored)if(record.artworkDataUrl){const image=new Image();image.crossOrigin='anonymous';placementRecord.logo=record.artworkDataUrl;image.onload=async()=>{try{await ensureTopology();const cells=topology.cells(record.cells,record.anchor);addHighResolutionPlacement('#000','contain',placementLayers,{cells,anchor:cellForId(record.anchor),artwork:image});}catch(error){console.error('Could not render persistent placement artwork',record.placementId,error);}};image.onerror=()=>console.error('Could not load persistent placement artwork',record.placementId);image.src=record.artworkDataUrl;}
   return records;
 }
 async function restoreTestPlacements(){return applyPersistentPlacements(await stagingClient.listTestClaims(),{focus:true});}
@@ -1320,9 +1335,9 @@ async function showEmbeddedCheckout(checkout){
   }});container.replaceChildren();embeddedCheckoutInstance.mount('#embeddedCheckout');
 }
 document.querySelector('#closeEmbeddedCheckout').onclick=hideEmbeddedCheckout;
+async function initializeStaging(){
 if(import.meta.env.VITE_STAGING_SANDBOX){
-  stagingClient=await import('./staging-client.js');
-  try{await restorePublicPlacements({focus:true});}catch(error){console.error('Could not load public staging placements',error);}
+  await ensureStagingInventory();
   const access=document.querySelector('#stagingOwnerAccess'),status=document.querySelector('#stagingOwnerStatus'),accountPanel=document.querySelector('#accountPanel'),accountStatus=document.querySelector('#accountStatus'),accountToggle=document.querySelector('#toggleAccount');access.hidden=false;
   accountToggle.onclick=()=>{const opening=accountPanel.hidden;accountPanel.hidden=!opening;accountToggle.setAttribute('aria-expanded',String(opening));if(opening&&!stagingUser)document.querySelector('#accountEmail').focus();};
   document.addEventListener('pointerdown',event=>{if(!accountPanel.hidden&&!event.target.closest('.account-access')){accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');}});
@@ -1385,6 +1400,7 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
   };
 }else{
   document.querySelector('#toggleAccount').hidden=true;
+}
 }
 async function paintPlacement() {
   if(publishing)return;
@@ -1528,7 +1544,7 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('geodesicQA'
     screen(id) { const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return {x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2}; },
   };
 }
-if(import.meta.env.DEV)window.performanceQA={tiles:artworkTiles.stats,focus(direction,altitude){zoom.cancel();controls.autoRotate=false;cameraDistanceTarget=null;globe.rotation.set(0,0,0);camera.position.set(...direction).normalize().multiplyScalar(radius+altitude);controls.update();},state(){return{tiles:{...artworkTiles.stats},topologyLoaded:!!topology,drawCalls:renderer.info.render.calls,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,camera:camera.position.toArray(),retainedPlacements:placementLayers.children.length};}};
+if(import.meta.env.DEV)window.performanceQA={tiles:artworkTiles.stats,focus(direction,altitude){zoom.cancel();controls.autoRotate=false;cameraDistanceTarget=null;globe.rotation.set(0,0,0);camera.position.set(...direction).normalize().multiplyScalar(radius+altitude);controls.update();},state(){return{tiles:{...artworkTiles.stats},topologyLoaded:!!topology,topologyTiming:topology?.loadTiming,detailVertices:cellDetail?.mesh.geometry.attributes.position?.count||0,detailOpacity:cellDetail?.mesh.material.uniforms.visibility.value||0,inventoryLoaded:stagingInventoryLoaded,drawCalls:renderer.info.render.calls,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,camera:camera.position.toArray(),retainedPlacements:placementLayers.children.length};}};
 
 // Globe and canvas share the source footprint, original image and per-cell edits.
 function syncGlobeDesign(){
@@ -1735,7 +1751,7 @@ function renderClaimFeed(){
   const ticker=[];
   for(const record of [...new Set(sessionPlacements.values())].sort((a,b)=>b.createdAt-a.createdAt).slice(0,5)){
     const button=document.createElement('button');button.className='example-activity';const icon=document.createElement('span');icon.className='activity-icon';icon.innerHTML=activityIcon('claim');const title=document.createElement('span');title.textContent=(record.name||'You')+' claimed '+record.count.toLocaleString()+(record.count===1?' hexagon':' hexagons');const date=document.createElement('small');date.textContent=new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'});button.append(icon,title,date);
-    button.onclick=()=>{inspectPlacement(record.anchor);viewInspectedPlacement();};target.append(button);
+    button.onclick=async()=>{await ensureTopology();inspectPlacement(record.anchor);viewInspectedPlacement();};target.append(button);
     ticker.push(title.textContent);
   }
   const examples=[['Spotify claimed 350 hexagons','4m ago',10],['Nike is trending','1,284 views today',8],['IKEA reached 1,000 website visits','Milestone',4],['284,391 / 1,000,000 claimed','Around the globe',null]];
@@ -1767,16 +1783,17 @@ document.querySelector('#deleteTestPlacement').onclick=async event=>{const place
 async function openLocationLink(){
   const match=location.hash.match(/^#cell=(\d+)$/);if(!match)return;
   const id=Number(match[1]);if(id<1||id>CELL_COUNT)return;
-  const request=++flightVersion;await ensureTopology();if(request!==flightVersion)return;
+  const request=++flightVersion;await Promise.all([ensureTopology(),ensureStagingInventory()]);if(request!==flightVersion)return;
   if(occupiedCells[id-1]){inspectPlacement(id);viewInspectedPlacement();}else flyToCell(id,.004,1800);
 
 }
 // Reduced-motion flights complete synchronously, so the inspector must be initialized first.
 persistentNavigationReady=true;
 addEventListener('hashchange',openLocationLink);
-if(/^#cell=\d+$/.test(location.hash))void openLocationLink();
-else if(pendingPersistentFocus)focusPersistentPlacement(pendingPersistentFocus);
+if(/^#cell=\d+$/.test(location.hash))void openLocationLink().catch(error=>console.error('Could not open saved location',error));
+else if(pendingPersistentFocus)void focusPersistentPlacement(pendingPersistentFocus).catch(error=>console.error('Could not focus saved placement',error));
 pendingPersistentFocus=null;
+void initializeStaging().catch(error=>console.error('Could not load public staging placements',error));
 
 canvas.addEventListener('dblclick',event=>{
   if(document.body.dataset.flow==='design'&&logoEditorMode!=='pan')return;

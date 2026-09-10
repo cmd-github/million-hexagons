@@ -6,6 +6,10 @@ For deployment/runtime-origin changes, run `npm run test:deployment` and the sep
 
 ## Core checks
 
+`npm run test:globe-startup` holds the inventory response open on desktop/mobile: the overview must render, editing must wait for inventory, and late restoration must not move the camera away from the editor. `npm run test:deployment` also checks the immutable topology cache, release replacement, corrupt-entry recovery and denied storage. These checks do not establish first-visit network performance; measure cold and actual reload navigations against staging separately.
+
+`npm run test:globe-detail` checks that a close zoom discards an unfinished wide geometry patch under a constrained per-frame build budget, using the frozen canonical topology.
+
 `npm run test:persistent-checkout` starts its own staging-enabled development server and checks the real browser client on desktop/mobile using controlled API and Stripe responses. Covers delayed request results/errors, restoration despite stalled artwork, reduced-motion startup, the branded checkout loader, permanent-ID completion, full reload with artwork, and occupied-cell rejection. It creates no live payments or placements. Inspect `artifacts/persistent-checkout/`; a separate live Stripe test payment is required to verify Stripe and webhook integration.
 
 ```powershell

@@ -6,10 +6,11 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Complete passwordless purchase recovery and the My Globe ownership experience.
+- [ ] Reduce first-visit close-up latency by loading exact geometry for the visible region instead of the full 17.2 MB topology.
 
 ## Next
 
+- [ ] Complete passwordless purchase recovery and the My Globe ownership experience.
 - [ ] Validate first-time purchase intent and physical-device performance.
 - [ ] Prove payment failures, refunds and reconciliation before live payments.
 - [ ] Build My Globe: owned placements and versioned content editing.
@@ -17,6 +18,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Done
 
+- [x] Globe performance audit and staging startup/cache/grid repair deployed (`ddae8c82-7756-4546-8db7-3a5ba1e3cac7`). Live desktop/mobile first draw improved from roughly 18 seconds to 0.9–1.2 seconds; repeat saved close-ups reached 2.7–2.9 seconds. Obsolete wide grid work is cancelled after zooming. Exact first-visit close-ups still took 20–32 seconds across the observed runs, including CPU-throttled mobile emulation. Image/zoom checks and remaining memory/scaling limits are recorded in [Globe performance audit](GLOBE-PERFORMANCE-AUDIT.md).
 - [x] Fixed missing awaits in public placement listing and reservation release. Reproduced the live restoration error, then verified saved artwork/cell links and activity entries on live desktop/mobile. Final staging deployment, including reduced-motion repair: `dc620bda-1efc-41d7-a2df-6b84767ebe8e`.
 - [x] Fresh embedded Stripe test-card payment completed, automatically closed checkout, appeared without refresh and restored artwork on a fresh page. Verification placement: `cb963840-0598-4e78-a1d6-90d2cb79ed84`, cell `31677` (test mode only). Backend tests: 24 passed. Automated client/renderer regression coverage: `npm run test:persistent-checkout`; physical devices remain unverified.
 - [x] Deferred startup placement navigation until the inspector is initialized, fixing missing artwork when reduced-motion flights finish synchronously. Desktop/mobile regression journeys cover completion, full reload, stalled artwork and occupied-cell rejection, including reduced motion.

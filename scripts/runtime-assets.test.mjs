@@ -1,10 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { gzipSync } from 'node:zlib';
-import { fetchRuntimeGzip, fetchRuntimeJson } from '../src/runtime-assets.js';
+import { fetchRuntimeGzip, fetchRuntimeJson, fetchGzipUrl } from '../src/runtime-assets.js';
 import { assetOrigin } from './deployment-assets.mjs';
 import { sha256 } from './deployment-assets.mjs';
 import { verifyPublic, concurrent } from './staging-release.mjs';
+
+function mockCacheStorage(t,value){
+  const previous=Object.getOwnPropertyDescriptor(globalThis,'caches');
+  Object.defineProperty(globalThis,'caches',{value,configurable:true});
+  t.after(()=>{if(previous)Object.defineProperty(globalThis,'caches',previous);else delete globalThis.caches;});
+}
 
 test('gzip assets decode with raw, browser-decoded and CORS-hidden encoding headers', async t => {
   const source = new Uint8Array([0, 1, 255, 10, 24]);
@@ -18,6 +24,27 @@ test('missing JSON and binary assets reject instead of accepting an HTML fallbac
   t.mock.method(globalThis, 'fetch', async () => new Response('missing', { status: 404 }));
   await assert.rejects(fetchRuntimeGzip('missing.gz'), /unavailable/);
   await assert.rejects(fetchRuntimeJson('missing.json'), /unavailable/);
+});
+
+test('immutable topology is cached across loads and old releases are removed', async t => {
+  const source=new Uint8Array([1,2,3,4]),stored=new Map();let requests=0;
+  const cache={match:async url=>stored.get(url)?.clone(),put:async(url,response)=>stored.set(url,response),keys:async()=>[...stored.keys()].map(url=>({url})),delete:async key=>stored.delete(typeof key==='string'?key:key.url)};
+  mockCacheStorage(t,{open:async()=>cache});
+  t.mock.method(globalThis,'fetch',async()=>{requests++;return new Response(gzipSync(source));});
+  const first=`https://assets.example/releases/${'a'.repeat(64)}/topology.gz`,second=first.replace('a'.repeat(64),'b'.repeat(64));
+  for(let i=0;i<2;i++)assert.deepEqual(await fetchGzipUrl(first,{persistent:true,expectedBytes:4}),source);
+  assert.equal(requests,1);
+  await fetchGzipUrl(second,{persistent:true,expectedBytes:4});assert.deepEqual([...stored.keys()],[second]);
+  stored.set(second,new Response(gzipSync(new Uint8Array([1]))));
+  assert.deepEqual(await fetchGzipUrl(second,{persistent:true,expectedBytes:4}),source);assert.equal(requests,3);
+});
+
+test('storage denial falls back to the network and mutable URLs are never persisted', async t => {
+  let opens=0;mockCacheStorage(t,{open:async()=>{opens++;throw Error('Storage denied');}});
+  t.mock.method(globalThis,'fetch',async()=>new Response(gzipSync(new Uint8Array([7]))));
+  assert.deepEqual(await fetchGzipUrl(`https://assets.example/releases/${'a'.repeat(64)}/topology.gz`,{persistent:true,expectedBytes:1}),new Uint8Array([7]));
+  await fetchGzipUrl('https://assets.example/topology.gz',{persistent:true});assert.equal(opens,1);
+  await assert.rejects(fetchGzipUrl('https://assets.example/topology.gz',{expectedBytes:2}),/Incomplete topology/);
 });
 test('remote asset settings reject credential URLs, insecure origins and ambiguous prefixes', () => {
   for (const value of ['', 'http://example.com', 'https://user:secret@example.com', 'https://example.com/folder', 'https://example.com/?x=1']) assert.throws(() => assetOrigin(value));

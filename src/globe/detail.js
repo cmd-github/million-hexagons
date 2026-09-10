@@ -65,6 +65,14 @@ export function createCellDetail(topology, globe, radius, textures, selectionMod
     mesh,
     update(camera, height, time) {
       const dt=lastFrame===null?0:Math.min(.1,(time-lastFrame)/1000);lastFrame=time;
+      const distance = camera.position.length() - radius;
+      const direction = globe.worldToLocal(camera.position.clone()).normalize();
+      const cap = Math.min(.32, Math.max(.055, distance / radius * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.max(camera.aspect, 1) * 1.9));
+      // A zoom/flight can invalidate a large incremental patch before it is
+      // finished. Stop that work instead of making the new view wait behind it.
+      if(job&&(direction.distanceToSquared(job.direction)>.0025||Math.abs(cap-job.cap)>.02)){
+        job.iterator.return();job=null;lastTime=-Infinity;
+      }
       if(job) {
         const deadline=performance.now()+2;
         while(performance.now()<deadline) {
@@ -79,7 +87,6 @@ export function createCellDetail(topology, globe, radius, textures, selectionMod
           }
         }
       }
-      const distance = camera.position.length() - radius;
       const pixels = height * .0038 / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * distance);
       const visible = THREE.MathUtils.smoothstep(pixels, 1.5, 8);
       opacity+=(visible-opacity)*(1-Math.exp(-dt/ .3));
@@ -88,8 +95,6 @@ export function createCellDetail(topology, globe, radius, textures, selectionMod
       material.uniforms.visibility.value = opacity*THREE.MathUtils.smoothstep(reveal,0,1);
       // Prepare the bounded patch before its outlines become noticeable.
       if (pixels<1.1&&opacity<.001) return;
-      const direction = globe.worldToLocal(camera.position.clone()).normalize();
-      const cap = Math.min(.32, Math.max(.055, distance / radius * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.max(camera.aspect, 1) * 1.9));
       if(job)return;
       if ((direction.distanceToSquared(previous) < .0003 && Math.abs(cap - previousCap) < .008) || time - lastTime < 140) return;
       lastTime = time;
