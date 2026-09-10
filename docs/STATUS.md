@@ -6,7 +6,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Complete one end-to-end Stripe test payment and verify idempotent fulfilment, ownership and publication.
+- [ ] Embed Stripe Checkout in the Review panel and load paid placements from a public persistent projection.
 
 ## Next
 
@@ -45,10 +45,11 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [x] Authoritative versioned server quotes and 15-minute exact-cell reservations deployed; anonymous quote, overlap rejection, atomic placement fulfilment, expiry/release and desktop/mobile Review passed live.
 - [x] Stripe test Checkout deployed from server-authoritative quotes; live session creation and idempotent retry passed, and signed webhook fulfilment is deployed.
 - [x] Staging builds now force the persistent sandbox client and fail if Checkout is tree-shaken; served Worker assets were verified after redeploy.
+- [x] First Stripe test payment recovered and verified: one paid order fulfilled 12 exact cells under hashed buyer ownership and published immutable artwork; five-minute paid-order reconciliation now backs up webhooks.
 
 ## Blocked / Needs Craig
 
-- [ ] Complete the first Stripe test-card checkout so paid fulfilment can be verified against the real signed webhook event.
+- [ ] Provide the Stripe test publishable key (`pk_test_...`) for browser-side embedded Checkout; this key is intentionally public.
 - [ ] Configure/confirm the $10 Cloudflare budget alert.
 - [ ] Review and complete [draft commercial terms](DRAFT-COMMERCIAL-TERMS.md), including final pricing, refunds, permanent-use wording and governing law.
 - [ ] Provide physical iOS/Android testing and observed first-time-user feedback.
@@ -59,7 +60,7 @@ Launch readiness: ~25%
 
 - Production foundation: IN PROGRESS
 - Durable ownership/domain: IN PROGRESS (staging ownership, versions and editable sources verified)
-- Inventory + checkout: IN PROGRESS (quotes, reservations and Stripe test Checkout verified; paid webhook fulfilment awaiting first end-to-end test)
+- Inventory + checkout: IN PROGRESS (first payment/fulfilment verified; embedded payment UI and public persistent projection remain)
 - Publication: IN PROGRESS (immediate publication and backend takedown/rollback verified; founder UI and public release projection remain)
 - Owner experience: NOT STARTED
 - Growth/sharing: IN PROGRESS (cell links only)

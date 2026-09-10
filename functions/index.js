@@ -18,7 +18,7 @@ import { decodeArtworkSource, designObjectPath, publicationObjects, sourceObject
 import { releaseTestReservation, reserveTestCells } from './reservations.js';
 import { quoteCells } from './pricing.js';
 import Stripe from 'stripe';
-import { checkoutLineItem, checkoutOrderId, checkoutOwnerId, paidCheckoutEmail } from './payments.js';
+import { checkoutLineItem, checkoutOrderId, checkoutOwnerId, paidCheckoutEmail, paidEmailOwnerId } from './payments.js';
 
 initializeApp();
 const stagingSandboxEnabled = defineBoolean('MH_STAGING_SANDBOX', { default: false });
@@ -156,6 +156,10 @@ export const stagingPlacements = onRequest(
     if (!identity.email_verified) { response.status(403).json({ ok: false, error: 'verified-email-required' }); return; }
 
     try {
+      if(action==='admin-payment-status'&&identity.stagingAdmin){
+        const db=getFirestore(),[orders,events]=await Promise.all([db.collection('stagingOrders').limit(50).get(),db.collection('stagingStripeEvents').limit(50).get()]);
+        response.status(200).json({ok:true,orders:orders.docs.map(document=>{const data=document.data();return{orderId:document.id,status:data.status,placementId:data.placementId,stripeCheckoutSessionId:data.stripeCheckoutSessionId};}),events:events.docs.map(document=>{const data=document.data();return{eventId:document.id,type:data.type,status:data.status,error:data.error};})});return;
+      }
       if (action === 'create') {
         const candidate = { ...request.body.placement, ownerId: identity.uid };
         // Older staging clients send only the bounded fallback rendition. Keep
@@ -299,6 +303,16 @@ export const expireStagingReservations=onSchedule({schedule:'every 5 minutes',re
   await Promise.all(snapshot.docs.filter(document=>document.data().status==='active').map(document=>releaseTestReservation(getFirestore(),document.id,document.data().ownerId,now,{expiredOnly:true}).catch(error=>logger.warn('Could not expire staging reservation',{reservationId:document.id,message:error.message}))));
 });
 
+async function fulfilPaidCheckout(db,session,paidAtMs){
+  const email=paidCheckoutEmail(session),orderId=String(session.metadata?.orderId||'');if(!email||!orderId)throw new Error('invalid-paid-session');
+  const orderRef=db.collection('stagingOrders').doc(orderId),orderSnapshot=await orderRef.get();if(!orderSnapshot.exists)throw new Error('order-not-found');const order=orderSnapshot.data();
+  if(order.status==='fulfilled')return order.result;
+  const ownerId=paidEmailOwnerId(email);
+  const reservation=(await db.collection('stagingReservations').doc(order.reservationId).get()).data(),reservationUsable=reservation?.status==='active'&&Number(reservation.expiresAtMs)>paidAtMs;
+  const result=await createTestPlacement(db,{...order.placement,ownerId},FieldValue.serverTimestamp(),{placementId:order.placementId,source:order.source,...(reservationUsable?{reservationId:order.reservationId,reservationOwnerId:order.reservationOwnerId,nowMs:paidAtMs}:{})}).catch(async error=>{const placement=await db.collection('stagingPlacements').doc(order.placementId).get();if(placement.exists)return{placementId:order.placementId,cellCount:placement.data().cellCount,status:placement.data().status};throw error;});
+  await orderRef.set({status:'fulfilled',ownerId,buyerEmail:email,stripePaymentIntentId:session.payment_intent,paidAmountMinor:session.amount_total,currency:session.currency,fulfilledAt:FieldValue.serverTimestamp(),placement:FieldValue.delete(),result},{merge:true});return result;
+}
+
 export const stagingCheckout=onRequest({region:'europe-west1',maxInstances:3,timeoutSeconds:60,memory:'512MiB',secrets:[stripeSecretKey]},async(request,response)=>{
   response.set('Cache-Control','no-store');const origin=request.get('Origin');if(!stagingOrigin(origin)){response.status(403).json({ok:false,error:'origin-not-allowed'});return;}if(origin)response.set('Access-Control-Allow-Origin',origin).set('Vary','Origin');response.set('Access-Control-Allow-Headers','content-type').set('Access-Control-Allow-Methods','POST, OPTIONS');if(request.method==='OPTIONS'){response.status(204).send('');return;}if(request.method!=='POST'){response.status(405).json({ok:false,error:'method-not-allowed'});return;}if(!stagingSandboxEnabled.value()){response.status(404).json({ok:false,error:'sandbox-disabled'});return;}
   try{
@@ -314,8 +328,8 @@ export const stagingCheckout=onRequest({region:'europe-west1',maxInstances:3,tim
       placement={topologyVersion:candidate.topologyVersion,anchor:candidate.anchor,cells:candidate.cells,title:candidate.title,description:candidate.description,destinationUrl:candidate.destinationUrl,artworkDataUrl:candidate.artworkDataUrl};
       await orderRef.set({orderId,reservationId,reservationOwnerId:reservation.ownerId,placementId,placement,source:sourceReference,quote:reservation.quote,status:'checkout-creating',environment:'staging',createdAt:FieldValue.serverTimestamp()},{merge:false});
     }
-    const stripe=new Stripe(stripeSecretKey.value());const session=await stripe.checkout.sessions.create({mode:'payment',line_items:[checkoutLineItem(reservation.quote)],customer_creation:'always',success_url:'https://million-hexagons-staging.million-hexagons.workers.dev/?checkout=success&session_id={CHECKOUT_SESSION_ID}',cancel_url:'https://million-hexagons-staging.million-hexagons.workers.dev/?checkout=cancelled',metadata:{orderId,reservationId,placementId},payment_intent_data:{metadata:{orderId,reservationId,placementId}}},{idempotencyKey:orderId});
-    await orderRef.set({stripeCheckoutSessionId:session.id,checkoutUrl:session.url,status:'checkout-open',updatedAt:FieldValue.serverTimestamp()},{merge:true});response.status(201).json({ok:true,checkout:{orderId,url:session.url}});
+    const stripe=new Stripe(stripeSecretKey.value());const session=await stripe.checkout.sessions.create({mode:'payment',line_items:[checkoutLineItem(reservation.quote)],customer_creation:'always',expires_at:Math.floor(Date.now()/1000)+30*60,success_url:'https://million-hexagons-staging.million-hexagons.workers.dev/?checkout=success&session_id={CHECKOUT_SESSION_ID}',cancel_url:'https://million-hexagons-staging.million-hexagons.workers.dev/?checkout=cancelled',metadata:{orderId,reservationId,placementId},payment_intent_data:{metadata:{orderId,reservationId,placementId}}},{idempotencyKey:orderId});
+    await Promise.all([orderRef.set({stripeCheckoutSessionId:session.id,checkoutUrl:session.url,status:'checkout-open',updatedAt:FieldValue.serverTimestamp()},{merge:true}),db.collection('stagingReservations').doc(reservationId).set({expiresAtMs:Number(session.expires_at)*1000,checkoutSessionId:session.id},{merge:true})]);response.status(201).json({ok:true,checkout:{orderId,url:session.url}});
   }catch(error){logger.error('Could not create Stripe checkout',error);response.status(500).json({ok:false,error:'checkout-failed'});}
 });
 
@@ -325,15 +339,19 @@ export const stripeWebhook=onRequest({region:'europe-west1',maxInstances:3,timeo
   try{
     await eventRef.set({eventId:event.id,type:event.type,status:'processing',receivedAt:FieldValue.serverTimestamp()},{merge:true});
     if(event.type==='checkout.session.completed'){
-      const session=event.data.object,email=paidCheckoutEmail(session),orderId=String(session.metadata?.orderId||'');if(!email||!orderId)throw new Error('invalid-paid-session');
-      const db=getFirestore(),orderRef=db.collection('stagingOrders').doc(orderId),orderSnapshot=await orderRef.get();if(!orderSnapshot.exists)throw new Error('order-not-found');const order=orderSnapshot.data();
-      let user;try{user=await getAuth().getUserByEmail(email);}catch(error){if(error.code!=='auth/user-not-found')throw error;user=await getAuth().createUser({email,emailVerified:false,displayName:order.placement.title});}
-      const result=await createTestPlacement(db,{...order.placement,ownerId:user.uid},FieldValue.serverTimestamp(),{placementId:order.placementId,source:order.source,reservationId:order.reservationId,reservationOwnerId:order.reservationOwnerId,nowMs:Date.now()}).catch(async error=>{const placement=await db.collection('stagingPlacements').doc(order.placementId).get();if(placement.exists)return{placementId:order.placementId,cellCount:placement.data().cellCount,status:placement.data().status};throw error;});
-      await orderRef.set({status:'fulfilled',ownerId:user.uid,buyerEmail:email,stripePaymentIntentId:session.payment_intent,paidAmountMinor:session.amount_total,currency:session.currency,fulfilledAt:FieldValue.serverTimestamp(),placement:FieldValue.delete(),result},{merge:true});
+      await fulfilPaidCheckout(getFirestore(),event.data.object,Number(event.created)*1000);
     }else if(event.type==='checkout.session.expired'){const orderId=String(event.data.object.metadata?.orderId||'');if(orderId)await getFirestore().collection('stagingOrders').doc(orderId).set({status:'checkout-expired',updatedAt:FieldValue.serverTimestamp()},{merge:true});}
     await eventRef.set({status:'processed',processedAt:FieldValue.serverTimestamp()},{merge:true});response.status(200).json({received:true});
-  }catch(error){logger.error('Stripe webhook processing failed',{eventId:event.id,message:error.message});await eventRef.set({status:'failed',error:String(error.message).slice(0,200),updatedAt:FieldValue.serverTimestamp()},{merge:true});response.status(500).send('webhook-processing-failed');}
+  }catch(error){logger.error('Stripe webhook processing failed',{eventId:event.id,errorMessage:error.message,errorCode:error.code,stack:error.stack});await eventRef.set({status:'failed',error:String(error.message).slice(0,200),updatedAt:FieldValue.serverTimestamp()},{merge:true});response.status(500).send('webhook-processing-failed');}
 });
+
+async function reconcileOpenStripeOrders(){
+  const db=getFirestore(),orders=await db.collection('stagingOrders').where('status','==','checkout-open').limit(50).get(),stripe=new Stripe(stripeSecretKey.value());let fulfilled=0;
+  for(const document of orders.docs)try{const session=await stripe.checkout.sessions.retrieve(document.data().stripeCheckoutSessionId);if(session.payment_status==='paid'){await fulfilPaidCheckout(db,session,Number(session.created)*1000);fulfilled++;}}catch(error){logger.error('Could not reconcile paid Stripe order',{orderId:document.id,errorMessage:error.message,errorCode:error.code});}
+  return{checked:orders.size,fulfilled};
+}
+export const reconcileStagingPayments=onSchedule({schedule:'every 5 minutes',region:'europe-west1',maxInstances:1,secrets:[stripeSecretKey]},async()=>{if(stagingSandboxEnabled.value())await reconcileOpenStripeOrders();});
+export const reconcileStagingPaymentsNow=onRequest({region:'europe-west1',maxInstances:1,secrets:[stripeSecretKey,stagingQaKey]},async(request,response)=>{if(request.method!=='POST'||request.get('X-MH-QA-Key')!==stagingQaKey.value()){response.status(403).json({ok:false});return;}response.status(200).json({ok:true,...await reconcileOpenStripeOrders()});});
 
 export const publishStagingPlacement = onDocumentCreated(
   { document: 'stagingPlacementVersions/{versionId}', region: 'europe-west1', retry: true, timeoutSeconds: 120, memory: '512MiB', maxInstances: 2, secrets: [r2AccountId, r2AccessKeyId, r2SecretAccessKey] },

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 export function checkoutOwnerId(token){return`checkout:${createHash('sha256').update(String(token||'')).digest('hex')}`;}
+export function paidEmailOwnerId(email){return`paid-email:${createHash('sha256').update(String(email||'').trim().toLowerCase()).digest('hex')}`;}
 export function checkoutOrderId(reservationId){return`order-${String(reservationId||'').replace(/[^a-zA-Z0-9-]/g,'').slice(0,80)}`;}
 export function checkoutLineItem(quote){
   if(!quote||quote.currency!=='usd'||!Number.isSafeInteger(quote.unitAmountMinor)||quote.unitAmountMinor<1||!Number.isSafeInteger(quote.cellCount)||quote.cellCount<1||quote.totalAmountMinor!==quote.unitAmountMinor*quote.cellCount)throw Object.assign(new Error('invalid-quote'),{code:'invalid-quote'});
