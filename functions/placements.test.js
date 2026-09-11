@@ -70,10 +70,11 @@ test('creates durable domain records, rejects conflicts, then releases a deleted
 });
 
 test('records a private source reference and queued publication without source bytes', async () => {
-  const db=new MemoryFirestore(),source={bucket:'private-bucket',path:'private/path.webp',mimeType:'image/webp',extension:'webp',size:7,sha256:'abc'};
-  const created=await createTestPlacement(db,valid,'test-time',{placementId:'fixed-placement',source});
+  const db=new MemoryFirestore(),source={bucket:'private-bucket',path:'private/path.webp',mimeType:'image/webp',extension:'webp',size:7,sha256:'abc'},designSource={bucket:'private-bucket',path:'private/design.json',size:12,sha256:'def'};
+  const created=await createTestPlacement(db,valid,'test-time',{placementId:'fixed-placement',source,designSource});
   const version=db.documents.get(`stagingPlacementVersions/${created.placementId}-v1`);
   assert.deepEqual(version.source,source);
+  assert.deepEqual(version.designSource,designSource);
   assert.deepEqual(version.publication,{status:'queued',attempts:0});
   assert.equal(JSON.stringify(version).includes('data:image'),false);
 });

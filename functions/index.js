@@ -122,6 +122,13 @@ async function loadPrivateDesign(reference) {
   return bundle;
 }
 
+async function loadPrivateArtwork(reference) {
+  if (!reference?.bucket || !reference?.path || !reference?.mimeType) return '';
+  const [bytes] = await getStorage().bucket(reference.bucket).file(reference.path).download();
+  if (createHash('sha256').update(bytes).digest('hex') !== reference.sha256) throw new Error('private-artwork-checksum-mismatch');
+  return `data:${reference.mimeType};base64,${bytes.toString('base64')}`;
+}
+
 export const stagingPlacements = onRequest(
   { region: 'europe-west1', maxInstances: 3, timeoutSeconds: 60, memory: '512MiB', secrets: [stagingQaKey,stripeSecretKey] },
   async (request, response) => {
@@ -220,11 +227,12 @@ export const stagingPlacements = onRequest(
         return;
       }
       if (action === 'update-content') {
-        const placementId = String(request.body.placementId || ''), operationId = randomUUID();
-        const source = await savePrivateArtwork(`staging-placement-sources/${placementId}/pending/${operationId}/artwork`, request.body.content?.sourceArtworkDataUrl || request.body.content?.artworkDataUrl, { placementId, ownerId: identity.uid });
-        const designSource = await savePrivateDesign(identity.uid, `placement-${placementId}-${operationId}`, request.body.content?.designState, request.body.content?.originalArtworkDataUrl);
+        const placementId = String(request.body.placementId || ''), operationId = randomUUID(),db=getFirestore(),placement=await db.collection('stagingPlacements').doc(placementId).get();
+        if(!placement.exists||!ownerIds.includes(placement.data().ownerId)||['deleted','revoked'].includes(placement.data().status)){response.status(404).json({ok:false,error:'placement-not-found'});return;}
+        const ownerId=placement.data().ownerId,source = await savePrivateArtwork(`staging-placement-sources/${placementId}/pending/${operationId}/artwork`, request.body.content?.sourceArtworkDataUrl || request.body.content?.artworkDataUrl, { placementId, ownerId });
+        const designSource = await savePrivateDesign(ownerId, `placement-${placementId}-${operationId}`, request.body.content?.designState, request.body.content?.originalArtworkDataUrl);
         if (!source || !designSource) { response.status(400).json({ ok: false, error: 'invalid-design-source' }); return; }
-        const result = await updateTestPlacementContent(getFirestore(), placementId, identity.uid, request.body.content, FieldValue.serverTimestamp(), source, designSource);
+        const result = await updateTestPlacementContent(db, placementId, ownerId, request.body.content, FieldValue.serverTimestamp(), source, designSource);
         response.status(200).json({ ok: true, placement: result });
         return;
       }
@@ -241,8 +249,9 @@ export const stagingPlacements = onRequest(
         const placementId = String(request.body.placementId || ''), placement = await getFirestore().collection('stagingPlacements').doc(placementId).get();
         if (!placement.exists || !ownerIds.includes(placement.data().ownerId) || placement.data().status === 'deleted') { response.status(404).json({ ok: false, error: 'placement-not-found' }); return; }
         const version = Number(request.body.version || placement.data().currentVersion || 1), content = await getFirestore().collection('stagingPlacementVersions').doc(`${placementId}-v${version}`).get();
-        if (!content.exists || !content.data().designSource) { response.status(404).json({ ok: false, error: 'design-source-not-found' }); return; }
-        response.status(200).json({ ok: true, placement: { placementId, version, ...(await loadPrivateDesign(content.data().designSource)) } });
+        if (!content.exists || !content.data().source) { response.status(404).json({ ok: false, error: 'design-source-not-found' }); return; }
+        const stored=content.data(),bundle=stored.designSource?await loadPrivateDesign(stored.designSource):null,currentArtworkDataUrl=await loadPrivateArtwork(stored.source);
+        response.status(200).json({ ok: true, placement: { placementId, version,designState:bundle?.designState||{schemaVersion:1,topologyVersion:placement.data().topologyVersion,anchor:placement.data().anchor,cells:decodeCells(placement.data().cellsData).map(id=>({id})),baseColour:'#6366a8',imageTransform:{scale:100,x:0,y:0,rotation:0,treatment:'original'}},originalArtworkDataUrl:bundle?.originalArtworkDataUrl||currentArtworkDataUrl,currentArtworkDataUrl } });
         return;
       }
       if (action === 'reserve') {

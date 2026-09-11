@@ -121,7 +121,7 @@ export async function createTestPlacement(db, input, timestamp, options = {}) {
       title: claim.title, currentVersion: 1,
       status: 'draft', environment: 'staging', quote, createdAt: timestamp, updatedAt: timestamp
     });
-    transaction.create(contentRef, { schemaVersion: 1, placementId, version: 1, topologyVersion: claim.topologyVersion, anchor: claim.anchor, cellCount: claim.cells.length, title: claim.title, description: claim.description, destinationUrl: claim.destinationUrl, artworkDataUrl: claim.artworkDataUrl, source: options.source || null, publication: options.source ? { status: 'queued', attempts: 0 } : { status: 'preview-only', attempts: 0 }, status: 'current', environment: 'staging', createdAt: timestamp });
+    transaction.create(contentRef, { schemaVersion: 1, placementId, version: 1, topologyVersion: claim.topologyVersion, anchor: claim.anchor, cellCount: claim.cells.length, title: claim.title, description: claim.description, destinationUrl: claim.destinationUrl, artworkDataUrl: claim.artworkDataUrl, source: options.source || null, designSource: options.designSource || null, publication: options.source ? { status: 'queued', attempts: 0 } : { status: 'preview-only', attempts: 0 }, status: 'current', environment: 'staging', createdAt: timestamp });
     transaction.create(grantRef, { placementId, ownerId: claim.ownerId, topologyVersion: claim.topologyVersion, status: 'active', environment: 'staging', grantedAt: timestamp });
     transaction.create(eventRef, { schemaVersion: 1, eventId: eventRef.id, type: 'placement_created', placementId, ownerId: claim.ownerId, environment: 'staging', occurredAt: timestamp });
   });

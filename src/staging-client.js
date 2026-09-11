@@ -49,6 +49,8 @@ export async function listTestClaims() { return (await ownerRequest({ action: 'l
 export async function deleteTestClaim(placementId) { return (await ownerRequest({ action: 'delete', placementId })).placement; }
 export async function getAccountSummary() { return (await ownerRequest({ action: 'account-summary' })).summary; }
 export async function updatePlacementMetadata(placementId, content) { return (await ownerRequest({ action: 'update-metadata', placementId, content })).placement; }
+export async function getPlacementContentSource(placementId,version) { return (await ownerRequest({ action: 'get-content-source', placementId, version })).placement; }
+export async function updatePlacementContent(placementId,content) { return (await ownerRequest({ action: 'update-content', placementId, content })).placement; }
 export async function adminLookup(query) { return (await ownerRequest({ action: 'admin-lookup', query })).result; }
 export async function moderateTestClaim(placementId, command) { return (await ownerRequest({ action: 'moderate', placementId, command })).placement; }
 export async function grantTestCredits(ownerId, amount, reason) { return (await ownerRequest({ action: 'grant-credits', ownerId, amount, reason, idempotencyKey: crypto.randomUUID() })).credits; }

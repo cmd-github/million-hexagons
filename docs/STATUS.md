@@ -1,21 +1,21 @@
 # Million Hexagons — Status
 
-Updated: 10 September 2026
+Updated: 11 September 2026
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
 ## Now
 
-- [ ] Extend My Globe editing from versioned name/description/URL updates to recoverable artwork editing.
+- [ ] Add public placement/share pages and cards, then placement-based analytics.
 
 ## Next
 
 - [ ] Reduce first-visit close-up latency by loading exact geometry for the visible region instead of the full 17.2 MB topology (reserved for a higher-capability model).
 - [ ] Validate first-time purchase intent and physical-device performance.
-- [ ] Add public placement/share pages and cards, then placement-based analytics.
 
 ## Done
 
+- [x] Recoverable artwork editing in My Globe deployed to staging (`1c723695-66c3-4853-bae4-b737635aaa92`). Verified owners can load the private saved source, upload a replacement PNG/WebP, crop by moving/scaling/rotating, restore the saved artwork, edit metadata and publish an immutable version without changing the placement ID or purchased cells. Legacy paid versions without a design bundle fall back to their private publication source, and Stripe-email-recovered ownership is authorized correctly. Backend tests (29), controlled desktop/mobile artwork journeys with inspected screenshots, and the full live durable-source/version/publication/recovery/release journey passed.
 - [x] Payment resilience and server-side Stripe acceptance deployed. Failed and expired Checkout sessions release reservations idempotently, processing payments retain cells, and paid sessions fulfil during cleanup/reconciliation. Stripe's test webhook subscription now includes asynchronous success/failure, payment failure, refund and dispute events. A real declined test payment and disposable successful charge/refund reached the signed webhook; the refund retained its explicit ownership outcome. Forced reconciliation closed an externally expired Checkout reservation with zero failures. Backend tests (29), live Checkout creation/retry/cancel, and desktop/mobile founder workspace passed. The staging UI remains at `aea27f1a-485c-44bd-bada-6861afe9a8bb`.
 - [x] Passwordless purchase recovery and My Globe deployed to staging (`031bc04b-e711-4b2a-9c05-2be6552c9b79`). Verified email sign-in now recovers both Firebase-UID and Stripe-email-owned placements, including cross-device link completion by re-entering the receiving email. My Globe shows placement artwork, status, acquisition date, versions and total cells; owners can return to a placement and publish immutable name, description or URL updates. Backend identity tests and desktop/mobile controlled browser journeys passed; live staging owner-access layout passed. Live inbox delivery and a real owner metadata edit remain unverified.
 - [x] Globe performance audit and staging startup/cache/grid repair deployed (`ddae8c82-7756-4546-8db7-3a5ba1e3cac7`). Live desktop/mobile first draw improved from roughly 18 seconds to 0.9–1.2 seconds; repeat saved close-ups reached 2.7–2.9 seconds. Obsolete wide grid work is cancelled after zooming. Exact first-visit close-ups still took 20–32 seconds across the observed runs, including CPU-throttled mobile emulation. Image/zoom checks and remaining memory/scaling limits are recorded in [Globe performance audit](GLOBE-PERFORMANCE-AUDIT.md).
@@ -71,6 +71,6 @@ Launch readiness: ~25%
 - Durable ownership/domain: IN PROGRESS (staging ownership, versions and editable sources verified)
 - Inventory + checkout: IN PROGRESS (successful and declined test payments, refund handling, signed webhooks and forced reconciliation verified; final commercial terms and production configuration remain)
 - Publication: IN PROGRESS (immediate publication, public staging projection and backend takedown/rollback verified)
-- Owner experience: IN PROGRESS (passwordless recovery, owned-placement dashboard and versioned metadata editing deployed; artwork editing remains)
+- Owner experience: IN PROGRESS (passwordless recovery, owned-placement dashboard and recoverable immutable metadata/artwork editing deployed)
 - Growth/sharing: IN PROGRESS (cell links only)
 - Analytics: NOT STARTED (illustrative/local counters only)
