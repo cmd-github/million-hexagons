@@ -204,6 +204,7 @@ let buyInteractionMode = 'move';
 let logoCells = null;
 let footprintEdited = false;
 let draftArtwork = null;
+let ownerEdit = null;
 let editorPainting = false;
 const selectedCellColours = new Map();
 const sessionPlacements = new Map();
@@ -315,7 +316,8 @@ function refreshSelection(preparedCells = null) {
   const amount = Math.max(1, Math.min(100000, Number(document.querySelector('#hexAmount').value) || 1));
   if (selectedCell) {
     const candidateCells = Array.isArray(preparedCells)?preparedCells:connectedPattern(selectedCell, amount, shape);
-    const blocked = candidateCells.find((cell) => occupiedCells[cell.id - 1]);
+    const owned=ownerEdit?new Set(ownerEdit.record.cells):null;
+    const blocked = candidateCells.find((cell) => occupiedCells[cell.id - 1]&&!owned?.has(cell.id));
     if (blocked) {
       selectedCells = [];
       selectionError = 'That area overlaps purchased hexagons. Try another location, shape or quantity.';
@@ -471,7 +473,12 @@ canvas.addEventListener('pointerup', stopPainting);
 canvas.addEventListener('pointercancel', stopPainting);
 canvas.addEventListener('pointerleave', () => { clearTimeout(hoverTimer); if (!painting) clearHover(); if(!pinnedCell)tooltip.classList.remove('show'); });
 
-async function openBuy(anchor = null) {
+async function studioImage(source) {
+  if(!source)return null;
+  const image=await new Promise((resolve,reject)=>{const value=new Image();value.crossOrigin='anonymous';value.onload=()=>resolve(value);value.onerror=()=>reject(new Error('Could not read this artwork.'));value.src=source;});
+  const result=document.createElement('canvas');result.width=image.naturalWidth;result.height=image.naturalHeight;result.getContext('2d').drawImage(image,0,0);result.naturalWidth=result.width;result.naturalHeight=result.height;return result;
+}
+async function openBuy(anchor = null, ownerUpdate = null) {
   if(publishing||openingEditor)return;
   openingEditor=true;showLoading();await nextPaint();
   document.body.classList.remove('inspecting');document.querySelector('#placementInspector').hidden=true;
@@ -483,7 +490,7 @@ async function openBuy(anchor = null) {
     await topology.ensureCap(direction,.1);
     preparedAnchor=Number.isInteger(anchor)?anchor:await topology.run(()=>topology.pick(direction));
     await prepareLocation(preparedAnchor,.12);
-    if(occupiedCells[preparedAnchor-1])preparedAnchor=await topology.run(()=>{
+    if(!ownerUpdate&&occupiedCells[preparedAnchor-1])preparedAnchor=await topology.run(()=>{
       const queue=[preparedAnchor],seen=new Set(queue);
       for(let i=0;i<queue.length;i++){
         const id=queue[i];if(!occupiedCells[id-1])return id;
@@ -529,7 +536,21 @@ async function openBuy(anchor = null) {
   designAnchor=preparedAnchor;
   logoCells=topology.cells([designAnchor],designAnchor);amountInput.value=1;
   exactGlobeArea=true;designSurface='globe';document.body.dataset.surface='globe';
+  ownerEdit=ownerUpdate;
+  if(ownerEdit){
+    const state=ownerEdit.source.designState||{},transform=state.imageTransform||{},source=ownerEdit.source.originalArtworkDataUrl||ownerEdit.source.currentArtworkDataUrl||ownerEdit.record.artworkDataUrl;
+    logoCells=topology.cells(state.cells?.length?state.cells:ownerEdit.record.cells.map(id=>({id})),ownerEdit.record.anchor);amountInput.value=logoCells.length;footprintEdited=true;
+    uploadedLogo=await studioImage(source);uploadedLogoCrop=uploadedLogo?findLogoContentBounds(uploadedLogo):null;
+    document.querySelector('#brandColor').value=state.baseColour||'#5967b0';document.querySelector('#logoTreatment').value=transform.treatment==='repeat'?'repeat':'span';
+    document.querySelector('#logoScale').value=Number(transform.scale||100);document.querySelector('#logoScaleValue').textContent=`${document.querySelector('#logoScale').value}%`;logoPosition.x=Number(transform.x||0);logoPosition.y=Number(transform.y||0);document.querySelector('#logoOrientation').value=Number(transform.rotation||0);updateLogoPreviewOrientation();
+    document.querySelector('#companyName').value=ownerEdit.record.title||'';document.querySelector('#companyDescription').value=ownerEdit.record.description||'';document.querySelector('#website').value=ownerEdit.record.destinationUrl||'';
+  }
   configureCreation();setDesignSurface('globe');
+  document.body.classList.toggle('owner-editing',Boolean(ownerEdit));
+  document.querySelector('#sizeControls').hidden=Boolean(ownerEdit);document.querySelector('#editHexMode').hidden=Boolean(ownerEdit);document.querySelector('#removeHexMode').hidden=Boolean(ownerEdit);
+  document.querySelector('#designTitle').textContent=ownerEdit?'Update your placement.':'Make it yours.';document.querySelector('#designIntro').textContent=ownerEdit?'Your purchased space is locked. Update what appears inside it.':'Your space. Your design.';
+  document.querySelector('#toPlacement').textContent=ownerEdit?'Review update →':'Find my spot →';document.querySelector('#previewPurchase').textContent=ownerEdit?'Publish update':'Continue to secure checkout';
+  if(ownerEdit)for(const id of ['price','placePrice','reviewPrice'])document.getElementById(id).textContent='Owned';
   if(!requestedAnchor)orientToCell(designAnchor,radius+.3);
   await nextPaint();hideLoading();openingEditor=false;
   trackEvent('design_started',{context:{cellCount:1,source:'studio'}});
@@ -559,6 +580,7 @@ function closeBuy() {
   clearSelectionColours();
   clearPlacementPreview();
   requestedAnchor = null;
+  ownerEdit=null;document.body.classList.remove('owner-editing');document.querySelector('#editHexMode').hidden=false;document.querySelector('#removeHexMode').hidden=false;document.querySelector('#previewPurchase').textContent='Continue to secure checkout';
   pinnedCell = null;
   document.querySelector('#hint').innerHTML = '<span title="Drag to rotate" role="img" aria-label="Drag to rotate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18m-5-4 4 4-4 4M8 8l-4 4 4 4"/></svg></span><i></i><span title="Scroll to zoom" role="img" aria-label="Scroll to zoom"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14m5 12 6 6M7 10h6m-3-3v6"/></svg></span><i></i><span title="Click a tile" role="img" aria-label="Click a tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3 14 10-7 1-3 7z"/></svg></span>';
 }
@@ -665,7 +687,7 @@ function updateTotals() {
   const count = placementCount();
   const pentagons = creationType ? previewCells().filter(cell => cell.pentagon).length : 0;
   const countText = `${count.toLocaleString()} cell${count === 1 ? '' : 's'}${pentagons ? ` · ${pentagons} pentagon${pentagons === 1 ? '' : 's'}` : ''}`;
-  const priceText = `$${count.toLocaleString()}`;
+  const priceText = ownerEdit?'Owned':`$${count.toLocaleString()}`;
   document.querySelector('#designCount').textContent = countText;
   document.querySelector('#price').textContent = priceText;
   document.querySelector('#placeCount').textContent = countText;
@@ -859,6 +881,7 @@ function updateImageControls() {
   setEditorMode(logoEditorMode,false);
 }
 function setEditorMode(mode, zoomToCells=true) {
+  if(ownerEdit&&['hex','remove'].includes(mode))return;
   if(designSurface==='globe')controls.enableRotate=mode==='pan';
   logoEditorMode=mode;logoDrag=null;editorPan=null;lastPaintedCell=null;
   document.querySelector('#areaBrushControls').hidden=!['hex','remove','paint','transparent','restore'].includes(mode);
@@ -970,7 +993,7 @@ function restorePaint(from,to) {
 document.querySelector('#undoPaint').addEventListener('click',()=>restorePaint(undoStack,redoStack));
 document.querySelector('#redoPaint').addEventListener('click',()=>restorePaint(redoStack,undoStack));
 
-document.querySelector('#toPlacement').addEventListener('click', enterPlacement);
+document.querySelector('#toPlacement').addEventListener('click', () => {enterPlacement();if(ownerEdit)document.querySelector('#toReview').click();});
 document.querySelector('#backToDesign').addEventListener('click', () => { clearPlacementPreview(); selecting = false; selectionModeUniform.value = 0; document.body.classList.remove('selecting', 'placing-design'); controls.enableRotate = true; showFlowStep('design'); drawDesignPreview(); updateTotals(); });
 document.querySelector('#moveGlobeMode').addEventListener('click', () => setInteractionMode('move'));
 document.querySelector('#placeDesignMode').addEventListener('click', () => setInteractionMode('place'));
@@ -978,6 +1001,7 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   if (!selectedCells.length) return;
   const button=event.currentTarget,original=button.textContent;button.disabled=true;if(stagingClient)button.textContent='Checking availability…';
   if(stagingClient){
+    if(ownerEdit){showFlowStep('review');setInteractionMode('move');focusSelection();const reviewCanvas=document.querySelector('#reviewCanvas');drawDesignPreview(reviewCanvas);document.querySelector('#reviewKind').textContent=uploadedLogo?'Updated image & colour placement':'Updated colour placement';clearPlacementPreview();addHighResolutionPlacement(document.querySelector('#brandColor').value,document.querySelector('#logoTreatment').value,previewPlacementLayers);button.textContent=original;button.disabled=false;return;}
     try{await releaseActiveCheckoutReservation();activeCheckoutReservation=await stagingClient.quoteAndReserve(selectedCells.map(cell=>cell.id));document.querySelector('#reviewPrice').textContent=activeCheckoutReservation.quote.displayTotal;showCheckoutExpiry();}
     catch(error){document.querySelector('#selectionStatus').textContent=error.code==='cells-unavailable'?`Hexagon ${error.cellId} was just reserved. Choose another location.`:'Could not reserve this location. Try again.';button.textContent=original;button.disabled=false;return;}
   }
@@ -994,7 +1018,7 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   addHighResolutionPlacement(document.querySelector('#brandColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
   button.textContent=original;button.disabled=false;
 });
-document.querySelector('#backToPlacement').addEventListener('click', () => { void releaseActiveCheckoutReservation();clearPlacementPreview(); showFlowStep('place'); setInteractionMode('move'); refreshSelection(); });
+document.querySelector('#backToPlacement').addEventListener('click', () => { void releaseActiveCheckoutReservation();clearPlacementPreview();if(ownerEdit){selecting=false;selectionModeUniform.value=0;document.body.classList.remove('selecting','placing-design');showFlowStep('design');drawDesignPreview();return;}showFlowStep('place'); setInteractionMode('move'); refreshSelection(); });
 document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size; button.closest('details').open=false;void resizeDesign(); }));
 amountInput.addEventListener('change', () => { amountInput.value = placementCount(); });
 amountInput.addEventListener('input', () => { void resizeDesign(); });
@@ -1475,7 +1499,7 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
   async function openMyGlobe(){accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');myGlobe.hidden=false;document.body.classList.add('my-globe-open');myGlobeStatus.textContent='Loading your placements...';myGlobePlacements.replaceChildren();try{const records=await stagingClient.listTestClaims();renderMyGlobe(records);myGlobeStatus.textContent='';}catch(error){myGlobeStatus.textContent=`Could not load your placements: ${error.message}`;}}
   document.querySelector('#openMyGlobe').onclick=()=>void openMyGlobe();
   document.querySelector('#closeMyGlobe').onclick=()=>{closeMyGlobe();accountToggle.focus();};
-  myGlobePlacements.onclick=async event=>{const button=event.target.closest('[data-owner-action]');if(!button)return;const card=button.closest('.my-globe-card'),record=myGlobeRecords.find(item=>item.placementId===card.dataset.placementId);if(!record)return;if(button.dataset.ownerAction==='view'){closeMyGlobe();initialPlacementFocusAllowed=true;await prepareLocation(record.anchor);flyToCell(record.anchor,.004,900,()=>inspectPlacement(record.anchor));}else if(button.dataset.ownerAction==='edit'){card.classList.add('editing');card.querySelector('.my-globe-edit').hidden=false;button.closest('.my-globe-actions').hidden=true;card.querySelector('input').focus();try{await prepareOwnerArtwork(card,record);}catch(error){card.querySelector('[role=status]').textContent=`Artwork editing unavailable: ${error.message}`;}}else if(button.dataset.ownerAction==='restore-artwork'){const state=myGlobeArtwork.get(record.placementId);if(state){state.image=await loadOwnerImage(state.current);state.original=state.current;state.transform={scale:100,x:0,y:0,rotation:0};drawOwnerArtwork(card);}}else if(button.dataset.ownerAction==='cancel'){myGlobeArtwork.delete(record.placementId);card.classList.remove('editing');card.querySelector('.my-globe-edit').hidden=true;card.querySelector('.my-globe-actions').hidden=false;}};
+  myGlobePlacements.onclick=async event=>{const button=event.target.closest('[data-owner-action]');if(!button)return;const card=button.closest('.my-globe-card'),record=myGlobeRecords.find(item=>item.placementId===card.dataset.placementId);if(!record)return;if(button.dataset.ownerAction==='view'){closeMyGlobe();initialPlacementFocusAllowed=true;await prepareLocation(record.anchor);flyToCell(record.anchor,.004,900,()=>inspectPlacement(record.anchor));}else if(button.dataset.ownerAction==='edit'){button.disabled=true;myGlobeStatus.textContent='Loading your placement into the Design studio…';try{let source;try{source=await stagingClient.getPlacementContentSource(record.placementId,record.currentVersion);}catch(error){if(!record.artworkDataUrl)throw error;source={currentArtworkDataUrl:record.artworkDataUrl,originalArtworkDataUrl:record.artworkDataUrl,designState:null};}closeMyGlobe();await openBuy(record.anchor,{record,source});}catch(error){myGlobeStatus.textContent=`Could not open the Design studio: ${error.message}`;button.disabled=false;}}};
   myGlobePlacements.oninput=event=>{const field=event.target.matches('[data-artwork-scale]')?'scale':event.target.matches('[data-artwork-x]')?'x':event.target.matches('[data-artwork-y]')?'y':event.target.matches('[data-artwork-rotation]')?'rotation':'';if(!field)return;const card=event.target.closest('.my-globe-card'),state=myGlobeArtwork.get(card.dataset.placementId);if(state){state.transform[field]=Number(event.target.value);drawOwnerArtwork(card);}};
   myGlobePlacements.onchange=async event=>{if(!event.target.matches('[data-artwork-upload]'))return;const file=event.target.files?.[0],card=event.target.closest('.my-globe-card'),status=card.querySelector('[role=status]');if(!file)return;if(!['image/png','image/webp'].includes(file.type)||file.size>12*1024*1024){status.textContent='Choose a PNG or WebP image up to 12 MB.';return;}try{await setOwnerArtwork(card,await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);}));status.textContent='Replacement loaded. Adjust its crop, then publish.';}catch(error){status.textContent=error.message;}};
   myGlobePlacements.onsubmit=async event=>{event.preventDefault();const form=event.target,card=form.closest('.my-globe-card'),record=myGlobeRecords.find(item=>item.placementId===card.dataset.placementId),state=myGlobeArtwork.get(record.placementId),button=form.querySelector('[type=submit]'),formStatus=form.querySelector('[role=status]'),fields=Object.fromEntries(new FormData(form));if(!state){formStatus.textContent='Wait for the editable artwork to load.';return;}button.disabled=true;formStatus.textContent='Publishing your new version...';try{const artworkDataUrl=ownerArtworkOutput(card),designState={topologyVersion:record.topologyVersion||'geodesic-v1',anchor:record.anchor,cells:record.cells.map(id=>({id})),baseColour:'#6366a8',imageTransform:{...state.transform,treatment:'original'}};await stagingClient.updatePlacementContent(record.placementId,{...fields,artworkDataUrl,sourceArtworkDataUrl:artworkDataUrl,originalArtworkDataUrl:state.original,designState});formStatus.textContent='New artwork version queued for publication.';myGlobeArtwork.delete(record.placementId);await openMyGlobe();}catch(error){formStatus.textContent=`Could not publish: ${error.message}`;}finally{button.disabled=false;}};
@@ -1557,6 +1581,12 @@ async function paintPlacement() {
   const treatment = document.querySelector('#logoTreatment').value;
   let durablePlacement=null;
   if(stagingClient){
+    if(ownerEdit){
+      publishing=true;document.querySelector('#buyPanel').inert=true;const button=document.querySelector('#previewPurchase'),label=button.textContent;button.disabled=true;button.textContent='Publishing update…';
+      try{const sourceCanvas=renderArtwork(previewCells()),content={title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:publicationArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas),originalArtworkDataUrl:uploadedLogo?uploadedLogo.toDataURL('image/png'):ownerEdit.source.originalArtworkDataUrl,designState:{schemaVersion:1,topologyVersion:'geodesic-v1',anchor:ownerEdit.record.anchor,cells:previewCells().map(({id,color,transparent})=>({id,...(color?{color}:{}),...(transparent?{transparent:true}:{})})),baseColour:color,imageTransform:{scale:Number(document.querySelector('#logoScale').value),x:logoPosition.x,y:logoPosition.y,rotation:Number(document.querySelector('#logoOrientation').value),treatment}}};await stagingClient.updatePlacementContent(ownerEdit.record.placementId,content);publishing=false;closeBuy();const toast=document.querySelector('#toast');toast.querySelector('b').textContent='Update published.';toast.querySelector('span').textContent='Your new immutable version is queued for the globe.';toast.classList.add('show');}
+      catch(error){document.querySelector('#websiteError').hidden=false;document.querySelector('#websiteError').textContent=`Could not publish update: ${error.message}`;}
+      finally{publishing=false;document.querySelector('#buyPanel').inert=false;button.disabled=false;button.textContent=label;}return;
+    }
     publishing=true;
     if(!activeCheckoutReservation){publishing=false;const target=document.querySelector('#websiteError');target.hidden=false;target.textContent='This reservation expired. Choose the location again.';return;}
     showEmbeddedCheckoutLoading();await nextPaint();
@@ -1706,7 +1736,7 @@ function syncGlobeDesign(){
   controls.enableRotate=logoEditorMode==='pan';
   selectedCell=cellForId(designAnchor);
   selectedCells=previewCells();
-  const blocked=selectedCells.some(c=>occupiedCells[c.id-1]);
+  const owned=ownerEdit?new Set(ownerEdit.record.cells):null,blocked=selectedCells.some(c=>occupiedCells[c.id-1]&&!owned?.has(c.id));
   document.querySelector('#toPlacement').disabled=blocked;
   if(blocked)document.querySelector('#toolHint').textContent='This size overlaps occupied cells. Reduce the count or use Add to shape the area.';
   draftArtwork=renderArtwork(selectedCells);

@@ -6,14 +6,16 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Replace the reduced My Globe crop form with the original globe Design workspace for owner updates. Lock the purchased footprint/location, retain image and per-cell visual tools, and publish a new immutable version without reservation or checkout.
+- [ ] Review and complete the commercial launch decisions: pricing, refunds, permanent-use wording, seller identity and governing law.
 
 ## Next
 
-- [ ] Review and complete the commercial launch decisions: pricing, refunds, permanent-use wording, seller identity and governing law.
+- [ ] Choose the next launch-critical engineering slice after the commercial decisions are settled.
 - [ ] Later: design explicit domain rules for voluntarily merging connected purchases under the same verified owner so one artwork can span the expanded holding.
 
 ## Done
+
+- [x] Reused the original globe Design workspace for owner updates and deployed it to staging (`bd294887-2687-4414-b33d-9b54c79b1005`). My Globe now loads normal or legacy published artwork into the shared editor, locks the purchased footprint/location, hides cell count and Add/Remove controls, retains image replacement/movement/scale/rotation, background colour and per-cell Paint/Clear/Restore, and proceeds directly to Review → Publish update without availability reservation or checkout. Desktop/mobile journeys verified exact cell preservation, per-cell colour state, immutable version payloads, legacy-source fallback, claimed-cell HUD interaction and responsive rendered layouts. Live health/CDN and disposable source/version/publication acceptance passed; Craig's existing placement was not modified.
 
 - [x] Repaired claimed-placement interaction and legacy owner editing and deployed it to staging (`ca7b8906-f15a-4619-a014-8baa2941dc0c`). A globe click now waits for its exact streamed geometry and completes the original click instead of silently requiring another attempt. My Globe falls back to the published artwork for older placements whose private design source returns 404, loads cross-origin artwork safely for canvas export, and explains when the published copy is being edited. Desktop/mobile owner journeys cover a forced first-hit geometry miss, normal private-source editing, published-copy fallback, replacement upload, crop controls, immutable publication and exact-cell preservation. Live health/CDN checks and the disposable live source/version/publication journey passed; Craig's existing older placement has not been republished during verification.
 
