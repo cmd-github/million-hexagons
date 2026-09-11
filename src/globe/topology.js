@@ -6,6 +6,10 @@ const normalize = a => { const l = Math.hypot(...a); return a.map(v => v / l); }
 
 export class SphericalTopology {
   constructor(buffer, manifest) {
+    this.manifest = manifest;
+    this.count = manifest.cells;
+    this.last = 0;
+    if (!buffer) return; // Regional implementations provide the same exact accessors.
     if (new TextDecoder().decode(new Uint8Array(buffer, 0, 8)) !== 'MHGEO001') throw Error('Unsupported topology asset');
     const header = new DataView(buffer);
     if (manifest.version !== 1 || buffer.byteLength !== manifest.bytes || header.getUint32(8, true) !== manifest.cells || header.getUint32(12, true) !== manifest.vertices) throw Error('Incomplete or mismatched topology asset');
@@ -21,6 +25,8 @@ export class SphericalTopology {
     return this.centres.subarray((id - 1) * 3, id * 3);
   }
   neighboursOf(id) { return Array.from(this.neighbours.subarray((id - 1) * 6, (id - 1) * 6 + this.degrees[id - 1]), v => v + 1); }
+  degreeOf(id) { return this.degrees[id - 1]; }
+  ringIds(id) { return this.rings.subarray((id - 1) * 6, (id - 1) * 6 + this.degreeOf(id)); }
   polygon(id) {
     const start = (id - 1) * 6;
     return Array.from(this.rings.subarray(start, start + this.degrees[id - 1]), v => this.vertices.subarray(v * 3, v * 3 + 3));
@@ -66,7 +72,7 @@ export class SphericalTopology {
     return ids.map(value => {
       const id = typeof value === 'number' ? value : value.id;
       return { ...(typeof value === 'object' ? value : {}), id, ...this.project(this.centre(id), frame),
-        polygon: this.polygon(id).map(p => this.project(p, frame)), pentagon: this.degrees[id - 1] === 5 };
+        polygon: this.polygon(id).map(p => this.project(p, frame)), pentagon: this.degreeOf(id) === 5 };
     });
   }
   connected(anchor, count, aspect = 1.25, blocked = null) {
@@ -96,13 +102,4 @@ export class SphericalTopology {
     for (let i = 0; i < pending.length; i++) for (const id of this.neighboursOf(pending[i])) if (ids.has(id) && !seen.has(id)) { seen.add(id); pending.push(id); }
     return seen.size === ids.size;
   }
-}
-
-export async function loadTopology() {
-  return new Promise((resolve,reject)=>{
-    const worker=new Worker(new URL('./topology-loader.worker.js',import.meta.url),{type:'module'});
-    worker.onmessage=({data})=>{worker.terminate();if(data.error)reject(Error(data.error));else{const topology=new SphericalTopology(data.buffer,data.manifest);topology.loadTiming=data.timing;resolve(topology);}};
-    worker.onerror=error=>{worker.terminate();reject(Error(error.message||'Could not load exact cell data'));};
-    worker.postMessage({});
-  });
 }

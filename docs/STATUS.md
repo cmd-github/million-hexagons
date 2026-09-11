@@ -6,13 +6,15 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Validate first-time purchase intent and physical-device performance with real iOS/Android devices.
+- [ ] Close the remaining mobile performance acceptance gap: measure full page-to-placement startup and verify cold close-ups on physical iOS/Android devices. Regional geometry is deployed; controlled close-ups meet 3.2–3.4 seconds, but throttled live startup remains slower.
 
 ## Next
 
-- [ ] Reduce first-visit close-up latency by loading exact geometry for the visible region instead of the full 17.2 MB topology (reserved for a higher-capability model).
+- [ ] Validate first-time purchase intent and physical-device performance with real iOS/Android devices.
 
 ## Done
+
+- [x] Exact regional geometry streaming deployed to staging (`dd9f68a2-c907-4e02-bdf8-702466122867`). Visitors fetch visible/required regions instead of the 17.2 MB monolithic topology. Exhaustive comparison preserves all 1,000,000 canonical IDs, polygon bits and adjacency; connected footprints and artwork projection inputs match. Recorded desktop/mobile journeys preserve Design -> Place -> Review at 1,500 and 100,000 cells and recover from failed downloads across seams/poles. Immutable release contains 9,733 verified objects; live regional checks confirm CDN hits. See [regional geometry](REGIONAL-GEOMETRY.md) and [performance measurements](GLOBE-PERFORMANCE-AUDIT.md). Physical-device acceptance remains open.
 
 - [x] Typed conversion analytics and trustworthy public globe statistics deployed to staging (`09ac4e22-f5ea-40bf-8c88-e67403a7b4e7`). One browser boundary now captures globe views/searches, placement views/clicks/shares, cell selection, design progress and checkout starts with bounded privacy-minimal context; Stripe fulfilment emits idempotent purchase completion server-side. Active authoritative placements drive claimed, remaining, placement and latest-placement totals, replacing fabricated global figures and example activity. My Globe shows measured views, visits and CTR. Backend tests (33), desktop/mobile sharing and owner-dashboard journeys, checkout regressions and the full live publication/funnel/statistics journey passed. A fresh paid event was not created in this deployment run.
 - [x] Public placement links, share cards and privacy-minimal view/click analytics deployed to staging (`1cc9fe93-16b5-46d6-959a-598cc890087d`). Permanent placement URLs open the correct globe location, expose public campaign details and support native share/copy. Firestore-backed totals deduplicate views by browser session without storing raw session IDs. Backend tests (31), controlled desktop/mobile journeys with inspected screenshots, persistent-checkout regression coverage, and the full live publication journey passed; live acceptance measured one view and one click while rejecting the duplicate view.

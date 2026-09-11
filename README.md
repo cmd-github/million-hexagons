@@ -34,7 +34,7 @@ npm run preview -- --port 4181
 - Image framing: rotation-aware contained fit, low-resolution upload preflight, 50-400% zoom with cell clipping, drag positioning, and a separate hexagon editing mode. Reset logo restores the original framing.
 - Shared polygon IDs and artwork mapping across flat preview, globe preview, review, and session publication.
 - Suggested available locations, separate Move/Place controls, conflict rejection, undo/redo, and responsive desktop/mobile layouts.
-- Lazy exact-topology loading and viewport-driven artwork tile streaming rather than one object or source image per advertiser.
+- Exact regional topology loading: a 78 KB compressed ID index and immutable geometry partitions replace the 17.2 MB whole-globe download. Picking, purchased artwork and editing share the frozen boundaries. See [regional geometry](docs/REGIONAL-GEOMETRY.md).
 
 Session previews use local browser storage and reset; they are not purchases. Accounts, authoritative inventory, payment, moderation, durable artwork, and customer recovery remain future transactional work.
 
@@ -77,7 +77,7 @@ The output directory is `coming-soon-dist/`. The configured production domains a
 - `scripts/` — builders and automated browser/geometry checks
 - `coming-soon/` — independently built public holding site
 
-Routine topology regeneration uses Node. The optional Python seed-discovery script changes the inventory identity basis and must not be used without an explicit migration decision.
+To rebuild delivery partitions from the existing frozen topology, run `npm.cmd run build:regions`, then `npm.cmd run test:regions`. This verifies the canonical checksum and copies exact geometry without rebuilding the topology. Do not regenerate the seed or canonical topology without an explicit migration decision.
 
 Published uploads retain close-up detail through source-sized, sparse tile refinement, with the same bounded streaming cache and no retained placement meshes.
 

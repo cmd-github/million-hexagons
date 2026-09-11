@@ -1,6 +1,6 @@
 // Lossless byte-plane delta coding. IDs and Float32 bit patterns are identical
 // to the canonical asset; no geometric quantization is involved.
-const strides={centres:3,vertices:3,rings:6,neighbours:6,degrees:1,areas:1};
+const strides={centres:3,vertices:3,rings:6,neighbours:6,degrees:1,areas:1,ids:1,vertexIds:1};
 export function encodeTopology(buffer,manifest) {
   const output=new Uint8Array(buffer.byteLength);output.set(new Uint8Array(buffer,0,32));
   for(const [name,{offset,length}] of Object.entries(manifest.sections)) {

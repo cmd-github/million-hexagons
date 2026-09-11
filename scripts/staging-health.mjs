@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { gunzipSync } from 'node:zlib';
+import {createHash} from 'node:crypto';
+import {regionLayout} from '../src/globe/region-format.js';
 
 const config = JSON.parse(await readFile('deploy/staging-monitor.json', 'utf8'));
 const report = { checkedAt: new Date().toISOString(), ...config, checks: [], ok: false };
@@ -52,6 +54,15 @@ try {
   const base = `${config.assetOrigin}/releases/${config.release}`;
   const bootstrap = JSON.parse((await get(`${base}/topology/bootstrap.json`, 'application/json', true, config.requireAssetCacheHit)).bytes);
   assert.equal(bootstrap.cells, 1000000);
+  const regional=JSON.parse((await get(`${base}/topology/regions-v1/manifest.json`,'application/json',true,config.requireAssetCacheHit)).bytes);
+  assert.equal(regional.cells,1000000);assert.equal(regional.tiles.length,1536);assert.equal(regional.topology,'geodesic-v1');
+  const canonical=JSON.parse((await get(`${base}/topology/geodesic-v1.json`,'application/json',true)).bytes);
+  assert.equal(regional.canonicalSha256,canonical.sha256);
+  for(const [file,length,hash] of [['index.gz',2000000,regional.indexSha256],['0.gz',regionLayout(regional.tiles[0].cells,regional.tiles[0].vertices).bytes,regional.tiles[0].sha256]]){
+    let {bytes}=await get(`${base}/topology/regions-v1/${file}`,'application/octet-stream',true,config.requireAssetCacheHit);
+    if(bytes[0]===31&&bytes[1]===139)bytes=gunzipSync(bytes);
+    assert.equal(bytes.length,length);assert.equal(createHash('sha256').update(bytes).digest('hex'),hash);
+  }
   const manifest = JSON.parse((await get(`${base}/artwork/sample-hq/manifest.json`, 'application/json', true)).bytes);
   assert.equal(manifest.files, 8190);
   for (const name of ['occupancy-v1.gz', 'sample-owners-v1.gz']) {

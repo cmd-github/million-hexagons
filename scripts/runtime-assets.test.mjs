@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { gzipSync } from 'node:zlib';
+import {createHash} from 'node:crypto';
 import { fetchRuntimeGzip, fetchRuntimeJson, fetchGzipUrl } from '../src/runtime-assets.js';
 import { assetOrigin } from './deployment-assets.mjs';
 import { sha256 } from './deployment-assets.mjs';
@@ -45,6 +46,20 @@ test('storage denial falls back to the network and mutable URLs are never persis
   assert.deepEqual(await fetchGzipUrl(`https://assets.example/releases/${'a'.repeat(64)}/topology.gz`,{persistent:true,expectedBytes:1}),new Uint8Array([7]));
   await fetchGzipUrl('https://assets.example/topology.gz',{persistent:true});assert.equal(opens,1);
   await assert.rejects(fetchGzipUrl('https://assets.example/topology.gz',{expectedBytes:2}),/Incomplete topology/);
+});
+
+test('regional cache retains multiple regions, bounds the release and refetches same-length corruption', async t => {
+  const source=new Uint8Array([1,2,3,4]),stored=new Map();let requests=0;
+  const cache={match:async url=>stored.get(url)?.clone(),put:async(url,response)=>stored.set(url,response),keys:async()=>[...stored.keys()].map(url=>({url})),delete:async key=>stored.delete(typeof key==='string'?key:key.url)};
+  mockCacheStorage(t,{open:async()=>cache});
+  t.mock.method(globalThis,'fetch',async()=>{requests++;return new Response(gzipSync(source));});
+  const prefix=`https://assets.example/releases/${'a'.repeat(64)}/regions/`;
+  const options={persistent:true,expectedBytes:4,expectedSha256:createHash('sha256').update(source).digest('hex'),cacheGroup:'mh-regions-v1',maxEntries:2};
+  for(const id of [1,2,1,3])await fetchGzipUrl(prefix+id,options);
+  assert.equal(requests,3);assert.equal(stored.size,2);assert.ok(stored.has(prefix+3));
+  stored.set(prefix+3,new Response(gzipSync(new Uint8Array([4,3,2,1]))));
+  assert.deepEqual(await fetchGzipUrl(prefix+3,options),source);assert.equal(requests,4);
+  await fetchGzipUrl(prefix.replace('a'.repeat(64),'b'.repeat(64))+1,options);assert.equal(stored.size,1);
 });
 test('remote asset settings reject credential URLs, insecure origins and ambiguous prefixes', () => {
   for (const value of ['', 'http://example.com', 'https://user:secret@example.com', 'https://example.com/folder', 'https://example.com/?x=1']) assert.throws(() => assetOrigin(value));

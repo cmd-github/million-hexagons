@@ -15,26 +15,38 @@ export async function fetchRuntimeGzip(path, options = {}) {
 
 // Large topology responses are not reliably retained by the HTTP cache. Only
 // immutable release URLs enter this bounded, best-effort application cache.
-export async function fetchGzipUrl(url, { persistent = false, expectedBytes } = {}) {
+export async function fetchGzipUrl(url, { persistent = false, expectedBytes, expectedSha256, cacheGroup = 'mh-topology-v1', maxEntries = 1, signal } = {}) {
+  const decode = async response => {
+    const bytes = await decodeGzipResponse(response, expectedBytes);
+    if (expectedSha256) {
+      const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
+      if (hash !== expectedSha256) throw Error('Topology checksum mismatch');
+    }
+    return bytes;
+  };
   let cache;
   if(persistent && /\/releases\/[a-f0-9]{64}\//.test(url)) {
-    try { cache = await globalThis.caches?.open('mh-topology-v1'); } catch {}
+    try { cache = await globalThis.caches?.open(cacheGroup); } catch {}
   }
   let cached;
   try { cached = await cache?.match(url); } catch {}
   if(cached) {
-    try { return await decodeGzipResponse(cached, expectedBytes); }
+    try { return await decode(cached); }
     catch { try { await cache.delete(url); } catch {} }
   }
-  const response = await fetch(url);
+  const response = await fetch(url, {signal});
   if (!response.ok) throw new Error(`Runtime data unavailable: ${url}`);
   const bytes = new Uint8Array(await response.arrayBuffer());
-  const decoded = await decodeGzipResponse(new Response(bytes), expectedBytes);
+  const decoded = await decode(new Response(bytes));
   if(cache) {
     try {
       await cache.put(url, new Response(bytes));
-      // Keep one topology release, rather than accumulating 17 MB per deploy.
-      for(const key of await cache.keys())if(key.url!==url)await cache.delete(key);
+      // Retain a bounded working set in one immutable release. Regional files
+      // use a separate cache so they neither evict each other nor the legacy asset.
+      const prefix = url.match(/^.*\/releases\/[a-f0-9]{64}\//)?.[0];
+      const keys = await cache.keys(), current = keys.filter(key => key.url.startsWith(prefix));
+      for (const key of keys) if (!key.url.startsWith(prefix)) await cache.delete(key);
+      for (const key of current.slice(0, Math.max(0, current.length - maxEntries))) await cache.delete(key);
     } catch {} // Storage denial/quota must not prevent browsing or editing.
   }
   return decoded;

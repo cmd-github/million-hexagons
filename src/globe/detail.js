@@ -28,6 +28,8 @@ export function createCellDetail(topology, globe, radius, textures, selectionMod
   const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material); mesh.renderOrder = 7; globe.add(mesh);
   let previous = new THREE.Vector3(99, 99, 99), lastTime = 0, previousCap = 0;
   let job=null;
+  let wanted=null,ready=null,loading=null,retryAt=0;
+  let generation=topology.generation;
   let lastFrame=null,opacity=0,reveal=0,hasGeometry=false;
   function* build(direction,cap) {
     const origin = topology.pick(direction.toArray());
@@ -44,12 +46,11 @@ export function createCellDetail(topology, globe, radius, textures, selectionMod
       let processed=0;
       for (const id of cells) {
         if(processed++%128===0)yield;
-        const degree=topology.degrees[id-1],start=(id-1)*6;
+        const polygon=topology.polygon(id),degree=polygon.length,middle=topology.centre(id);
         for (let k = 0; k < degree; k++) {
           for(let corner=0;corner<3;corner++) {
-            const source=corner===0?topology.centres:topology.vertices;
-            const offset=corner===0?(id-1)*3:topology.rings[start+(k+corner-1)%degree]*3;
-            positions[cursor*3]=source[offset]*(radius+.0009);positions[cursor*3+1]=source[offset+1]*(radius+.0009);positions[cursor*3+2]=source[offset+2]*(radius+.0009);
+            const source=corner===0?middle:polygon[(k+corner-1)%degree];
+            positions[cursor*3]=source[0]*(radius+.0009);positions[cursor*3+1]=source[1]*(radius+.0009);positions[cursor*3+2]=source[2]*(radius+.0009);
             ids[cursor]=id-1;edges[cursor]=corner===0?1:0;cursor++;
           }
         }
@@ -63,7 +64,8 @@ export function createCellDetail(topology, globe, radius, textures, selectionMod
   }
   return {
     mesh,
-    update(camera, height, time) {
+    update(camera, height, time, moving = false) {
+      if(generation!==topology.generation){generation=topology.generation;job?.iterator.return();job=null;ready=null;previous.set(99,99,99);}
       const dt=lastFrame===null?0:Math.min(.1,(time-lastFrame)/1000);lastFrame=time;
       const distance = camera.position.length() - radius;
       const direction = globe.worldToLocal(camera.position.clone()).normalize();
@@ -94,9 +96,22 @@ export function createCellDetail(topology, globe, radius, textures, selectionMod
       mesh.visible = hasGeometry&&opacity>.001;
       material.uniforms.visibility.value = opacity*THREE.MathUtils.smoothstep(reveal,0,1);
       // Prepare the bounded patch before its outlines become noticeable.
-      if (pixels<1.1&&opacity<.001) return;
+      if (pixels<1.1) return;
       if(job)return;
+      if(moving)return;
       if ((direction.distanceToSquared(previous) < .0003 && Math.abs(cap - previousCap) < .008) || time - lastTime < 140) return;
+      if (topology.ensureCap) {
+        if (!wanted || direction.distanceToSquared(wanted.direction) > .0003 || Math.abs(cap - wanted.cap) > .008) wanted={direction:direction.clone(),cap,since:time};
+        // Let flights/rapid zoom settle before fetching their transient wide view.
+        if (time-wanted.since<100 || time<retryAt) return;
+        if (!ready || direction.distanceToSquared(ready.direction)>.0001 || Math.abs(cap-ready.cap)>.004) {
+          if (!loading) {
+            const request={direction:direction.clone(),cap};loading=request;
+            topology.ensureCap(request.direction.toArray(),request.cap+.025).then(()=>{ready=request;}).catch(()=>{retryAt=performance.now()+1500;}).finally(()=>{loading=null;});
+          }
+          return;
+        }
+      }
       lastTime = time;
       job = {iterator:build(direction.clone(),cap),direction:direction.clone(),cap};
     },

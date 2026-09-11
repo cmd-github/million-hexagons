@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {loadTopology} from '../src/globe/topology.js';
+import {loadTopology} from '../src/globe/full-topology-loader.js';
 import {captureTile} from '../src/globe/tile-baker.js';
 import {addSampleCampaigns} from '../src/globe/samples.js';
 import * as icons from 'simple-icons';

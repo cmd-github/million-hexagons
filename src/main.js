@@ -1,4 +1,5 @@
-import { loadTopology, CELL_COUNT } from './globe/topology.js';
+import { CELL_COUNT } from './globe/topology.js';
+import { loadRegionalTopology, MissingRegion } from './globe/regional-topology.js';
 import { runtimeAsset, fetchRuntimeJson, fetchRuntimeGzip } from './runtime-assets.js';
 import { createCellDetail } from './globe/detail.js';
 import { ArtworkTiles } from './globe/tiles.js';
@@ -46,12 +47,18 @@ const bootstrap = await fetchRuntimeJson('topology/bootstrap.json');
 const millionFixture = import.meta.env.DEV && new URLSearchParams(location.search).has('millionLogos');
 async function ensureTopology() {
   if(topology)return topology;
-  if(!topologyPromise)topologyPromise=loadTopology().then(value=>{
+  if(!topologyPromise)topologyPromise=loadRegionalTopology().then(value=>{
     topology=value;
     cellDetail=createCellDetail(topology,globe,radius,{occupancy:occupancyTexture,selection:selectionColourTexture},selectionModeUniform,hoverCellUniform);
     return topology;
   }).catch(error=>{topologyPromise=null;throw error;});
   return topologyPromise;
+}
+async function prepareLocation(id, cap=0) {
+  const grid=await ensureTopology();
+  await grid.ensureCells([id]);
+  if(cap>0)await grid.ensureCap(grid.centre(id),cap);
+  return grid;
 }
 const textureColumns = 1024, textureRows = 977;
 const occupiedCells = new Uint8Array(textureColumns * textureRows);
@@ -142,6 +149,30 @@ const pointer = new THREE.Vector2();
 const tooltip = document.querySelector('#cellTooltip');
 const placementLayers = new THREE.Group();
 globe.add(placementLayers);
+const pendingPersistentArtwork=new Map();
+let persistentArtworkCheck=0,persistentArtworkJobs=0;
+function updatePersistentArtwork(time) {
+  if(!topology||!pendingPersistentArtwork.size||persistentArtworkJobs>=2||time-persistentArtworkCheck<250)return;
+  persistentArtworkCheck=time;
+  const direction=globe.worldToLocal(camera.position.clone()).normalize().toArray();
+  const altitude=camera.position.length()-radius;
+  const cap=Math.min(Math.acos(radius/camera.position.length())+.03,Math.max(.06,altitude/radius*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*Math.max(camera.aspect,1)*2));
+  for(const [id,entry] of pendingPersistentArtwork){
+    if(persistentArtworkJobs>=2)break;
+    if(entry.loading||time<(entry.retryAt||0)||!topology.cellsIntersectCap(entry.record.cells,direction,cap))continue;
+    entry.loading=true;persistentArtworkJobs++;
+    void (async()=>{
+      try {
+        const {record,image}=entry;
+        await topology.ensureCells([...record.cells,record.anchor]);
+        const cells=topology.cells(record.cells,record.anchor);
+        addHighResolutionPlacement('#000','contain',placementLayers,{cells,anchor:cellForId(record.anchor),artwork:image});
+        pendingPersistentArtwork.delete(id);
+      }catch{entry.retryAt=performance.now()+3000;}
+      finally{entry.loading=false;persistentArtworkJobs--;}
+    })();
+  }
+}
 const previewPlacementLayers = new THREE.Group();
 globe.add(previewPlacementLayers);
 let selecting = false;
@@ -226,7 +257,7 @@ updateInventoryDisplay();
 
 function cellForId(id) {
   const occupied = occupiedCells[id - 1] === 255, placement=sessionPlacements.get(id),campaign=bootstrap.sampleCampaigns?.[sampleOwners[id-1]-1];
-  return { id, occupied, pentagon: topology.degrees[id-1]===5, owner: placement?(placement.name||'Your placement'):campaign?.name||(occupied?'Sample placement':'Available'), destination:placement?.website||campaign?.url||'' };
+  return { id, occupied, pentagon: topology.degreeOf(id)===5, owner: placement?(placement.name||'Your placement'):campaign?.name||(occupied?'Sample placement':'Available'), destination:placement?.website||campaign?.url||'' };
 }
 function intersect(event) {
   if(!topology){if(camera.position.length()<radius+2)void ensureTopology().catch(()=>{});return null;}
@@ -236,7 +267,9 @@ function intersect(event) {
   raycaster.setFromCamera(pointer, camera);
   const point = raycaster.ray.intersectSphere(new THREE.Sphere(new THREE.Vector3(), radius), new THREE.Vector3());
   if (!point) return null;
-  return { point, uv: new THREE.Vector2(), cell: cellForId(topology.pick(globe.worldToLocal(point.clone()).normalize().toArray())) };
+  const direction=globe.worldToLocal(point.clone()).normalize().toArray();
+  try { return { point, uv: new THREE.Vector2(), cell: cellForId(topology.pick(direction)) }; }
+  catch(error) { if(!(error instanceof MissingRegion))throw error;void topology.ensureCap(direction,.045).catch(()=>{});return null; }
 }
 
 function updateTooltip(event, cell, pinned = false) {
@@ -312,7 +345,14 @@ function updateHover(hit, cell) {
   hoverCellUniform.value = cell.id - 1;
 }
 
-function choosePatternOrigin(hit, cell) {
+let placementPreparationVersion=0;
+async function choosePatternOrigin(hit, cell) {
+  const version=++placementPreparationVersion;
+  document.querySelector('#toReview').disabled=true;
+  let prepared;
+  try {prepared=!cell.occupied?await prepareRelocation(cell.id):null;}
+  catch {if(version===placementPreparationVersion)document.querySelector('#selectionStatus').textContent='Could not load this area. Click the location to try again.';return;}
+  if(!selecting||version!==placementPreparationVersion)return;
   if (cell.occupied) {
     selectionError = 'That hexagon is already purchased. Choose one of the available hexagons.';
     selectedUV = null;
@@ -326,7 +366,7 @@ function choosePatternOrigin(hit, cell) {
   selectedCell = cell;
   selectedNormal = globe.worldToLocal(hit.point.clone()).normalize();
   selectionError = '';
-  refreshSelection();
+  refreshSelection(prepared);
   document.querySelector('#toReview').disabled = !selectedCells.length;
 }
 
@@ -419,7 +459,23 @@ async function openBuy(anchor = null) {
   openingEditor=true;showLoading();await nextPaint();
   document.body.classList.remove('inspecting');document.querySelector('#placementInspector').hidden=true;
   document.querySelector('#toast').classList.remove('show');
-  try{await Promise.all([ensureTopology(),ensureStagingInventory()]);}catch{
+  inspectorVersion++;
+  let preparedAnchor;
+  try{await Promise.all([ensureTopology(),ensureStagingInventory()]);
+    const direction=globe.worldToLocal(camera.position.clone()).normalize().toArray();
+    await topology.ensureCap(direction,.1);
+    preparedAnchor=Number.isInteger(anchor)?anchor:await topology.run(()=>topology.pick(direction));
+    await prepareLocation(preparedAnchor,.12);
+    if(occupiedCells[preparedAnchor-1])preparedAnchor=await topology.run(()=>{
+      const queue=[preparedAnchor],seen=new Set(queue);
+      for(let i=0;i<queue.length;i++){
+        const id=queue[i];if(!occupiedCells[id-1])return id;
+        for(const n of topology.neighboursOf(id))if(!seen.has(n)){seen.add(n);queue.push(n);}
+      }
+      throw Error('No available cells');
+    });
+    await prepareLocation(preparedAnchor,.12);
+  }catch{
     hideLoading();openingEditor=false;
     const toast=document.querySelector('#toast');toast.querySelector('b').textContent='Editor unavailable';
     toast.querySelector('span').textContent='Please try Create a placement again.';document.querySelector('#placementWebsite').hidden=true;toast.classList.add('show');
@@ -453,15 +509,7 @@ async function openBuy(anchor = null) {
   document.querySelector('#brandColor').value='#5967b0';document.querySelector('#logoTreatment').value='span';document.querySelector('#areaBrush').value='0';document.querySelector('#areaBrushValue').textContent='1 cell';showUploadMessage('');document.querySelector('#uploadStatus').hidden=true;
   resetLogoTransform();undoStack.length=0;redoStack.length=0;updateHistory();
   logoCells=null;footprintEdited=true;logoEditorMode='pan';
-  const centreHit=intersect({clientX:canvas.getBoundingClientRect().width/2,clientY:canvas.getBoundingClientRect().height/2});
-  designAnchor=requestedAnchor||centreHit?.cell.id||bootstrap.anchor;
-  if(occupiedCells[designAnchor-1]){
-    const queue=[designAnchor],seen=new Set(queue);
-    for(let i=0;i<queue.length;i++){
-      const id=queue[i];if(!occupiedCells[id-1]){designAnchor=id;break;}
-      for(const n of topology.neighboursOf(id))if(!seen.has(n)){seen.add(n);queue.push(n);}
-    }
-  }
+  designAnchor=preparedAnchor;
   logoCells=topology.cells([designAnchor],designAnchor);amountInput.value=1;
   exactGlobeArea=true;designSurface='globe';document.body.dataset.surface='globe';
   configureCreation();setDesignSurface('globe');
@@ -472,6 +520,8 @@ async function openBuy(anchor = null) {
 }
 function closeBuy() {
   if(publishing)return;
+  placementPreparationVersion++;
+  designGeometryVersion++;designGeometryPending=false;
   void releaseActiveCheckoutReservation();
   fitMaskCache=null;
   selecting = false;
@@ -542,11 +592,12 @@ hexSearch.addEventListener('submit', async (event) => {
     hexSearchInput.setAttribute('aria-invalid', 'true');
     return;
   }
-  await Promise.all([ensureTopology(),ensureStagingInventory()]);
+  try { await Promise.all([prepareLocation(id),ensureStagingInventory()]); }
+  catch {hexSearchStatus.textContent='Could not load this location. Try searching again.';return;}
   const cell = cellForId(id);
   controls.autoRotate = false;
   cameraDistanceTarget = null;
-  if(cell.occupied){inspectPlacement(id);viewInspectedPlacement();}
+  if(cell.occupied){if(await inspectPlacement(id))viewInspectedPlacement();}
   else flyToCell(id,.004);
   hoverCellUniform.value = cell.id - 1;
   hexSearchInput.removeAttribute('aria-invalid');
@@ -611,7 +662,7 @@ function updateTotals() {
 
 let editorHitRegions = [];
 function previewCells() {
-  if(!topology)return [];
+  if(!topology||!creationType)return [];
   if(logoCells)return logoCells;
   const aspect = uploadedLogo ? Math.max(.2,Math.min(5,(uploadedLogoCrop?.width || uploadedLogo.naturalWidth)/(uploadedLogoCrop?.height || uploadedLogo.naturalHeight))) : 1.25;
   const key=`${designAnchor}:${placementCount()}:${aspect}`;
@@ -619,14 +670,36 @@ function previewCells() {
   const cells=topology.connected(designAnchor,placementCount(),aspect);
   previewCache={key,cells};return cells;
 }
+async function prepareRelocation(id) {
+  const draft=previewCells(),bounds=footprintBounds(draft);
+  const cap=Math.min(1.5,Math.max(.12,Math.atan(Math.hypot(bounds.width,bounds.height)*.0028)*1.5));
+  await prepareLocation(id,cap);
+  return topology.run(()=>relocateDesign(draft,id));
+}
+let designGeometryVersion=0,designGeometryPending=false;
+async function resizeDesign() {
+  const version=++designGeometryVersion,count=placementCount();
+  designGeometryPending=true;document.querySelector('#toPlacement').disabled=true;
+  showLoading();
+  let failed=false;
+  try {
+    const aspect=uploadedLogo?Math.max(.2,Math.min(5,(uploadedLogoCrop?.width||uploadedLogo.naturalWidth)/(uploadedLogoCrop?.height||uploadedLogo.naturalHeight))):1.25;
+    const cap=Math.min(1.5,Math.max(.12,Math.acos(1-2*count/CELL_COUNT)*Math.sqrt(Math.max(aspect,1/aspect))*1.4));
+    await prepareLocation(designAnchor,cap);
+    const cells=await topology.run(()=>topology.connected(designAnchor,count,aspect));
+    if(version!==designGeometryVersion)return;
+    resetEditorView();logoCells=cells;footprintEdited=false;selectedCell=null;selectedCells=[];
+  } catch(error) { failed=true; }
+  finally {if(version===designGeometryVersion){designGeometryPending=false;hideLoading();amountInput.value=logoCells?.length||1;drawDesignPreview();updateTotals();if(failed)updateLogoGuidance('Could not load this area. Try the size again.');}}
+}
 function layoutFor(cells) {
   if(layoutCache.has(cells))return layoutCache.get(cells);
   const bounds=footprintBounds(cells),path=new Path2D(),active=new Set(cells.map(c=>c.id)),edges=new Map();
   // Internal edges cancel. Trace only the exact union boundary, including holes.
   // This keeps canvas rasterisation proportional to the outline, not 600k edges.
-  for(const cell of cells){const offset=(cell.id-1)*6,degree=topology.degrees[cell.id-1];for(let k=0;k<degree;k++) {
-    if(active.has(topology.neighbours[offset+k]+1))continue;
-    const from=topology.rings[offset+k],to=topology.rings[offset+(k+1)%degree];
+  for(const cell of cells){const ring=topology.ringIds(cell.id),neighbours=topology.neighboursOf(cell.id),degree=ring.length;for(let k=0;k<degree;k++) {
+    if(active.has(neighbours[k]))continue;
+    const from=ring[k],to=ring[(k+1)%degree];
     edges.set(from,{to,p:cell.polygon[k],q:cell.polygon[(k+1)%degree]});
   }}
   while(edges.size){const first=edges.keys().next().value;let current=first,edge=edges.get(first);path.moveTo(edge.p.x,edge.p.y);
@@ -685,7 +758,14 @@ function pointInPolygon(x,y,polygon) {
   return inside;
 }
 function drawDesignPreview(target = document.querySelector('#designCanvas')) {
-  if(!target || !topology)return;
+  if(!target || !topology || !creationType || designGeometryPending)return;
+  try { renderDesignPreview(target); }
+  catch(error) {
+    if(!(error instanceof MissingRegion))throw error;
+    void topology.loadRegion(error.region).then(()=>queueDesignPreview()).catch(()=>updateLogoGuidance('Could not load this area. Try again.'));
+  }
+}
+function renderDesignPreview(target) {
   if(target.id==='designCanvas' && document.body.dataset.flow==='design' && designSurface==='globe') {syncGlobeDesign();return;}
   const review=target.id==='reviewCanvas',cells=review?selectedCells:previewCells();
   if(!cells.length)return;
@@ -842,8 +922,10 @@ async function suggestLocation() {
       const id=attempt===0&&suggestionIndex===0&&requestedAnchor?requestedAnchor:attempt===0&&suggestionIndex===0?designAnchor:1+(++suggestionIndex*7919)%CELL_COUNT;
       if(occupiedCells[id-1])continue;
       // Abort blocked candidates while growing them, before projecting 100k polygons.
-      if(draft.length>2000&&!topology.connected(id,draft.length,aspect,occupiedCells).length)continue;
-      const cells=id===designAnchor?draft:relocateDesign(draft,id);
+      await prepareLocation(id,Math.min(1.5,Math.max(.12,Math.atan(Math.hypot(bounds.width,bounds.height)*.0028)*1.5)));
+      if(!selecting||version!==suggestionVersion)return;
+      if(draft.length>2000&&!(await topology.run(()=>topology.connected(id,draft.length,aspect,occupiedCells))).length)continue;
+      const cells=id===designAnchor?draft:await topology.run(()=>relocateDesign(draft,id));
       if(cells.some(c=>occupiedCells[c.id-1]))continue;
       selectedCell=cellForId(id);selectedUV=new THREE.Vector2(0,0);selectedNormal=pointForCell(selectedCell,0,0).normalize();
       globe.rotation.set(0,0,0);globe.updateMatrixWorld(true);cameraDistanceTarget=null;
@@ -852,7 +934,8 @@ async function suggestLocation() {
     }
     selectedCells=[];selectedCell=null;selectedUV=null;refreshSelection();
     document.querySelector('#selectionStatus').textContent='No single available area found for this size. Try another size or place it manually.';
-  } finally {if(version===suggestionVersion){button.disabled=false;button.textContent='Find another spot';}}
+  } catch {if(version===suggestionVersion)document.querySelector('#selectionStatus').textContent='Could not load a new area. Try Find another spot again.';}
+  finally {if(version===suggestionVersion){button.disabled=false;button.textContent='Find another spot';}}
 }
 document.querySelector('#suggestLocation').addEventListener('click', suggestLocation);
 document.querySelector('#reviewEditDesign').addEventListener('click', () => document.querySelector('#backToDesign').click());
@@ -895,9 +978,9 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   button.textContent=original;button.disabled=false;
 });
 document.querySelector('#backToPlacement').addEventListener('click', () => { void releaseActiveCheckoutReservation();clearPlacementPreview(); showFlowStep('place'); setInteractionMode('move'); refreshSelection(); });
-document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size; button.closest('details').open=false; resetEditorView();logoCells = null; footprintEdited = false; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); }));
+document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size; button.closest('details').open=false;void resizeDesign(); }));
 amountInput.addEventListener('change', () => { amountInput.value = placementCount(); });
-amountInput.addEventListener('input', () => { resetEditorView();logoCells = null; footprintEdited = false; selectedCell = null; selectedCells = []; drawDesignPreview(); updateTotals(); });
+amountInput.addEventListener('input', () => { void resizeDesign(); });
 document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
 document.querySelectorAll('[data-treatment]').forEach((button) => button.addEventListener('click', () => { document.querySelector('#logoTreatment').value = button.dataset.treatment; document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
 document.querySelectorAll('[data-treatment]').forEach((item) => item.classList.toggle('active', item === button)); drawDesignPreview(); updateLogoGuidance(); }));
@@ -1255,7 +1338,7 @@ function addHighResolutionPlacement(color, treatment, targetLayer = placementLay
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   const material = new THREE.MeshBasicMaterial({ map: texture, toneMapped: false, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
-  const vertexCount=placementCells.reduce((sum,cell)=>sum+topology.degrees[cell.id-1]*3,0);
+  const vertexCount=placementCells.reduce((sum,cell)=>sum+topology.degreeOf(cell.id)*3,0);
   const positions=new Float32Array(vertexCount*3),uvs=new Float32Array(vertexCount*2),frame=topology.frame(anchorCell.id);
   let pi=0,ui=0;
   const add=p=>{positions[pi++]=p[0]*(radius+.0012);positions[pi++]=p[1]*(radius+.0012);positions[pi++]=p[2]*(radius+.0012);const local=topology.project(p,frame);uvs[ui++]=(local.x-bounds.left)/bounds.width;uvs[ui++]=1-(local.y-bounds.top)/bounds.height;};
@@ -1285,7 +1368,7 @@ const restoredPlacementIds=new Set();
 let persistentNavigationReady=false,pendingPersistentFocus=null;
 async function focusPersistentPlacement(record){
   if(!persistentNavigationReady){pendingPersistentFocus=record;return;}
-  await ensureTopology();
+  await prepareLocation(record.anchor);
   if(!initialPlacementFocusAllowed||/^#cell=\d+$/.test(location.hash))return;
   flyToCell(record.anchor,.004,1200,()=>inspectPlacement(record.anchor));
 }
@@ -1301,14 +1384,14 @@ function publicationArtwork(canvas){return canvas.toDataURL('image/webp',.95);}
 async function applyPersistentPlacements(records,{focus=false}={}){
   const fresh=records.filter(record=>!restoredPlacementIds.has(record.placementId));if(!fresh.length)return records;
   const restored=fresh.map(record=>{
-    const placementRecord={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor};
+    const placementRecord={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor,cells:record.cells};
     record.cells.forEach(id=>{occupiedCells[id-1]=255;sessionPlacements.set(id,placementRecord);});
     restoredPlacementIds.add(record.placementId);
     return{record,placementRecord};
   });
   occupancyTexture.needsUpdate=true;sold=Math.min(1000000,sold+fresh.reduce((sum,record)=>sum+record.cellCount,0));updateInventoryDisplay();renderClaimFeed();
   const latest=[...fresh].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];if(focus&&latest)void focusPersistentPlacement(latest).catch(error=>console.error('Could not focus saved placement',error));
-  for(const {record,placementRecord} of restored)if(record.artworkDataUrl){const image=new Image();image.crossOrigin='anonymous';placementRecord.logo=record.artworkDataUrl;image.onload=async()=>{try{await ensureTopology();const cells=topology.cells(record.cells,record.anchor);addHighResolutionPlacement('#000','contain',placementLayers,{cells,anchor:cellForId(record.anchor),artwork:image});}catch(error){console.error('Could not render persistent placement artwork',record.placementId,error);}};image.onerror=()=>console.error('Could not load persistent placement artwork',record.placementId);image.src=record.artworkDataUrl;}
+  for(const {record,placementRecord} of restored)if(record.artworkDataUrl){const image=new Image();image.crossOrigin='anonymous';placementRecord.logo=record.artworkDataUrl;image.onload=()=>{pendingPersistentArtwork.set(record.placementId,{record,image,loading:false});};image.onerror=()=>console.error('Could not load persistent placement artwork',record.placementId);image.src=record.artworkDataUrl;}
   return records;
 }
 async function restoreTestPlacements(){return applyPersistentPlacements(await stagingClient.listTestClaims(),{focus:true});}
@@ -1367,7 +1450,7 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
   async function openMyGlobe(){accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');myGlobe.hidden=false;document.body.classList.add('my-globe-open');myGlobeStatus.textContent='Loading your placements...';myGlobePlacements.replaceChildren();try{const records=await stagingClient.listTestClaims();renderMyGlobe(records);myGlobeStatus.textContent='';}catch(error){myGlobeStatus.textContent=`Could not load your placements: ${error.message}`;}}
   document.querySelector('#openMyGlobe').onclick=()=>void openMyGlobe();
   document.querySelector('#closeMyGlobe').onclick=()=>{closeMyGlobe();accountToggle.focus();};
-  myGlobePlacements.onclick=async event=>{const button=event.target.closest('[data-owner-action]');if(!button)return;const card=button.closest('.my-globe-card'),record=myGlobeRecords.find(item=>item.placementId===card.dataset.placementId);if(!record)return;if(button.dataset.ownerAction==='view'){closeMyGlobe();initialPlacementFocusAllowed=true;flyToCell(record.anchor,.004,900,()=>inspectPlacement(record.anchor));}else if(button.dataset.ownerAction==='edit'){card.classList.add('editing');card.querySelector('.my-globe-edit').hidden=false;button.closest('.my-globe-actions').hidden=true;card.querySelector('input').focus();try{await prepareOwnerArtwork(card,record);}catch(error){card.querySelector('[role=status]').textContent=`Artwork editing unavailable: ${error.message}`;}}else if(button.dataset.ownerAction==='restore-artwork'){const state=myGlobeArtwork.get(record.placementId);if(state){state.image=await loadOwnerImage(state.current);state.original=state.current;state.transform={scale:100,x:0,y:0,rotation:0};drawOwnerArtwork(card);}}else if(button.dataset.ownerAction==='cancel'){myGlobeArtwork.delete(record.placementId);card.classList.remove('editing');card.querySelector('.my-globe-edit').hidden=true;card.querySelector('.my-globe-actions').hidden=false;}};
+  myGlobePlacements.onclick=async event=>{const button=event.target.closest('[data-owner-action]');if(!button)return;const card=button.closest('.my-globe-card'),record=myGlobeRecords.find(item=>item.placementId===card.dataset.placementId);if(!record)return;if(button.dataset.ownerAction==='view'){closeMyGlobe();initialPlacementFocusAllowed=true;await prepareLocation(record.anchor);flyToCell(record.anchor,.004,900,()=>inspectPlacement(record.anchor));}else if(button.dataset.ownerAction==='edit'){card.classList.add('editing');card.querySelector('.my-globe-edit').hidden=false;button.closest('.my-globe-actions').hidden=true;card.querySelector('input').focus();try{await prepareOwnerArtwork(card,record);}catch(error){card.querySelector('[role=status]').textContent=`Artwork editing unavailable: ${error.message}`;}}else if(button.dataset.ownerAction==='restore-artwork'){const state=myGlobeArtwork.get(record.placementId);if(state){state.image=await loadOwnerImage(state.current);state.original=state.current;state.transform={scale:100,x:0,y:0,rotation:0};drawOwnerArtwork(card);}}else if(button.dataset.ownerAction==='cancel'){myGlobeArtwork.delete(record.placementId);card.classList.remove('editing');card.querySelector('.my-globe-edit').hidden=true;card.querySelector('.my-globe-actions').hidden=false;}};
   myGlobePlacements.oninput=event=>{const field=event.target.matches('[data-artwork-scale]')?'scale':event.target.matches('[data-artwork-x]')?'x':event.target.matches('[data-artwork-y]')?'y':event.target.matches('[data-artwork-rotation]')?'rotation':'';if(!field)return;const card=event.target.closest('.my-globe-card'),state=myGlobeArtwork.get(card.dataset.placementId);if(state){state.transform[field]=Number(event.target.value);drawOwnerArtwork(card);}};
   myGlobePlacements.onchange=async event=>{if(!event.target.matches('[data-artwork-upload]'))return;const file=event.target.files?.[0],card=event.target.closest('.my-globe-card'),status=card.querySelector('[role=status]');if(!file)return;if(!['image/png','image/webp'].includes(file.type)||file.size>12*1024*1024){status.textContent='Choose a PNG or WebP image up to 12 MB.';return;}try{await setOwnerArtwork(card,await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);}));status.textContent='Replacement loaded. Adjust its crop, then publish.';}catch(error){status.textContent=error.message;}};
   myGlobePlacements.onsubmit=async event=>{event.preventDefault();const form=event.target,card=form.closest('.my-globe-card'),record=myGlobeRecords.find(item=>item.placementId===card.dataset.placementId),state=myGlobeArtwork.get(record.placementId),button=form.querySelector('[type=submit]'),formStatus=form.querySelector('[role=status]'),fields=Object.fromEntries(new FormData(form));if(!state){formStatus.textContent='Wait for the editable artwork to load.';return;}button.disabled=true;formStatus.textContent='Publishing your new version...';try{const artworkDataUrl=ownerArtworkOutput(card),designState={topologyVersion:record.topologyVersion||'geodesic-v1',anchor:record.anchor,cells:record.cells.map(id=>({id})),baseColour:'#6366a8',imageTransform:{...state.transform,treatment:'original'}};await stagingClient.updatePlacementContent(record.placementId,{...fields,artworkDataUrl,sourceArtworkDataUrl:artworkDataUrl,originalArtworkDataUrl:state.original,designState});formStatus.textContent='New artwork version queued for publication.';myGlobeArtwork.delete(record.placementId);await openMyGlobe();}catch(error){formStatus.textContent=`Could not publish: ${error.message}`;}finally{button.disabled=false;}};
@@ -1513,6 +1596,7 @@ async function createTourStops(){
     {name:'Globe overview',normal:[1,0,0],angle:.4,overview:true,offset:0},
     {name:'Globe overview',normal:[0,0,-1],angle:.4,overview:true,offset:0},
   ];
+  await grid.ensureCells(sessionAreas.map(area=>area.anchor));
   const pool=[...candidates],selected=[pool.splice(Math.floor(Math.random()*pool.length),1)[0]],limit=Math.min(24,candidates.length);
   while(selected.length<limit&&pool.length){
     let best=0,bestScore=Infinity;
@@ -1540,6 +1624,7 @@ function updateRotationControl(){
   rotationToggle.setAttribute('aria-label',next);rotationToggle.title=next;
 
 }
+let lastTopologyTrim=0,topologyTrimReady=false;
 function animate() {
   requestAnimationFrame(animate);
   controls.rotateSpeed=.42*Math.min(1,Math.max(.045,(camera.position.length()-radius)/4));
@@ -1557,7 +1642,16 @@ function animate() {
   updateRotationControl();
   artworkTiles.update(camera,canvas.clientHeight*renderer.getPixelRatio(),performance.now());
   if(!topology&&!topologyPromise&&camera.position.length()<radius+3.5)void ensureTopology().catch(()=>{});
-  if(topology)cellDetail.update(camera,canvas.clientHeight,performance.now());
+  if(topology){
+    cellDetail.update(camera,canvas.clientHeight,performance.now(),cameraFlight.active);
+    if(!cameraFlight.active)updatePersistentArtwork(performance.now());
+    if(topologyTrimReady&&performance.now()-lastTopologyTrim>2000){
+      lastTopologyTrim=performance.now();
+      const pinned=[...(logoCells||[]),...selectedCells,...inspectedCells];
+      for(const state of [...undoStack,...redoStack])pinned.push(...state.cells);
+      topology.trim(pinned);
+    }
+  }
   renderer.render(scene, camera);
 }
 animate();
@@ -1567,18 +1661,19 @@ canvas.dataset.ready = 'true';
 
 if (import.meta.env.DEV && new URLSearchParams(location.search).has('geodesicQA')) {
   await ensureTopology();
+  await Promise.all(Object.values(bootstrap.locations).map(id=>prepareLocation(id)));
   window.geodesicQA = {
-    locations: { equator: topology.pick([0,0,1]), north: topology.pick([0,1,0]), south: topology.pick([0,-1,0]), pentagon: topology.manifest.pentagons[0], nearPentagon: topology.neighboursOf(topology.manifest.pentagons[0])[0] },
+    locations: bootstrap.locations,
     available: occupiedCells.findIndex(value=>!value)+1,
-    focus(id, distance = .6) {
-      controls.autoRotate=false;orientToCell(id,radius+distance);
+    async focus(id, distance = .6) {
+      await prepareLocation(id);controls.autoRotate=false;orientToCell(id,radius+distance);
     },
-    place(id) { choosePatternOrigin({uv:new THREE.Vector2(),point:pointForCell({id})},cellForId(id));focusSelection(); },
+    async place(id) { await prepareLocation(id);await choosePatternOrigin({uv:new THREE.Vector2(),point:pointForCell({id})},cellForId(id));focusSelection(); },
     state() { return { inspectedId, rotationSpeed:controls.rotateSpeed, orientation:globe.quaternion.toArray(), selected: selectedCells.map(c=>c.id), design: previewCells().map(c=>c.id), designAnchor, requestedAnchor, sold, committed: [...sessionPlacements.keys()], connected: topology.isConnected(selectedCells), camera:camera.position.toArray(), detailVertices:cellDetail?.mesh.geometry.attributes.position?.count||0, drawCalls:renderer.info.render.calls,tiles:{...artworkTiles.stats},retainedPlacements:placementLayers.children.length }; },
     screen(id) { const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return {x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2}; },
   };
 }
-if(import.meta.env.DEV)window.performanceQA={tiles:artworkTiles.stats,focus(direction,altitude){zoom.cancel();controls.autoRotate=false;cameraDistanceTarget=null;globe.rotation.set(0,0,0);camera.position.set(...direction).normalize().multiplyScalar(radius+altitude);controls.update();},state(){return{tiles:{...artworkTiles.stats},topologyLoaded:!!topology,topologyTiming:topology?.loadTiming,detailVertices:cellDetail?.mesh.geometry.attributes.position?.count||0,detailOpacity:cellDetail?.mesh.material.uniforms.visibility.value||0,inventoryLoaded:stagingInventoryLoaded,drawCalls:renderer.info.render.calls,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,camera:camera.position.toArray(),retainedPlacements:placementLayers.children.length};}};
+if(import.meta.env.DEV)window.performanceQA={screen(id){const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return{x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2};},tiles:artworkTiles.stats,focus(direction,altitude){zoom.cancel();controls.autoRotate=false;cameraDistanceTarget=null;globe.rotation.set(0,0,0);camera.position.set(...direction).normalize().multiplyScalar(radius+altitude);controls.update();},state(){return{tiles:{...artworkTiles.stats},topologyLoaded:!!topology,topologyTiming:topology?.loadTiming,regions:topology?{...topology.stats,retained:topology.regions.size}:null,detailVertices:cellDetail?.mesh.geometry.attributes.position?.count||0,detailOpacity:cellDetail?.mesh.material.uniforms.visibility.value||0,inventoryLoaded:stagingInventoryLoaded,drawCalls:renderer.info.render.calls,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,camera:camera.position.toArray(),retainedPlacements:placementLayers.children.length};}};
 
 // Globe and canvas share the source footprint, original image and per-cell edits.
 function syncGlobeDesign(){
@@ -1609,8 +1704,23 @@ document.querySelector('#removeHexMode').onclick=()=>setEditorMode('remove',fals
 document.querySelector('#areaBrush').oninput=event=>{
  const r=Number(event.target.value);document.querySelector('#areaBrushValue').textContent=(1+3*r*(r+1)).toLocaleString()+' cells';
 };
-function editGlobeCell(id){
-  if(globeStroke.last===id)return;globeStroke.last=id;
+async function editGlobeCell(id){
+  const stroke=globeStroke,mode=logoEditorMode;
+  if(!stroke||stroke.last===id)return;
+  const reach=Number(document.querySelector('#areaBrush').value);
+  try {
+    const brush=await topology.run(()=>{
+      const queue=[id],seen=new Set(queue);let start=0,end=1;
+      for(let ring=0;ring<=reach;ring++){for(let i=start;i<end;i++)for(const n of topology.neighboursOf(queue[i]))if(!seen.has(n)){seen.add(n);queue.push(n);}start=end;end=queue.length;}
+      return queue;
+    });
+    await topology.ensureCells(brush);
+    if(mode!==logoEditorMode||document.body.dataset.flow!=='design'||(globeStroke&&globeStroke!==stroke))return;
+    applyGlobeCell(id,stroke);
+  }catch{updateLogoGuidance('Could not load these cells. Try the brush again.');}
+}
+function applyGlobeCell(id,stroke){
+  if(stroke.last===id)return;stroke.last=id;
   const cells=previewCells(),next=new Map(cells.map(c=>[c.id,{...c}]));
   const brush=[id],seen=new Set(brush),reach=Number(document.querySelector('#areaBrush').value);
   let start=0,end=1;
@@ -1650,6 +1760,7 @@ canvas.addEventListener('pointermove',event=>{
   }else{const hit=intersect(event);if(hit)editGlobeCell(hit.cell.id);}
 });
 for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>globeStroke=null);
+let inspectorVersion=0;
 let inspectedId=null, inspectedCells=[], hudPinned=false, inspectedOwner=null;
 const analyticsSession=(()=>{try{let value=sessionStorage.getItem('mh-analytics-session');if(!value){value=crypto.randomUUID();sessionStorage.setItem('mh-analytics-session',value);}return value;}catch{return crypto.randomUUID();}})();
 function deviceClass(){return innerWidth<=700?'mobile':innerWidth<=1024?'tablet':'desktop';}
@@ -1706,22 +1817,36 @@ let linkClicks={};
 try{const saved=JSON.parse(localStorage.getItem(clickStorageKey)||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))linkClicks=saved;}catch{}
 function ownerKey(id){const record=sessionPlacements.get(id);return record||'sample-'+sampleOwners[id-1];}
 function createHudThumbnail(source){const art=document.createElement('canvas');const scale=Math.min(1,160/Math.max(source.width,source.height));art.width=Math.max(1,Math.round(source.width*scale));art.height=Math.max(1,Math.round(source.height*scale));art.getContext('2d').drawImage(source,0,0,art.width,art.height);return art.toDataURL('image/png');}
-function inspectPlacement(id){
+async function inspectPlacement(id){
+  const version=++inspectorVersion;
+  try {return await prepareInspector(id,version);}
+  catch {if(version===inspectorVersion){hexSearchStatus.textContent='Could not load this placement. Try again.';document.querySelector('#inspectorStatus').textContent='Could not load this placement. Try again.';}return false;}
+}
+async function prepareInspector(id,version){
+  const recordForGeometry=sessionPlacements.get(id);
+  await prepareLocation(id);
+  const ownerForGeometry=sampleOwners[id-1];
+  const prepared=recordForGeometry?.cells||await topology.run(()=>{
+    const queue=[id],seen=new Set(queue);
+    for(let i=0;i<queue.length&&queue.length<100000;i++)for(const next of topology.neighboursOf(queue[i])){
+      if(seen.has(next))continue;seen.add(next);
+      if(recordForGeometry?sessionPlacements.get(next)===recordForGeometry:ownerForGeometry&&sampleOwners[next-1]===ownerForGeometry)queue.push(next);
+    }
+    return queue;
+  });
+  await topology.ensureCells(prepared);
+  if(version!==inspectorVersion)return false;
   cameraFlight.cancel();
   const sameOwner=inspectedOwner===ownerKey(id);inspectedOwner=ownerKey(id);
   inspectedId=id;
-  if(sameOwner&&!document.querySelector('#placementInspector').hidden)return;
+  if(sameOwner&&!document.querySelector('#placementInspector').hidden)return true;
   document.body.classList.add('inspecting');resize();pinnedCell=null;tooltip.classList.remove('show','pinned');
   const cell=cellForId(id),record=sessionPlacements.get(id),panel=document.querySelector('#placementInspector');
   document.querySelector('#inspectorName').textContent=cell.owner;
   const logo=document.querySelector('#inspectorLogo');const logoSource=record?.logo||(!record?'/brands/'+(sampleOwners[id-1]-1)+'.svg':'');logo.hidden=!logoSource;if(logoSource)logo.src=logoSource;else logo.removeAttribute('src');
   showNearby(false);
   const link=document.querySelector('#inspectorVisit');link.hidden=!cell.destination;link.href=cell.destination||'#';
-  const owner=sampleOwners[id-1],seen=new Set([id]),queue=[id];
-  for(let i=0;i<queue.length&&queue.length<100000;i++)for(const next of topology.neighboursOf(queue[i])){
-    if(seen.has(next))continue;seen.add(next);
-    if(record?sessionPlacements.get(next)===record:owner&&sampleOwners[next-1]===owner)queue.push(next);
-  }
+  const owner=sampleOwners[id-1],queue=prepared;
   inspectedCells=queue;
   const views=document.querySelector('#inspectorInfo');views.textContent=record?.placementId?'…':record?'\u2014':'12,429';views.title=record?.placementId?'Measured placement views':record?'Views are not measured yet':'Illustrative views';
   document.querySelector('#inspectorDate').textContent=(record?new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'}):'08/08/26');
@@ -1742,11 +1867,12 @@ function inspectPlacement(id){
     const dot=x=>topology.centre(x.anchor).reduce((sum,v,i)=>sum+v*centre[i],0);
     return dot(b)-dot(a);
   }).filter((a,index,all)=>a.campaign!==owner-1&&all.findIndex(other=>other.campaign===a.campaign)===index).slice(0,3);
-  for(const area of areas){const button=document.createElement('button');const image=document.createElement('img');image.src='/brands/'+area.campaign+'.svg';image.alt='';const name=document.createElement('span');name.textContent=bootstrap.sampleCampaigns[area.campaign].name;const arrow=document.createElement('span');arrow.textContent='\u2197';arrow.setAttribute('aria-hidden','true');button.append(image,name,arrow);button.onclick=()=>{inspectPlacement(area.anchor);viewInspectedPlacement();};nearby.append(button);}
-  document.querySelector('#inspectorStatus').textContent='';panel.hidden=false;controls.autoRotate=false;
+  for(const area of areas){const button=document.createElement('button');const image=document.createElement('img');image.src='/brands/'+area.campaign+'.svg';image.alt='';const name=document.createElement('span');name.textContent=bootstrap.sampleCampaigns[area.campaign].name;const arrow=document.createElement('span');arrow.textContent='\u2197';arrow.setAttribute('aria-hidden','true');button.append(image,name,arrow);button.onclick=async()=>{if(await inspectPlacement(area.anchor))viewInspectedPlacement();};nearby.append(button);}
+  document.querySelector('#inspectorStatus').textContent='';panel.hidden=false;controls.autoRotate=false;return true;
 }
 function closeInspector(force=false){
   if(hudPinned&&!force)return;
+  inspectorVersion++;
   document.querySelector('#placementInspector').hidden=true;document.body.classList.remove('inspecting');resize();
   if(!document.body.classList.contains('creating')){clearSelectionColours();selectionModeUniform.value=0;}
 }
@@ -1777,7 +1903,7 @@ function renderCompanyResults(){
   if(!query||/^#?\d+$/.test(query))return;
   for(const entry of companyEntries().filter((entry,index,all)=>all.findIndex(other=>other.name===entry.name)===index&&entry.name.toLowerCase().includes(query)).slice(0,8)){
     const button=document.createElement('button');button.type='button';button.textContent=entry.name;
-    button.onclick=async()=>{await ensureTopology();inspectPlacement(entry.id);viewInspectedPlacement();showHexSearch(false);};target.append(button);
+    button.onclick=async()=>{if(await inspectPlacement(entry.id))viewInspectedPlacement();showHexSearch(false);};target.append(button);
   }
 }
 hexSearchInput.addEventListener('input',()=>{hexSearchInput.removeAttribute('aria-invalid');hexSearchStatus.textContent='';renderCompanyResults();});
@@ -1790,11 +1916,11 @@ function renderClaimFeed(){
   const ticker=[];
   for(const record of [...new Set(sessionPlacements.values())].sort((a,b)=>b.createdAt-a.createdAt).slice(0,5)){
     const button=document.createElement('button');button.className='example-activity';const icon=document.createElement('span');icon.className='activity-icon';icon.innerHTML=activityIcon('claim');const title=document.createElement('span');title.textContent=(record.name||'You')+' claimed '+record.count.toLocaleString()+(record.count===1?' hexagon':' hexagons');const date=document.createElement('small');date.textContent=new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'});button.append(icon,title,date);
-    button.onclick=async()=>{await ensureTopology();inspectPlacement(record.anchor);viewInspectedPlacement();};target.append(button);
+    button.onclick=async()=>{if(await inspectPlacement(record.anchor))viewInspectedPlacement();};target.append(button);
     ticker.push(title.textContent);
   }
   const examples=[];
-  for(const [headline,detail,campaign] of examples){const button=document.createElement(campaign===null?'div':'button');button.className='example-activity';const title=document.createElement('span');title.textContent=headline;const meta=document.createElement('small');meta.textContent=detail;const icon=document.createElement('span');icon.className='activity-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML=activityIcon(campaign===10?'claim':campaign===8?'trend':campaign===4?'milestone':'globe');button.append(icon,title,meta);if(campaign!==null)button.onclick=async()=>{await ensureTopology();inspectPlacement(bootstrap.sampleAreas.find(area=>area.campaign===campaign).anchor);viewInspectedPlacement();};target.append(button);ticker.push(headline);}
+  for(const [headline,detail,campaign] of examples){const button=document.createElement(campaign===null?'div':'button');button.className='example-activity';const title=document.createElement('span');title.textContent=headline;const meta=document.createElement('small');meta.textContent=detail;const icon=document.createElement('span');icon.className='activity-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML=activityIcon(campaign===10?'claim':campaign===8?'trend':campaign===4?'milestone':'globe');button.append(icon,title,meta);if(campaign!==null)button.onclick=async()=>{if(await inspectPlacement(bootstrap.sampleAreas.find(area=>area.campaign===campaign).anchor))viewInspectedPlacement();};target.append(button);ticker.push(headline);}
   if(!ticker.length){const empty=document.createElement('div');empty.className='example-activity';empty.textContent='The next live placement will appear here.';target.append(empty);ticker.push('Waiting for the next live placement');}
   const tickerText=ticker.join('  ·  '),tickerElement=document.querySelector('#claimTicker'),track=tickerElement.querySelector('.ticker-track');
   tickerElement.setAttribute('aria-label','Latest activity: '+ticker.join('. '));track.textContent=tickerText+'  ·  '+tickerText;
@@ -1805,7 +1931,11 @@ renderClaimFeed();
 function flyToCell(id,angle,duration=1500,onComplete=()=>{},onCancel=()=>{}){
   zoom.cancel();cameraDistanceTarget=null;
   const mobile=innerWidth<=700||(innerWidth<=900&&innerHeight>innerWidth);
-  cameraFlight.start({...placementPose(topology.frame(id),camera,radius,angle,{mobile}),duration,onComplete,onCancel});
+  const pose=placementPose(topology.frame(id),camera,radius,angle,{mobile});
+  const direction=pose.position.clone().applyQuaternion(pose.quaternion.clone().invert()).normalize();
+  const cap=Math.min(.32,Math.max(.055,(pose.position.length()-radius)/radius*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*Math.max(camera.aspect,1)*1.9));
+  void topology.ensureCap(direction.toArray(),cap+.025).catch(()=>{});
+  cameraFlight.start({...pose,duration,onComplete,onCancel});
 }
 function viewInspectedPlacement(){
   const n=topology.centre(inspectedId);let dot=1;
@@ -1825,13 +1955,14 @@ document.querySelector('#deleteTestPlacement').onclick=async event=>{const place
 async function openLocationLink(){
   const placementMatch=location.hash.match(/^#placement=([0-9a-f-]{36})$/),cellMatch=location.hash.match(/^#cell=(\d+)$/);if(!placementMatch&&!cellMatch)return;
   const request=++flightVersion;await Promise.all([ensureTopology(),ensureStagingInventory()]);if(request!==flightVersion)return;
-  if(placementMatch){const record=[...new Set(sessionPlacements.values())].find(item=>item.placementId===placementMatch[1]);if(!record)return;inspectPlacement(record.anchor);viewInspectedPlacement();return;}
+  if(placementMatch){const record=[...new Set(sessionPlacements.values())].find(item=>item.placementId===placementMatch[1]);if(!record)return;if(await inspectPlacement(record.anchor))viewInspectedPlacement();return;}
   const id=Number(cellMatch[1]);if(id<1||id>CELL_COUNT)return;
-  if(occupiedCells[id-1]){inspectPlacement(id);viewInspectedPlacement();}else flyToCell(id,.004,1800);
+  await prepareLocation(id);if(request!==flightVersion)return;
+  if(occupiedCells[id-1]){if(await inspectPlacement(id))viewInspectedPlacement();}else flyToCell(id,.004,1800);
 
 }
 // Reduced-motion flights complete synchronously, so the inspector must be initialized first.
-persistentNavigationReady=true;
+persistentNavigationReady=true;topologyTrimReady=true;
 addEventListener('hashchange',openLocationLink);
 if(/^#(?:cell=\d+|placement=[0-9a-f-]{36})$/.test(location.hash))void openLocationLink().catch(error=>console.error('Could not open saved location',error));
 else if(pendingPersistentFocus)void focusPersistentPlacement(pendingPersistentFocus).catch(error=>console.error('Could not focus saved placement',error));

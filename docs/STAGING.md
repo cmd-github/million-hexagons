@@ -28,10 +28,12 @@ npm.cmd run deploy:staging
 `build:staging` reads `.env.staging.local` (or environment variables). It generates:
 
 - `staging-dist/`: app bundle, favicon, sample HUD marks, security/cache headers and noindex directives.
-- `staging-runtime/releases/<sha256>/`: exactly the runtime topology files and complete sample tile catalogue. Large canonical binaries, source catalogues, optional stress data and working notes are excluded.
+- `staging-runtime/releases/<sha256>/`: exact regional topology files and complete sample tile catalogue. Large canonical binaries, the monolithic packed topology, source catalogues, optional stress data and working notes are excluded.
 - `artifacts/staging/release.json`: local object hashes, sizes, public origin and app hashes. Archive this with each deployed app artifact and the Wrangler deployment version.
 
-These generated paths are ignored by Git. The release hash covers the sorted runtime object inventory and bytes. The app and topology worker both embed the same exact release URL. There is no mutable data pointer in this demo: a Worker deployment switches the pinned release. A dynamic publication pointer is later transactional work.
+These generated paths are ignored by Git. The release hash covers the sorted runtime object inventory and bytes. The app embeds the exact release URL for regional geometry and sample artwork. A Worker deployment switches the pinned runtime release; existing immutable releases remain available for rollback.
+
+Regional geometry delivery (11 September 2026) uses 1,536 lossless partitions plus an ID index and manifest. Run `npm.cmd run build:regions` only to derive these from the frozen canonical bytes, followed by `npm.cmd run test:regions`. The runtime allowlist contains 9,733 objects (37.4 MB); visitors download only the regions they need. See [regional geometry](REGIONAL-GEOMETRY.md) for identity, cache and failure contracts. The health monitor now verifies the regional manifest, index and a geometry partition, including SHA-256 and CDN cache hits.
 
 `upload:staging` uploads four objects concurrently, verifies request integrity and refuses to overwrite different contents at an immutable key. It can resume an interrupted upload. It then downloads every public object to verify hashes, CORS, content types and cache headers. `deploy:staging` repeats public verification and checks the app/runtime files have not changed before invoking Wrangler. A failed check prevents app deployment. These checks issue thousands of reads; include their cost in staging usage.
 

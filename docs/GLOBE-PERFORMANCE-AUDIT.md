@@ -1,5 +1,28 @@
 # Globe performance and image-quality audit
 
+## Regional delivery update — 11 September 2026
+
+Staging deployment: `dd9f68a2-c907-4e02-bdf8-702466122867`. Immutable runtime release: `a697e3c57238a15a56041cfd91007b9400b872bbfe9d99dfb5723ba200c1152e`. [Regional geometry](REGIONAL-GEOMETRY.md) replaces the monolithic visitor download with exact, lossless partitions. The 10 September measurements below are the historical baseline.
+
+Controlled Chrome measurements start after overview readiness, then apply 10 Mbps bandwidth and 80 ms latency. Mobile uses a 390 × 844 viewport and 4× CPU slowdown. The endpoint requires visible detailed geometry and verifies canvas picking against the requested permanent ID.
+
+| Controlled close-up | Desktop | Emulated mobile, CPU 4× |
+| --- | ---: | ---: |
+| Cold interactive detail | 3.20 s | 3.44 s |
+| Repeat interactive detail | 1.89 s | 2.09 s |
+| Cold regional payload | 617 KB | 452 KB |
+| Retained exact cells | 14,407 | 7,398 |
+
+These are individual observed runs from `artifacts/regions/browser-timings.json`, recovered from the interrupted implementation session. No monolithic topology was requested. They establish the geometry transition improvement, not a physical-phone or full-page startup guarantee. The earlier final live pass still measured about 7.5 seconds for a cold saved-placement link with 4× CPU slowdown, including app startup, inventory readiness and camera travel.
+
+Recovery verification reran 19 geometry, regional identity, cache and deployment tests successfully, including all million cells. The production build passes. Live health checks confirm the pinned release, regional checksums, CORS and CDN hits. Recorded editor checks preserve exact design/selection IDs at 1,500 and 100,000 cells; the larger resize took 5.3–6.9 seconds without CPU throttling. Failed-region recovery and seam/pole traversal passed in the implementation session. Evidence: `artifacts/regions/editor-report.json`, `recovery-report.json`, and `artifacts/staging/health.json`.
+
+Remaining work: full page-to-placement startup, physical iOS/Android acceptance, and large-catalogue artwork/texture memory. The visitor no longer retains the 92 MB canonical buffer; regional ID/offset lookup uses 4 MB plus a bounded decoded working set. Active large designs may exceed the default region count. Existing artwork texture limits are separate.
+
+Fresh live recovery pass (`artifacts/regions/recovered-live-report.json`): cold first draw 1.26 s desktop / 2.98 s mobile CPU 4×; cold saved-placement inspector 4.25 s / 7.64 s; repeat inspector 2.32 s / 4.29 s. This pass used the live connection without bandwidth throttling. Desktop/mobile artwork screenshots were inspected, editor Review/Edit round trips passed, and no browser errors or monolithic geometry requests were captured. One existing reservation initially prevented Review; the app correctly rejected the conflict. The delivery test now chooses another spot on that explicit conflict, then verifies the editor round trip and releases its temporary reservation.
+
+## Historical baseline — 10 September 2026
+
 10 September 2026. Final staging deployment: `ddae8c82-7756-4546-8db7-3a5ba1e3cac7`. The startup/cache timing table was measured on `fd5f6d22-b0e3-444d-b38a-a92d000cdf51`; the final deployment adds cancellation of obsolete grid work.
 
 ## Findings and changes
@@ -37,7 +60,7 @@ Inspected live saved slug/globe artwork, desktop/mobile close-ups, overview, int
 
 Published image delivery retains the saved full-resolution WebP: globe 1083 × 831 (74.5 KB), slug 1172 × 829 (58 KB), and the green placement 2690 × 2857 (84 KB). The older preview-only photograph is 632 × 900. The renderer retains anisotropic filtering and the existing 3072px design-raster ceiling; this change did not reduce resolution or regenerate the frozen topology. Small placements cannot display unlimited source detail beyond their saved raster resolution.
 
-## Remaining priorities
+## Remaining priorities at the time of the baseline
 
 1. **First-visit close-ups are still too slow.** Load exact geometry for the visible region before fetching the rest. Preserve canonical IDs/polygons and authoritative inventory; this is a separate implementation, not solved by the new cache.
 2. **Memory and placement scale need further work.** Tile textures reached about 156 MB desktop / 91 MB mobile in the traversal, excluding saved-placement textures and the 92 MB topology. Staging currently retains one mesh/texture per restored placement and requests public records from a backend list capped at 1,000. Five saved placements do not prove large-catalogue performance; immutable public delivery and visibility-based artwork loading remain necessary.

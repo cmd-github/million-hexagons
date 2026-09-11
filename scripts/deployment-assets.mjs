@@ -2,7 +2,7 @@ import { readFile, cp, mkdir, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 
-export const topologyFiles = ['bootstrap.json', 'geodesic-v1.json', 'geodesic-v1.packed.gz', 'occupancy-v1.gz', 'sample-owners-v1.gz'].map(name => `topology/${name}`);
+export const topologyFiles = ['bootstrap.json', 'geodesic-v1.json', 'occupancy-v1.gz', 'sample-owners-v1.gz', 'regions-v1/manifest.json', 'regions-v1/index.gz', ...Array.from({length:1536},(_,i)=>`regions-v1/${i}.gz`)].map(name => `topology/${name}`);
 export const appFiles = ['favicon.svg', ...Array.from({ length: 12 }, (_, i) => `brands/${i}.svg`)];
 export const sha256 = data => createHash('sha256').update(data).digest('hex');
 export const contentType = file => file.endsWith('.json') ? 'application/json' : file.endsWith('.webp') ? 'image/webp' : 'application/octet-stream';
