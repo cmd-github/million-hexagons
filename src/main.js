@@ -1399,7 +1399,8 @@ function ensureStagingInventory(){
   if(!import.meta.env.VITE_STAGING_SANDBOX)return Promise.resolve();
   if(!stagingInventoryPromise)stagingInventoryPromise=(async()=>{
     stagingClient=await import('./staging-client.js');
-    const records=await restorePublicPlacements({focus:true});
+    const records=await restorePublicPlacements();
+    if(records.some(record=>record.artworkDataUrl))void ensureTopology().catch(error=>console.error('Could not prepare placement artwork',error));
     stagingInventoryLoaded=true;
     return records;
   })().catch(error=>{stagingInventoryPromise=null;throw error;});

@@ -1,6 +1,6 @@
 # Cloudflare staging
 
-This is a separately deployable staging product with Stripe test checkout. Test-owner claims persist in Firestore and publish immutable derived artwork through private Firebase Storage and R2. The prepared next release removes the baked sample catalogue; see [editable test brands](EDITABLE-TEST-BRANDS.md) for the pending rollout and account prerequisite. It does not alter Firebase Hosting or the coming-soon site.
+This is a separately deployable staging product with Stripe test checkout. Test-owner claims persist in Firestore and publish immutable derived artwork through private Firebase Storage and R2. The baked sample catalogue has been replaced by owner-editable test placements; see [editable test brands](EDITABLE-TEST-BRANDS.md) for rollout evidence and retry instructions. It does not alter Firebase Hosting or the coming-soon site.
 
 ## One-time account setup
 

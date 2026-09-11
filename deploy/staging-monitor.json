@@ -1,6 +1,7 @@
 {
   "appOrigin": "https://million-hexagons-staging.million-hexagons.workers.dev",
   "assetOrigin": "https://assets-staging.millionhexagons.com",
-  "release": "a697e3c57238a15a56041cfd91007b9400b872bbfe9d99dfb5723ba200c1152e",
-  "requireAssetCacheHit": true
+  "release": "6121418c93f84b0a7fd8b572f3f386de309edec9ba6bc2aefcc2d44e084374b2",
+  "requireAssetCacheHit": true,
+  "artworkBase": "artwork/empty"
 }

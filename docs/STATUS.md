@@ -6,17 +6,17 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Replace baked demo brands with owner-editable staging placements. Local implementation and checks complete; awaiting Craig's verified My Globe email before seeding, deployment and mixed-placement performance acceptance. See [editable test brands](EDITABLE-TEST-BRANDS.md).
+- [ ] Review and complete the commercial launch decisions: pricing, refunds, permanent-use wording, seller identity and governing law.
 
 ## Next
 
-- [ ] Review and complete the commercial launch decisions: pricing, refunds, permanent-use wording, seller identity and governing law.
-
-- [ ] Unify demo and purchased artwork publication. Current mismatch: sample companies such as Coca-Cola are pre-baked into `artwork/sample-hq`, while durable purchases are fetched by `restorePublicPlacements()` and added later through `pendingPersistentArtwork`, so sample logos appear immediately and real uploaded artwork visibly pops in seconds afterward. Implement the production-shaped snapshot-plus-delta model: compile all publicly active placements through one placement-record-driven artwork pipeline into an immutable globe snapshot; show purchases/edits made after that snapshot immediately as live layers; absorb those layers into the next snapshot and remove redundant overlays. Generate demo fixtures through the same compiler rather than treating their logos as a privileged rendering source. Preserve exact cell IDs, placement metadata, takedowns/rollbacks and sparse level-8 detail. Verify cold/repeat desktop and mobile startup with mixed sample and durable placements: no sample-first reveal, no missing/duplicate artwork during snapshot rollover, immediate post-purchase/update visibility, and bounded tile/geometry memory. Do not "fix" this by delaying the samples or dynamically meshing all 344,500 demo cells at startup.
+- [ ] Implement the launch-scale immutable snapshot-plus-delta artwork compiler. Baked demos have been removed; test brands and purchases now share the existing live placement path. The 33,094-cell fixture set exposes that path honestly but does not prove full-globe scalability. Compile active placement records into immutable snapshots, apply later edits/purchases as deltas, and verify rollover, takedowns, exact cell IDs, sparse detail and bounded memory.
 - [ ] Choose the next launch-critical engineering slice after the commercial decisions are settled.
 - [ ] Later: design explicit domain rules for voluntarily merging connected purchases under the same verified owner so one artwork can span the expanded holding.
 
 ## Done
+
+- [x] Published all 12 editable test brands to Craig's verified account and removed baked demo artwork from staging. Exact footprints span 48-12,000 cells (33,094 total); existing uploads remain. Verified owner/grant records, published images, private artwork/design checksums, idempotent seed rerun and all 1,549 runtime objects/CDN health. Startup now stays at the globe overview while preparing live artwork. Deployment: `3d9657e7-c49d-43bd-bdb0-d28304875be8`. See [editable test brands](EDITABLE-TEST-BRANDS.md) for evidence and limits.
 
 - [x] Prepared replacement of baked demo inventory with an empty runtime base and 12 dispersed editable staging fixtures (48-12,000 cells; 33,094 total). Administrator-only creation resolves verified ownership and retains the normal private source/version/publication paths; retries preserve owner edits. Backend tests (36), deployment tests (9), desktop/mobile owner and persistent-checkout journeys, staging build and inspected footprint/editor screenshots passed. Not deployed or seeded: real account identification, live ownership/source checks and cold/repeat performance measurements remain open.
 

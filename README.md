@@ -1,6 +1,6 @@
 # Million Hexagons
 
-A Vite/Three.js prototype of one shared advertising globe containing exactly 1,000,000 claimable spherical cells: 999,988 hexagons and 12 pentagons. The default local build supports session-only Design -> Place -> Review. Staging supports durable placements, Stripe test checkout and verified-owner artwork editing. The prepared default runtime removes baked demo brands; replacement fixtures use the durable placement pipeline. See [editable test brands](docs/EDITABLE-TEST-BRANDS.md) for rollout status and setup.
+A Vite/Three.js prototype of one shared advertising globe containing exactly 1,000,000 claimable spherical cells: 999,988 hexagons and 12 pentagons. The default local build supports session-only Design -> Place -> Review. Staging supports durable placements, Stripe test checkout and verified-owner artwork editing. The default runtime has no baked demo brands; staging test brands use the durable placement pipeline and verified-owner editor. See [editable test brands](docs/EDITABLE-TEST-BRANDS.md) for rollout status and setup.
 
 Current requirements are in [product direction](docs/09-09-26-PRODUCT-DIRECTION.md); [STATUS](docs/STATUS.md) tracks current work. See [architecture](docs/ARCHITECTURE.md) and [validation](docs/VALIDATION.md) when relevant.
 
