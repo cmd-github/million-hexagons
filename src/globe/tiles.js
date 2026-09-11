@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { cubePoint,tileKey } from './cube.js';
-import {selectArtworkTiles} from './tile-selection.js';
+import {selectBudgetedArtworkTiles} from './tile-selection.js';
 import {ancestorCrop} from './publication-detail.js';
+import {hasNode,hasChildren,validateTree} from './snapshot-tree.js';
 
 function describe(face,level,x,y,radius){
   return {key:tileKey(face,level,x,y),face,level,x,y};
@@ -14,7 +15,7 @@ export class ArtworkTiles {
     this.cache=new Map();this.queue=[];this.inflight=0;this.epoch=0;this.revision=0;this.errors=0;
     this.group=new THREE.Group();globe.add(this.group);
     this.stats={resident:0,visible:0,pending:0,bytes:0,requests:0,evictions:0};
-    this.ready=fetch(`${base}/manifest.json`).then(r=>{if(!r.ok)throw Error('Artwork catalogue unavailable');return r.json();}).then(m=>{this.manifest=m;for(let f=0;f<6;f++)this.request(f,0,0,0);});
+    this.ready=fetch(`${base}/manifest.json`).then(r=>{if(!r.ok)throw Error('Artwork catalogue unavailable');return r.json();}).then(async m=>{if(m.tree){const response=await fetch(`${base}/${m.tree}`);if(!response.ok)throw Error('Snapshot tree unavailable');const bytes=new Uint8Array(await response.arrayBuffer());this.tree=bytes[0]===31&&bytes[1]===139?new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()):bytes;validateTree(this.tree);if(m.treeSha256){const digest=await crypto.subtle.digest('SHA-256',this.tree);const hash=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,'0')).join('');if(hash!==m.treeSha256)throw Error('Snapshot tree checksum mismatch');}}this.manifest=m;for(let f=0;f<6;f++)this.request(f,0,0,0);});
   }
   request(face,level,x,y) {
     const key=tileKey(face,level,x,y);let tile=this.cache.get(key);
@@ -29,13 +30,16 @@ export class ArtworkTiles {
   async fetchTile(tile) {
     tile.loading=true;this.inflight++;this.stats.requests++;
     try {
-      const blob=await this.read(tile.key);
+      let preview=tile.level===0&&this.manifest.previewTileSize&&!tile.preview&&!tile.ready,blob;
+      if(preview){try{const response=await fetch(`${this.base}/preview/${tile.face}.webp`);if(!response.ok)throw Error('Overview preview unavailable');blob=await response.blob();}catch{preview=false;}}
+      if(!blob)blob=await this.read(tile.key);
       const bitmap=await createImageBitmap(blob,{imageOrientation:'flipY',premultiplyAlpha:'none'});
       if(this.cache.get(tile.key)!==tile){bitmap.close();return;}
       const texture=new THREE.Texture(bitmap);texture.colorSpace=THREE.SRGBColorSpace;texture.needsUpdate=true;texture.generateMipmaps=true;
       texture.minFilter=THREE.LinearMipmapLinearFilter;texture.magFilter=THREE.LinearFilter;
       texture.anisotropy=this.anisotropy;
-      Object.assign(tile,{texture,bitmap,ready:true,loaded:performance.now(),queued:false,bytes:bitmap.width*bitmap.height*4*4/3});
+      if(tile.texture){tile.texture.dispose();tile.bitmap?.close();}
+      Object.assign(tile,{texture,bitmap,preview,ready:true,loaded:performance.now(),queued:false,bytes:bitmap.width*bitmap.height*4*4/3});
     } catch(error) {tile.queued=false;tile.failed=performance.now();this.errors++;}
     finally {tile.loading=false;this.inflight--;}
   }
@@ -46,6 +50,11 @@ export class ArtworkTiles {
   async read(key) {
     const saved=await this.stored(key);if(saved)return saved;
     const [face,level,x,y]=key.split('/').map(Number);
+    if(this.tree){
+      if(hasNode(this.tree,face,level,x,y)){const response=await fetch(`${this.base}/${key}.webp`);if(!response.ok)throw Error('Snapshot tile unavailable');return response.blob();}
+      // Empty siblings are transparent; never stretch a parent's neighbouring artwork.
+      const canvas=document.createElement('canvas');canvas.width=canvas.height=this.manifest.tileSize+2*this.manifest.gutter;return new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+    }
     if(level>this.manifest.maxLevel){
       // Unpublished siblings inherit the nearest saved parent, including its
       // gutter. They must not request nonexistent pages from the static CDN.
@@ -64,7 +73,7 @@ export class ArtworkTiles {
     for(;parentLevel>this.manifest.maxLevel;parentLevel--){
       const divisor=2**(level-parentLevel);
       blob=await this.stored(tileKey(face,parentLevel,Math.floor(x/divisor),Math.floor(y/divisor)));
-      if(blob)break;
+      if(blob||this.tree&&hasNode(this.tree,face,parentLevel,Math.floor(x/divisor),Math.floor(y/divisor)))break;
     }
     const divisor=2**(level-parentLevel);
     const bitmap=await createImageBitmap(blob||await this.read(tileKey(face,parentLevel,Math.floor(x/divisor),Math.floor(y/divisor))));
@@ -95,8 +104,9 @@ export class ArtworkTiles {
     if(!this.manifest)return;
     this.epoch++;
     if(time-this.lastSelection>=60){
-      this.selection=selectArtworkTiles(this.globe,camera,this.radius,height,this.manifest,this.detailBranches);
-      this.capacity=Math.max(this.maxTiles,this.selection.length+6+this.concurrency);
+      const branches=this.tree?{has:key=>{const [f,l,x,y]=key.split('/').map(Number);return hasChildren(this.tree,f,l,x,y)||this.detailBranches.has(key);}}:this.detailBranches;
+      this.selection=selectBudgetedArtworkTiles(this.globe,camera,this.radius,height,this.manifest,branches,Math.max(6,this.maxTiles-6-this.concurrency));
+      this.capacity=this.maxTiles;
       this.lastSelection=time;
     }
     // Protect the complete screen's target set before allocating any requests.
@@ -120,7 +130,7 @@ export class ArtworkTiles {
         source=this.cache.get(tileKey(target.face,level,Math.floor(target.x/divisor),Math.floor(target.y/divisor)));
       }
       if(!source?.ready){fallback++;const previous=this.views.get(target.key);if(previous)previous.mesh.visible=false;continue;}
-      if(source.level!==target.level)fallback++;
+      if(source.level!==target.level||source.preview)fallback++;
       source.used=this.epoch;
       let view=this.views.get(target.key);
       if(!view){
@@ -129,20 +139,26 @@ export class ArtworkTiles {
         const mesh=new THREE.Mesh(geometry,material);mesh.renderOrder=1;this.group.add(mesh);
         view={mesh,target,originalUv:geometry.attributes.uv.array.slice()};this.views.set(target.key,view);
       }
-      if(view.source!==source){
+      if(view.source!==source||view.texture!==source.texture){
         const size=this.manifest.tileSize,g=this.manifest.gutter||0,total=size+g*2;
+        const sourceSize=source.bitmap.width-2*g,sourceTotal=source.bitmap.width;
         const divisor=2**(target.level-source.level),dx=target.x-source.x*divisor,dy=target.y-source.y*divisor;
         const uv=view.mesh.geometry.attributes.uv;
         for(let i=0;i<uv.count;i++){
           const s=(view.originalUv[i*2]*total-g)/size,t=(view.originalUv[i*2+1]*total-g)/size;
-          uv.setXY(i,(g+(dx+s)*size/divisor)/total,(g+(divisor-1-dy+t)*size/divisor)/total);
+          uv.setXY(i,(g+(dx+s)*sourceSize/divisor)/sourceTotal,(g+(divisor-1-dy+t)*sourceSize/divisor)/sourceTotal);
         }
-        uv.needsUpdate=true;view.mesh.material.map=source.texture;view.source=source;
+        uv.needsUpdate=true;view.mesh.material.map=source.texture;view.source=source;view.texture=source.texture;
       }
       view.mesh.visible=true;
       view.mesh.renderOrder=1;
     }
     this.queue=this.queue.filter(t=>{const keep=this.cache.get(t.key)===t&&t.queued&&(t.level===0||wanted.has(t.key));if(!keep)t.queued=false;return keep;});
+    if(this.manifest.previewTileSize){
+      const rootsReady=[...this.cache.values()].filter(t=>t.level===0&&t.ready).length===6;
+      if(rootsReady)for(const target of this.selection){const tile=this.cache.get(target.key);if(tile?.preview&&!tile.loading&&!tile.queued){tile.queued=true;this.queue.push(tile);}}
+      if(!this.stats.meaningfulMs&&this.selection.length&&this.selection.every(t=>this.views.get(t.key)?.mesh.visible))this.stats.meaningfulMs=performance.now();
+    }
     // Load missing overview roots first, then the sharpest requested pages.
     this.queue.sort((a,b)=>(a.level===0?-1:b.level===0?1:b.level-a.level));
     while(this.inflight<this.concurrency&&this.queue.length){const tile=this.queue.shift();tile.queued=false;void this.fetchTile(tile);}

@@ -6,15 +6,17 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Review and complete the commercial launch decisions: pricing, refunds, permanent-use wording, seller identity and governing law.
+- [ ] Resolve launch-blocking artwork quality and performance. Implement safe snapshot publication, bounded changes and regional ownership in the live application; meet sharp-detail and memory budgets. Offline compiler/renderer and direct-link improvements are verified foundations, not a completed scale fix. See [artwork performance](ARTWORK-PERFORMANCE.md).
 
 ## Next
 
 - [ ] Implement the launch-scale immutable snapshot-plus-delta artwork compiler. Baked demos have been removed; test brands and purchases now share the existing live placement path. The 33,094-cell fixture set exposes that path honestly but does not prove full-globe scalability. Compile active placement records into immutable snapshots, apply later edits/purchases as deltas, and verify rollover, takedowns, exact cell IDs, sparse detail and bounded memory.
-- [ ] Choose the next launch-critical engineering slice after the commercial decisions are settled.
+- [ ] Complete the commercial launch decisions: pricing, refunds, permanent-use wording, seller identity and governing law.
 - [ ] Later: design explicit domain rules for voluntarily merging connected purchases under the same verified owner so one artwork can span the expanded holding.
 
 ## Done
+
+- [x] Investigated slow artwork and built an offline snapshot compiler with sparse tile lookup, progressive previews, fixed tile budgets and regional ownership outputs. Verified target-first shared links while catalogue loading is blocked, owner edit/reload journeys, and isolated desktop/mobile rendering. Dense synthetic imagery still misses sharp-detail latency; publication lifecycle and full runtime integration remain open. See [measurements and release gates](ARTWORK-PERFORMANCE.md). No performance deployment yet.
 
 - [x] Published all 12 editable test brands to Craig's verified account and removed baked demo artwork from staging. Exact footprints span 48-12,000 cells (33,094 total); existing uploads remain. Verified owner/grant records, published images, private artwork/design checksums, idempotent seed rerun and all 1,549 runtime objects/CDN health. Startup now stays at the globe overview while preparing live artwork. Deployment: `3d9657e7-c49d-43bd-bdb0-d28304875be8`. See [editable test brands](EDITABLE-TEST-BRANDS.md) for evidence and limits.
 

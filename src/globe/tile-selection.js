@@ -28,3 +28,12 @@ export function selectArtworkTiles(globe,camera,radius,height,manifest,detailBra
   for(let face=0;face<6;face++)visit(face,0,0,0);
   return leaves.sort((a,b)=>b.pixels-a.pixels);
 }
+
+// Reduce density uniformly if an unusually large viewport exceeds the budget.
+// Every visible area keeps coverage; allocation order cannot starve one side.
+export function selectBudgetedArtworkTiles(globe,camera,radius,height,manifest,branches,limit){
+  if(!Number.isInteger(limit)||limit<6)throw Error('Artwork budget requires six overview faces');
+  let selection;
+  do{selection=selectArtworkTiles(globe,camera,radius,height,manifest,branches);height*=.8;}while(selection.length>limit);
+  return selection;
+}

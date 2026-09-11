@@ -2011,7 +2011,16 @@ document.querySelector('#nativeSharePlacement').onclick=async()=>{const data={ti
 document.querySelector('#deleteTestPlacement').onclick=async event=>{const placementId=event.currentTarget.dataset.placementId;if(!placementId||!stagingClient)return;event.currentTarget.disabled=true;try{await stagingClient.deleteTestClaim(placementId);location.reload();}catch(error){document.querySelector('#inspectorStatus').textContent='Could not delete this test placement.';event.currentTarget.disabled=false;}};
 async function openLocationLink(){
   const placementMatch=location.hash.match(/^#placement=([0-9a-f-]{36})$/),cellMatch=location.hash.match(/^#cell=(\d+)$/);if(!placementMatch&&!cellMatch)return;
-  const request=++flightVersion;await Promise.all([ensureTopology(),ensureStagingInventory()]);if(request!==flightVersion)return;
+  const request=++flightVersion;
+  if(placementMatch&&import.meta.env.VITE_STAGING_SANDBOX){
+    // A shared/owner-update link needs one record, not the entire catalogue.
+    const client=await import('./staging-client.js'),record=await client.getPublicPlacement(placementMatch[1]);
+    if(request!==flightVersion||!record)return;
+    await applyPersistentPlacements([record]);await prepareLocation(record.anchor);
+    if(request!==flightVersion)return;
+    if(await inspectPlacement(record.anchor))viewInspectedPlacement();return;
+  }
+  await Promise.all([ensureTopology(),ensureStagingInventory()]);if(request!==flightVersion)return;
   if(placementMatch){const record=[...new Set(sessionPlacements.values())].find(item=>item.placementId===placementMatch[1]);if(!record)return;if(await inspectPlacement(record.anchor))viewInspectedPlacement();return;}
   const id=Number(cellMatch[1]);if(id<1||id>CELL_COUNT)return;
   await prepareLocation(id);if(request!==flightVersion)return;

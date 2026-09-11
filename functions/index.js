@@ -1,8 +1,9 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { initializeApp } from 'firebase-admin/app';
+import {cataloguePage,publishedVersion,nextCatalogueCursor} from './public-catalogue.js';
 import { getAuth } from 'firebase-admin/auth';
-import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { FieldPath, FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
@@ -146,10 +147,14 @@ export const stagingPlacements = onRequest(
 
     const action=request.body?.action;
     if(action==='public-list'){
-      const snapshot=await getFirestore().collection('stagingPlacements').limit(1000).get(),active=snapshot.docs.map(document=>document.data()).filter(placement=>!['deleted','revoked'].includes(placement.status));
-      const versions=await Promise.all(active.map(placement=>getFirestore().collection('stagingPlacementVersions').doc(`${placement.placementId}-v${placement.publicState?.publicVersion||placement.currentVersion||1}`).get()));
+      let pageSize,cursor;
+      try{({pageSize,cursor}=cataloguePage(request.body));}catch(error){response.status(400).json({ok:false,error:error.message});return;}
+      let query=getFirestore().collection('stagingPlacements').orderBy(FieldPath.documentId()).limit(pageSize);
+      if(cursor)query=query.startAfter(cursor);
+      const snapshot=await query.get(),active=snapshot.docs.map(document=>document.data()).filter(placement=>!['deleted','revoked'].includes(placement.status));
+      const versions=await Promise.all(active.map(placement=>getFirestore().collection('stagingPlacementVersions').doc(`${placement.placementId}-v${publishedVersion(placement)}`).get()));
       const placements=active.map((placement,index)=>{const content=versions[index].data()||{},visible=publicPlacement(content,placement.publicState);return{placementId:placement.placementId,topologyVersion:placement.topologyVersion,anchor:placement.anchor,cells:decodeCells(placement.cellsData),cellCount:placement.cellCount,...visible,publicationStatus:content.publication?.status||'preview-only',status:placement.status,createdAt:placement.createdAt?.toMillis?.()||null};});
-      response.status(200).json({ok:true,placements});return;
+      response.status(200).json({ok:true,placements,nextCursor:nextCatalogueCursor(snapshot.docs,pageSize)});return;
     }
     if(action==='public-placement'){
       const db=getFirestore(),placementId=String(request.body.placementId||''),placement=await db.collection('stagingPlacements').doc(placementId).get();

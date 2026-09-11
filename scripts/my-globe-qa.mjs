@@ -46,7 +46,7 @@ try {
     page.on("pageerror", (error) => errors.push(error.message));
     const records = [
       {
-        placementId: "stripe-owned-placement",
+        placementId: "12345678-1234-1234-1234-123456789abc",
         topologyVersion: "geodesic-v1",
         anchor: 966630,
         cells: [966630],
@@ -222,7 +222,7 @@ try {
       () =>
         document.querySelector("#toast b")?.textContent === "Changes saved.",
     );
-    assert.equal(update.placementId, "stripe-owned-placement");
+    assert.equal(update.placementId, "12345678-1234-1234-1234-123456789abc");
     assert.equal(update.content.destinationUrl, "https://example.com/");
     assert.deepEqual(
       update.content.designState.cells.map((cell) => cell.id),
@@ -239,7 +239,7 @@ try {
       update.content.originalArtworkDataUrl,
       /^data:image\/(?:png|webp);base64,/,
     );
-    assert.equal(new URL(page.url()).hash, "#placement=stripe-owned-placement");
+    assert.equal(new URL(page.url()).hash, "#placement=12345678-1234-1234-1234-123456789abc");
     await page.locator("#placementInspector").waitFor({ state: "visible" });
     assert.equal(
       await page.locator("#inspectorName").textContent(),

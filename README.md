@@ -82,3 +82,5 @@ To rebuild delivery partitions from the existing frozen topology, run `npm.cmd r
 Published uploads retain close-up detail through source-sized, sparse tile refinement, with the same bounded streaming cache and no retained placement meshes.
 
 Exploration includes understated global metrics rotating every 14 seconds, SVG activity icons, and faint background hexagons. The HUD swaps details for a Nearby view with Back/Escape support without resizing. Sample views and highlights are illustrative; newly published previews show an unmeasured view count and browser-local website visits. Directional rotation uses one button, with slower close-range dragging.
+
+Artwork scalability is an active launch blocker. The offline snapshot compiler, measured limits and reproduction commands are documented in [artwork performance](docs/ARTWORK-PERFORMANCE.md); the live site still uses the existing placement layer.
