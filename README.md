@@ -29,7 +29,7 @@ npm run preview -- --port 4181
 - Placement inspection with explicit website visits, nearby exploration, a pinnable HUD, tour-stop details and shareable cell-location links.
 - Placement names, descriptions, artwork thumbnails, intentional website visits and a feed of restored placements. Staging statistics and owner analytics use authoritative placement and event data.
 - One Design -> Place -> Review journey for images, colour-only artwork, and mixed designs.
-- A shared right-hand studio carries Design, Place and Review with consistent navigation and controls. Image options and extra cell actions share one menu.
+- A shared right-hand studio carries Design, Place and Review with consistent navigation and controls. Image options and extra cell actions share one menu. Escape unwinds one layer at a time — open menu, then checkout, then the studio — and closing the studio keeps the in-progress design, so reopening it from Create a placement restores the work. Opening on a specific cell or for an owner update starts clean; Start over in the design menu discards a restored draft.
 - Compact globe-only editor for 1-100,000 cells: Add image, exact count, background colour, image zoom/rotation, separate Add/Remove brushes, paint/transparency and undo/redo. Fresh placements start clean; editing preserves the draft. Transparent cells retain count and price.
 - Image framing: rotation-aware contained fit, low-resolution upload preflight, 50-400% zoom with cell clipping, drag positioning, and a separate hexagon editing mode. Reset logo restores the original framing.
 - Shared polygon IDs and artwork mapping across flat preview, globe preview, review, and session publication.
