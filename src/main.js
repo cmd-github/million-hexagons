@@ -87,7 +87,7 @@ const globeMaterial = new THREE.MeshStandardMaterial({ color: '#071c2b', emissiv
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius - .0005, 192, 128), globeMaterial);
 globe.add(sphere);
 
-const artworkTiles = new ArtworkTiles(globe,radius,{base:millionFixture?'/artwork/million':runtimeAsset('artwork/sample-hq'),maxTiles:innerWidth<700?64:128,anisotropy:Math.min(8,renderer.capabilities.getMaxAnisotropy())});
+const artworkTiles = new ArtworkTiles(globe,radius,{base:millionFixture?'/artwork/million':runtimeAsset('artwork/empty'),maxTiles:innerWidth<700?64:128,anisotropy:Math.min(8,renderer.capabilities.getMaxAnisotropy())});
 await artworkTiles.ready;
 let designAnchor = bootstrap.anchor;
 const [occupancyBytes,sampleOwners]=await Promise.all([fetchRuntimeGzip('topology/occupancy-v1.gz'),fetchRuntimeGzip('topology/sample-owners-v1.gz')]);

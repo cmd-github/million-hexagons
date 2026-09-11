@@ -6,15 +6,19 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Review and complete the commercial launch decisions: pricing, refunds, permanent-use wording, seller identity and governing law.
+- [ ] Replace baked demo brands with owner-editable staging placements. Local implementation and checks complete; awaiting Craig's verified My Globe email before seeding, deployment and mixed-placement performance acceptance. See [editable test brands](EDITABLE-TEST-BRANDS.md).
 
 ## Next
+
+- [ ] Review and complete the commercial launch decisions: pricing, refunds, permanent-use wording, seller identity and governing law.
 
 - [ ] Unify demo and purchased artwork publication. Current mismatch: sample companies such as Coca-Cola are pre-baked into `artwork/sample-hq`, while durable purchases are fetched by `restorePublicPlacements()` and added later through `pendingPersistentArtwork`, so sample logos appear immediately and real uploaded artwork visibly pops in seconds afterward. Implement the production-shaped snapshot-plus-delta model: compile all publicly active placements through one placement-record-driven artwork pipeline into an immutable globe snapshot; show purchases/edits made after that snapshot immediately as live layers; absorb those layers into the next snapshot and remove redundant overlays. Generate demo fixtures through the same compiler rather than treating their logos as a privileged rendering source. Preserve exact cell IDs, placement metadata, takedowns/rollbacks and sparse level-8 detail. Verify cold/repeat desktop and mobile startup with mixed sample and durable placements: no sample-first reveal, no missing/duplicate artwork during snapshot rollover, immediate post-purchase/update visibility, and bounded tile/geometry memory. Do not "fix" this by delaying the samples or dynamically meshing all 344,500 demo cells at startup.
 - [ ] Choose the next launch-critical engineering slice after the commercial decisions are settled.
 - [ ] Later: design explicit domain rules for voluntarily merging connected purchases under the same verified owner so one artwork can span the expanded holding.
 
 ## Done
+
+- [x] Prepared replacement of baked demo inventory with an empty runtime base and 12 dispersed editable staging fixtures (48-12,000 cells; 33,094 total). Administrator-only creation resolves verified ownership and retains the normal private source/version/publication paths; retries preserve owner edits. Backend tests (36), deployment tests (9), desktop/mobile owner and persistent-checkout journeys, staging build and inspected footprint/editor screenshots passed. Not deployed or seeded: real account identification, live ownership/source checks and cold/repeat performance measurements remain open.
 
 - [x] Made owner updates behave like an immediate save and deployed them to staging (`a144c106-3b01-4bfc-8867-bc2f628fe0e4`). The editor now reports "Saving changes" then "Updating globe", waits until the new artwork is publicly available, reloads directly onto the updated placement and confirms "Changes saved"; desktop and mobile keep that confirmation visible beside the live HUD. Customer-facing owner copy now uses "Live", "Updating" and "Save changes" instead of publication queues or version jargon. Desktop/mobile owner journeys, production/staging builds, all 9,733 public runtime objects, live health/CDN checks and the disposable live publication suite passed. The separate persistent-checkout browser harness timed out twice during its initial page load before reaching checkout and remains an explicit test-harness follow-up.
 

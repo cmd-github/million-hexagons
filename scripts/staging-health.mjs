@@ -63,15 +63,18 @@ try {
     if(bytes[0]===31&&bytes[1]===139)bytes=gunzipSync(bytes);
     assert.equal(bytes.length,length);assert.equal(createHash('sha256').update(bytes).digest('hex'),hash);
   }
-  const manifest = JSON.parse((await get(`${base}/artwork/sample-hq/manifest.json`, 'application/json', true)).bytes);
-  assert.equal(manifest.files, 8190);
+  // Keep monitoring the currently deployed release during a prepared rollout.
+  const artworkBase = config.artworkBase || 'artwork/sample-hq';
+  assert.ok(['artwork/sample-hq','artwork/empty'].includes(artworkBase));
+  const manifest = JSON.parse((await get(`${base}/${artworkBase}/manifest.json`, 'application/json', true)).bytes);
+  assert.equal(manifest.files, artworkBase === 'artwork/empty' ? 6 : 8190);
   for (const name of ['occupancy-v1.gz', 'sample-owners-v1.gz']) {
     let { bytes } = await get(`${base}/topology/${name}`, 'application/octet-stream', true, config.requireAssetCacheHit && name === 'occupancy-v1.gz');
     if (bytes[0] === 31 && bytes[1] === 139) bytes = gunzipSync(bytes);
     assert.equal(bytes.length, 1000000, `${name}: incomplete data`);
   }
   for (let face = 0; face < 6; face++) {
-    const { bytes } = await get(`${base}/artwork/sample-hq/${face}/0/0/0.webp`, 'image/webp', true);
+    const { bytes } = await get(`${base}/${artworkBase}/${face}/0/0/0.webp`, 'image/webp', true);
     assert.equal(bytes.toString('ascii', 8, 12), 'WEBP');
   }
   report.ok = true;

@@ -3,14 +3,14 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 
 export const topologyFiles = ['bootstrap.json', 'geodesic-v1.json', 'occupancy-v1.gz', 'sample-owners-v1.gz', 'regions-v1/manifest.json', 'regions-v1/index.gz', ...Array.from({length:1536},(_,i)=>`regions-v1/${i}.gz`)].map(name => `topology/${name}`);
-export const appFiles = ['favicon.svg', ...Array.from({ length: 12 }, (_, i) => `brands/${i}.svg`)];
+export const appFiles = ['favicon.svg'];
 export const sha256 = data => createHash('sha256').update(data).digest('hex');
 export const contentType = file => file.endsWith('.json') ? 'application/json' : file.endsWith('.webp') ? 'image/webp' : 'application/octet-stream';
 
 export async function runtimeFiles(publicDir) {
-  const base = 'artwork/sample-hq';
+  const base = 'artwork/empty';
   const manifest = JSON.parse(await readFile(path.join(publicDir, base, 'manifest.json'), 'utf8'));
-  if (manifest.maxLevel !== 5 || manifest.tileSize !== 512 || manifest.projection !== 'cube-gnomonic') throw Error('Review the deployment allowlist for this artwork format');
+  if (manifest.maxLevel !== 0 || manifest.tileSize !== 512 || manifest.projection !== 'cube-gnomonic') throw Error('Review the deployment allowlist for this artwork format');
   const files = [...topologyFiles, `${base}/manifest.json`];
   for (let face = 0; face < 6; face++) for (let level = 0; level <= manifest.maxLevel; level++) {
     for (let x = 0; x < 2 ** level; x++) for (let y = 0; y < 2 ** level; y++) files.push(`${base}/${face}/${level}/${x}/${y}.webp`);

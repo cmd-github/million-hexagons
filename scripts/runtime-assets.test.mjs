@@ -1,11 +1,29 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { gzipSync } from 'node:zlib';
+import { gunzipSync } from 'node:zlib';
+import { readFile } from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import { fetchRuntimeGzip, fetchRuntimeJson, fetchGzipUrl } from '../src/runtime-assets.js';
 import { assetOrigin } from './deployment-assets.mjs';
 import { sha256 } from './deployment-assets.mjs';
+import { runtimeFiles, appFiles } from './deployment-assets.mjs';
 import { verifyPublic, concurrent } from './staging-release.mjs';
+
+test('default staging runtime excludes baked brands and leaves inventory to durable placements', async () => {
+  const files = await runtimeFiles('public');
+  assert.equal(files.some(file => file.includes('sample-hq')), false);
+  assert.equal(appFiles.some(file => file.startsWith('brands/')), false);
+  const bootstrap = JSON.parse(await readFile('public/topology/bootstrap.json','utf8'));
+  assert.deepEqual(bootstrap.sampleCampaigns, []);
+  assert.deepEqual(bootstrap.sampleAreas, []);
+  for (const name of ['occupancy-v1.gz','sample-owners-v1.gz']) {
+    const bytes = gunzipSync(await readFile(`public/topology/${name}`));
+    assert.equal(bytes.length, 1_000_000);
+    assert.equal(bytes.some(value => value !== 0), false);
+  }
+  assert.equal(files.filter(file => file.startsWith('artwork/empty/')).length, 7);
+});
 
 function mockCacheStorage(t,value){
   const previous=Object.getOwnPropertyDescriptor(globalThis,'caches');

@@ -1,6 +1,6 @@
 # Cloudflare staging
 
-This is a separately deployable, non-payment staging product. Test-owner claims persist in Firestore and publish immutable derived artwork through private Firebase Storage and R2; the original sample catalogue remains immutable runtime data. It does not alter Firebase Hosting or the coming-soon site.
+This is a separately deployable staging product with Stripe test checkout. Test-owner claims persist in Firestore and publish immutable derived artwork through private Firebase Storage and R2. The prepared next release removes the baked sample catalogue; see [editable test brands](EDITABLE-TEST-BRANDS.md) for the pending rollout and account prerequisite. It does not alter Firebase Hosting or the coming-soon site.
 
 ## One-time account setup
 
@@ -27,11 +27,11 @@ npm.cmd run deploy:staging
 
 `build:staging` reads `.env.staging.local` (or environment variables). It generates:
 
-- `staging-dist/`: app bundle, favicon, sample HUD marks, security/cache headers and noindex directives.
-- `staging-runtime/releases/<sha256>/`: exact regional topology files and complete sample tile catalogue. Large canonical binaries, the monolithic packed topology, source catalogues, optional stress data and working notes are excluded.
+- `staging-dist/`: app bundle, favicon, security/cache headers and noindex directives.
+- `staging-runtime/releases/<sha256>/`: exact regional topology files and six transparent base tiles. Large canonical binaries, the monolithic packed topology, source catalogues, optional stress data and working notes are excluded.
 - `artifacts/staging/release.json`: local object hashes, sizes, public origin and app hashes. Archive this with each deployed app artifact and the Wrangler deployment version.
 
-These generated paths are ignored by Git. The release hash covers the sorted runtime object inventory and bytes. The app embeds the exact release URL for regional geometry and sample artwork. A Worker deployment switches the pinned runtime release; existing immutable releases remain available for rollback.
+These generated paths are ignored by Git. The release hash covers the sorted runtime object inventory and bytes. The app embeds the exact release URL for regional geometry and the empty artwork base. A Worker deployment switches the pinned runtime release; existing immutable releases remain available for rollback.
 
 Regional geometry delivery (11 September 2026) uses 1,536 lossless partitions plus an ID index and manifest. Run `npm.cmd run build:regions` only to derive these from the frozen canonical bytes, followed by `npm.cmd run test:regions`. The runtime allowlist contains 9,733 objects (37.4 MB); visitors download only the regions they need. See [regional geometry](REGIONAL-GEOMETRY.md) for identity, cache and failure contracts. The health monitor now verifies the regional manifest, index and a geometry partition, including SHA-256 and CDN cache hits.
 

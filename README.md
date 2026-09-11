@@ -1,8 +1,8 @@
 # Million Hexagons
 
-A Vite/Three.js prototype of one shared advertising globe containing exactly 1,000,000 claimable spherical cells: 999,988 hexagons and 12 pentagons. Visitors can explore sample campaigns and complete a session-only Design -> Place -> Review journey. The application does not yet take payment or provide durable ownership.
+A Vite/Three.js prototype of one shared advertising globe containing exactly 1,000,000 claimable spherical cells: 999,988 hexagons and 12 pentagons. The default local build supports session-only Design -> Place -> Review. Staging supports durable placements, Stripe test checkout and verified-owner artwork editing. The prepared default runtime removes baked demo brands; replacement fixtures use the durable placement pipeline. See [editable test brands](docs/EDITABLE-TEST-BRANDS.md) for rollout status and setup.
 
-Current product requirements are in [the product contract](docs/PRODUCT-DELIVERY-PLAN.md). See [architecture](docs/ARCHITECTURE.md), [roadmap](docs/ROADMAP.md), and [validation](docs/VALIDATION.md) for focused guidance.
+Current requirements are in [product direction](docs/09-09-26-PRODUCT-DIRECTION.md); [STATUS](docs/STATUS.md) tracks current work. See [architecture](docs/ARCHITECTURE.md) and [validation](docs/VALIDATION.md) when relevant.
 
 The [development-to-production plan](docs/PRODUCTION-PLAN.md) reviews the proposed Cloudflare/Firebase split and defines the implementation sequence and launch gates.
 
@@ -24,10 +24,10 @@ npm run preview -- --port 4181
 
 - Exact, versioned one-million-cell geodesic topology with stable IDs and claimable pentagons.
 - Interruptible camera travel, complete-advert tour framing, arrival HUDs and mobile clearance; reduced-motion navigation is immediate.
-- Sample advertising inventory, company/hex search, contextual hex IDs and hover details, bounded zoom, and an opt-in inventory-driven Tour.
+- Placement inventory, company/hex search, contextual hex IDs and hover details, bounded zoom, and an opt-in inventory-driven Tour.
 - Globe-only editing of the exact footprint: start from an available cell, grow around neighbours, or choose Design in this space during placement.
 - Placement inspection with explicit website visits, nearby exploration, a pinnable HUD, tour-stop details and shareable cell-location links.
-- Optional company names and 160-character descriptions, preview dates, browser-persistent running click totals, and a collapsible activity feed with illustrative activity. Sample brand/activity data are illustrative; these are not paid claims or shared production analytics. The compact HUD shows logo thumbnails, a pin switch and evenly spaced views, visits and claim date; same-owner clicks preserve the card; hex IDs appear in hover/claim prompts.
+- Placement names, descriptions, artwork thumbnails, intentional website visits and a feed of restored placements. Staging statistics and owner analytics use authoritative placement and event data.
 - One Design -> Place -> Review journey for images, colour-only artwork, and mixed designs.
 - A shared right-hand studio carries Design, Place and Review with consistent navigation and controls. Image options and extra cell actions share one menu.
 - Compact globe-only editor for 1-100,000 cells: Add image, exact count, background colour, image zoom/rotation, separate Add/Remove brushes, paint/transparency and undo/redo. Fresh placements start clean; editing preserves the draft. Transparent cells retain count and price.
@@ -36,7 +36,7 @@ npm run preview -- --port 4181
 - Suggested available locations, separate Move/Place controls, conflict rejection, undo/redo, and responsive desktop/mobile layouts.
 - Exact regional topology loading: a 78 KB compressed ID index and immutable geometry partitions replace the 17.2 MB whole-globe download. Picking, purchased artwork and editing share the frozen boundaries. See [regional geometry](docs/REGIONAL-GEOMETRY.md).
 
-Session previews use local browser storage and reset; they are not purchases. Accounts, authoritative inventory, payment, moderation, durable artwork, and customer recovery remain future transactional work.
+Local session previews are not purchases. Staging has accounts, authoritative inventory, test payments, moderation, durable artwork and customer recovery; production launch remains gated in [STATUS](docs/STATUS.md).
 
 ## Validation
 

@@ -10,6 +10,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { defineBoolean, defineSecret, defineString } from 'firebase-functions/params';
 import { normaliseSignup } from './signup.js';
+import { resolveFixtureOwner, fixtureRetry } from './fixture-owner.js';
 import { normaliseDesignState, normaliseDraft } from './drafts.js';
 import { issueCredits, redeemCredits } from './credits.js';
 import { applyModeration, normaliseModeration, publicPlacement } from './moderation.js';
@@ -205,20 +206,39 @@ export const stagingPlacements = onRequest(
         const db=getFirestore(),requestedOrderId=String(request.body.orderId||''),[orders,events,refunds]=await Promise.all([requestedOrderId?db.collection('stagingOrders').where('orderId','==',requestedOrderId).limit(1).get():db.collection('stagingOrders').limit(50).get(),requestedOrderId?db.collection('stagingStripeEvents').where('orderId','==',requestedOrderId).limit(50).get():db.collection('stagingStripeEvents').limit(50).get(),requestedOrderId?db.collection('stagingRefunds').where('orderId','==',requestedOrderId).limit(50).get():db.collection('stagingRefunds').limit(50).get()]);
         response.status(200).json({ok:true,orders:orders.docs.map(document=>{const data=document.data();return{orderId:document.id,status:data.status,paymentStatus:data.paymentStatus,placementId:data.placementId,stripeCheckoutSessionId:data.stripeCheckoutSessionId,lastPaymentError:data.lastPaymentError,ownershipOutcome:data.ownershipOutcome};}),events:events.docs.map(document=>{const data=document.data();return{eventId:document.id,type:data.type,status:data.status,error:data.error};}),refunds:refunds.docs.map(document=>document.data())});return;
       }
-      if (action === 'create') {
-        const candidate = { ...request.body.placement, ownerId: identity.uid };
+      if (action === 'create' || action === 'create-fixture') {
+        let ownerId = identity.uid;
+        if (action === 'create-fixture') {
+          const owner = await resolveFixtureOwner(identity, request.body.ownerEmail, email => getAuth().getUserByEmail(email));
+          if (owner.error) { response.status(owner.status).json({ok:false,error:owner.error}); return; }
+          ownerId = owner.ownerId;
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(String(request.body.fixtureId || ''))) { response.status(400).json({ok:false,error:'invalid-fixture-id'}); return; }
+          const existing = await getFirestore().collection('stagingPlacements').doc(request.body.fixtureId).get();
+          const retry = fixtureRetry(existing.exists ? existing.data() : null, ownerId);
+          if (retry?.error) { response.status(retry.status).json({ok:false,error:retry.error}); return; }
+          if (retry) { response.status(200).json({ok:true,...retry}); return; }
+        }
+        const candidate = { ...request.body.placement, ownerId };
         // Older staging clients send only the bounded fallback rendition. Keep
         // them operational during rolling deploys; new clients send the full source.
         const source = decodeArtworkSource(request.body?.placement?.sourceArtworkDataUrl || request.body?.placement?.artworkDataUrl);
         if (!source) { response.status(400).json({ ok: false, error: 'invalid-artwork-source' }); return; }
         if (!normalisePlacementClaim(candidate)) { logger.warn('Rejected invalid staging placement', placementClaimDiagnostics(candidate)); response.status(400).json({ ok: false, error: 'invalid-placement' }); return; }
-        const placementId = randomUUID(), path = sourceObjectPath(placementId, 1, source.extension);
+        if (action === 'create-fixture') {
+          const design = normaliseDesignState(request.body.placement?.designState), ids = new Set(candidate.cells);
+          if (!design || design.anchor !== candidate.anchor || design.cells.length !== ids.size || design.cells.some(cell => !ids.has(cell.id))) { response.status(400).json({ok:false,error:'invalid-design-source'}); return; }
+        }
+        const placementId = action === 'create-fixture' ? request.body.fixtureId : randomUUID();
+        const sourceAttempt = randomUUID();
+        const path = action === 'create-fixture' ? `staging-placement-sources/${placementId}/seed/${sourceAttempt}/artwork.${source.extension}` : sourceObjectPath(placementId, 1, source.extension);
         const sourceReference = { bucket: privateSourceBucket, path, mimeType: source.mimeType, extension: source.extension, size: source.bytes.length, sha256: source.sha256 };
         const sourceFile = getStorage().bucket(privateSourceBucket).file(path);
-        await sourceFile.save(source.bytes, { resumable: false, contentType: source.mimeType, metadata: { cacheControl: 'private,no-store', metadata: { placementId, version: '1', ownerId: identity.uid, sha256: source.sha256 } } });
+        await sourceFile.save(source.bytes, { resumable: false, contentType: source.mimeType, metadata: { cacheControl: 'private,no-store', metadata: { placementId, version: '1', ownerId, sha256: source.sha256 } } });
+        const designSource = request.body.placement?.designState ? await savePrivateDesign(ownerId, `placement-${placementId}-${sourceAttempt}`, request.body.placement.designState, request.body.placement.originalArtworkDataUrl) : null;
+        if (action === 'create-fixture' && !designSource) { await sourceFile.delete({ignoreNotFound:true}); response.status(400).json({ok:false,error:'invalid-design-source'}); return; }
         let result;
         const checkoutToken=String(request.body.checkoutToken||''),reservationOwnerId=checkoutToken?`checkout:${createHash('sha256').update(checkoutToken).digest('hex')}`:'';
-        try { result = await createTestPlacement(getFirestore(), candidate, FieldValue.serverTimestamp(), { placementId, source: sourceReference, reservationId:String(request.body.reservationId||''), reservationOwnerId, nowMs:Date.now() }); }
+        try { result = await createTestPlacement(getFirestore(), candidate, FieldValue.serverTimestamp(), { placementId, source: sourceReference, designSource, reservationId:String(request.body.reservationId||''), reservationOwnerId, nowMs:Date.now() }); }
         catch (error) { await sourceFile.delete({ ignoreNotFound: true }).catch(cleanupError => logger.warn('Could not remove unclaimed staging source', cleanupError)); throw error; }
         response.status(201).json({ ok: true, placement: result });
         return;
