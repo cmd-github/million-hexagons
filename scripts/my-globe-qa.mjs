@@ -75,12 +75,14 @@ try {
     await page.route("**/__qa/placements", async (route) => {
       const body = route.request().postDataJSON();
       assert.equal(
-        ["public-list", "public-stats", "record-event"].includes(body.action) ||
+        ["public-list", "public-placement", "public-stats", "record-event"].includes(body.action) ||
           route.request().headers().authorization === "Bearer qa-token",
         true,
       );
       if (body.action === "public-list")
         return route.fulfill({ json: { placements: records } });
+      if (body.action === "public-placement")
+        return route.fulfill({json:{placement:{...records[0],version:records[0].currentVersion}}});
       if (body.action === "public-stats")
         return route.fulfill({
           json: {
@@ -135,7 +137,7 @@ try {
           ...records[0],
           ...body.content,
           currentVersion: 2,
-          publicationStatus: "queued",
+          publicationStatus: "published",
           artworkDataUrl: body.content.artworkDataUrl,
         };
         return route.fulfill({
@@ -208,16 +210,17 @@ try {
     await page.locator("#reviewStep").waitFor({ state: "visible" });
     assert.equal(
       await page.locator("#previewPurchase").textContent(),
-      "Publish update",
+      "Save changes",
     );
     await page.locator("#companyName").fill("Updated from My Globe");
     await page
       .locator("#companyDescription")
-      .fill("A new immutable artwork version");
-    await page.locator("#previewPurchase").click();
+      .fill("Fresh artwork for the updated placement");
+    await Promise.all([page.waitForNavigation(),page.locator("#previewPurchase").click()]);
+    await page.waitForSelector('#world[data-ready=true]',{timeout:90000});
     await page.waitForFunction(
       () =>
-        document.querySelector("#toast b")?.textContent === "Update published.",
+        document.querySelector("#toast b")?.textContent === "Changes saved.",
     );
     assert.equal(update.placementId, "stripe-owned-placement");
     assert.equal(update.content.destinationUrl, "https://example.com/");
@@ -236,17 +239,17 @@ try {
       update.content.originalArtworkDataUrl,
       /^data:image\/(?:png|webp);base64,/,
     );
-    await page.locator("#toggleAccount").click();
-    await page.locator("#openMyGlobe").click();
+    assert.equal(new URL(page.url()).hash, "#placement=stripe-owned-placement");
+    await page.locator("#placementInspector").waitFor({ state: "visible" });
+    assert.equal(
+      await page.locator("#inspectorName").textContent(),
+      "Updated from My Globe",
+    );
     await page.screenshot({
       path: `artifacts/my-globe/${mobile ? "mobile" : "desktop"}.png`,
       animations: "disabled",
     });
-    await page.locator("[data-owner-action=view]").click();
     assert.equal(await workspace.isHidden(), true);
-    await page
-      .locator("#placementInspector")
-      .waitFor({ state: "visible", timeout: 10000 });
     const point = await page.evaluate(
       (id) => window.geodesicQA.screen(id),
       records[0].anchor,
