@@ -39,6 +39,8 @@ async function publicRequest(body){const response=await fetch(import.meta.env.VI
 export async function quoteAndReserve(cells){return publicRequest({action:'quote-reserve',reservation:{topologyVersion:'geodesic-v1',cells}});}
 export async function releaseCheckoutReservation(reservationId,checkoutToken){return(await publicRequest({action:'release-checkout-reservation',reservationId,checkoutToken})).reservation;}
 export async function listPublicClaims(){return(await publicRequest({action:'public-list'})).placements;}
+export async function getPublicPlacement(placementId){return(await publicRequest({action:'public-placement',placementId})).placement;}
+export async function recordPlacementEvent(placementId,type,sessionId){return(await publicRequest({action:'record-event',event:{placementId,type,sessionId}})).metrics;}
 export async function createStripeCheckout(placement,reservationId,checkoutToken){const response=await fetch(import.meta.env.VITE_STAGING_CHECKOUT_URL||'https://europe-west1-million-hexagons.cloudfunctions.net/stagingCheckout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({placement,reservationId,checkoutToken})});const result=await response.json().catch(()=>({}));if(!response.ok)throw Object.assign(new Error(result.error||'checkout-failed'),{code:result.error});return result.checkout;}
 async function ownerRequest(body) {
   const user = await currentUser(); if (!user) throw new Error('authentication-required');

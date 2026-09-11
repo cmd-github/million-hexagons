@@ -30,6 +30,7 @@
     "test:staging-publication": "node scripts/staging-publication-qa.mjs",
     "test:account-access": "node scripts/account-access-qa.mjs",
     "test:my-globe": "node scripts/my-globe-qa.mjs",
+    "test:public-placement": "node scripts/public-placement-qa.mjs",
     "test:admin-workspace": "node scripts/admin-workspace-qa.mjs",
     "test:checkout-reservation": "node scripts/checkout-reservation-qa.mjs",
     "test:persistent-checkout": "node scripts/persistent-checkout-qa.mjs",

@@ -1645,6 +1645,7 @@ canvas.addEventListener('pointermove',event=>{
 });
 for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>globeStroke=null);
 let inspectedId=null, inspectedCells=[], hudPinned=false, inspectedOwner=null;
+const analyticsSession=(()=>{try{let value=sessionStorage.getItem('mh-analytics-session');if(!value){value=crypto.randomUUID();sessionStorage.setItem('mh-analytics-session',value);}return value;}catch{return crypto.randomUUID();}})();
 const clickStorageKey='mh-link-totals-v1';
 const sampleDescriptions=[
   'Sport, style and performance made for movement on and off the field.',
@@ -1714,7 +1715,7 @@ function inspectPlacement(id){
     if(record?sessionPlacements.get(next)===record:owner&&sampleOwners[next-1]===owner)queue.push(next);
   }
   inspectedCells=queue;
-  const views=document.querySelector('#inspectorInfo');views.textContent=record?'\u2014':'12,429';views.title=record?'Views are not measured yet':'Illustrative views';
+  const views=document.querySelector('#inspectorInfo');views.textContent=record?.placementId?'…':record?'\u2014':'12,429';views.title=record?.placementId?'Measured placement views':record?'Views are not measured yet':'Illustrative views';
   document.querySelector('#inspectorDate').textContent=(record?new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'}):'08/08/26');
   const description=record?.description||sampleDescriptions[owner-1]||'';
   document.querySelector('#inspectorDescription').textContent=description;
@@ -1722,6 +1723,7 @@ function inspectPlacement(id){
   renderInspectorBadges(owner,!record);
 
   renderLinkClicks();
+  if(record?.placementId&&stagingClient)void stagingClient.recordPlacementEvent(record.placementId,'view',analyticsSession).then(metrics=>{if(inspectedOwner===record){views.textContent=metrics.views.toLocaleString();const visits=document.querySelector('#inspectorClicks');visits.textContent=metrics.clicks.toLocaleString();visits.title='Measured website visits';}}).catch(()=>{views.textContent='—';});
   const context=document.querySelector('#inspectorContext');context.textContent=record?'New arrival':'';context.hidden=!record;context.title=record?'Claimed in this session':'';
   const deleteButton=document.querySelector('#deleteTestPlacement');deleteButton.hidden=!record?.placementId||!stagingClient;deleteButton.dataset.placementId=record?.placementId||'';
   clearSelectionColours();for(const cellId of queue)writeCellColour(selectionColourData,{id:cellId},'#d7ff55');
@@ -1758,6 +1760,7 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape'){if(document
 function renderLinkClicks(){const value=linkClicks[cellForId(inspectedId).destination],sample=!sessionPlacements.has(inspectedId),visits=(Number.isSafeInteger(value)&&value>=0?value:0)+(sample?328:0);const metric=document.querySelector('#inspectorClicks');metric.textContent=visits.toLocaleString();metric.title=sample?'Illustrative visits plus your browser total':'Website visits from this browser';}
 for(const id of ['inspectorVisit','placementWebsite'])for(const type of ['click','auxclick'])document.getElementById(id).addEventListener(type,event=>{
   if(type==='auxclick'&&event.button!==1)return;
+  const record=inspectedId?sessionPlacements.get(inspectedId):null;if(record?.placementId&&stagingClient)void stagingClient.recordPlacementEvent(record.placementId,'click',`${analyticsSession}-${Date.now().toString(36)}`).then(metrics=>{if(inspectedOwner===record)document.querySelector('#inspectorClicks').textContent=metrics.clicks.toLocaleString();}).catch(()=>{});
   const url=event.currentTarget.href;const current=linkClicks[url];linkClicks[url]=(Number.isSafeInteger(current)&&current>=0?current:0)+1;try{localStorage.setItem(clickStorageKey,JSON.stringify(linkClicks));}catch{}if(inspectedId)renderLinkClicks();
 });
 function companyEntries(){return [...bootstrap.sampleAreas.map(area=>({id:area.anchor,name:bootstrap.sampleCampaigns[area.campaign].name,sample:true})),...[...new Set(sessionPlacements.values())].map(record=>({id:record.anchor,name:record.name||'Your placement'}))];}
@@ -1802,23 +1805,26 @@ function viewInspectedPlacement(){
   flyToCell(inspectedId,Math.acos(Math.max(-1,dot))+.004,1500,()=>{panel.hidden=false;},()=>closeInspector(true));
 }
 
-document.querySelector('#inspectorShare').onclick=async()=>{
-  const url=new URL(location.href);url.hash='cell='+inspectedId;
-  try{await navigator.clipboard.writeText(url.href);document.querySelector('#inspectorStatus').textContent='Copied \u2713';}
-  catch{document.querySelector('#inspectorStatus').textContent=url.href;}
-};
+let activeShare=null;
+function placementShareUrl(record,id){const url=new URL(location.href);url.hash=record?.placementId?`placement=${record.placementId}`:`cell=${id}`;return url.href;}
+function closeShareCard(){document.querySelector('#shareCard').hidden=true;activeShare=null;document.querySelector('#inspectorShare').focus();}
+document.querySelector('#closeShareCard').onclick=closeShareCard;
+document.querySelector('#inspectorShare').onclick=async()=>{const record=sessionPlacements.get(inspectedId),url=placementShareUrl(record,inspectedId);if(!record?.placementId){try{await navigator.clipboard.writeText(url);document.querySelector('#inspectorStatus').textContent='Copied ✓';}catch{document.querySelector('#inspectorStatus').textContent=url;}return;}activeShare={record,url};document.querySelector('#shareCardName').textContent=record.name||'My place on the world';document.querySelector('#shareCardDescription').textContent=record.description||'A permanent place on Million Hexagons.';document.querySelector('#shareCardCells').textContent=record.count.toLocaleString();document.querySelector('#shareCardLocation').textContent=`Hex #${record.anchor.toLocaleString()}`;document.querySelector('#shareCardUrl').textContent=url;const artwork=document.querySelector('#shareCardArtwork');artwork.hidden=!record.logo;if(record.logo)artwork.src=record.logo;document.querySelector('#shareCardStatus').textContent='';document.querySelector('#shareCard').hidden=false;document.querySelector('#nativeSharePlacement').focus();};
+document.querySelector('#copySharePlacement').onclick=async()=>{try{await navigator.clipboard.writeText(activeShare.url);document.querySelector('#shareCardStatus').textContent='Share link copied ✓';}catch{document.querySelector('#shareCardStatus').textContent=activeShare.url;}};
+document.querySelector('#nativeSharePlacement').onclick=async()=>{const data={title:`${activeShare.record.name} on Million Hexagons`,text:`See ${activeShare.record.count.toLocaleString()} hexagons owned on Million Hexagons.`,url:activeShare.url};if(navigator.share)try{await navigator.share(data);return;}catch(error){if(error.name==='AbortError')return;}document.querySelector('#copySharePlacement').click();};
 document.querySelector('#deleteTestPlacement').onclick=async event=>{const placementId=event.currentTarget.dataset.placementId;if(!placementId||!stagingClient)return;event.currentTarget.disabled=true;try{await stagingClient.deleteTestClaim(placementId);location.reload();}catch(error){document.querySelector('#inspectorStatus').textContent='Could not delete this test placement.';event.currentTarget.disabled=false;}};
 async function openLocationLink(){
-  const match=location.hash.match(/^#cell=(\d+)$/);if(!match)return;
-  const id=Number(match[1]);if(id<1||id>CELL_COUNT)return;
+  const placementMatch=location.hash.match(/^#placement=([0-9a-f-]{36})$/),cellMatch=location.hash.match(/^#cell=(\d+)$/);if(!placementMatch&&!cellMatch)return;
   const request=++flightVersion;await Promise.all([ensureTopology(),ensureStagingInventory()]);if(request!==flightVersion)return;
+  if(placementMatch){const record=[...new Set(sessionPlacements.values())].find(item=>item.placementId===placementMatch[1]);if(!record)return;inspectPlacement(record.anchor);viewInspectedPlacement();return;}
+  const id=Number(cellMatch[1]);if(id<1||id>CELL_COUNT)return;
   if(occupiedCells[id-1]){inspectPlacement(id);viewInspectedPlacement();}else flyToCell(id,.004,1800);
 
 }
 // Reduced-motion flights complete synchronously, so the inspector must be initialized first.
 persistentNavigationReady=true;
 addEventListener('hashchange',openLocationLink);
-if(/^#cell=\d+$/.test(location.hash))void openLocationLink().catch(error=>console.error('Could not open saved location',error));
+if(/^#(?:cell=\d+|placement=[0-9a-f-]{36})$/.test(location.hash))void openLocationLink().catch(error=>console.error('Could not open saved location',error));
 else if(pendingPersistentFocus)void focusPersistentPlacement(pendingPersistentFocus).catch(error=>console.error('Could not focus saved placement',error));
 pendingPersistentFocus=null;
 void initializeStaging().catch(error=>console.error('Could not load public staging placements',error));

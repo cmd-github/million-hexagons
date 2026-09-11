@@ -1,0 +1,3 @@
+import assert from'node:assert/strict';import test from'node:test';import{normalisePlacementEvent,publicMetrics}from'./analytics.js';
+test('accepts bounded placement events and rejects unsafe identifiers',()=>{assert.deepEqual(normalisePlacementEvent({placementId:'12345678-1234-1234-1234-123456789abc',type:'view',sessionId:'12345678-1234-1234-1234-123456789abc'}),{placementId:'12345678-1234-1234-1234-123456789abc',type:'view',sessionId:'12345678-1234-1234-1234-123456789abc'});assert.equal(normalisePlacementEvent({placementId:'bad',type:'click',sessionId:'short'}),null);});
+test('publishes non-negative aggregate metrics',()=>assert.deepEqual(publicMetrics({views:12,clicks:-3}),{views:12,clicks:0}));

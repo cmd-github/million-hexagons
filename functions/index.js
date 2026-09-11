@@ -21,6 +21,7 @@ import Stripe from 'stripe';
 import { checkoutLineItem, checkoutOrderId, checkoutOwnerId, paidCheckoutEmail, paidEmailOwnerId } from './payments.js';
 import { ownerIdsForIdentity } from './owner-access.js';
 import { checkoutSessionState, paymentFailure, refundState } from './payment-lifecycle.js';
+import { normalisePlacementEvent, publicMetrics } from './analytics.js';
 
 initializeApp();
 const stagingSandboxEnabled = defineBoolean('MH_STAGING_SANDBOX', { default: false });
@@ -148,6 +149,19 @@ export const stagingPlacements = onRequest(
       const versions=await Promise.all(active.map(placement=>getFirestore().collection('stagingPlacementVersions').doc(`${placement.placementId}-v${placement.publicState?.publicVersion||placement.currentVersion||1}`).get()));
       const placements=active.map((placement,index)=>{const content=versions[index].data()||{},visible=publicPlacement(content,placement.publicState);return{placementId:placement.placementId,topologyVersion:placement.topologyVersion,anchor:placement.anchor,cells:decodeCells(placement.cellsData),cellCount:placement.cellCount,...visible,publicationStatus:content.publication?.status||'preview-only',status:placement.status,createdAt:placement.createdAt?.toMillis?.()||null};});
       response.status(200).json({ok:true,placements});return;
+    }
+    if(action==='public-placement'){
+      const db=getFirestore(),placementId=String(request.body.placementId||''),placement=await db.collection('stagingPlacements').doc(placementId).get();
+      if(!placement.exists||['deleted','revoked'].includes(placement.data().status)){response.status(404).json({ok:false,error:'placement-not-found'});return;}
+      const data=placement.data(),version=Number(data.publicState?.publicVersion||data.currentPublishedVersion||data.currentVersion||1),content=await db.collection('stagingPlacementVersions').doc(`${placementId}-v${version}`).get(),metrics=await db.collection('stagingPlacementMetrics').doc(placementId).get(),visible=publicPlacement(content.data()||{},data.publicState);
+      response.status(200).json({ok:true,placement:{placementId,topologyVersion:data.topologyVersion,anchor:data.anchor,cells:decodeCells(data.cellsData),cellCount:data.cellCount,version,title:visible.title,description:visible.description,destinationUrl:visible.destinationUrl,artworkDataUrl:visible.artworkDataUrl,status:data.status,createdAt:data.createdAt?.toMillis?.()||null,metrics:publicMetrics(metrics.data())}});return;
+    }
+    if(action==='record-event'){
+      const event=normalisePlacementEvent(request.body.event);if(!event){response.status(400).json({ok:false,error:'invalid-event'});return;}
+      const db=getFirestore(),placement=await db.collection('stagingPlacements').doc(event.placementId).get();if(!placement.exists||['deleted','revoked'].includes(placement.data().status)){response.status(404).json({ok:false,error:'placement-not-found'});return;}
+      const eventId=createHash('sha256').update(`${event.placementId}:${event.type}:${event.sessionId}`).digest('hex'),eventRef=db.collection('stagingPlacementEvents').doc(eventId),metricsRef=db.collection('stagingPlacementMetrics').doc(event.placementId);let duplicate=false;
+      await db.runTransaction(async transaction=>{if((await transaction.get(eventRef)).exists){duplicate=true;return;}transaction.create(eventRef,{eventId,placementId:event.placementId,type:event.type,occurredAt:FieldValue.serverTimestamp()});transaction.set(metricsRef,{placementId:event.placementId,[event.type==='view'?'views':'clicks']:FieldValue.increment(1),updatedAt:FieldValue.serverTimestamp()},{merge:true});});
+      const metrics=await metricsRef.get();response.status(200).json({ok:true,duplicate,metrics:publicMetrics(metrics.data())});return;
     }
     if(action==='quote-reserve'||action==='release-checkout-reservation'){
       try{

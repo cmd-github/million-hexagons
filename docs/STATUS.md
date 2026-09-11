@@ -6,7 +6,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Add public placement/share pages and cards, then placement-based analytics.
+- [ ] Deploy and run live acceptance for public placement links, share cards and placement analytics after Firebase CLI reauthentication. Implementation and local desktop/mobile QA are complete.
 
 ## Next
 
@@ -59,6 +59,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Blocked / Needs Craig
 
+- [ ] Run `firebase login --reauth`; the saved Firebase CLI credentials expired before the analytics endpoint could be deployed.
 - [ ] Configure/confirm the $10 Cloudflare budget alert.
 - [ ] Review and complete [draft commercial terms](DRAFT-COMMERCIAL-TERMS.md), including final pricing, refunds, permanent-use wording and governing law.
 - [ ] Provide physical iOS/Android testing and observed first-time-user feedback.
