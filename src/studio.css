@@ -351,10 +351,13 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
  body:not(.detail-view) .intro .facts{margin:10px 0}
 }
 @media(max-width:900px){
- #globalMetrics{top:80px;bottom:auto}
+ /* Narrow screens stack the top band strictly: topbar, then the live metrics, then the
+    globe controls, then the hero copy (positioned in style.css). These are all fixed
+    overlays, so each one's top must clear the height of the one above it. */
+ #globalMetrics{top:96px;bottom:auto}
  .inspecting #globalMetrics{display:flex}
  #placementInspector, #claimFeed{bottom:18px}
- body:not(.creating) .globe-controls{top:128px;bottom:auto;transform:none}
+ body:not(.creating) .globe-controls{top:136px;bottom:auto;transform:none}
  #placementInspector{max-height:calc(100dvh - 200px)}
  #claimFeedItems{height:160px;max-height:160px}
  #nearbyPlacements{max-height:150px;overflow:auto}
@@ -497,3 +500,4 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 .my-globe-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:11px 0}
 .my-globe-metrics span{padding:7px 5px;border:1px solid #ffffff12;border-radius:8px;background:#061923;color:#819c98;font-size:8px;text-align:center}
 .my-globe-metrics b{display:block;margin-bottom:2px;color:#f4fff9;font-size:12px}
+

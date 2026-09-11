@@ -537,6 +537,7 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   logoCells=topology.cells([designAnchor],designAnchor);amountInput.value=1;
   exactGlobeArea=true;designSurface='globe';document.body.dataset.surface='globe';
   ownerEdit=ownerUpdate;
+  if(!ownerEdit&&!Number.isInteger(anchor)&&savedDraft)restoreDraft();
   if(ownerEdit){
     const state=ownerEdit.source.designState||{},transform=state.imageTransform||{},source=ownerEdit.source.originalArtworkDataUrl||ownerEdit.source.currentArtworkDataUrl||ownerEdit.record.artworkDataUrl;
     logoCells=topology.cells(state.cells?.length?state.cells:ownerEdit.record.cells.map(id=>({id})),ownerEdit.record.anchor);amountInput.value=logoCells.length;footprintEdited=true;
@@ -556,8 +557,70 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   trackEvent('design_started',{context:{cellCount:1,source:'studio'}});
 
 }
+// Closing the studio used to discard the design outright, so a stray Escape lost the work.
+// The in-progress design is kept in memory instead and restored when the studio is reopened
+// from Create a placement. Opening on a specific cell, or for an owner update, still starts
+// clean, and Start over in the design menu discards a restored draft explicitly.
+let savedDraft = null;
+function draftIsMeaningful() {
+  if(ownerEdit)return false;
+  if(uploadedLogo)return true;
+  if(placementCount()>1)return true;
+  if(previewCells().some(cell=>cell.color||cell.transparent))return true;
+  return ['companyName','companyDescription','website'].some(id=>document.getElementById(id).value.trim());
+}
+function captureDraft() {
+  if(!topology||!draftIsMeaningful()){savedDraft=null;return;}
+  savedDraft={
+    anchor:designAnchor,
+    cells:previewCells().map(({id,color,transparent})=>({id,color,transparent})),
+    footprintEdited,
+    logo:uploadedLogo,logoCrop:uploadedLogoCrop,
+    baseColour:document.querySelector('#brandColor').value,
+    treatment:document.querySelector('#logoTreatment').value,
+    scale:document.querySelector('#logoScale').value,
+    rotation:document.querySelector('#logoOrientation').value,
+    position:{...logoPosition},
+    fields:Object.fromEntries(['companyName','companyDescription','website'].map(id=>[id,document.getElementById(id).value])),
+  };
+}
+function restoreDraft() {
+  const draft=savedDraft;
+  if(!draft)return;
+  designAnchor=draft.anchor;
+  logoCells=topology.cells(draft.cells,draft.anchor);
+  amountInput.value=logoCells.length;
+  footprintEdited=draft.footprintEdited;
+  uploadedLogo=draft.logo;uploadedLogoCrop=draft.logoCrop;
+  document.querySelector('#brandColor').value=draft.baseColour;
+  document.querySelector('#logoTreatment').value=draft.treatment;
+  document.querySelector('#logoScale').value=draft.scale;
+  document.querySelector('#logoScaleValue').textContent=`${draft.scale}%`;
+  document.querySelector('#logoOrientation').value=draft.rotation;
+  logoPosition.x=draft.position.x;logoPosition.y=draft.position.y;
+  updateLogoPreviewOrientation();
+  for(const [id,value] of Object.entries(draft.fields))document.getElementById(id).value=value;
+  document.querySelector('#removeImage').hidden=!uploadedLogo;
+}
+function discardDraft() {
+  savedDraft=null;
+  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;draftArtwork=null;
+  document.querySelector('#logoUpload').value='';
+  document.querySelector('#logoPreview').replaceChildren();
+  document.querySelector('#logoPalette').hidden=true;
+  document.querySelector('#artworkQuality').hidden=true;
+  document.querySelector('#brandColor').value='#5967b0';
+  document.querySelector('#logoTreatment').value='span';
+  for(const id of ['companyName','companyDescription','website'])document.getElementById(id).value='';
+  resetLogoTransform();updateImageControls();
+  undoStack.length=0;redoStack.length=0;updateHistory();
+  logoCells=topology.cells([designAnchor],designAnchor);amountInput.value=1;footprintEdited=true;
+  previewCache=null;
+  drawDesignPreview();updateTotals();
+}
 function closeBuy() {
   if(publishing)return;
+  captureDraft();
   placementPreparationVersion++;
   designGeometryVersion++;designGeometryPending=false;
   void releaseActiveCheckoutReservation();
@@ -980,7 +1043,16 @@ async function suggestLocation() {
 document.querySelector('#suggestLocation').addEventListener('click', suggestLocation);
 document.querySelector('#reviewEditDesign').addEventListener('click', () => document.querySelector('#backToDesign').click());
 document.querySelector('#dismissToast').addEventListener('click', () => document.querySelector('#toast').classList.remove('show'));
-document.addEventListener('keydown', (event) => { if(event.key === 'Escape' && !document.querySelector('#buyPanel').inert) closeBuy(); });
+// Escape unwinds the studio one layer at a time: an open menu, then checkout, then the
+// panel itself. It used to close the whole flow from any of those states.
+document.addEventListener('keydown', (event) => {
+  if(event.key !== 'Escape' || document.querySelector('#buyPanel').inert)return;
+  const openMenu=document.querySelector('#buyPanel details[open]');
+  if(openMenu){openMenu.open=false;openMenu.querySelector('summary').focus();return;}
+  const checkout=document.querySelector('#embeddedCheckoutPanel');
+  if(!checkout.hidden){document.querySelector('#closeEmbeddedCheckout').click();return;}
+  closeBuy();
+});
 const undoStack = [], redoStack = [];
 function rememberPaint() { undoStack.push({cells:previewCells().map(({id,color,transparent})=>({id,color,transparent})),edited:footprintEdited}); while(undoStack.length>1&&(undoStack.length>50||undoStack.reduce((n,s)=>n+s.cells.length,0)>250000))undoStack.shift();redoStack.length=0;updateHistory(); }
 function updateHistory() { document.querySelector('#undoPaint').disabled=!undoStack.length;document.querySelector('#redoPaint').disabled=!redoStack.length; }
@@ -1041,6 +1113,7 @@ function resetLogoTransform() {
 
 document.querySelector('#logoOrientation').addEventListener('change', () => { updateLogoPreviewOrientation(); drawDesignPreview(); });
 document.querySelector('#resetLogo').addEventListener('click', () => { resetLogoTransform(); updateLogoPreviewOrientation(); drawDesignPreview(); });
+document.querySelector('#startOver').addEventListener('click', () => { document.querySelector('.studio-more').open=false; discardDraft(); });
 document.querySelector('#clearPaint').addEventListener('click', () => { document.querySelector('.studio-more').open=false;rememberPaint(); logoCells=previewCells().map(({color,transparent,...cell})=>cell); drawDesignPreview(); updateTotals(); });
 const designCanvas = document.querySelector('#designCanvas');
 const editorPointers=new Map();

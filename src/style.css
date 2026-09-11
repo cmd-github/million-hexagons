@@ -200,7 +200,7 @@ summary{cursor:pointer;color:#a7bec0;font-size:12px;padding:8px 0}
  .mark{width:36px;height:36px}
  .topbar .primary{padding:11px 13px;font-size:11px}
  .brand b, .brand strong{font-size:10px}
- .intro{top:82px;left:22px;width:calc(100% - 44px);pointer-events:none}
+ .intro{top:192px;left:22px;width:calc(100% - 44px);pointer-events:none}
  .intro h1{font-size:34px;line-height:1.03}
  .intro h1 br:nth-of-type(2){display:none}
  .intro .eyebrow{display:none}
