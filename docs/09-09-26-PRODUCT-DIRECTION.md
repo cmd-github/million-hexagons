@@ -532,6 +532,18 @@ Moderation should apply to the new version.
 
 The previous approved content may remain visible until replacement content is approved and published.
 
+## Owner editing interaction
+
+Owner updates should reuse the same visual Design workspace used to create the original placement, including the globe editing surface, image movement, zoom, rotation, background colour and per-cell artwork/colour treatment. During an update, the purchased cell footprint and location are locked: owners cannot add, remove or relocate cells, and the final action publishes a new immutable content version instead of entering reservation or checkout.
+
+Do not maintain a separate reduced crop editor in My Globe when the primary Design workspace can express the update more clearly and consistently.
+
+## Later: connected purchase expansion
+
+An owner who buys additional available cells directly connected to an existing holding should eventually be able to combine those holdings into one editable visual canvas so artwork can span the complete connected area.
+
+This is not merely a rendering operation. Define explicit domain rules before implementation for placement identity, ownership grants, version history, analytics, public URLs, moderation, rollback and whether the source purchases remain independently identifiable. Never merge purchases solely because they share an email address; require verified common ownership and an explicit owner action.
+
 ---
 
 # 15. Sharing — HIGH PRIORITY GROWTH FEATURE

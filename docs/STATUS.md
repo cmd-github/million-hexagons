@@ -6,11 +6,12 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Review and complete the commercial launch decisions: pricing, refunds, permanent-use wording, seller identity and governing law.
+- [ ] Replace the reduced My Globe crop form with the original globe Design workspace for owner updates. Lock the purchased footprint/location, retain image and per-cell visual tools, and publish a new immutable version without reservation or checkout.
 
 ## Next
 
-- [ ] Choose the next launch-critical engineering slice after the commercial decisions are settled.
+- [ ] Review and complete the commercial launch decisions: pricing, refunds, permanent-use wording, seller identity and governing law.
+- [ ] Later: design explicit domain rules for voluntarily merging connected purchases under the same verified owner so one artwork can span the expanded holding.
 
 ## Done
 
