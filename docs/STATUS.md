@@ -6,15 +6,15 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Deploy and run live acceptance for public placement links, share cards and placement analytics after Firebase CLI reauthentication. Implementation and local desktop/mobile QA are complete.
+- [ ] Validate first-time purchase intent and physical-device performance with real iOS/Android devices.
 
 ## Next
 
 - [ ] Reduce first-visit close-up latency by loading exact geometry for the visible region instead of the full 17.2 MB topology (reserved for a higher-capability model).
-- [ ] Validate first-time purchase intent and physical-device performance.
 
 ## Done
 
+- [x] Public placement links, share cards and privacy-minimal view/click analytics deployed to staging (`1cc9fe93-16b5-46d6-959a-598cc890087d`). Permanent placement URLs open the correct globe location, expose public campaign details and support native share/copy. Firestore-backed totals deduplicate views by browser session without storing raw session IDs. Backend tests (31), controlled desktop/mobile journeys with inspected screenshots, persistent-checkout regression coverage, and the full live publication journey passed; live acceptance measured one view and one click while rejecting the duplicate view.
 - [x] Recoverable artwork editing in My Globe deployed to staging (`1c723695-66c3-4853-bae4-b737635aaa92`). Verified owners can load the private saved source, upload a replacement PNG/WebP, crop by moving/scaling/rotating, restore the saved artwork, edit metadata and publish an immutable version without changing the placement ID or purchased cells. Legacy paid versions without a design bundle fall back to their private publication source, and Stripe-email-recovered ownership is authorized correctly. Backend tests (29), controlled desktop/mobile artwork journeys with inspected screenshots, and the full live durable-source/version/publication/recovery/release journey passed.
 - [x] Payment resilience and server-side Stripe acceptance deployed. Failed and expired Checkout sessions release reservations idempotently, processing payments retain cells, and paid sessions fulfil during cleanup/reconciliation. Stripe's test webhook subscription now includes asynchronous success/failure, payment failure, refund and dispute events. A real declined test payment and disposable successful charge/refund reached the signed webhook; the refund retained its explicit ownership outcome. Forced reconciliation closed an externally expired Checkout reservation with zero failures. Backend tests (29), live Checkout creation/retry/cancel, and desktop/mobile founder workspace passed. The staging UI remains at `aea27f1a-485c-44bd-bada-6861afe9a8bb`.
 - [x] Passwordless purchase recovery and My Globe deployed to staging (`031bc04b-e711-4b2a-9c05-2be6552c9b79`). Verified email sign-in now recovers both Firebase-UID and Stripe-email-owned placements, including cross-device link completion by re-entering the receiving email. My Globe shows placement artwork, status, acquisition date, versions and total cells; owners can return to a placement and publish immutable name, description or URL updates. Backend identity tests and desktop/mobile controlled browser journeys passed; live staging owner-access layout passed. Live inbox delivery and a real owner metadata edit remain unverified.
@@ -59,7 +59,6 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Blocked / Needs Craig
 
-- [ ] Run `firebase login --reauth`; the saved Firebase CLI credentials expired before the analytics endpoint could be deployed.
 - [ ] Configure/confirm the $10 Cloudflare budget alert.
 - [ ] Review and complete [draft commercial terms](DRAFT-COMMERCIAL-TERMS.md), including final pricing, refunds, permanent-use wording and governing law.
 - [ ] Provide physical iOS/Android testing and observed first-time-user feedback.
@@ -73,5 +72,5 @@ Launch readiness: ~25%
 - Inventory + checkout: IN PROGRESS (successful and declined test payments, refund handling, signed webhooks and forced reconciliation verified; final commercial terms and production configuration remain)
 - Publication: IN PROGRESS (immediate publication, public staging projection and backend takedown/rollback verified)
 - Owner experience: IN PROGRESS (passwordless recovery, owned-placement dashboard and recoverable immutable metadata/artwork editing deployed)
-- Growth/sharing: IN PROGRESS (cell links only)
-- Analytics: NOT STARTED (illustrative/local counters only)
+- Growth/sharing: IN PROGRESS (permanent placement links and public share cards deployed)
+- Analytics: IN PROGRESS (deduplicated placement views/clicks and public totals deployed; geography, conversion funnel and milestone reporting remain)
