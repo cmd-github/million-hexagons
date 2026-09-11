@@ -21,7 +21,7 @@ import Stripe from 'stripe';
 import { checkoutLineItem, checkoutOrderId, checkoutOwnerId, paidCheckoutEmail, paidEmailOwnerId } from './payments.js';
 import { ownerIdsForIdentity } from './owner-access.js';
 import { checkoutSessionState, paymentFailure, refundState } from './payment-lifecycle.js';
-import { normalisePlacementEvent, publicMetrics } from './analytics.js';
+import { metricField, normaliseAnalyticsEvent, publicGlobalStats, publicMetrics } from './analytics.js';
 
 initializeApp();
 const stagingSandboxEnabled = defineBoolean('MH_STAGING_SANDBOX', { default: false });
@@ -156,12 +156,18 @@ export const stagingPlacements = onRequest(
       const data=placement.data(),version=Number(data.publicState?.publicVersion||data.currentPublishedVersion||data.currentVersion||1),content=await db.collection('stagingPlacementVersions').doc(`${placementId}-v${version}`).get(),metrics=await db.collection('stagingPlacementMetrics').doc(placementId).get(),visible=publicPlacement(content.data()||{},data.publicState);
       response.status(200).json({ok:true,placement:{placementId,topologyVersion:data.topologyVersion,anchor:data.anchor,cells:decodeCells(data.cellsData),cellCount:data.cellCount,version,title:visible.title,description:visible.description,destinationUrl:visible.destinationUrl,artworkDataUrl:visible.artworkDataUrl,status:data.status,createdAt:data.createdAt?.toMillis?.()||null,metrics:publicMetrics(metrics.data())}});return;
     }
+    if(action==='public-stats'){
+      const db=getFirestore(),snapshot=await db.collection('stagingPlacements').get(),active=snapshot.docs.map(document=>document.data()).filter(placement=>!['deleted','revoked'].includes(placement.status)),aggregate=await db.collection('stagingAnalyticsAggregates').doc('global').get();
+      const latest=active.sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0)).slice(0,5),versions=await Promise.all(latest.map(placement=>db.collection('stagingPlacementVersions').doc(`${placement.placementId}-v${placement.publicState?.publicVersion||placement.currentPublishedVersion||placement.currentVersion||1}`).get()));
+      const placements=latest.map((placement,index)=>{const visible=publicPlacement(versions[index].data()||{},placement.publicState);return{placementId:placement.placementId,anchor:placement.anchor,cellCount:Number(placement.cellCount||0),title:visible.title||'Untitled placement',createdAt:placement.createdAt?.toMillis?.()||null};});
+      response.status(200).json({ok:true,stats:publicGlobalStats({...aggregate.data(),claimedCells:active.reduce((sum,placement)=>sum+Number(placement.cellCount||0),0),placements:active.length}),latest:placements});return;
+    }
     if(action==='record-event'){
-      const event=normalisePlacementEvent(request.body.event);if(!event){response.status(400).json({ok:false,error:'invalid-event'});return;}
-      const db=getFirestore(),placement=await db.collection('stagingPlacements').doc(event.placementId).get();if(!placement.exists||['deleted','revoked'].includes(placement.data().status)){response.status(404).json({ok:false,error:'placement-not-found'});return;}
-      const eventId=createHash('sha256').update(`${event.placementId}:${event.type}:${event.sessionId}`).digest('hex'),eventRef=db.collection('stagingPlacementEvents').doc(eventId),metricsRef=db.collection('stagingPlacementMetrics').doc(event.placementId);let duplicate=false;
-      await db.runTransaction(async transaction=>{if((await transaction.get(eventRef)).exists){duplicate=true;return;}transaction.create(eventRef,{eventId,placementId:event.placementId,type:event.type,occurredAt:FieldValue.serverTimestamp()});transaction.set(metricsRef,{placementId:event.placementId,[event.type==='view'?'views':'clicks']:FieldValue.increment(1),updatedAt:FieldValue.serverTimestamp()},{merge:true});});
-      const metrics=await metricsRef.get();response.status(200).json({ok:true,duplicate,metrics:publicMetrics(metrics.data())});return;
+      const event=normaliseAnalyticsEvent(request.body.event);if(!event){response.status(400).json({ok:false,error:'invalid-event'});return;}
+      const db=getFirestore();if(event.placementId){const placement=await db.collection('stagingPlacements').doc(event.placementId).get();if(!placement.exists||['deleted','revoked'].includes(placement.data().status)){response.status(404).json({ok:false,error:'placement-not-found'});return;}}
+      const eventId=createHash('sha256').update(`${event.placementId||'global'}:${event.type}:${event.sessionId}`).digest('hex'),eventRef=db.collection('stagingAnalyticsEvents').doc(eventId),aggregateRef=db.collection('stagingAnalyticsAggregates').doc('global'),metric=metricField(event.type),metricsRef=event.placementId?db.collection('stagingPlacementMetrics').doc(event.placementId):null;let duplicate=false;
+      await db.runTransaction(async transaction=>{if((await transaction.get(eventRef)).exists){duplicate=true;return;}transaction.create(eventRef,{eventId,type:event.type,...(event.placementId?{placementId:event.placementId}:{}),...(event.context?{context:event.context}:{}),occurredAt:FieldValue.serverTimestamp()});transaction.set(aggregateRef,{[event.type]:FieldValue.increment(1),...(metric?{[metric]:FieldValue.increment(1)}:{}),updatedAt:FieldValue.serverTimestamp()},{merge:true});if(metric)transaction.set(metricsRef,{placementId:event.placementId,[metric]:FieldValue.increment(1),updatedAt:FieldValue.serverTimestamp()},{merge:true});});
+      const metrics=metricsRef?await metricsRef.get():null;response.status(200).json({ok:true,duplicate,...(metrics?{metrics:publicMetrics(metrics.data())}:{})});return;
     }
     if(action==='quote-reserve'||action==='release-checkout-reservation'){
       try{
@@ -346,7 +352,8 @@ export const stagingPlacements = onRequest(
         const active = documents.map(document => document.data()).filter(placement => !['deleted','revoked'].includes(placement.status));
         const versions = await Promise.all(active.map(placement => getFirestore().collection('stagingPlacementVersions').doc(`${placement.placementId}-v${placement.currentVersion || 1}`).get()));
         const publishedVersions=await Promise.all(active.map((placement,index)=>Number(placement.currentPublishedVersion||0)&&Number(placement.currentPublishedVersion)!==Number(placement.currentVersion||1)?getFirestore().collection('stagingPlacementVersions').doc(`${placement.placementId}-v${placement.currentPublishedVersion}`).get():versions[index]));
-        const placements = active.map((placement, index) => { const content = versions[index].data() || {},published=publishedVersions[index].data()||{}; return { placementId: placement.placementId, topologyVersion: placement.topologyVersion, anchor: placement.anchor, cells: decodeCells(placement.cellsData), cellCount: placement.cellCount,title:content.title||placement.title||'',description:content.description||'',destinationUrl:content.destinationUrl||'',artworkDataUrl:content.publication?.artworkUrl||published.publication?.artworkUrl||content.artworkDataUrl||'',publicationStatus:content.publication?.status||'preview-only',currentVersion:Number(placement.currentVersion||1),publicStatus:placement.publicState?.status||'active', status: placement.status, createdAt: placement.createdAt?.toMillis?.() || null }; });
+        const metricSnapshots=await Promise.all(active.map(placement=>getFirestore().collection('stagingPlacementMetrics').doc(placement.placementId).get()));
+        const placements = active.map((placement, index) => { const content = versions[index].data() || {},published=publishedVersions[index].data()||{}; return { placementId: placement.placementId, topologyVersion: placement.topologyVersion, anchor: placement.anchor, cells: decodeCells(placement.cellsData), cellCount: placement.cellCount,title:content.title||placement.title||'',description:content.description||'',destinationUrl:content.destinationUrl||'',artworkDataUrl:content.publication?.artworkUrl||published.publication?.artworkUrl||content.artworkDataUrl||'',publicationStatus:content.publication?.status||'preview-only',currentVersion:Number(placement.currentVersion||1),publicStatus:placement.publicState?.status||'active', status: placement.status, createdAt: placement.createdAt?.toMillis?.() || null,metrics:publicMetrics(metricSnapshots[index].data()) }; });
         response.status(200).json({ ok: true, placements });
         return;
       }
@@ -365,14 +372,19 @@ export const expireStagingReservations=onSchedule({schedule:'every 5 minutes',re
   for(const document of snapshot.docs.filter(item=>item.data().status==='active'))try{const reservation=document.data();if(reservation.checkoutSessionId){const session=await stripe.checkout.sessions.retrieve(reservation.checkoutSessionId),state=checkoutSessionState(session);if(state==='paid'){await fulfilPaidCheckout(db,session,Number(session.created)*1000);continue;}if(state==='payment-processing')continue;if(state==='checkout-open')await stripe.checkout.sessions.expire(reservation.checkoutSessionId);}await releaseTestReservation(db,document.id,reservation.ownerId,now,{expiredOnly:true});if(reservation.checkoutSessionId)await db.collection('stagingOrders').doc(checkoutOrderId(document.id)).set({status:'checkout-expired',paymentStatus:'unpaid',closedAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()},{merge:true});}catch(error){logger.warn('Could not expire staging reservation',{reservationId:document.id,message:error.message});}
 });
 
+async function recordAuthoritativePurchase(db,orderId,placementId,cellCount){
+  const eventRef=db.collection('stagingAnalyticsEvents').doc(`purchase-${orderId}`),aggregateRef=db.collection('stagingAnalyticsAggregates').doc('global');
+  await db.runTransaction(async transaction=>{if((await transaction.get(eventRef)).exists)return;transaction.create(eventRef,{eventId:`purchase-${orderId}`,type:'purchase_completed',placementId,context:{cellCount},source:'stripe-webhook',occurredAt:FieldValue.serverTimestamp()});transaction.set(aggregateRef,{purchase_completed:FieldValue.increment(1),updatedAt:FieldValue.serverTimestamp()},{merge:true});});
+}
+
 async function fulfilPaidCheckout(db,session,paidAtMs){
   const email=paidCheckoutEmail(session),orderId=String(session.metadata?.orderId||'');if(!email||!orderId)throw new Error('invalid-paid-session');
   const orderRef=db.collection('stagingOrders').doc(orderId),orderSnapshot=await orderRef.get();if(!orderSnapshot.exists)throw new Error('order-not-found');const order=orderSnapshot.data();
-  if(order.status==='fulfilled')return order.result;
+  if(order.status==='fulfilled'){await recordAuthoritativePurchase(db,orderId,order.result?.placementId||order.placementId,Number(order.result?.cellCount||0));return order.result;}
   const ownerId=paidEmailOwnerId(email);
   const reservation=(await db.collection('stagingReservations').doc(order.reservationId).get()).data(),reservationUsable=reservation?.status==='active'&&Number(reservation.expiresAtMs)>paidAtMs;
   const result=await createTestPlacement(db,{...order.placement,ownerId},FieldValue.serverTimestamp(),{placementId:order.placementId,source:order.source,...(reservationUsable?{reservationId:order.reservationId,reservationOwnerId:order.reservationOwnerId,nowMs:paidAtMs}:{})}).catch(async error=>{const placement=await db.collection('stagingPlacements').doc(order.placementId).get();if(placement.exists)return{placementId:order.placementId,cellCount:placement.data().cellCount,status:placement.data().status};throw error;});
-  await orderRef.set({status:'fulfilled',paymentStatus:'paid',ownerId,buyerEmail:email,stripePaymentIntentId:session.payment_intent,paidAmountMinor:session.amount_total,currency:session.currency,fulfilledAt:FieldValue.serverTimestamp(),placement:FieldValue.delete(),result},{merge:true});return result;
+  await orderRef.set({status:'fulfilled',paymentStatus:'paid',ownerId,buyerEmail:email,stripePaymentIntentId:session.payment_intent,paidAmountMinor:session.amount_total,currency:session.currency,fulfilledAt:FieldValue.serverTimestamp(),placement:FieldValue.delete(),result},{merge:true});await recordAuthoritativePurchase(db,orderId,result.placementId,Number(result.cellCount||0));return result;
 }
 
 async function closeUnpaidOrder(db,session,status,details={}){

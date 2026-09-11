@@ -29,6 +29,7 @@ try {
       } else if(body.action==='quote-reserve') result={quote:{displayTotal:'$1',currency:'usd',totalAmountMinor:100,cellCount:1},reservation:{reservationId:'qa-reservation',expiresAtMs:Date.now()+900000},checkoutToken:'test-token'};
       else if(body.action==='release-checkout-reservation'){releaseSeen=true;result={reservation:{reservationId:body.reservationId,status:'released'}};}
       else if(body.action==='record-event')result={metrics:{views:1,clicks:0}};
+      else if(body.action==='public-stats')result={stats:{claimedCells:records.reduce((sum,record)=>sum+record.cellCount,0),remainingCells:1000000-records.reduce((sum,record)=>sum+record.cellCount,0),placements:records.length,views:1,clicks:0},latest:records};
       else throw Error(`Unexpected action ${body.action}`);
       await route.fulfill({json:result});
     });
