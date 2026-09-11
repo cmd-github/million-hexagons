@@ -6,13 +6,15 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Close the remaining mobile performance acceptance gap: measure full page-to-placement startup and verify cold close-ups on physical iOS/Android devices. Regional geometry is deployed; controlled close-ups meet 3.2–3.4 seconds, but throttled live startup remains slower.
+- [ ] Review and complete the commercial launch decisions: pricing, refunds, permanent-use wording, seller identity and governing law.
 
 ## Next
 
-- [ ] Validate first-time purchase intent and physical-device performance with real iOS/Android devices.
+- [ ] Choose the next launch-critical engineering slice after the commercial decisions are settled.
 
 ## Done
+
+- [x] Repaired claimed-placement interaction and legacy owner editing and deployed it to staging (`ca7b8906-f15a-4619-a014-8baa2941dc0c`). A globe click now waits for its exact streamed geometry and completes the original click instead of silently requiring another attempt. My Globe falls back to the published artwork for older placements whose private design source returns 404, loads cross-origin artwork safely for canvas export, and explains when the published copy is being edited. Desktop/mobile owner journeys cover a forced first-hit geometry miss, normal private-source editing, published-copy fallback, replacement upload, crop controls, immutable publication and exact-cell preservation. Live health/CDN checks and the disposable live source/version/publication journey passed; Craig's existing older placement has not been republished during verification.
 
 - [x] Exact regional geometry streaming deployed to staging (`dd9f68a2-c907-4e02-bdf8-702466122867`). Visitors fetch visible/required regions instead of the 17.2 MB monolithic topology. Exhaustive comparison preserves all 1,000,000 canonical IDs, polygon bits and adjacency; connected footprints and artwork projection inputs match. Recorded desktop/mobile journeys preserve Design -> Place -> Review at 1,500 and 100,000 cells and recover from failed downloads across seams/poles. Immutable release contains 9,733 verified objects; live regional checks confirm CDN hits. See [regional geometry](REGIONAL-GEOMETRY.md) and [performance measurements](GLOBE-PERFORMANCE-AUDIT.md). Physical-device acceptance remains open.
 

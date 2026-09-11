@@ -212,13 +212,15 @@ let requestedAnchor = null;
 let pinnedCell = null;
 let designSurface = "canvas", exactGlobeArea = false;
 let hoverTimer, globeStroke = null, flightVersion=0;
+let forceIntersectionMiss=false;
 for(const type of ['pointerdown','wheel','keydown'])document.addEventListener(type,()=>flightVersion++,{capture:true,passive:true});
 canvas.addEventListener('pointerdown', event => { explorationStart = {x:event.clientX,y:event.clientY}; });
-canvas.addEventListener('pointerup', event => {
+canvas.addEventListener('pointerup', async event => {
   if(document.body.classList.contains('creating')||!explorationStart)return;
   if(Math.hypot(event.clientX-explorationStart.x,event.clientY-explorationStart.y)>6){closeInspector();return;}
+  const interactionVersion=flightVersion;
   if (camera.position.length() < globeFitDistance() * .82) controls.autoRotate = false;
-  const hit=intersect(event); if(!hit?.uv){closeInspector();return;}
+  const hit=await intersectReady(event);if(interactionVersion!==flightVersion)return;if(!hit?.uv){closeInspector();return;}
   if (!hit.cell.occupied) { closeInspector();if(camera.position.length()>radius+1.0)return; pinnedCell=hit.cell; updateTooltip(event,hit.cell,true); return; }
   inspectPlacement(hit.cell.id);
 
@@ -262,6 +264,7 @@ function cellForId(id) {
 function intersect(event) {
   if(!topology){if(camera.position.length()<radius+2)void ensureTopology().catch(()=>{});return null;}
   if(!stagingInventoryLoaded)return null;
+  if(forceIntersectionMiss){forceIntersectionMiss=false;return null;}
   const rect = canvas.getBoundingClientRect();
   pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
@@ -270,6 +273,20 @@ function intersect(event) {
   const direction=globe.worldToLocal(point.clone()).normalize().toArray();
   try { return { point, uv: new THREE.Vector2(), cell: cellForId(topology.pick(direction)) }; }
   catch(error) { if(!(error instanceof MissingRegion))throw error;void topology.ensureCap(direction,.045).catch(()=>{});return null; }
+}
+async function intersectReady(event) {
+  const pointerEvent={clientX:event.clientX,clientY:event.clientY};
+  let hit=intersect(pointerEvent);
+  if(hit||!stagingInventoryLoaded)return hit;
+  await ensureTopology();
+  const rect=canvas.getBoundingClientRect();
+  pointer.set((pointerEvent.clientX-rect.left)/rect.width*2-1,-(pointerEvent.clientY-rect.top)/rect.height*2+1);
+  raycaster.setFromCamera(pointer,camera);
+  const point=raycaster.ray.intersectSphere(new THREE.Sphere(new THREE.Vector3(),radius),new THREE.Vector3());
+  if(!point)return null;
+  const direction=globe.worldToLocal(point.clone()).normalize().toArray();
+  await topology.ensureCap(direction,.045);
+  return intersect(pointerEvent);
 }
 
 function updateTooltip(event, cell, pinned = false) {
@@ -1435,9 +1452,17 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
   const escapeMyGlobe=value=>String(value??'').replace(/[&<>"']/g,character=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
   let myGlobeRecords=[];const myGlobeArtwork=new Map();
   const closeMyGlobe=()=>{myGlobe.hidden=true;document.body.classList.remove('my-globe-open');};
-  const loadOwnerImage=source=>new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('Could not read this artwork.'));image.src=source;});
+  const loadOwnerImage=source=>new Promise((resolve,reject)=>{const image=new Image();image.crossOrigin='anonymous';image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('Could not read this artwork.'));image.src=source;});
   function drawOwnerArtwork(card){const state=myGlobeArtwork.get(card.dataset.placementId);if(!state?.image)return;const canvas=card.querySelector('canvas'),context=canvas.getContext('2d'),{scale,x,y,rotation}=state.transform,w=canvas.width,h=canvas.height,fit=Math.max(w/state.image.naturalWidth,h/state.image.naturalHeight)*scale/100;context.clearRect(0,0,w,h);context.save();context.translate(w/2+x/100*w/2,h/2+y/100*h/2);context.rotate(rotation*Math.PI/180);context.drawImage(state.image,-state.image.naturalWidth*fit/2,-state.image.naturalHeight*fit/2,state.image.naturalWidth*fit,state.image.naturalHeight*fit);context.restore();for(const field of ['scale','x','y','rotation'])card.querySelector(`[data-artwork-${field}]`).value=state.transform[field];}
-  async function prepareOwnerArtwork(card,record){const status=card.querySelector('[role=status]');status.textContent='Loading editable artwork...';const source=await stagingClient.getPlacementContentSource(record.placementId,record.currentVersion),transform={scale:100,x:0,y:0,rotation:0,...source.designState?.imageTransform},original=source.originalArtworkDataUrl||source.currentArtworkDataUrl,image=await loadOwnerImage(source.currentArtworkDataUrl||original);myGlobeArtwork.set(record.placementId,{image,original,current:source.currentArtworkDataUrl||original,transform});drawOwnerArtwork(card);card.querySelector('.my-globe-artwork').hidden=false;status.textContent='Move, scale or rotate the artwork, or upload a replacement.';}
+  async function prepareOwnerArtwork(card,record){
+    const status=card.querySelector('[role=status]');status.textContent='Loading editable artwork...';
+    let source,fallback=false;
+    try{source=await stagingClient.getPlacementContentSource(record.placementId,record.currentVersion);}
+    catch(error){if(!record.artworkDataUrl)throw error;source={currentArtworkDataUrl:record.artworkDataUrl,originalArtworkDataUrl:record.artworkDataUrl,designState:null};fallback=true;}
+    const transform={scale:100,x:0,y:0,rotation:0,...source.designState?.imageTransform},original=source.originalArtworkDataUrl||source.currentArtworkDataUrl,image=await loadOwnerImage(source.currentArtworkDataUrl||original);
+    myGlobeArtwork.set(record.placementId,{image,original,current:source.currentArtworkDataUrl||original,transform});drawOwnerArtwork(card);card.querySelector('.my-globe-artwork').hidden=false;
+    status.textContent=fallback?'Editing the published artwork copy. Upload the original for the best quality, then adjust and publish.':'Move, scale or rotate the artwork, or upload a replacement.';
+  }
   async function setOwnerArtwork(card,dataUrl){const state=myGlobeArtwork.get(card.dataset.placementId);state.image=await loadOwnerImage(dataUrl);state.original=dataUrl;state.transform={scale:100,x:0,y:0,rotation:0};drawOwnerArtwork(card);}
   function ownerArtworkOutput(card){const state=myGlobeArtwork.get(card.dataset.placementId),preview=card.querySelector('canvas'),output=document.createElement('canvas'),maximum=1400,ratio=preview.width/preview.height;output.width=ratio>=1?maximum:Math.round(maximum*ratio);output.height=ratio>=1?Math.round(maximum/ratio):maximum;const context=output.getContext('2d'),{scale,x,y,rotation}=state.transform,fit=Math.max(output.width/state.image.naturalWidth,output.height/state.image.naturalHeight)*scale/100;context.translate(output.width/2+x/100*output.width/2,output.height/2+y/100*output.height/2);context.rotate(rotation*Math.PI/180);context.drawImage(state.image,-state.image.naturalWidth*fit/2,-state.image.naturalHeight*fit/2,state.image.naturalWidth*fit,state.image.naturalHeight*fit);return output.toDataURL('image/webp',.95);}
   function renderMyGlobe(records){
@@ -1669,6 +1694,7 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('geodesicQA'
       await prepareLocation(id);controls.autoRotate=false;orientToCell(id,radius+distance);
     },
     async place(id) { await prepareLocation(id);await choosePatternOrigin({uv:new THREE.Vector2(),point:pointForCell({id})},cellForId(id));focusSelection(); },
+    missNextIntersection() { forceIntersectionMiss=true; },
     state() { return { inspectedId, rotationSpeed:controls.rotateSpeed, orientation:globe.quaternion.toArray(), selected: selectedCells.map(c=>c.id), design: previewCells().map(c=>c.id), designAnchor, requestedAnchor, sold, committed: [...sessionPlacements.keys()], connected: topology.isConnected(selectedCells), camera:camera.position.toArray(), detailVertices:cellDetail?.mesh.geometry.attributes.position?.count||0, drawCalls:renderer.info.render.calls,tiles:{...artworkTiles.stats},retainedPlacements:placementLayers.children.length }; },
     screen(id) { const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return {x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2}; },
   };
