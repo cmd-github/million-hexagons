@@ -16,6 +16,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import './style.css';
 import './studio.css';
+import { icon, renderIcons, setIcon } from './icons.js';
+
+// Fill every [data-icon] before the boot overlay lifts, so no button flashes empty.
+renderIcons(document);
 
 const canvas = document.querySelector('#world');
 let initialPlacementFocusAllowed=true;
@@ -550,6 +554,7 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   logoCells=topology.cells([designAnchor],designAnchor);amountInput.value=1;
   exactGlobeArea=true;designSurface='globe';document.body.dataset.surface='globe';
   ownerEdit=ownerUpdate;
+  if(!ownerEdit&&!Number.isInteger(anchor)&&savedDraft)restoreDraft();
   if(ownerEdit){
     const state=ownerEdit.source.designState||{},transform=state.imageTransform||{},source=ownerEdit.source.originalArtworkDataUrl||ownerEdit.source.currentArtworkDataUrl||ownerEdit.record.artworkDataUrl;
     logoCells=topology.cells(state.cells?.length?state.cells:ownerEdit.record.cells.map(id=>({id})),ownerEdit.record.anchor);amountInput.value=logoCells.length;footprintEdited=true;
@@ -569,8 +574,70 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   trackEvent('design_started',{context:{cellCount:1,source:'studio'}});
 
 }
+// Closing the studio used to discard the design outright, so a stray Escape lost the work.
+// The in-progress design is kept in memory instead and restored when the studio is reopened
+// from Create a placement. Opening on a specific cell, or for an owner update, still starts
+// clean, and Start over in the design menu discards a restored draft explicitly.
+let savedDraft = null;
+function draftIsMeaningful() {
+  if(ownerEdit)return false;
+  if(uploadedLogo)return true;
+  if(placementCount()>1)return true;
+  if(previewCells().some(cell=>cell.color||cell.transparent))return true;
+  return ['companyName','companyDescription','website'].some(id=>document.getElementById(id).value.trim());
+}
+function captureDraft() {
+  if(!topology||!draftIsMeaningful()){savedDraft=null;return;}
+  savedDraft={
+    anchor:designAnchor,
+    cells:previewCells().map(({id,color,transparent})=>({id,color,transparent})),
+    footprintEdited,
+    logo:uploadedLogo,logoCrop:uploadedLogoCrop,
+    baseColour:document.querySelector('#brandColor').value,
+    treatment:document.querySelector('#logoTreatment').value,
+    scale:document.querySelector('#logoScale').value,
+    rotation:document.querySelector('#logoOrientation').value,
+    position:{...logoPosition},
+    fields:Object.fromEntries(['companyName','companyDescription','website'].map(id=>[id,document.getElementById(id).value])),
+  };
+}
+function restoreDraft() {
+  const draft=savedDraft;
+  if(!draft)return;
+  designAnchor=draft.anchor;
+  logoCells=topology.cells(draft.cells,draft.anchor);
+  amountInput.value=logoCells.length;
+  footprintEdited=draft.footprintEdited;
+  uploadedLogo=draft.logo;uploadedLogoCrop=draft.logoCrop;
+  document.querySelector('#brandColor').value=draft.baseColour;
+  document.querySelector('#logoTreatment').value=draft.treatment;
+  document.querySelector('#logoScale').value=draft.scale;
+  document.querySelector('#logoScaleValue').textContent=`${draft.scale}%`;
+  document.querySelector('#logoOrientation').value=draft.rotation;
+  logoPosition.x=draft.position.x;logoPosition.y=draft.position.y;
+  updateLogoPreviewOrientation();
+  for(const [id,value] of Object.entries(draft.fields))document.getElementById(id).value=value;
+  document.querySelector('#removeImage').hidden=!uploadedLogo;
+}
+function discardDraft() {
+  savedDraft=null;
+  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;draftArtwork=null;
+  document.querySelector('#logoUpload').value='';
+  document.querySelector('#logoPreview').replaceChildren();
+  document.querySelector('#logoPalette').hidden=true;
+  document.querySelector('#artworkQuality').hidden=true;
+  document.querySelector('#brandColor').value='#5967b0';
+  document.querySelector('#logoTreatment').value='span';
+  for(const id of ['companyName','companyDescription','website'])document.getElementById(id).value='';
+  resetLogoTransform();updateImageControls();
+  undoStack.length=0;redoStack.length=0;updateHistory();
+  logoCells=topology.cells([designAnchor],designAnchor);amountInput.value=1;footprintEdited=true;
+  previewCache=null;
+  drawDesignPreview();updateTotals();
+}
 function closeBuy() {
   if(publishing)return;
+  captureDraft();
   placementPreparationVersion++;
   designGeometryVersion++;designGeometryPending=false;
   void releaseActiveCheckoutReservation();
@@ -604,10 +671,10 @@ document.querySelector('#claimCell').addEventListener('click', (event) => {
   if(anchor)openBuy(anchor);
 });
 document.querySelector('#closeBuy').addEventListener('click', closeBuy);
-let rotationCycle=0;
+// Rotation is a plain on/off toggle. It used to cycle through both directions, which needed
+// three icons to express and gave the button a state most visitors never looked for.
 document.querySelector('#rotationToggle').addEventListener('click',()=>{
-  if(controls.autoRotate){rotationCycle=controls.autoRotateSpeed<0?1:3;controls.autoRotate=false;}
-  else {rotationCycle=rotationCycle===1?2:0;controls.autoRotateSpeed=rotationCycle===0?-.22:.22;controls.autoRotate=true;}
+  controls.autoRotate=!controls.autoRotate;
   updateRotationControl();
 });
 document.querySelector('.brand').addEventListener('click',event=>{event.preventDefault();if(document.body.classList.contains('creating'))closeBuy();document.querySelector('#homeView').click();});
@@ -993,7 +1060,16 @@ async function suggestLocation() {
 document.querySelector('#suggestLocation').addEventListener('click', suggestLocation);
 document.querySelector('#reviewEditDesign').addEventListener('click', () => document.querySelector('#backToDesign').click());
 document.querySelector('#dismissToast').addEventListener('click', () => document.querySelector('#toast').classList.remove('show'));
-document.addEventListener('keydown', (event) => { if(event.key === 'Escape' && !document.querySelector('#buyPanel').inert) closeBuy(); });
+// Escape unwinds the studio one layer at a time: an open menu, then checkout, then the
+// panel itself. It used to close the whole flow from any of those states.
+document.addEventListener('keydown', (event) => {
+  if(event.key !== 'Escape' || document.querySelector('#buyPanel').inert)return;
+  const openMenu=document.querySelector('#buyPanel details[open]');
+  if(openMenu){openMenu.open=false;openMenu.querySelector('summary').focus();return;}
+  const checkout=document.querySelector('#embeddedCheckoutPanel');
+  if(!checkout.hidden){document.querySelector('#closeEmbeddedCheckout').click();return;}
+  closeBuy();
+});
 const undoStack = [], redoStack = [];
 function rememberPaint() { undoStack.push({cells:previewCells().map(({id,color,transparent})=>({id,color,transparent})),edited:footprintEdited}); while(undoStack.length>1&&(undoStack.length>50||undoStack.reduce((n,s)=>n+s.cells.length,0)>250000))undoStack.shift();redoStack.length=0;updateHistory(); }
 function updateHistory() { document.querySelector('#undoPaint').disabled=!undoStack.length;document.querySelector('#redoPaint').disabled=!redoStack.length; }
@@ -1054,6 +1130,7 @@ function resetLogoTransform() {
 
 document.querySelector('#logoOrientation').addEventListener('change', () => { updateLogoPreviewOrientation(); drawDesignPreview(); });
 document.querySelector('#resetLogo').addEventListener('click', () => { resetLogoTransform(); updateLogoPreviewOrientation(); drawDesignPreview(); });
+document.querySelector('#startOver').addEventListener('click', () => { document.querySelector('.studio-more').open=false; discardDraft(); });
 document.querySelector('#clearPaint').addEventListener('click', () => { document.querySelector('.studio-more').open=false;rememberPaint(); logoCells=previewCells().map(({color,transparent,...cell})=>cell); drawDesignPreview(); updateTotals(); });
 const designCanvas = document.querySelector('#designCanvas');
 const editorPointers=new Map();
@@ -1726,12 +1803,13 @@ const rotationToggle=document.querySelector('#rotationToggle');
 let displayedRotationState=null;
 function updateRotationControl(){
   const rotating=controls.autoRotate&&!demoTour.active;
-  const state=String(rotating)+Math.sign(controls.autoRotateSpeed);if(state===displayedRotationState)return;displayedRotationState=state;
-  rotationToggle.textContent=rotating?(controls.autoRotateSpeed<0?'\u21ba':'\u21bb'):'\u23f8';
+  const state=String(rotating);if(state===displayedRotationState)return;displayedRotationState=state;
+  // The icon shows what pressing the button does, matching its label. It used to show the
+  // current state instead, so a stopped globe displayed a pause symbol.
+  setIcon(rotationToggle,rotating?'rotate-pause':'rotate-start');
   rotationToggle.setAttribute('aria-pressed',String(rotating));
-  const next=rotating?'Pause globe rotation':rotationCycle===1?'Rotate globe right':'Rotate globe left';
+  const next=rotating?'Pause globe rotation':'Rotate globe';
   rotationToggle.setAttribute('aria-label',next);rotationToggle.title=next;
-
 }
 let lastTopologyTrim=0,topologyTrimReady=false;
 function animate() {
@@ -2021,8 +2099,7 @@ function renderCompanyResults(){
 }
 hexSearchInput.addEventListener('input',()=>{hexSearchInput.removeAttribute('aria-invalid');hexSearchStatus.textContent='';renderCompanyResults();});
 function activityIcon(kind){
- const paths={claim:'<path d="m12 2 9 5v10l-9 5-9-5V7z M8 12l3 3 5-6"/>',trend:'<path d="m3 17 6-6 4 4 8-10 M15 5h6v6"/>',milestone:'<path d="M8 3h8v5a4 4 0 0 1-8 0z M8 5H4v2a4 4 0 0 0 4 4 M16 5h4v2a4 4 0 0 1-4 4 M12 12v6 M8 21v-3h8v3z"/>',globe:'<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>'};
- return '<svg viewBox="0 0 24 24" aria-hidden="true">'+paths[kind]+'</svg>';
+ return icon(kind==='trend'?'trend':kind==='milestone'?'milestone':'claim');
 }
 function renderClaimFeed(){
   const target=document.querySelector('#claimFeedItems');target.replaceChildren();
@@ -2126,11 +2203,13 @@ document.querySelector('#logoOrientation').addEventListener('input',event=>{
 });
 
 // Icons keep the tool rail compact; accessible names and active-mode feedback remain.
-document.querySelector('#moveImageMode').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v18H3z M3 16l6-6 5 5 3-3 4 4 M15 7h.01"/></svg>';document.querySelector('#moveImageMode').setAttribute('aria-label','Move image');document.querySelector('#moveImageMode').title='Move image';
-document.querySelector('#paintCells').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 3 7 7-10 10H4v-7z M12 5l7 7"/></svg>';document.querySelector('#paintCells').setAttribute('aria-label','Paint');document.querySelector('#paintCells').title='Paint';
-document.querySelector('#editHexMode').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 3 12 0 5 9-5 9H6L1 12z M8 12h8 M12 8v8"/></svg>';document.querySelector('#editHexMode').setAttribute('aria-label','Add hexagons');document.querySelector('#editHexMode').title='Add hexagons';
-document.querySelector('#removeHexMode').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 3 12 0 5 9-5 9H6L1 12z M8 12h8"/></svg>';document.querySelector('#removeHexMode').setAttribute('aria-label','Remove hexagons');document.querySelector('#removeHexMode').title='Remove hexagons';
-document.querySelector('#panEditor').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20 M2 12h20 M8 6l4-4 4 4 M8 18l4 4 4-4 M6 8l-4 4 4 4 M18 8l4 4-4 4"/></svg>';document.querySelector('#panEditor').setAttribute('aria-label','Pan');document.querySelector('#panEditor').title='Pan';
+// Studio tools share the icon set; label and title stay beside the drawing.
+for(const [id,name,label] of [['moveImageMode','image','Move image'],['paintCells','paint','Paint'],['editHexMode','add','Add hexagons'],['removeHexMode','remove','Remove hexagons'],['panEditor','pan','Pan']]){
+  const button=document.querySelector(`#${id}`);
+  button.innerHTML=icon(name);
+  button.setAttribute('aria-label',label);
+  button.title=label;
+}
 
 let globalMetricExamples=['Loading live totals…'];
 let globalMetricIndex=0;

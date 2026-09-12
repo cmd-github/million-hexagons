@@ -34,7 +34,7 @@
     <header class="topbar">
       <a class="brand" href="#" aria-label="Million Hexagons home"><span class="mark">MH</span><span><b>MILLION</b><strong>HEXAGONS</strong></span></a>
       <div class="inventory"><div><span id="soldCount">…</span> demo cells</div><div class="meter"><i id="soldMeter"></i></div><small><span id="availableCount">…</span> available to preview</small></div>
-      <button class="primary" id="claimButton">Create a placement <span>&#8599;</span></button>
+      <button class="primary" id="claimButton">Create a placement <span class="ico-slot" data-icon="external"></span></button>
     </header>
 
     <aside class="intro glass">
@@ -46,10 +46,10 @@
 
     <div id="hint" hidden></div><div id="globalMetrics" aria-label="Live global metrics"><span id="globalMetricText">Loading live totals…</span></div>
     <nav class="globe-controls glass" aria-label="Globe controls">
-      <button type="button" id="rotationToggle" aria-pressed="true" aria-label="Pause globe rotation" title="Pause globe rotation">⏸</button>
-      <button type="button" id="demoTour" aria-pressed="false" aria-label="Start globe tour" title="Start globe tour">✈</button>
+      <button type="button" id="rotationToggle" data-icon="rotate-pause" aria-pressed="true" aria-label="Pause globe rotation" title="Pause globe rotation"></button>
+      <button type="button" id="demoTour" data-icon="tour-start" aria-pressed="false" aria-label="Start globe tour" title="Start globe tour"></button>
       <div class="account-access">
-        <button type="button" id="toggleAccount" aria-label="Owner sign in" aria-expanded="false" title="Owner sign in"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="3"/><path d="M10.5 13.5 20 4m-3 0h3v3m-6 0 3 3"/></svg></button>
+        <button type="button" id="toggleAccount" data-icon="key" aria-label="Owner sign in" aria-expanded="false" title="Owner sign in"></button>
         <section id="accountPanel" hidden aria-label="Owner access">
           <div id="accountSignedOut"><b>Access your placements</b><p>We’ll email you a secure link. No password needed.</p><label for="accountEmail">Email</label><input id="accountEmail" type="email" autocomplete="email" placeholder="you@example.com"><button type="button" id="sendAccountLink">Email me a sign-in link</button></div>
           <div id="accountSignedIn" hidden><b>Your account</b><small id="accountIdentity"></small><div class="account-summary"><span><strong id="accountPlacementCount">0</strong> placements</span><span><strong id="accountCreditCount">0</strong> credits</span></div><button type="button" id="openMyGlobe">Open My Globe</button><button type="button" id="openAdmin" hidden>Content controls</button><button type="button" id="accountSignOut">Sign out</button></div>
@@ -57,17 +57,17 @@
         </section>
       </div>
       <form class="hex-search" id="hexSearch" role="search">
-        <button type="button" id="toggleHexSearch" aria-label="Find company or hex" aria-expanded="false">⌕</button>
-        <div id="hexSearchPanel" hidden><label for="hexSearchInput" class="visually-hidden">Company or hex number</label><span><input id="hexSearchInput" autocomplete="off" placeholder="Company or #123" aria-describedby="hexSearchStatus"><button type="submit" aria-label="Go to hexagon">&#8594;</button></span><div id="companyResults"></div><small id="hexSearchStatus" role="status"></small></div>
+        <button type="button" id="toggleHexSearch" data-icon="search" aria-label="Find company or hex" aria-expanded="false"></button>
+        <div id="hexSearchPanel" hidden><label for="hexSearchInput" class="visually-hidden">Company or hex number</label><span><input id="hexSearchInput" autocomplete="off" placeholder="Company or #123" aria-describedby="hexSearchStatus"><button type="submit" data-icon="arrow-right" aria-label="Go to hexagon"></button></span><div id="companyResults"></div><small id="hexSearchStatus" role="status"></small></div>
       </form>
-      <button id="zoomIn" aria-label="Zoom in">+</button><button id="zoomOut" aria-label="Zoom out">−</button><button id="homeView" aria-label="Re-centre globe">⌂</button>
+      <button id="zoomIn" data-icon="zoom-in" aria-label="Zoom in"></button><button id="zoomOut" data-icon="zoom-out" aria-label="Zoom out"></button><button id="homeView" data-icon="home" aria-label="Re-centre globe"></button>
     </nav>
     <section id="myGlobe" class="my-globe" hidden aria-label="My Globe">
-      <header><div><small>YOUR SPACE ON THE WORLD</small><h2>My Globe</h2><p id="myGlobeSummary"></p></div><button type="button" id="closeMyGlobe" aria-label="Close My Globe">&times;</button></header>
+      <header><div><small>YOUR SPACE ON THE WORLD</small><h2>My Globe</h2><p id="myGlobeSummary"></p></div><button type="button" id="closeMyGlobe" data-icon="close" aria-label="Close My Globe"></button></header>
       <p id="myGlobeStatus" role="status"></p><div id="myGlobePlacements" class="my-globe-grid"></div>
     </section>
     <section id="adminWorkspace" class="admin-workspace" hidden aria-label="Founder content controls">
-      <header><div><small>FOUNDER CONTROLS</small><h2>Placement moderation</h2></div><button type="button" id="closeAdmin" aria-label="Close content controls">&times;</button></header>
+      <header><div><small>FOUNDER CONTROLS</small><h2>Placement moderation</h2></div><button type="button" id="closeAdmin" data-icon="close" aria-label="Close content controls"></button></header>
       <form id="adminSearch"><label for="adminQuery">Placement ID, owner email or owner ID</label><div><input id="adminQuery" autocomplete="off" required><button type="submit">Find</button></div></form>
       <p id="adminStatus" role="status">Find a placement to review its public content and audit history.</p>
       <div id="adminResults"></div>
@@ -79,18 +79,18 @@
 <div class="hud-brand"><img id="inspectorLogo" alt="" hidden><h2 id="inspectorName"></h2></div>
 <div class="hud-pages"><div id="hudDetails"><p id="inspectorDescription"></p>
 <div class="hud-stats"><div><strong id="inspectorInfo"></strong><span>Views</span></div><div><strong id="inspectorClicks"></strong><span>Visits</span></div><div><strong id="inspectorDate"></strong><span>Claimed</span></div></div><div id="inspectorBadges" class="hud-badges" aria-label="Top achievements"></div>
-<small id="inspectorContext"></small><div class="hud-actions"><a id="inspectorVisit" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg>Visit website</a><button id="inspectorShare" aria-label="Copy location link" title="Copy location link"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></svg></button><button id="deleteTestPlacement" hidden>Delete test</button></div>
-<button id="showNearby" aria-controls="hudNearby" aria-expanded="false">Nearby <span aria-hidden="true">&#8594;</span></button><small id="inspectorStatus" role="status"></small></div>
-<div id="hudNearby" inert aria-hidden="true"><div class="nearby-heading"><h3>Nearby</h3><button id="backNearby" aria-label="Back to placement"><span aria-hidden="true">&#8592;</span> Back</button></div><div id="nearbyPlacements"></div></div></div>
-</aside><section id="shareCard" class="share-card" hidden aria-label="Share placement"><button id="closeShareCard" type="button" aria-label="Close share card">&times;</button><div class="share-card-art"><img id="shareCardArtwork" alt=""></div><small>MILLION HEXAGONS</small><h2 id="shareCardName"></h2><p id="shareCardDescription"></p><div class="share-card-facts"><span><b id="shareCardCells"></b> hexagons owned</span><span><b id="shareCardLocation"></b> location</span></div><p id="shareCardUrl"></p><div class="share-card-actions"><button id="nativeSharePlacement" type="button">Share placement</button><button id="copySharePlacement" type="button">Copy link</button></div><small id="shareCardStatus" role="status"></small></section><details id="claimFeed" class="glass"><summary><span class="ticker-kicker">Live</span><span class="feed-title">Latest activity</span><span id="claimTicker" aria-label="Latest activity"><span class="ticker-track"></span></span><span class="feed-toggle" aria-hidden="true"></span></summary><div id="claimFeedItems"></div></details><section class="buy-panel glass" id="buyPanel" aria-hidden="true" inert aria-label="Placement studio">
-      <button class="close" id="closeBuy" aria-label="Close">×</button>
+<small id="inspectorContext"></small><div class="hud-actions"><a id="inspectorVisit" data-icon="visit" target="_blank" rel="noopener noreferrer">Visit website</a><button id="inspectorShare" data-icon="link" aria-label="Copy location link" title="Copy location link"></button><button id="deleteTestPlacement" hidden>Delete test</button></div>
+<button id="showNearby" aria-controls="hudNearby" aria-expanded="false">Nearby <span class="ico-slot" data-icon="arrow-right"></span></button><small id="inspectorStatus" role="status"></small></div>
+<div id="hudNearby" inert aria-hidden="true"><div class="nearby-heading"><h3>Nearby</h3><button id="backNearby" aria-label="Back to placement"><span class="ico-slot" data-icon="arrow-left"></span> Back</button></div><div id="nearbyPlacements"></div></div></div>
+</aside><section id="shareCard" class="share-card" hidden aria-label="Share placement"><button id="closeShareCard" type="button" data-icon="close" aria-label="Close share card"></button><div class="share-card-art"><img id="shareCardArtwork" alt=""></div><small>MILLION HEXAGONS</small><h2 id="shareCardName"></h2><p id="shareCardDescription"></p><div class="share-card-facts"><span><b id="shareCardCells"></b> hexagons owned</span><span><b id="shareCardLocation"></b> location</span></div><p id="shareCardUrl"></p><div class="share-card-actions"><button id="nativeSharePlacement" type="button">Share placement</button><button id="copySharePlacement" type="button">Copy link</button></div><small id="shareCardStatus" role="status"></small></section><details id="claimFeed" class="glass"><summary><span class="ticker-kicker">Live</span><span class="feed-title">Latest activity</span><span id="claimTicker" aria-label="Latest activity"><span class="ticker-track"></span></span><span class="feed-toggle" aria-hidden="true"></span></summary><div id="claimFeedItems"></div></details><section class="buy-panel glass" id="buyPanel" aria-hidden="true" inert aria-label="Placement studio">
+      <button class="close" id="closeBuy" data-icon="close" aria-label="Close"></button>
       <p class="eyebrow">PLACEMENT STUDIO</p>
       <div class="flow-progress" aria-label="Creation progress"><i class="active">1</i><span></span><i>2</i><span></span><i>3</i><small>Design</small><small>Place</small><small>Review</small></div>
 
       <div class="flow-screen" id="designStep" hidden>
         <header class="studio-heading"><h2 id="designTitle">Make it yours.</h2><span id="designIntro"></span></header>
         <div class="studio-setup">
-          <div id="logoControls"><label class="add-image" for="logoUpload"><span aria-hidden="true">&#43;</span><span id="addImageLabel">Add image</span></label><input id="logoUpload" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" aria-label="Add image" /></div>
+          <div id="logoControls"><label class="add-image" for="logoUpload"><span class="ico-slot" data-icon="plus"></span><span id="addImageLabel">Add image</span></label><input id="logoUpload" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" aria-label="Add image" /></div>
           <label class="studio-count" id="sizeControls">Cells <input id="hexAmount" type="number" min="1" max="100000" step="1" value="150" /></label>
 
           <label class="studio-colour" id="colourControls"><input id="brandColor" aria-label="Background colour" type="color" value="#5967b0" /><span>Background</span></label>
@@ -98,15 +98,15 @@
         <div class="studio-workspace">
           <div class="studio-toolbar" id="customPaintTools" role="toolbar" aria-label="Design tools">
             <button type="button" id="moveImageMode" aria-pressed="false">Image</button><button type="button" id="paintCells" aria-pressed="false">Paint</button><button type="button" id="editHexMode" aria-pressed="false">Add</button><button type="button" id="removeHexMode" aria-pressed="false">Remove</button><button type="button" id="panEditor" aria-pressed="true">Pan</button>
-            <span class="toolbar-spacer"></span><button type="button" id="undoPaint" disabled aria-label="Undo painting" title="Undo">&#8630;</button><button type="button" id="redoPaint" disabled aria-label="Redo painting" title="Redo">&#8631;</button>
-            <details class="studio-popover studio-more"><summary aria-label="More design actions">&#8943;</summary><div class="popover-content"><div id="logoOptions"><label>Layout<select id="logoTreatment"><option value="span">Across the area</option><option value="repeat">Repeat per cell</option></select></label><button type="button" id="resetLogo">Reset image</button></div><button type="button" id="fillCells">Paint all cells</button><button type="button" id="clearPaint">Reset cell colours</button><button type="button" id="removeImage" hidden>Remove image</button></div></details>
+            <span class="toolbar-spacer"></span><button type="button" id="undoPaint" data-icon="undo" disabled aria-label="Undo painting" title="Undo"></button><button type="button" id="redoPaint" data-icon="redo" disabled aria-label="Redo painting" title="Redo"></button>
+            <details class="studio-popover studio-more"><summary data-icon="more" aria-label="More design actions"></summary><div class="popover-content"><div id="logoOptions"><label>Layout<select id="logoTreatment"><option value="span">Across the area</option><option value="repeat">Repeat per cell</option></select></label><button type="button" id="resetLogo">Reset image</button></div><button type="button" id="fillCells">Paint all cells</button><button type="button" id="clearPaint">Reset cell colours</button><button type="button" id="removeImage" hidden>Remove image</button><button type="button" id="startOver">Start over</button></div></details>
           </div>
           <div class="studio-context">
             <div id="logoPositionControls" hidden><label>Image zoom <input id="logoScale" type="range" min="50" max="400" value="100" /><output id="logoScaleValue">100%</output></label><label>Rotate <input id="logoOrientation" type="range" min="-180" max="180" value="0" step="1"><output id="rotationValue">0&deg;</output></label></div>
             <div id="brushControls" hidden><label class="brush-swatch"><input id="brushColor" type="color" value="#ff4d6d" /><span id="paintColourChip"></span>Colour</label><button type="button" id="colourBrush" aria-pressed="true">Paint</button><button type="button" id="eraseCells" aria-pressed="false">Clear</button><button type="button" id="restoreCells" aria-pressed="false">Restore</button></div>
             <label id="areaBrushControls" hidden>Brush <input id="areaBrush" type="range" min="0" max="30" value="0"><output id="areaBrushValue">1 cell</output></label><small id="toolHint">Drag to explore your design.</small>
           </div>
-          <div class="hex-editor"><canvas id="designCanvas" width="1000" height="600" tabindex="0" aria-label="Design canvas. Scroll or pinch to zoom. Use Pan to move the canvas."></canvas><span id="editorEmpty">Add an image or choose a colour</span><div class="canvas-navigation"><button type="button" id="editorZoomOut" aria-label="Zoom out of design">&#8722;</button><button type="button" id="editorFit" title="Fit whole design">Fit</button><button type="button" id="editorZoomIn" aria-label="Zoom into design">&#43;</button></div></div>
+          <div class="hex-editor"><canvas id="designCanvas" width="1000" height="600" tabindex="0" aria-label="Design canvas. Scroll or pinch to zoom. Use Pan to move the canvas."></canvas><span id="editorEmpty">Add an image or choose a colour</span><div class="canvas-navigation"><button type="button" id="editorZoomOut" data-icon="minus" aria-label="Zoom out of design"></button><button type="button" id="editorFit" title="Fit whole design">Fit</button><button type="button" id="editorZoomIn" data-icon="plus" aria-label="Zoom into design"></button></div></div>
           <div class="canvas-caption"><span id="logoFootprintHelp">Scroll or pinch to zoom in to individual cells.</span><span id="editorZoomValue">100%</span></div>
         </div>
         <div class="design-footer"><div class="mini-price"><span id="designCount">150 cells</span><b id="price">$150</b></div><button class="primary" id="toPlacement">Find my spot &rarr;</button></div>
@@ -140,7 +140,7 @@
       </div>
     </section>
 
-    <div class="toast glass" id="toast" role="status"><b>Welcome to the world.</b><span>Your preview is on the globe for this session.</span><a id="placementWebsite" hidden target="_blank" rel="noopener noreferrer">Visit website</a><button id="dismissToast" aria-label="Dismiss confirmation">&times;</button></div>
+    <div class="toast glass" id="toast" role="status"><b>Welcome to the world.</b><span>Your preview is on the globe for this session.</span><a id="placementWebsite" hidden target="_blank" rel="noopener noreferrer">Visit website</a><button id="dismissToast" data-icon="close" aria-label="Dismiss confirmation"></button></div>
     <script type="module">
       const slowBoot=setTimeout(()=>{document.querySelector('#loadingMessage').textContent='Still loading the globe. This is taking longer than usual.';},8000);
       const failedBoot=setTimeout(()=>{
