@@ -88,7 +88,7 @@ scene.add(globe);
 const radius = 4;
 const selectionModeUniform = { value: 0 };
 const hoverCellUniform = { value: -2 };
-const globeMaterial = new THREE.MeshStandardMaterial({ color: '#071c2b', emissive:'#102735',emissiveIntensity:.85, roughness: .7, metalness: .04 });
+const globeMaterial = new THREE.MeshStandardMaterial({ color: '#071c2b', emissive:'#1c3545',emissiveIntensity:1, roughness: .7, metalness: .04 });
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius - .0005, 192, 128), globeMaterial);
 globe.add(sphere);
 
@@ -101,10 +101,14 @@ occupiedCells.set(occupancyBytes);
 if(millionFixture)occupiedCells.fill(255,0,CELL_COUNT);
 occupancyTexture.needsUpdate=true;
 
-scene.add(new THREE.HemisphereLight(0xe8fbff, 0x07121c, 2.7));
+scene.add(new THREE.HemisphereLight(0xe8fbff, 0x526b7b, 2.7));
 const key = new THREE.DirectionalLight(0xffffff, 3.6);
 key.position.set(-7, 8, 10);
 scene.add(key);
+// Soft opposing fill keeps the lower hemisphere readable while retaining shape.
+const fill = new THREE.DirectionalLight(0xc5e5ff, 2.4);
+fill.position.set(7, -6, -5);
+scene.add(fill);
 
 const stars = [];
 for (let i = 0; i < 950; i += 1) {
