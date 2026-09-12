@@ -71,6 +71,7 @@ The output directory is `coming-soon-dist/`. The configured production domains a
 ## Architecture map
 
 - `src/main.js` — product UI and scene coordination
+- `src/icons.js` — the interface icon set and its one rendering contract
 - `src/globe/` — topology loading, picking, detail, artwork tiles, zoom, samples, and tour
 - `src/placements/geometry.js` — placement bounds and shared geometry calculations
 - `public/topology/` — frozen topology and sample/runtime data
@@ -81,6 +82,6 @@ To rebuild delivery partitions from the existing frozen topology, run `npm.cmd r
 
 Published uploads retain close-up detail through source-sized, sparse tile refinement, with the same bounded streaming cache and no retained placement meshes.
 
-Exploration includes understated global metrics rotating every 14 seconds, SVG activity icons, and faint background hexagons. The HUD swaps details for a Nearby view with Back/Escape support without resizing. Sample views and highlights are illustrative; newly published previews show an unmeasured view count and browser-local website visits. Directional rotation uses one button, with slower close-range dragging.
+Exploration includes understated global metrics rotating every 14 seconds, SVG activity icons, and faint background hexagons. The HUD swaps details for a Nearby view with Back/Escape support without resizing. Sample views and highlights are illustrative; newly published previews show an unmeasured view count and browser-local website visits. Globe rotation is a single on/off toggle, with slower close-range dragging. Interface icons come from one set in `src/icons.js`, drawn on a 24x24 grid at a single stroke weight; markup declares an icon with `data-icon` and the module fills it in.
 
 Artwork scalability is an active launch blocker. The offline snapshot compiler, measured limits and reproduction commands are documented in [artwork performance](docs/ARTWORK-PERFORMANCE.md); the live site still uses the existing placement layer.

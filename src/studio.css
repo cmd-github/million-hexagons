@@ -196,7 +196,7 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 #placementInspector #inspectorInfo{font-size:15px}
 #placementInspector small{display:block;font-size:10px;line-height:1.5}
 #homeView{color:white!important}
-.globe-controls svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.globe-controls .ico{--ico:24px}
 #companyResults button{display:block;width:100%;height:auto;text-align:left;font:500 12px inherit;padding:9px 0;border-bottom:1px solid #ffffff20;border-radius:0}
 #companyResults{max-height:230px;overflow:auto}
 #companyDescription{display:block;width:100%;box-sizing:border-box;resize:vertical;min-height:54px;max-height:100px;border:1px solid #ffffff20;border-radius:8px;background:#ffffff08;color:white;padding:10px;font:inherit}
@@ -209,7 +209,7 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 }
 .globe-controls{z-index:22}
 .account-access{display:contents}
-.account-access>button svg{width:21px;height:21px}
+.account-access>button .ico{--ico:24px}
 .account-access>button.signed-in{color:var(--lime)}
 #accountPanel{position:absolute;right:calc(100% + 10px);top:0;width:270px;padding:17px;border:1px solid #d7ff5538;border-radius:14px;background:rgba(7,20,30,.97);box-shadow:0 18px 50px #0009;text-align:left;backdrop-filter:blur(20px)}
 #accountPanel b{display:block;font-size:13px;color:#f4faf7}
@@ -267,7 +267,7 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 #placementInspector .hud-stats{align-items:center;margin-bottom:8px}
 #placementInspector #inspectorInfo, #placementInspector #inspectorClicks{font-size:10px;font-weight:500;line-height:1.4}
 #placementInspector #inspectorDate, #placementInspector #inspectorHex{font-size:9px;color:#90a8ae;margin:4px 0}
-#pinInspector svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5}
+#pinInspector .ico{--ico:16px}
 .switch-track{width:27px;height:16px;border-radius:20px;background:#ffffff28;position:relative}
 .switch-track:after{content:'';position:absolute;left:3px;top:3px;width:10px;height:10px;border-radius:50%;background:#a8b5b8;transition:transform .15s}
 #pinInspector[aria-checked=true] .switch-track{background:#d7ff5555}
@@ -275,7 +275,7 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 #claimFeedItems button{width:100%;padding:8px 0;text-align:left;border:0;border-top:1px solid #ffffff16;background:none;color:#dce8e6;font:inherit;overflow-wrap:anywhere;display:flex;align-items:center;justify-content:space-between;gap:10px}
 #claimFeedItems small{font-size:8px;color:#90a8ae;border:1px solid #ffffff20;border-radius:4px;padding:2px 4px}
 #hexSearchStatus:empty, .panel-intro:empty, #designIntro:empty{display:none}
-.studio-toolbar>button svg, .hint svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.studio-toolbar>button .ico{--ico:20px}
 .studio-toolbar>button{min-width:40px}
 #pinInspector:focus-visible{outline:2px solid var(--lime);outline-offset:3px}
 @media(max-width:700px){
@@ -287,7 +287,7 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 @media(max-width:400px){
  .studio-toolbar{gap:3px}
  .studio-toolbar>button{min-width:28px;padding:6px}
- .studio-toolbar>button svg{width:18px;height:18px}
+ .studio-toolbar>button .ico{--ico:18px}
 }
 .switch-track{display:block;flex:0 0 27px}
 #placementInspector .hud-brand h2{clear:none;margin:0;line-height:1.2;font-size:18px}
@@ -319,7 +319,7 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 #inspectorContext{display:inline-block!important;padding:4px 7px;border:1px solid #ffffff20;border-radius:5px;margin:8px 0;color:#b4c8c5}
 .hud-actions{display:flex;align-items:center;gap:8px;margin-top:8px}
 #placementInspector #inspectorShare{font-size:16px;vertical-align:middle;display:grid;place-items:center;padding:9px}
-#inspectorShare svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7}
+#inspectorShare .ico{--ico:18px}
 #claimFeedItems .example-activity span{display:block}
 #claimFeedItems .example-activity small{display:block;border:0;padding:0;margin-top:5px;font-size:9px;color:#8da9a3}
 .globe-controls button[aria-pressed=true]{background:#d7ff5520;color:var(--lime)}
@@ -378,7 +378,7 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 #placementInspector #inspectorContext{border:0;padding:0;margin:0 0 12px;color:var(--lime);font-size:10px}
 #placementInspector .hud-actions{margin-top:0}
 #placementInspector .hud-actions a{display:flex;align-items:center;padding:10px 13px;border-color:#d7ff5544;color:var(--lime);justify-content:center;gap:8px;flex:1;font-size:12px}
-.hud-actions svg, .activity-icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.hud-actions .ico, .activity-icon .ico{--ico:18px}
 #placementInspector #showNearby{display:flex;width:100%;justify-content:space-between;align-items:center;border:0;border-top:1px solid #ffffff12;border-radius:0;background:none;margin-top:12px;padding:11px 0 0;color:#9ab3ae;font-size:11px}
 #placementInspector .nearby-heading{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px}
 .nearby-heading h3{font-size:12px;font-weight:600;margin:0}
@@ -399,7 +399,7 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 .hud-badges{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
 .hud-badges[hidden]{display:none}
 .hud-badge{display:inline-flex;align-items:center;gap:5px;min-height:25px;box-sizing:border-box;padding:4px 8px;border:1px solid #d7ff5570;border-radius:999px;background:#d7ff550a;color:var(--lime);font:700 9px Manrope,sans-serif;white-space:nowrap}
-.hud-badge svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.hud-badge .ico{--ico:14px}
 .staging-owner-access{margin-top:13px;padding:12px;border:1px solid #d7ff5535;border-radius:10px;background:#d7ff5508}
 .staging-owner-access label{margin-top:0}
 .staging-owner-access button{width:100%;margin-top:8px}
@@ -501,3 +501,11 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 .my-globe-metrics span{padding:7px 5px;border:1px solid #ffffff12;border-radius:8px;background:#061923;color:#819c98;font-size:8px;text-align:center}
 .my-globe-metrics b{display:block;margin-bottom:2px;color:#f4fff9;font-size:12px}
 
+
+/* One icon contract. Icons are authored in src/icons.js on a 24x24 grid and rendered here at
+   a single stroke weight; only --ico varies per context. The product previously carried six
+   sizes and four weights across inline SVG, JS strings and Unicode glyphs. */
+.ico{width:var(--ico,20px);height:var(--ico,20px);flex:none;fill:none;stroke:currentColor;
+  stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.ico .ico-fill{fill:currentColor;stroke:none}
+.ico-slot{display:inline-flex;align-items:center;--ico:16px}

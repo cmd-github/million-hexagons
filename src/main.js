@@ -13,6 +13,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import './style.css';
 import './studio.css';
+import { icon, renderIcons, setIcon } from './icons.js';
+
+// Fill every [data-icon] before the boot overlay lifts, so no button flashes empty.
+renderIcons(document);
 
 const canvas = document.querySelector('#world');
 let initialPlacementFocusAllowed=true;
@@ -654,10 +658,10 @@ document.querySelector('#claimCell').addEventListener('click', (event) => {
   if(anchor)openBuy(anchor);
 });
 document.querySelector('#closeBuy').addEventListener('click', closeBuy);
-let rotationCycle=0;
+// Rotation is a plain on/off toggle. It used to cycle through both directions, which needed
+// three icons to express and gave the button a state most visitors never looked for.
 document.querySelector('#rotationToggle').addEventListener('click',()=>{
-  if(controls.autoRotate){rotationCycle=controls.autoRotateSpeed<0?1:3;controls.autoRotate=false;}
-  else {rotationCycle=rotationCycle===1?2:0;controls.autoRotateSpeed=rotationCycle===0?-.22:.22;controls.autoRotate=true;}
+  controls.autoRotate=!controls.autoRotate;
   updateRotationControl();
 });
 document.querySelector('.brand').addEventListener('click',event=>{event.preventDefault();if(document.body.classList.contains('creating'))closeBuy();document.querySelector('#homeView').click();});
@@ -1746,12 +1750,13 @@ const rotationToggle=document.querySelector('#rotationToggle');
 let displayedRotationState=null;
 function updateRotationControl(){
   const rotating=controls.autoRotate&&!demoTour.active;
-  const state=String(rotating)+Math.sign(controls.autoRotateSpeed);if(state===displayedRotationState)return;displayedRotationState=state;
-  rotationToggle.textContent=rotating?(controls.autoRotateSpeed<0?'\u21ba':'\u21bb'):'\u23f8';
+  const state=String(rotating);if(state===displayedRotationState)return;displayedRotationState=state;
+  // The icon shows what pressing the button does, matching its label. It used to show the
+  // current state instead, so a stopped globe displayed a pause symbol.
+  setIcon(rotationToggle,rotating?'rotate-pause':'rotate-start');
   rotationToggle.setAttribute('aria-pressed',String(rotating));
-  const next=rotating?'Pause globe rotation':rotationCycle===1?'Rotate globe right':'Rotate globe left';
+  const next=rotating?'Pause globe rotation':'Rotate globe';
   rotationToggle.setAttribute('aria-label',next);rotationToggle.title=next;
-
 }
 let lastTopologyTrim=0,topologyTrimReady=false;
 function animate() {
@@ -2038,8 +2043,7 @@ function renderCompanyResults(){
 }
 hexSearchInput.addEventListener('input',()=>{hexSearchInput.removeAttribute('aria-invalid');hexSearchStatus.textContent='';renderCompanyResults();});
 function activityIcon(kind){
- const paths={claim:'<path d="m12 2 9 5v10l-9 5-9-5V7z M8 12l3 3 5-6"/>',trend:'<path d="m3 17 6-6 4 4 8-10 M15 5h6v6"/>',milestone:'<path d="M8 3h8v5a4 4 0 0 1-8 0z M8 5H4v2a4 4 0 0 0 4 4 M16 5h4v2a4 4 0 0 1-4 4 M12 12v6 M8 21v-3h8v3z"/>',globe:'<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>'};
- return '<svg viewBox="0 0 24 24" aria-hidden="true">'+paths[kind]+'</svg>';
+ return icon(kind==='trend'?'trend':kind==='milestone'?'milestone':'claim');
 }
 function renderClaimFeed(){
   const target=document.querySelector('#claimFeedItems');target.replaceChildren();
@@ -2118,11 +2122,13 @@ document.querySelector('#logoOrientation').addEventListener('input',event=>{
 });
 
 // Icons keep the tool rail compact; accessible names and active-mode feedback remain.
-document.querySelector('#moveImageMode').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v18H3z M3 16l6-6 5 5 3-3 4 4 M15 7h.01"/></svg>';document.querySelector('#moveImageMode').setAttribute('aria-label','Move image');document.querySelector('#moveImageMode').title='Move image';
-document.querySelector('#paintCells').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 3 7 7-10 10H4v-7z M12 5l7 7"/></svg>';document.querySelector('#paintCells').setAttribute('aria-label','Paint');document.querySelector('#paintCells').title='Paint';
-document.querySelector('#editHexMode').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 3 12 0 5 9-5 9H6L1 12z M8 12h8 M12 8v8"/></svg>';document.querySelector('#editHexMode').setAttribute('aria-label','Add hexagons');document.querySelector('#editHexMode').title='Add hexagons';
-document.querySelector('#removeHexMode').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 3 12 0 5 9-5 9H6L1 12z M8 12h8"/></svg>';document.querySelector('#removeHexMode').setAttribute('aria-label','Remove hexagons');document.querySelector('#removeHexMode').title='Remove hexagons';
-document.querySelector('#panEditor').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20 M2 12h20 M8 6l4-4 4 4 M8 18l4 4 4-4 M6 8l-4 4 4 4 M18 8l4 4-4 4"/></svg>';document.querySelector('#panEditor').setAttribute('aria-label','Pan');document.querySelector('#panEditor').title='Pan';
+// Studio tools share the icon set; label and title stay beside the drawing.
+for(const [id,name,label] of [['moveImageMode','image','Move image'],['paintCells','paint','Paint'],['editHexMode','add','Add hexagons'],['removeHexMode','remove','Remove hexagons'],['panEditor','pan','Pan']]){
+  const button=document.querySelector(`#${id}`);
+  button.innerHTML=icon(name);
+  button.setAttribute('aria-label',label);
+  button.title=label;
+}
 
 let globalMetricExamples=['Loading live totals…'];
 let globalMetricIndex=0;

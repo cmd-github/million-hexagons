@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { placementPose, cinematicEase } from './camera-flight.js';
+import { setIcon } from '../icons.js';
 
 export function createDemoTour({camera,globe,controls,radius,button,wideDistance,cancelZoom,loadStops,prepareDetail=()=>{},onStop=()=>{},timeScale=1}) {
   const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');
@@ -8,11 +9,15 @@ export function createDemoTour({camera,globe,controls,radius,button,wideDistance
   const detailRoute=[['travel',4],['approach',3],['hold',8],['pullback',3]];
   const overviewRoute=[['travel',7],['pass',8],['pullback',5]];
   const route=()=>stops[index].overview?overviewRoute:stops[index].detail?detailRoute:normalRoute;
-  const label=()=>{
-    button.textContent=loading?'…':active?'■':'✈';
+  // Two icons only: start and stop. The tour can be cancelled from the moment it is pressed,
+  // so loading keeps the stop icon rather than introducing a third mark, and a failure falls
+  // back to start with the reason in the label where assistive tech reads it.
+  const label=(message)=>{
+    setIcon(button,loading||active?'tour-stop':'tour-start');
     button.setAttribute('aria-pressed',String(active));
-    button.setAttribute('aria-label',loading?'Preparing globe tour':active?'Stop globe tour':'Start globe tour');
-    button.title=loading?'Preparing globe tour':active?'Stop globe tour':'Start globe tour';
+    const text=message||(loading?'Preparing globe tour':active?'Stop globe tour':'Start globe tour');
+    button.setAttribute('aria-label',text);
+    button.title=text;
   };
   function stop(){generation++;active=false;loading=false;segment=null;controls.enableDamping=true;label();}
   function prepare(){
@@ -40,7 +45,7 @@ export function createDemoTour({camera,globe,controls,radius,button,wideDistance
       cancelZoom();controls.autoRotate=false;controls.enableDamping=false;controls.update();
       loading=false;active=true;index=0;phase=0;elapsed=0;last=performance.now();prepare();label();
       batch=1;button.dataset.batch=String(batch);
-    }catch{if(token===generation){stop();button.textContent='↻';button.setAttribute('aria-label','Retry globe tour');button.title='Retry globe tour';}}
+    }catch{if(token===generation){stop();label('Could not start the tour. Press to try again.');}}
   }
   async function replenish(){
     const token=generation;
