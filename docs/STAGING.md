@@ -2,6 +2,8 @@
 
 This is a separately deployable staging product with Stripe test checkout. Test-owner claims persist in Firestore and publish immutable derived artwork through private Firebase Storage and R2. The baked sample catalogue has been replaced by owner-editable test placements; see [editable test brands](EDITABLE-TEST-BRANDS.md) for rollout evidence and retry instructions. It does not alter Firebase Hosting or the coming-soon site.
 
+Latest frontend deployment (12 September 2026): `c1c9afa2-a3b3-41d8-96bc-bb59c4d4f8cf`, from loader commit `343d681d`. The existing renderer remains enabled (`VITE_ARTWORK_SNAPSHOTS=false`); no backend/compiler activation was performed. All 1,549 immutable runtime objects and live health/CDN checks passed. Live desktop/mobile cold and repeat visits revealed populated artwork; withholding 19 artwork downloads kept the branded loader visible until release, with zero page errors. Cold reveal was 7.85 s desktop / 7.38 s emulated mobile; repeat 3.37 s / 3.90 s (single runs, no artificial network or CPU throttling). Evidence: `artifacts/artwork-loading-live/` and `node scripts/artwork-loading-live-qa.mjs`. Physical devices remain unverified.
+
 ## One-time account setup
 
 1. Sign in to Cloudflare and enable R2. Create **million-hexagons-staging-public**. Keep source uploads out of this bucket. The private source bucket and upload API belong to the later durable-artwork phase.
