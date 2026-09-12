@@ -19,9 +19,6 @@
       #loadingError{max-width:260px;margin:0;text-align:center;color:#c3d0d4}
       #loadingMessage{max-width:280px;margin:0;text-align:center;color:#c3d0d4}
       #appLoading[data-context=editor] #loadingMessage{display:none}
-      #artworkLoadingStatus{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:80;max-width:calc(100vw - 40px);box-sizing:border-box;padding:10px 16px;border:1px solid #d4ff5844;border-radius:12px;background:#071c2bf2;color:#d4ff58;font:13px system-ui,sans-serif;text-align:center}
-      #artworkLoadingStatus[hidden]{display:none}
-      #artworkLoadingStatus button{margin-left:8px;background:none;border:0;color:inherit;text-decoration:underline;cursor:pointer}
       #loadingRetry{border:1px solid #d4ff5866;border-radius:9px;padding:9px 18px;background:#d4ff5815;color:#d4ff58;cursor:pointer}
       @keyframes hex-trace{to{stroke-dashoffset:-168}}
       @keyframes hex-breathe{50%{opacity:.4;transform:scale(.8)}}
@@ -33,7 +30,6 @@
       <svg class="loading-hex" viewBox="0 0 60 60" aria-hidden="true"><polygon points="30,3 54,16.5 54,43.5 30,57 6,43.5 6,16.5" opacity=".15"/><polygon class="hex-trail" points="30,3 54,16.5 54,43.5 30,57 6,43.5 6,16.5"/><polygon class="hex-core" points="30,21 38,25.5 38,34.5 30,39 22,34.5 22,25.5"/></svg>
       <p id="loadingMessage">Loading the globe…</p><p id="loadingError" hidden></p><button id="loadingRetry" hidden onclick="location.reload()">Try again</button>
     </div>
-    <div id="artworkLoadingStatus" role="status" hidden><span>Loading artwork…</span><button hidden>Try again</button></div>
     <canvas id="world" aria-label="Interactive advertising globe. Drag to rotate; use the zoom controls to explore."></canvas>
     <header class="topbar">
       <a class="brand" href="#" aria-label="Million Hexagons home"><span class="mark">MH</span><span><b>MILLION</b><strong>HEXAGONS</strong></span></a>

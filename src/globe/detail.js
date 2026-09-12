@@ -69,10 +69,14 @@ export function createCellDetail(topology, globe, radius, textures, selectionMod
       const dt=lastFrame===null?0:Math.min(.1,(time-lastFrame)/1000);lastFrame=time;
       const distance = camera.position.length() - radius;
       const direction = globe.worldToLocal(camera.position.clone()).normalize();
-      const cap = Math.min(.32, Math.max(.055, distance / radius * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.max(camera.aspect, 1) * 1.9));
+      const viewCap = Math.min(.32, Math.max(.055, distance / radius * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.max(camera.aspect, 1) * 1.9));
+      if(!wanted||direction.distanceToSquared(wanted.direction)>.0003||Math.abs(viewCap-wanted.cap)>.008)wanted={direction:direction.clone(),cap:viewCap,since:time};
+      // Build the exact central cells during zoom, then extend the patch once
+      // the view settles. An obsolete wide download must not delay first lines.
+      const cap=!hasGeometry||moving||time-wanted.since<140?Math.min(viewCap,.075):viewCap;
       // A zoom/flight can invalidate a large incremental patch before it is
       // finished. Stop that work instead of making the new view wait behind it.
-      if(job&&(direction.distanceToSquared(job.direction)>.0025||Math.abs(cap-job.cap)>.02)){
+      if(job&&(direction.distanceToSquared(job.direction)>.0025||job.cap-cap>.02)){
         job.iterator.return();job=null;lastTime=-Infinity;
       }
       if(job) {
@@ -90,24 +94,22 @@ export function createCellDetail(topology, globe, radius, textures, selectionMod
         }
       }
       const pixels = height * .0038 / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * distance);
-      const visible = THREE.MathUtils.smoothstep(pixels, 1.5, 8);
-      opacity+=(visible-opacity)*(1-Math.exp(-dt/ .3));
-      if(hasGeometry)reveal=Math.min(1,reveal+dt/.8);
+      const visible = THREE.MathUtils.smoothstep(pixels, 1.25, 4);
+      opacity+=(visible-opacity)*(1-Math.exp(-dt/ .12));
+      if(hasGeometry)reveal=Math.min(1,reveal+dt/.15);
       mesh.visible = hasGeometry&&opacity>.001;
       material.uniforms.visibility.value = opacity*THREE.MathUtils.smoothstep(reveal,0,1);
       // Prepare the bounded patch before its outlines become noticeable.
       if (pixels<1.1) return;
       if(job)return;
-      if(moving)return;
       if ((direction.distanceToSquared(previous) < .0003 && Math.abs(cap - previousCap) < .008) || time - lastTime < 140) return;
       if (topology.ensureCap) {
-        if (!wanted || direction.distanceToSquared(wanted.direction) > .0003 || Math.abs(cap - wanted.cap) > .008) wanted={direction:direction.clone(),cap,since:time};
-        // Let flights/rapid zoom settle before fetching their transient wide view.
-        if (time-wanted.since<100 || time<retryAt) return;
+        if (time<retryAt) return;
+        if(topology.hasCap?.(direction.toArray(),cap+.025))ready={direction:direction.clone(),cap};
         if (!ready || direction.distanceToSquared(ready.direction)>.0001 || Math.abs(cap-ready.cap)>.004) {
-          if (!loading) {
+          if (!loading||direction.distanceToSquared(loading.direction)>.0025||loading.cap-cap>.02) {
             const request={direction:direction.clone(),cap};loading=request;
-            topology.ensureCap(request.direction.toArray(),request.cap+.025).then(()=>{ready=request;}).catch(()=>{retryAt=performance.now()+1500;}).finally(()=>{loading=null;});
+            topology.ensureCap(request.direction.toArray(),request.cap+.025,10).then(()=>{if(loading===request)ready=request;}).catch(()=>{if(loading===request)retryAt=performance.now()+1500;}).finally(()=>{if(loading===request)loading=null;});
           }
           return;
         }

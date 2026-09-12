@@ -38,14 +38,15 @@ try{for(const mobile of [false,true]){
   await page.screenshot({path:`artifacts/artwork-loading/${mobile?'mobile':'desktop'}-ready.png`});
   targetGate=new Promise(resolve=>releaseTarget=resolve);
   await page.evaluate(id=>{location.hash=`placement=${id}`;},fixtures[0].placementId);
-  await page.locator('#artworkLoadingStatus').waitFor({state:'visible'});
+  await page.waitForTimeout(500);
+  assert.equal(await page.locator('#artworkLoadingStatus').count(),0);
   assert.equal(await page.locator('#appLoading').isVisible(),false);
-  releaseTarget();await page.locator('#artworkLoadingStatus').waitFor({state:'hidden',timeout:90000});
+  releaseTarget();await page.waitForFunction(title=>document.querySelector('#inspectorName')?.textContent===title,fixtures[0].title,{timeout:90000});
   fail=true;await page.goto(origin);await page.locator('#loadingRetry').waitFor({state:'visible',timeout:90000});
   await page.screenshot({path:`artifacts/artwork-loading/${mobile?'mobile':'desktop'}-error.png`});
   fail=false;empty=true;await page.locator('#loadingRetry').click();
   await page.locator('#appLoading').waitFor({state:'hidden',timeout:90000});
-  assert.deepEqual(errors,[]);report.push({mobile,previewGate:true,slowStatus:true,locationStatus:true,retry:true,emptyGlobe:true,reducedMotion:mobile});
+  assert.deepEqual(errors,[]);report.push({mobile,previewGate:true,slowStatus:true,noBrowsingMessage:true,retry:true,emptyGlobe:true,reducedMotion:mobile});
   await page.close();
 }}finally{await fs.writeFile('artifacts/artwork-loading/report.json',JSON.stringify(report,null,2));await browser.close();await server.close();}
 console.log(JSON.stringify(report,null,2));

@@ -95,3 +95,11 @@ test('delivery allowlist includes regional assets and excludes the monolithic to
   assert.ok(files.includes('topology/regions-v1/1535.gz'));
   assert.ok(!files.includes('topology/geodesic-v1.packed.gz'));
 });
+
+test('visible grid requests promote queued regions without duplicating downloads',async()=>{
+ let release;const gate=new Promise(resolve=>release=resolve),order=[];
+ const grid=new RegionalTopology(manifest,index,async(path,options)=>{order.push(Number(path.match(/\/(\d+)\.gz$/)[1]));await gate;return readRegion(path,options);});
+ const requests=[0,1,2,3,4,5].map(key=>grid.loadRegion(key));
+ requests.push(grid.loadRegion(5,10));release();await Promise.all(requests);
+ assert.deepEqual(order,[0,1,2,3,5,4]);assert.equal(grid.stats.requests,6);
+});

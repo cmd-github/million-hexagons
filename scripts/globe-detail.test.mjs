@@ -19,3 +19,15 @@ test('a close zoom replaces unfinished wide geometry without waiting for its ful
  assert.ok(detail.mesh.geometry.attributes.position.count<50000,'Built patch must match the close viewport');
  detail.mesh.geometry.dispose();detail.mesh.material.dispose();
 });
+
+test('exact central geometry is prepared while a camera flight is still moving',async()=>{
+ const bytes=await readFile(new URL('../public/topology/geodesic-v1.bin',import.meta.url));
+ const manifest=JSON.parse(await readFile(new URL('../public/topology/geodesic-v1.json',import.meta.url),'utf8'));
+ const topology=new SphericalTopology(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),manifest);
+ const globe=new THREE.Group(),camera=new THREE.PerspectiveCamera(38,1.6,.1,100);camera.position.set(0,0,5);
+ const detail=createCellDetail(topology,globe,4,{occupancy:null,selection:null},{value:0},{value:-2});
+ for(let frame=0;frame<60&&!detail.mesh.geometry.attributes.position;frame++)detail.update(camera,900,1000+frame*16,true);
+ assert.ok(detail.mesh.geometry.attributes.position,'Flights must not defer all grid preparation');
+ assert.ok(detail.mesh.geometry.attributes.position.count<50000,'First patch stays bounded');
+ detail.mesh.geometry.dispose();detail.mesh.material.dispose();
+});

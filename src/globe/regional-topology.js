@@ -61,11 +61,11 @@ export class RegionalTopology extends SphericalTopology {
     }
     throw Error('Topology picking did not converge');
   }
-  async loadRegion(key) {
+  async loadRegion(key, priority = 0) {
     if (this.regions.has(key)) { this.regions.get(key).used = performance.now(); return; }
-    if (this.pending.has(key)) return this.pending.get(key);
+    if (this.pending.has(key)) { const queued=this.waiters.find(item=>item.key===key);if(queued)queued.priority=Math.max(queued.priority,priority);return this.pending.get(key); }
     const promise = (async () => {
-      if (this.active >= 4) await new Promise(resolve => this.waiters.push(resolve));
+      if (this.active >= 4) await new Promise(resolve => this.waiters.push({key,priority,resolve}));
       else this.active++;
       try {
         const meta = this.manifest.tiles[key];
@@ -85,7 +85,7 @@ export class RegionalTopology extends SphericalTopology {
         this.regions.set(key, region);
         this.stats.loadedCells += region.ids.length; this.stats.decodedBytes += buffer.byteLength;
       } catch (error) { this.stats.errors++; throw error; }
-      finally { const next = this.waiters.shift(); if (next) next(); else this.active--; }
+      finally { this.waiters.sort((a,b)=>b.priority-a.priority);const next = this.waiters.shift(); if (next) next.resolve(); else this.active--; }
     })().finally(() => this.pending.delete(key));
     this.pending.set(key, promise);
     return promise;
@@ -100,7 +100,7 @@ export class RegionalTopology extends SphericalTopology {
     return ids.some(id=>regions.has(this.regionOf(id)));
   }
   hasCap(direction, cap) { return this.regionsForCap(direction, cap).every(i => this.regions.has(i)); }
-  async ensureCap(direction, cap) { await Promise.all(this.regionsForCap(direction, cap).map(i => this.loadRegion(i))); }
+  async ensureCap(direction, cap, priority = 0) { const regions=this.regionsForCap(direction,cap).sort((a,b)=>dot(direction,bounds[b].direction)-dot(direction,bounds[a].direction));await Promise.all(regions.map(i => this.loadRegion(i,priority))); }
   async ensureCells(ids) { await Promise.all([...new Set(ids.map(id => this.regionOf(typeof id === 'number' ? id : id.id)))].map(i => this.loadRegion(i))); }
   async run(operation) {
     this.readers++;
