@@ -84,3 +84,5 @@ Published uploads retain close-up detail through source-sized, sparse tile refin
 Exploration includes understated global metrics rotating every 14 seconds, SVG activity icons, and faint background hexagons. The HUD swaps details for a Nearby view with Back/Escape support without resizing. Sample views and highlights are illustrative; newly published previews show an unmeasured view count and browser-local website visits. Directional rotation uses one button, with slower close-range dragging.
 
 Artwork scalability is an active launch blocker. The opt-in snapshot lifecycle, compiler worker, measured limits and reproduction commands are documented in [artwork performance](docs/ARTWORK-PERFORMANCE.md); the live site still uses the existing placement layer.
+
+Startup keeps the branded loader visible until the visible artwork preview is ready, then continues sharpening in the background. Slow or failed loads offer status and retry; subsequent artwork loading does not block exploration.

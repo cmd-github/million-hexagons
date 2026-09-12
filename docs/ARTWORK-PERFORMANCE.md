@@ -4,6 +4,8 @@
 
 ## Continuation — 12 September 2026
 
+Startup now hands over from the branded loader only after visible preview coverage is rendered. Coarse snapshot ancestors count as a preview, so sharp-tile downloads continue after reveal. Legacy placement loading waits for visible artwork, or the requested placement on a direct link; genuinely empty inventory is allowed. Later navigation shows a nonblocking status. Eight-second slow-load copy and failure/thirty-second Retry prevent an unexplained endless animation. This improves the loading experience without changing the performance budgets. Reproduce with `node scripts/artwork-loading-qa.mjs` and `node scripts/snapshot-lifecycle-qa.mjs` after preparing the local snapshot fixture; screenshots are under `artifacts/artwork-loading/` and `artifacts/snapshot-lifecycle/`.
+
 Recovered the interrupted work from `million-hexagons-fixture-release` on branch `artwork-performance-investigation`; the separate UI branch is untouched.
 
 - Purchases, published versions, moderation and deletions record an artwork revision in the authoritative transaction. The compiler claims a renewable lease, rejects a catalogue that changes during export, uploads immutable checksummed objects and activates a release transactionally. Changes arriving after export remain deltas. Expired workers cannot activate.

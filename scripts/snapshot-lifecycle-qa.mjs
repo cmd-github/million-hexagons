@@ -13,14 +13,21 @@ const target=records.find(r=>r.cells.length>=48&&r.cells.length<200);
 const editedImage='data:image/png;base64,'+(await sharp({create:{width:128,height:64,channels:4,background:'#ff0000'}}).png().toBuffer()).toString('base64');
 assert.ok(target,'A small real placement is required');
 manifest.revision=10;manifest.occupancySha256=crypto.createHash('sha256').update(gunzipSync(await fs.readFile(`${latest.base}/occupancy.gz`))).digest('hex');
-const server=await createServer({server:{host:'127.0.0.1',port:0,watch:null},define:{'import.meta.env.VITE_STAGING_SANDBOX':'true','import.meta.env.VITE_ARTWORK_SNAPSHOTS':JSON.stringify('true'),'import.meta.env.VITE_STAGING_API_URL':JSON.stringify('/__qa/artwork')},plugins:[{name:'lifecycle-probe',enforce:'pre',transform(code,id){if(id.endsWith('/src/main.js'))return code+'\nwindow.snapshotFocus=async id=>{await prepareLocation(id);performanceQA.focus(topology.centre(id),.08);};window.snapshotProbe=()=>({current:snapshotRuntime?.current?.revision,visible:snapshotRuntime?.current?.tiles.group.visible,changes:snapshotRuntime?.current?.changes.children.length,inventory:stagingInventoryLoaded,sold,tiles:snapshotRuntime?.current?.tiles.stats});';}}]});
+const server=await createServer({server:{host:'127.0.0.1',port:0,watch:null,hmr:false},define:{'import.meta.env.VITE_STAGING_SANDBOX':'true','import.meta.env.VITE_ARTWORK_SNAPSHOTS':JSON.stringify('true'),'import.meta.env.VITE_STAGING_API_URL':JSON.stringify('/__qa/artwork')},plugins:[{name:'lifecycle-probe',enforce:'pre',transform(code,id){if(id.endsWith('/src/main.js'))return code+'\nwindow.snapshotFocus=async id=>{await prepareLocation(id);performanceQA.focus(topology.centre(id),.08);};window.snapshotProbe=()=>({current:snapshotRuntime?.current?.revision,visible:snapshotRuntime?.current?.tiles.group.visible,changes:snapshotRuntime?.current?.changes.children.length,inventory:stagingInventoryLoaded,sold,tiles:snapshotRuntime?.current?.tiles.stats});';}}]});
 await server.listen();const origin=`http://127.0.0.1:${server.httpServer.address().port}`;
 const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}),report=[];
 await fs.mkdir('artifacts/snapshot-lifecycle',{recursive:true});
 try{for(const mobile of [false,true]){
   const page=await browser.newPage({viewport:mobile?{width:390,height:844}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile}),errors=[];
   let revision=10,removed=false,offline=false,catalogueRequests=0,mode='deleted',rollover=false,failManifest=false,manifestFailures=0;
+  let releasePreview,releaseDetail;
+  const previewGate=new Promise(resolve=>releasePreview=resolve),detailGate=new Promise(resolve=>releaseDetail=resolve);
   page.on('pageerror',error=>errors.push(error.message));
+  await page.route(`**/${latest.base}/**`,async route=>{
+    const relative=route.request().url().split(`${latest.base}/`)[1];
+    if(relative.endsWith('.webp'))await(relative.startsWith('preview/')?previewGate:detailGate);
+    await route.continue();
+  });
   await page.route(`**/${latest.base}/manifest.json`,route=>route.fulfill({json:manifest}));
   await page.route('**/__qa/replacement/**',async route=>{
     if(failManifest&&route.request().url().endsWith('/manifest.json')){manifestFailures++;return route.fulfill({status:503,body:'Unavailable'});}
@@ -41,7 +48,14 @@ try{for(const mobile of [false,true]){
     if(body.action==='public-placement')return route.fulfill({json:{placement:target}});
     return route.fulfill({json:{ok:true,placements:[]}});
   });
-  await page.goto(origin);await page.waitForFunction(()=>window.snapshotProbe?.().current===10&&snapshotProbe().visible,{timeout:90000});
+  await page.goto(origin);await page.waitForSelector('#world[data-ready=true]',{state:'attached',timeout:90000});
+  assert.equal(await page.locator('#appLoading').isVisible(),true,'A rendered empty globe must remain covered');
+  await page.screenshot({path:`artifacts/snapshot-lifecycle/${mobile?'mobile':'desktop'}-loader.png`});
+  releasePreview();
+  await page.locator('#appLoading').waitFor({state:'hidden',timeout:90000});
+  assert.ok((await page.evaluate(()=>snapshotProbe())).tiles.fallback>0,'Preview must reveal before sharp tiles finish');
+  releaseDetail();
+  await page.waitForFunction(()=>window.snapshotProbe?.().current===10&&snapshotProbe().visible,{timeout:90000});
   const initial=await page.evaluate(()=>snapshotProbe());assert.equal(catalogueRequests,0);assert.equal(initial.inventory,true);
   await page.evaluate(id=>{location.hash=`placement=${id}`;},target.placementId);
   await page.waitForFunction(title=>document.querySelector('#inspectorName')?.textContent===title,target.title,{timeout:90000});
