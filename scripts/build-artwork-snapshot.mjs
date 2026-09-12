@@ -9,9 +9,13 @@ import {SphericalTopology} from '../src/globe/topology.js';
 import {cubeProject,tileKey} from '../src/globe/cube.js';
 import {newTree,setNode,SNAPSHOT_MAX_LEVEL} from '../src/globe/snapshot-tree.js';
 import {regionForPoint} from '../src/globe/region-format.js';
+import {encodeArtworkTile} from './artwork-tile-encoding.mjs';
 
 const api='https://europe-west1-million-hexagons.cloudfunctions.net/stagingPlacements';
 const records=[],seen=new Set();let cursor=null;
+const exportBundle=process.env.MH_ARTWORK_EXPORT?JSON.parse(await fs.readFile(process.env.MH_ARTWORK_EXPORT,'utf8')):null;
+if(exportBundle)records.push(...exportBundle.records);
+else{
 do{
   const response=await fetch(api,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'public-list',pageSize:1000,cursor})});
   if(!response.ok)throw Error('Public catalogue unavailable');const page=await response.json();
@@ -19,10 +23,11 @@ do{
   for(const record of page.placements){if(seen.has(record.placementId))throw Error('Repeated placement in export');seen.add(record.placementId);records.push(record);}
   if(page.nextCursor&&page.nextCursor===cursor)throw Error('Export cursor did not advance');cursor=page.nextCursor;
 }while(cursor);
+}
 records.sort((a,b)=>a.placementId.localeCompare(b.placementId));
 const bytes=await fs.readFile('public/topology/geodesic-v1.bin'),canonical=JSON.parse(await fs.readFile('public/topology/geodesic-v1.json','utf8'));
 const grid=new SphericalTopology(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),canonical);
-const output='artifacts/artwork-snapshot',tiles=new Map(),tree=newTree(),occupied=new Uint8Array(125000),boundsByRecord=new Map(),sources=new Map();
+const output=process.env.MH_SNAPSHOT_OUTPUT||'artifacts/artwork-snapshot',tiles=new Map(),tree=newTree(),occupied=new Uint8Array(125000),boundsByRecord=new Map(),sources=new Map();
 await fs.mkdir(output,{recursive:true});
 const inputs=[];
 for(const record of records){
@@ -33,7 +38,7 @@ for(const record of records){
   if(!['webp','png','jpeg'].includes(metadata.format))throw Error('Unsupported snapshot source');
   const sha256=crypto.createHash('sha256').update(data).digest('hex');
   await fs.mkdir(`${output}/sources`,{recursive:true});await fs.writeFile(`${output}/sources/${record.placementId}.${metadata.format}`,data);
-  sources.set(record.placementId,{...record,sourcePixels:metadata.width*metadata.height,artworkDataUrl:`/artifacts/artwork-snapshot/sources/${record.placementId}.${metadata.format}`});
+  sources.set(record.placementId,{...record,sourcePixels:metadata.width*metadata.height,artworkDataUrl:`/${output}/sources/${record.placementId}.${metadata.format}`});
   const faces=[];
   for(let face=0;face<6;face++){
     let left=Infinity,right=-Infinity,top=Infinity,bottom=-Infinity;
@@ -52,9 +57,9 @@ for(const record of records){
   boundsByRecord.set(record.placementId,faces);inputs.push({placementId:record.placementId,artworkDataUrl:record.artworkDataUrl,sha256,cells:record.cells});
 }
 for(let face=0;face<6;face++){tiles.set(tileKey(face,0,0,0),{face,level:0,x:0,y:0});setNode(tree,face,0,0,0);}
-const compilerFiles=['scripts/build-artwork-snapshot.mjs','scripts/snapshot-baker.js','src/globe/tile-baker.js','src/globe/cube.js','src/globe/snapshot-tree.js'];
+const compilerFiles=['scripts/build-artwork-snapshot.mjs','scripts/snapshot-baker.js','scripts/artwork-tile-encoding.mjs','src/globe/tile-baker.js','src/globe/cube.js','src/globe/snapshot-tree.js'];
 const compilerHash=crypto.createHash('sha256');for(const file of compilerFiles)compilerHash.update(await fs.readFile(file));
-const snapshotId=crypto.createHash('sha256').update(JSON.stringify({compiler:compilerHash.digest('hex'),canonical:canonical.sha256,records,inputs})).digest('hex');
+const snapshotId=crypto.createHash('sha256').update(JSON.stringify({revision:exportBundle?.revision??null,compiler:compilerHash.digest('hex'),canonical:canonical.sha256,records,inputs})).digest('hex');
 const base=`${output}/${snapshotId}`;await fs.mkdir(base,{recursive:true});
 // Traverse contributing records down the quadtree. Never scan the complete
 // catalogue once per output tile (which would be O(placements * all tiles)).
@@ -78,7 +83,7 @@ try{
     {
       const candidates=tileCandidates.get(key).map(r=>sources.get(r.placementId));
       const encoded=await page.evaluate(({tile,records})=>snapshotBaker.capture(tile,records),{tile,records:candidates});
-      data=await sharp(Buffer.from(encoded,'base64')).webp({lossless:true}).toBuffer();
+      data=await encodeArtworkTile(Buffer.from(encoded,'base64'));
     }
     await fs.writeFile(file,data);hashes.push({path:`${key}.webp`,sha256:crypto.createHash('sha256').update(data).digest('hex'),bytes:data.length});
     if(++done%50===0)console.log(`${done}/${tiles.size} snapshot tiles`);
@@ -92,6 +97,10 @@ await fs.mkdir(`${base}/owners`,{recursive:true});
 const ownerRegions=Array.from({length:1536},(_,region)=>({region,placements:[],cells:[]}));
 for(const record of records)for(const id of record.cells){const region=ownerRegions[regionForPoint(grid.centre(id))];let owner=region.placements.indexOf(record.placementId);if(owner<0){owner=region.placements.length;region.placements.push(record.placementId);}region.cells.push([id,owner]);}
 for(const region of ownerRegions){region.cells.sort((a,b)=>a[0]-b[0]);await fs.writeFile(`${base}/owners/${region.region}.json`,JSON.stringify(region));}
-const manifest={schemaVersion:1,snapshotId,tileSize:512,gutter:2,previewTileSize:128,maxLevel:0,maxDetailLevel:SNAPSHOT_MAX_LEVEL,projection:'cube-gnomonic',files:tiles.size,placements:records.length,cellCount:records.reduce((n,r)=>n+r.cellCount,0),tree:'tree.gz',treeSha256:crypto.createHash('sha256').update(tree).digest('hex'),occupancy:'occupancy.gz',createdAt:new Date().toISOString()};
+const manifest={schemaVersion:1,snapshotId,tileSize:512,gutter:2,previewTileSize:128,maxLevel:0,maxDetailLevel:SNAPSHOT_MAX_LEVEL,projection:'cube-gnomonic',files:tiles.size,placements:records.length,cellCount:records.reduce((n,r)=>n+r.cellCount,0),tree:'tree.gz',treeSha256:crypto.createHash('sha256').update(tree).digest('hex'),occupancy:'occupancy.gz',createdAt:exportBundle?.createdAt||null};
 await fs.writeFile(`${base}/manifest.json`,JSON.stringify(manifest));await fs.writeFile(`${base}/records.json`,JSON.stringify(records));await fs.writeFile(`${base}/checksums.json`,JSON.stringify(hashes));
+manifest.revision=exportBundle?.revision??null;
+manifest.latest=[...records].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,5).map(({placementId,anchor,title,cellCount,createdAt})=>({placementId,anchor,title,cellCount,createdAt:createdAt||0}));
+manifest.occupancySha256=crypto.createHash('sha256').update(occupied).digest('hex');
+await fs.writeFile(`${base}/manifest.json`,JSON.stringify(manifest));
 await fs.writeFile(`${output}/latest.json`,JSON.stringify({snapshotId,base,tiles:tiles.size}));console.log(JSON.stringify({snapshotId,tiles:tiles.size,placements:records.length,bytes:hashes.reduce((n,h)=>n+h.bytes,0)}));

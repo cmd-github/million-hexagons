@@ -1,20 +1,22 @@
 # Million Hexagons — Status
 
-Updated: 11 September 2026
+Updated: 12 September 2026
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
 ## Now
 
-- [ ] Resolve launch-blocking artwork quality and performance. Implement safe snapshot publication, bounded changes and regional ownership in the live application; meet sharp-detail and memory budgets. Offline compiler/renderer and direct-link improvements are verified foundations, not a completed scale fix. See [artwork performance](ARTWORK-PERFORMANCE.md).
+- [ ] Complete artwork performance acceptance before activation: benchmark dense varied images, configure the compiler service, and verify the real publication/CDN lifecycle and physical devices. Snapshot publication, bounded changes and regional ownership are implemented behind VITE_ARTWORK_SNAPSHOTS; launch-scale latency is not certified. See [artwork performance](ARTWORK-PERFORMANCE.md).
 
 ## Next
 
-- [ ] Implement the launch-scale immutable snapshot-plus-delta artwork compiler. Baked demos have been removed; test brands and purchases now share the existing live placement path. The 33,094-cell fixture set exposes that path honestly but does not prove full-globe scalability. Compile active placement records into immutable snapshots, apply later edits/purchases as deltas, and verify rollover, takedowns, exact cell IDs, sparse detail and bounded memory.
+- [ ] Execute the prepared 1k/10k/100k/1M varied-image acceptance matrix, including sustained navigation, faults and physical iOS/Android. The matrix is a specification, not generated datasets or completed results.
 - [ ] Complete the commercial launch decisions: pricing, refunds, permanent-use wording, seller identity and governing law.
 - [ ] Later: design explicit domain rules for voluntarily merging connected purchases under the same verified owner so one artwork can span the expanded holding.
 
 ## Done
+
+- [x] Recovered and completed the interrupted snapshot lifecycle implementation on artwork-performance-investigation. Transactional revisions, leased compiler publication, checksummed activation, regional occupancy/ownership and bounded change masks are connected behind an opt-in flag. Corrected transparent-mask ordering and added pixel assertions, release-identity checks and failed-rollover recovery. Image publication now decodes and validates formats, retains canonical resolution and emits smaller derivatives; tile transport enforces pixel-error and alpha bounds. Controlled desktop/mobile lifecycle journeys and targeted suites pass; staging build and Worker dry run pass. Not deployed; dense performance and real-device acceptance remain open.
 
 - [x] Investigated slow artwork and built an offline snapshot compiler with sparse tile lookup, progressive previews, fixed tile budgets and regional ownership outputs. Verified target-first shared links while catalogue loading is blocked, owner edit/reload journeys, and isolated desktop/mobile rendering. Dense synthetic imagery still misses sharp-detail latency; publication lifecycle and full runtime integration remain open. See [measurements and release gates](ARTWORK-PERFORMANCE.md). No performance deployment yet.
 

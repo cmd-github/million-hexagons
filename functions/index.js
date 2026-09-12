@@ -2,6 +2,8 @@ import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { initializeApp } from 'firebase-admin/app';
 import {cataloguePage,publishedVersion,nextCatalogueCursor} from './public-catalogue.js';
+import {readArtworkRevision,writeArtworkRevision} from './artwork-revisions.js';
+import {artworkService} from './artwork-service.js';
 import { getAuth } from 'firebase-admin/auth';
 import { FieldPath, FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
@@ -94,6 +96,7 @@ async function ownerPlacementDocuments(db, ownerIds) {
 async function savePrivateArtwork(path, artworkDataUrl, metadata = {}) {
   const source = decodeArtworkSource(artworkDataUrl);
   if (!source) return null;
+  await (await import('./artwork-derivatives.js')).validateArtworkImage(source.bytes,source.mimeType);
   const reference = { bucket: privateSourceBucket, path: `${path}.${source.extension}`, mimeType: source.mimeType, extension: source.extension, size: source.bytes.length, sha256: source.sha256 };
   await getStorage().bucket(privateSourceBucket).file(reference.path).save(source.bytes, { resumable: false, contentType: source.mimeType, metadata: { cacheControl: 'private,no-store', metadata: { ...metadata, sha256: source.sha256 } } });
   return reference;
@@ -146,6 +149,23 @@ export const stagingPlacements = onRequest(
     if (!stagingSandboxEnabled.value()) { response.status(404).json({ ok: false, error: 'sandbox-disabled' }); return; }
 
     const action=request.body?.action;
+    if(action==='public-search'){
+      const query=String(request.body.query||'').trim().toLowerCase().slice(0,120);
+      if(!query){response.status(200).json({ok:true,placements:[]});return;}
+      const db=getFirestore(),matches=await db.collection('stagingPlacements').orderBy('titleSearch').startAt(query).endAt(query+'\uf8ff').limit(16).get(),placements=[];
+      for(const document of matches.docs){const placement=document.data();if(['deleted','revoked'].includes(placement.status))continue;const version=await db.collection('stagingPlacementVersions').doc(`${placement.placementId}-v${publishedVersion(placement)}`).get(),visible=publicPlacement(version.data()||{},placement.publicState);if(visible.moderationStatus!=='active'||!String(visible.title||'').toLowerCase().startsWith(query))continue;placements.push({placementId:placement.placementId,anchor:placement.anchor,title:visible.title});if(placements.length===8)break;}
+      response.status(200).json({ok:true,placements});return;
+    }
+    if(typeof action==='string'&&action.startsWith('artwork-')){
+      try{
+        const db=getFirestore(),readPlacement=async placementId=>{
+          const document=await db.collection('stagingPlacements').doc(placementId).get();if(!document.exists)return{placementId,status:'deleted',cells:[]};
+          const placement=document.data(),content=await db.collection('stagingPlacementVersions').doc(`${placementId}-v${publishedVersion(placement)}`).get();
+          return{placementId,anchor:placement.anchor,cells:decodeCells(placement.cellsData),cellCount:placement.cellCount,status:placement.status,version:publishedVersion(placement),...publicPlacement(content.data()||{},placement.publicState)};
+        };
+        response.status(200).json(await artworkService(db,request.body,{compiler:request.get('X-MH-QA-Key')===stagingQaKey.value(),origin:stagingAssetOrigin.value().replace(/\/$/,''),readPlacement}));
+      }catch(error){response.status(error.message==='compiler-authorization-required'?403:409).json({ok:false,error:error.message});}return;
+    }
     if(action==='public-list'){
       let pageSize,cursor;
       try{({pageSize,cursor}=cataloguePage(request.body));}catch(error){response.status(400).json({ok:false,error:error.message});return;}
@@ -160,9 +180,11 @@ export const stagingPlacements = onRequest(
       const db=getFirestore(),placementId=String(request.body.placementId||''),placement=await db.collection('stagingPlacements').doc(placementId).get();
       if(!placement.exists||['deleted','revoked'].includes(placement.data().status)){response.status(404).json({ok:false,error:'placement-not-found'});return;}
       const data=placement.data(),version=Number(data.publicState?.publicVersion||data.currentPublishedVersion||data.currentVersion||1),content=await db.collection('stagingPlacementVersions').doc(`${placementId}-v${version}`).get(),metrics=await db.collection('stagingPlacementMetrics').doc(placementId).get(),visible=publicPlacement(content.data()||{},data.publicState);
-      response.status(200).json({ok:true,placement:{placementId,topologyVersion:data.topologyVersion,anchor:data.anchor,cells:decodeCells(data.cellsData),cellCount:data.cellCount,version,title:visible.title,description:visible.description,destinationUrl:visible.destinationUrl,artworkDataUrl:visible.artworkDataUrl,status:data.status,createdAt:data.createdAt?.toMillis?.()||null,metrics:publicMetrics(metrics.data())}});return;
+      response.status(200).json({ok:true,placement:{placementId,topologyVersion:data.topologyVersion,anchor:data.anchor,cells:decodeCells(data.cellsData),cellCount:data.cellCount,version,title:visible.title,description:visible.description,destinationUrl:visible.destinationUrl,artworkDataUrl:visible.artworkDataUrl,thumbnailDataUrl:visible.thumbnailDataUrl||'',overviewDataUrl:visible.overviewDataUrl||'',status:data.status,createdAt:data.createdAt?.toMillis?.()||null,metrics:publicMetrics(metrics.data())}});return;
     }
     if(action==='public-stats'){
+      const artworkState=(await getFirestore().collection('stagingArtwork').doc('state').get()).data();
+      if(artworkState?.totals){const aggregate=await getFirestore().collection('stagingAnalyticsAggregates').doc('global').get();response.status(200).json({ok:true,stats:publicGlobalStats({...aggregate.data(),...artworkState.totals}),latest:[]});return;}
       const db=getFirestore(),snapshot=await db.collection('stagingPlacements').get(),active=snapshot.docs.map(document=>document.data()).filter(placement=>!['deleted','revoked'].includes(placement.status)),aggregate=await db.collection('stagingAnalyticsAggregates').doc('global').get();
       const latest=active.sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0)).slice(0,5),versions=await Promise.all(latest.map(placement=>db.collection('stagingPlacementVersions').doc(`${placement.placementId}-v${placement.publicState?.publicVersion||placement.currentPublishedVersion||placement.currentVersion||1}`).get()));
       const placements=latest.map((placement,index)=>{const visible=publicPlacement(versions[index].data()||{},placement.publicState);return{placementId:placement.placementId,anchor:placement.anchor,cellCount:Number(placement.cellCount||0),title:visible.title||'Untitled placement',createdAt:placement.createdAt?.toMillis?.()||null};});
@@ -228,6 +250,7 @@ export const stagingPlacements = onRequest(
         // them operational during rolling deploys; new clients send the full source.
         const source = decodeArtworkSource(request.body?.placement?.sourceArtworkDataUrl || request.body?.placement?.artworkDataUrl);
         if (!source) { response.status(400).json({ ok: false, error: 'invalid-artwork-source' }); return; }
+        try{await (await import('./artwork-derivatives.js')).validateArtworkImage(source.bytes,source.mimeType);}catch{response.status(400).json({ok:false,error:'invalid-artwork-image'});return;}
         if (!normalisePlacementClaim(candidate)) { logger.warn('Rejected invalid staging placement', placementClaimDiagnostics(candidate)); response.status(400).json({ ok: false, error: 'invalid-placement' }); return; }
         if (action === 'create-fixture') {
           const design = normaliseDesignState(request.body.placement?.designState), ids = new Set(candidate.cells);
@@ -310,7 +333,7 @@ export const stagingPlacements = onRequest(
         const command=normaliseModeration(request.body.command),placementId=String(request.body.placementId||'');if(!command){response.status(400).json({ok:false,error:'invalid-moderation'});return;}
         const reference=getFirestore().collection('stagingPlacements').doc(placementId),placement=await reference.get();if(!placement.exists){response.status(404).json({ok:false,error:'placement-not-found'});return;}
         let versionContent=null;if(command.action==='restore-version'){const version=await getFirestore().collection('stagingPlacementVersions').doc(`${placementId}-v${command.version}`).get();if(!version.exists){response.status(404).json({ok:false,error:'version-not-found'});return;}versionContent=version.data();}
-        const publicState=applyModeration(placement.data().publicState,command,versionContent),caseId=randomUUID();await getFirestore().runTransaction(async transaction=>{transaction.set(reference,{publicState,updatedAt:FieldValue.serverTimestamp()},{merge:true});transaction.create(getFirestore().collection('stagingModerationActions').doc(caseId),{caseId,placementId,command,actorId:identity.uid,createdAt:FieldValue.serverTimestamp()});});response.status(200).json({ok:true,placement:{placementId,publicState}});return;
+        const caseId=randomUUID();let publicState;await getFirestore().runTransaction(async transaction=>{const revision=await readArtworkRevision(getFirestore(),transaction),current=await transaction.get(reference);if(!current.exists||['deleted','revoked'].includes(current.data().status))throw Error('placement-not-found');publicState=applyModeration(current.data().publicState,command,versionContent);transaction.set(reference,{publicState,updatedAt:FieldValue.serverTimestamp()},{merge:true});transaction.create(getFirestore().collection('stagingModerationActions').doc(caseId),{caseId,placementId,command,actorId:identity.uid,createdAt:FieldValue.serverTimestamp()});writeArtworkRevision(getFirestore(),transaction,revision,placementId,'moderated');});response.status(200).json({ok:true,placement:{placementId,publicState}});return;
       }
       if (action === 'grant-credits') {if(identity.stagingAdmin!==true){response.status(403).json({ok:false,error:'administrator-required'});return;}const result=await issueCredits(getFirestore(),{ownerId:String(request.body.ownerId||''),amount:request.body.amount,reason:String(request.body.reason||''),actorId:identity.uid,idempotencyKey:String(request.body.idempotencyKey||randomUUID())},FieldValue.serverTimestamp());response.status(200).json({ok:true,credits:result});return;}
       if (action === 'redeem-credits') {const result=await redeemCredits(getFirestore(),{ownerId:identity.uid,amount:request.body.amount,placementId:String(request.body.placementId||''),idempotencyKey:String(request.body.idempotencyKey||randomUUID())},FieldValue.serverTimestamp());response.status(200).json({ok:true,credits:result});return;}
@@ -444,6 +467,7 @@ export const stagingCheckout=onRequest({region:'europe-west1',maxInstances:3,tim
     let placementId=existing.data()?.placementId,sourceReference=existing.data()?.source,placement=existing.data()?.placement,checkoutExpiresAt=existing.data()?.checkoutExpiresAt||(existing.exists?Math.floor(Number(reservation.expiresAtMs)/1000):Math.floor(Date.now()/1000)+30*60);
     if(!existing.exists){
       const source=decodeArtworkSource(candidate.sourceArtworkDataUrl||candidate.artworkDataUrl);if(!source){response.status(400).json({ok:false,error:'invalid-artwork-source'});return;}
+      try{await (await import('./artwork-derivatives.js')).validateArtworkImage(source.bytes,source.mimeType);}catch{response.status(400).json({ok:false,error:'invalid-artwork-image'});return;}
       placementId=randomUUID();const path=sourceObjectPath(placementId,1,source.extension);sourceReference={bucket:privateSourceBucket,path,mimeType:source.mimeType,extension:source.extension,size:source.bytes.length,sha256:source.sha256};
       await getStorage().bucket(privateSourceBucket).file(path).save(source.bytes,{resumable:false,contentType:source.mimeType,metadata:{cacheControl:'private,no-store',metadata:{placementId,orderId,sha256:source.sha256}}});
       placement={topologyVersion:candidate.topologyVersion,anchor:candidate.anchor,cells:candidate.cells,title:candidate.title,description:candidate.description,destinationUrl:candidate.destinationUrl,artworkDataUrl:candidate.artworkDataUrl};
@@ -493,15 +517,21 @@ export const publishStagingPlacement = onDocumentCreated(
       if (!decoded || decoded.sha256 !== version.source.sha256) throw new Error('private-source-checksum-mismatch');
       const objects = publicationObjects(version), client = new S3Client({ region: 'auto', endpoint: `https://${r2AccountId.value()}.r2.cloudflarestorage.com`, credentials: { accessKeyId: r2AccessKeyId.value(), secretAccessKey: r2SecretAccessKey.value() }, maxAttempts: 5 });
       const bucket = stagingPublicBucket.value();
+      const derivatives=await (await import('./artwork-derivatives.js')).artworkDerivatives(bytes),derivativePrefix=objects.artworkKey.slice(0,objects.artworkKey.lastIndexOf('/'));
+      for(const [name,Body] of [['inspection',derivatives.canonical],['overview',derivatives.overview],['thumbnail',derivatives.thumbnail]])await client.send(new PutObjectCommand({Bucket:bucket,Key:`${derivativePrefix}/${name}.webp`,Body,ContentType:'image/webp',CacheControl:'public,max-age=31536000,immutable'}));
       await client.send(new PutObjectCommand({ Bucket: bucket, Key: objects.artworkKey, Body: bytes, ContentType: version.source.mimeType, CacheControl: 'public,max-age=31536000,immutable', Metadata: { sha256: version.source.sha256, placementid: version.placementId, version: String(version.version) } }));
       await client.send(new PutObjectCommand({ Bucket: bucket, Key: objects.metadataKey, Body: Buffer.from(JSON.stringify(objects.metadata)), ContentType: 'application/json; charset=utf-8', CacheControl: 'public,max-age=31536000,immutable' }));
       const origin = stagingAssetOrigin.value().replace(/\/$/, ''), artworkUrl = `${origin}/${objects.artworkKey}`, metadataUrl = `${origin}/${objects.metadataKey}`;
       await getFirestore().runTransaction(async transaction => {
+        const artworkRevision=await readArtworkRevision(getFirestore(),transaction);
         const currentVersion = await transaction.get(snapshot.ref);
         if (!currentVersion.exists || currentVersion.data().status === 'placement-deleted') return;
         const placementRef = getFirestore().collection('stagingPlacements').doc(version.placementId), placement = await transaction.get(placementRef);
-        transaction.set(snapshot.ref, { publication: { status: 'published', attempts, artworkUrl, metadataUrl, artworkKey: objects.artworkKey, metadataKey: objects.metadataKey, publishedAt: FieldValue.serverTimestamp() } }, { merge: true });
-        if (placement.exists && placement.data().status !== 'deleted' && Number(placement.data().currentVersion) === Number(version.version)) transaction.set(placementRef, { currentPublishedVersion: version.version, publishedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        transaction.set(snapshot.ref, { publication: { status: 'published', attempts, artworkUrl, metadataUrl, artworkKey: objects.artworkKey, metadataKey: objects.metadataKey,inspectionUrl:`${origin}/${derivativePrefix}/inspection.webp`,overviewUrl:`${origin}/${derivativePrefix}/overview.webp`,thumbnailUrl:`${origin}/${derivativePrefix}/thumbnail.webp`,width:derivatives.width,height:derivatives.height,publishedAt: FieldValue.serverTimestamp() } }, { merge: true });
+        if (placement.exists && !['deleted','revoked'].includes(placement.data().status) && Number(placement.data().currentVersion) === Number(version.version)) {
+          transaction.set(placementRef, { currentPublishedVersion: version.version,titleSearch:String(version.title||'').toLowerCase(),publishedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+          if(Number(placement.data().currentPublishedVersion)!==Number(version.version))writeArtworkRevision(getFirestore(),transaction,artworkRevision,version.placementId,'published');
+        }
       });
     } catch (error) {
       logger.error('Staging placement publication failed', { versionId: event.params.versionId, message: error.message });

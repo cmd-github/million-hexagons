@@ -7,8 +7,8 @@ import {build} from 'vite';
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 
-const latest=process.env.MH_SCALE_ATLAS?{base:process.env.MH_SCALE_ATLAS}:JSON.parse(await fs.readFile('artifacts/artwork-snapshot/latest.json','utf8'));
-const output=process.env.MH_SCALE_ATLAS?'artifacts/snapshot-million':'artifacts/snapshot-render';
+const latest=process.env.MH_SNAPSHOT_BASE?{base:process.env.MH_SNAPSHOT_BASE}:process.env.MH_SCALE_ATLAS?{base:process.env.MH_SCALE_ATLAS}:JSON.parse(await fs.readFile('artifacts/artwork-snapshot/latest.json','utf8'));
+const output=process.env.MH_SNAPSHOT_QA_OUTPUT||(process.env.MH_SCALE_ATLAS?'artifacts/snapshot-million':'artifacts/snapshot-render');
 const previewOverride=process.env.MH_SCALE_ATLAS&&process.env.MH_PREVIEW;
 const snapshot=JSON.parse(await fs.readFile(`${previewOverride?'artifacts/million-preview':latest.base}/manifest.json`,'utf8'));
 const root=`${output}/app`;

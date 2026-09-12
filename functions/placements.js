@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import {readArtworkRevision,writeArtworkRevision} from './artwork-revisions.js';
 
 export const TOPOLOGY_VERSION = 'geodesic-v1';
 export const CELL_COUNT = 1_000_000;
@@ -103,6 +104,7 @@ export async function createTestPlacement(db, input, timestamp, options = {}) {
   const eventRef = db.collection('stagingDomainEvents').doc(`${placementId}-created`);
   const shardRefs = [...groups].map(([number]) => [number, db.collection('stagingInventory').doc(shardId(number))]);
   await db.runTransaction(async transaction => {
+    const artworkRevision=await readArtworkRevision(db,transaction);
     let quote=null;
     if(options.reservationId){
       const reservationRef=db.collection('stagingReservations').doc(options.reservationId),snapshot=await transaction.get(reservationRef),reservation=snapshot.data();
@@ -118,12 +120,13 @@ export async function createTestPlacement(db, input, timestamp, options = {}) {
       schemaVersion: PLACEMENT_SCHEMA_VERSION, placementId, ownerId: claim.ownerId,
       topologyVersion: claim.topologyVersion, cellCount: claim.cells.length, anchor: claim.anchor,
       cellsEncoding: 'uint32le-base64', cellsData: encodeCells(claim.cells),
-      title: claim.title, currentVersion: 1,
+      title: claim.title, titleSearch:claim.title.toLowerCase(), currentVersion: 1,
       status: 'draft', environment: 'staging', quote, createdAt: timestamp, updatedAt: timestamp
     });
     transaction.create(contentRef, { schemaVersion: 1, placementId, version: 1, topologyVersion: claim.topologyVersion, anchor: claim.anchor, cellCount: claim.cells.length, title: claim.title, description: claim.description, destinationUrl: claim.destinationUrl, artworkDataUrl: claim.artworkDataUrl, source: options.source || null, designSource: options.designSource || null, publication: options.source ? { status: 'queued', attempts: 0 } : { status: 'preview-only', attempts: 0 }, status: 'current', environment: 'staging', createdAt: timestamp });
     transaction.create(grantRef, { placementId, ownerId: claim.ownerId, topologyVersion: claim.topologyVersion, status: 'active', environment: 'staging', grantedAt: timestamp });
     transaction.create(eventRef, { schemaVersion: 1, eventId: eventRef.id, type: 'placement_created', placementId, ownerId: claim.ownerId, environment: 'staging', occurredAt: timestamp });
+    writeArtworkRevision(db,transaction,artworkRevision,placementId,'created',Date.now(),claim.cells.length);
   });
   return { placementId, cellCount: claim.cells.length, status: 'draft' };
 }
@@ -151,6 +154,7 @@ export async function deleteTestPlacement(db, placementId, timestamp, ownerId = 
   const grantRef = db.collection('stagingOwnershipGrants').doc(placementId);
   const eventRef = db.collection('stagingDomainEvents').doc(`${placementId}-deleted`);
   return db.runTransaction(async transaction => {
+    const artworkRevision=await readArtworkRevision(db,transaction);
     const placement = await transaction.get(placementRef);
     if (!placement.exists) throw Object.assign(new Error('placement-not-found'), { code: 'placement-not-found' });
     const data = placement.data();
@@ -168,6 +172,7 @@ export async function deleteTestPlacement(db, placementId, timestamp, ownerId = 
     transaction.set(db.collection('stagingPlacementVersions').doc(`${placementId}-v${data.currentVersion || 1}`), { status: 'placement-deleted', updatedAt: timestamp }, { merge: true });
     transaction.set(grantRef, { status: 'revoked-for-test-reset', revokedAt: timestamp }, { merge: true });
     transaction.create(eventRef, { schemaVersion: 1, eventId: eventRef.id, type: 'test_placement_deleted', placementId, ownerId: data.ownerId, environment: 'staging', occurredAt: timestamp });
+    writeArtworkRevision(db,transaction,artworkRevision,placementId,'deleted',Date.now(),-cells.length);
     return { placementId, status: 'deleted', releasedCells: cells.length };
   });
 }

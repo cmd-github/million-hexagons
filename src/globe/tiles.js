@@ -185,4 +185,9 @@ export class ArtworkTiles {
     await new Promise((resolve,reject)=>{const transaction=this.database.transaction('tiles','readwrite');transaction.objectStore('tiles').put(blob,key);transaction.oncomplete=resolve;transaction.onerror=()=>reject(transaction.error);});
     const tile=this.cache.get(key);if(tile){this.evict(tile);this.request(tile.face,tile.level,tile.x,tile.y);}
   }
+  dispose(){
+    for(const view of this.views.values()){view.mesh.geometry.dispose();view.mesh.material.dispose();}
+    this.views.clear();for(const tile of [...this.cache.values()])this.evict(tile);
+    this.queue=[];this.group.removeFromParent();
+  }
 }

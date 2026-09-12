@@ -39,7 +39,9 @@ try {
       await route.fulfill({json:{checkout:{clientSecret:'test-secret',placementId:checkoutPlacement.placementId}}});
     });
     await page.addInitScript(()=>{window.Stripe=()=>({initEmbeddedCheckout:async options=>{await options.fetchClientSecret();window.__completeTestCheckout=options.onComplete;return {mount:selector=>{document.querySelector(selector).textContent='Embedded checkout test fixture';},destroy(){}};}});});
-    await page.goto(`${origin}/?geodesicQA${reducedMotion==='reduce'?'':'#cell=966630'}`);
+    // Startup intentionally stays at overview; reduced motion must use the same
+    // explicit target as the other runs instead of relying on retired auto-focus.
+    await page.goto(`${origin}/?geodesicQA#cell=966630`);
     await page.waitForFunction(()=>window.geodesicQA?.state().inspectedId===966630,null,{timeout:90000});
     assert.deepEqual((await page.evaluate(()=>window.geodesicQA.state().committed)).sort(),[966329,966630]);
     assert.match(await page.locator('#claimTicker').getAttribute('aria-label'),/Saved first placement.*Saved second placement|Saved second placement.*Saved first placement/);

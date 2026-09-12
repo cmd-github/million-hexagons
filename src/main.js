@@ -3,6 +3,8 @@ import { loadRegionalTopology, MissingRegion } from './globe/regional-topology.j
 import { runtimeAsset, fetchRuntimeJson, fetchRuntimeGzip } from './runtime-assets.js';
 import { createCellDetail } from './globe/detail.js';
 import { ArtworkTiles } from './globe/tiles.js';
+import {SnapshotRuntime} from './globe/snapshot-runtime.js';
+import {regionForPoint} from './globe/region-format.js';
 import { publishToTiles } from './globe/tile-baker.js';
 import { smoothZoom } from './globe/zoom.js';
 import { createCameraFlight, placementPose } from './globe/camera-flight.js';
@@ -45,6 +47,8 @@ const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .1, 100
 let topology = null, topologyPromise = null, cellDetail = null;
 const bootstrap = await fetchRuntimeJson('topology/bootstrap.json');
 const millionFixture = import.meta.env.DEV && new URLSearchParams(location.search).has('millionLogos');
+const snapshotEnabled=import.meta.env.VITE_ARTWORK_SNAPSHOTS==='true';
+let snapshotRuntime=null;
 async function ensureTopology() {
   if(topology)return topology;
   if(!topologyPromise)topologyPromise=loadRegionalTopology().then(value=>{
@@ -486,6 +490,7 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   inspectorVersion++;
   let preparedAnchor;
   try{await Promise.all([ensureTopology(),ensureStagingInventory()]);
+    if(snapshotEnabled&&!stagingInventoryLoaded)throw Error('The globe is updating. Please try again in a moment.');
     const direction=globe.worldToLocal(camera.position.clone()).normalize().toArray();
     await topology.ensureCap(direction,.1);
     preparedAnchor=Number.isInteger(anchor)?anchor:await topology.run(()=>topology.pick(direction));
@@ -1399,6 +1404,15 @@ function ensureStagingInventory(){
   if(!import.meta.env.VITE_STAGING_SANDBOX)return Promise.resolve();
   if(!stagingInventoryPromise)stagingInventoryPromise=(async()=>{
     stagingClient=await import('./staging-client.js');
+    if(snapshotEnabled){
+      if(!snapshotRuntime){
+        snapshotRuntime=new SnapshotRuntime({globe,radius,options:{maxTiles:innerWidth<700?64:128,anisotropy:Math.min(8,renderer.capabilities.getMaxAnisotropy())},request:stagingClient.artworkRequest,onInvalidate(){stagingInventoryLoaded=false;closeInspector(true);sessionPlacements.clear();},prepareChanges:prepareSnapshotChanges,activateInventory(next){occupiedCells.fill(0);occupiedCells.set(next.occupancy);occupancyTexture.needsUpdate=true;sessionPlacements.clear();restoredPlacementIds.clear();sold=next.occupancy.reduce((n,v)=>n+(v?1:0),0);stagingInventoryLoaded=true;for(const record of next.tiles.manifest.latest||[]){if(next.records.some(change=>change.placementId===record.placementId))continue;sessionPlacements.set(record.anchor,{placementId:record.placementId,name:record.title,anchor:record.anchor,count:record.cellCount,createdAt:record.createdAt,cells:[record.anchor]});}updateInventoryDisplay();renderClaimFeed();artworkTiles.group.visible=false;},onUnavailable(error){stagingInventoryLoaded=false;console.error('Artwork release unavailable',error);}});
+        setInterval(()=>void snapshotRuntime.refresh(),5000);
+      }
+      await snapshotRuntime.refresh();
+      await snapshotRuntime.ready;
+      return [];
+    }
     const records=await restorePublicPlacements();
     if(records.some(record=>record.artworkDataUrl))void ensureTopology().catch(error=>console.error('Could not prepare placement artwork',error));
     stagingInventoryLoaded=true;
@@ -1424,6 +1438,16 @@ function showCheckoutExpiry(){
 function persistentArtwork(canvas){const limit=900,scale=Math.min(1,limit/Math.max(canvas.width,canvas.height)),copy=document.createElement('canvas');copy.width=Math.max(1,Math.round(canvas.width*scale));copy.height=Math.max(1,Math.round(canvas.height*scale));copy.getContext('2d').drawImage(canvas,0,0,copy.width,copy.height);return copy.toDataURL('image/webp',.86);}
 function publicationArtwork(canvas){return canvas.toDataURL('image/webp',.95);}
 async function applyPersistentPlacements(records,{focus=false}={}){
+  if(snapshotEnabled){
+    for(const record of records){
+      const value={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor,cells:record.cells,logo:record.thumbnailDataUrl||record.artworkDataUrl};
+      // Retain inspected records only; authoritative occupancy is separate.
+      for(const [id,old] of sessionPlacements)if(old.placementId===record.placementId)sessionPlacements.delete(id);
+      record.cells.forEach(id=>sessionPlacements.set(id,value));
+      while(new Set(sessionPlacements.values()).size>8){const oldest=sessionPlacements.values().next().value;oldest.cells.forEach(id=>{if(sessionPlacements.get(id)===oldest)sessionPlacements.delete(id);});}
+    }
+    return records;
+  }
   const fresh=records.filter(record=>!restoredPlacementIds.has(record.placementId));if(!fresh.length)return records;
   const restored=fresh.map(record=>{
     const placementRecord={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor,cells:record.cells};
@@ -1438,6 +1462,27 @@ async function applyPersistentPlacements(records,{focus=false}={}){
 }
 async function restoreTestPlacements(){return applyPersistentPlacements(await stagingClient.listTestClaims(),{focus:true});}
 async function restorePublicPlacements({focus=false}={}){return applyPersistentPlacements(await stagingClient.listPublicClaims(),{focus});}
+async function prepareSnapshotChanges(records){
+  const group=new THREE.Group();globe.add(group);group.visible=false;
+  group.dispose=()=>{group.traverse(mesh=>{mesh.geometry?.dispose();mesh.material?.map?.dispose();mesh.material?.dispose();});group.removeFromParent();};
+  let decodedPixels=0;
+  try{
+    for(const record of records){
+      await prepareLocation(record.anchor);await topology.ensureCells(record.cells);
+      const cells=topology.cells(record.cells,record.anchor),blank=document.createElement('canvas');blank.width=blank.height=1;
+      const mask=addHighResolutionPlacement('#000','contain',group,{cells,anchor:cellForId(record.anchor),artwork:blank});
+      mask.material.map.dispose();mask.material.dispose();mask.geometry.computeVertexNormals();mask.material=globeMaterial.clone();mask.material.transparent=true;mask.material.depthTest=false;mask.material.depthWrite=false;mask.renderOrder=5;
+      if(record.artworkDataUrl&&!['deleted','revoked'].includes(record.status)){
+        const response=await fetch(record.artworkDataUrl);if(!response.ok)throw Error('Changed artwork unavailable');const blob=await response.blob();if(blob.size>12*1024*1024)throw Error('Changed artwork exceeds byte budget');
+        const image=await createImageBitmap(blob,{imageOrientation:'flipY'});decodedPixels+=image.width*image.height;
+        if(decodedPixels>16_000_000){image.close();throw Error('Changed artwork exceeds decode budget');}
+        addHighResolutionPlacement('#000','contain',group,{cells,anchor:cellForId(record.anchor),artwork:image});
+        const dispose=group.dispose;group.dispose=()=>{image.close();dispose();};
+      }
+    }
+    return group;
+  }catch(error){group.dispose();throw error;}
+}
 async function stripeBrowser(){
   if(!window.Stripe)await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://js.stripe.com/clover/stripe.js';script.onload=resolve;script.onerror=()=>reject(new Error('Could not load secure payment.'));document.head.append(script);});
   return window.Stripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
@@ -1456,7 +1501,7 @@ async function showEmbeddedCheckout(checkout){
   const stripe=await stripeBrowser();embeddedCheckoutInstance=await stripe.initEmbeddedCheckout({fetchClientSecret:async()=>checkout.clientSecret,onComplete:async()=>{
     embeddedCheckoutInstance?.destroy();embeddedCheckoutInstance=null;container.replaceChildren();status.textContent='Payment received. Adding your placement to the globe…';
     for(let attempt=0;attempt<60;attempt++){
-      try{const records=await stagingClient.listPublicClaims(),match=records.find(record=>record.placementId===checkout.placementId);if(match){try{await applyPersistentPlacements([match]);}catch(error){console.error('Could not render the completed placement before closing checkout',error);}status.textContent='Placement added to the globe.';clearCheckoutReservation();setTimeout(()=>{panel.hidden=true;closeBuy();inspectPlacement(match.anchor);},700);return;}}
+      try{const match=snapshotEnabled?await stagingClient.getPublicPlacement(checkout.placementId):(await stagingClient.listPublicClaims()).find(record=>record.placementId===checkout.placementId);if(match){try{await applyPersistentPlacements([match]);if(snapshotEnabled)void snapshotRuntime.refresh();}catch(error){console.error('Could not render the completed placement before closing checkout',error);}status.textContent='Placement added to the globe.';clearCheckoutReservation();setTimeout(()=>{panel.hidden=true;closeBuy();inspectPlacement(match.anchor);},700);return;}}
       catch(error){console.error('Could not check completed placement',error);}
       await new Promise(resolve=>setTimeout(resolve,1000));
     }
@@ -1697,6 +1742,7 @@ function animate() {
   demoTour.update(performance.now());
   updateRotationControl();
   artworkTiles.update(camera,canvas.clientHeight*renderer.getPixelRatio(),performance.now());
+  snapshotRuntime?.update(camera,canvas.clientHeight*renderer.getPixelRatio(),performance.now());
   if(!topology&&!topologyPromise&&camera.position.length()<radius+3.5)void ensureTopology().catch(()=>{});
   if(topology){
     cellDetail.update(camera,canvas.clientHeight,performance.now(),cameraFlight.active);
@@ -1880,6 +1926,7 @@ async function inspectPlacement(id){
   catch {if(version===inspectorVersion){hexSearchStatus.textContent='Could not load this placement. Try again.';document.querySelector('#inspectorStatus').textContent='Could not load this placement. Try again.';}return false;}
 }
 async function prepareInspector(id,version){
+  if(snapshotEnabled){await prepareLocation(id);const owner=await snapshotRuntime?.owner(regionForPoint(topology.centre(id)),id)||sessionPlacements.get(id)?.placementId;if(owner){const client=await import('./staging-client.js');await applyPersistentPlacements([await client.getPublicPlacement(owner)]);}else return false;}
   const recordForGeometry=sessionPlacements.get(id);
   await prepareLocation(id);
   const ownerForGeometry=sampleOwners[id-1];
@@ -1958,6 +2005,7 @@ function companyEntries(){return [...bootstrap.sampleAreas.map(area=>({id:area.a
 function renderCompanyResults(){
   const target=document.querySelector('#companyResults'),query=hexSearchInput.value.trim().toLowerCase();target.replaceChildren();
   if(!query||/^#?\d+$/.test(query))return;
+  if(snapshotEnabled){void import('./staging-client.js').then(client=>client.searchPublicPlacements(query)).then(records=>{if(hexSearchInput.value.trim().toLowerCase()!==query)return;for(const record of records){const button=document.createElement('button');button.type='button';button.textContent=record.title;button.onclick=()=>{location.hash=`placement=${record.placementId}`;showHexSearch(false);};target.append(button);}}).catch(()=>{hexSearchStatus.textContent='Search is temporarily unavailable.';});return;}
   for(const entry of companyEntries().filter((entry,index,all)=>all.findIndex(other=>other.name===entry.name)===index&&entry.name.toLowerCase().includes(query)).slice(0,8)){
     const button=document.createElement('button');button.type='button';button.textContent=entry.name;
     button.onclick=async()=>{if(await inspectPlacement(entry.id))viewInspectedPlacement();showHexSearch(false);};target.append(button);
