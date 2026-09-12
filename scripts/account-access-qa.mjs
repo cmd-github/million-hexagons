@@ -15,6 +15,7 @@ try{
     const errors=[];page.on('pageerror',error=>errors.push(error.message));page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
     const response=await page.goto(url);assert.equal(response.status(),200);await page.waitForSelector('#world[data-ready=true]',{timeout:90000});await page.waitForFunction(()=>typeof document.querySelector('#toggleAccount')?.onclick==='function',null,{timeout:90000});
     const toggle=page.locator('#toggleAccount');assert.equal(await toggle.isVisible(),true);assert.equal(await toggle.getAttribute('aria-expanded'),'false');
+    assert.equal(await toggle.getAttribute('data-icon'),'key');assert.equal(await toggle.locator('svg.ico').count(),1);
     await toggle.click();const panel=page.locator('#accountPanel');await panel.waitFor({state:'visible'});assert.equal(await toggle.getAttribute('aria-expanded'),'true');
     assert.equal(await page.locator('#accountEmail').evaluate(element=>element===document.activeElement),true);assert.equal(await page.locator('#sendAccountLink').isVisible(),true);
     const box=await panel.boundingBox();assert.ok(box);assert.ok(box.x>=0&&box.y>=0&&box.x+box.width<=viewport.width&&box.y+box.height<=viewport.height,`Account panel must stay in the viewport: ${JSON.stringify({mobile,viewport,box})}`);

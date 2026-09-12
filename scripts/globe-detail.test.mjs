@@ -37,6 +37,14 @@ test('indexed grid triangles preserve canonical hexagon and pentagon corners and
     }
   }
   assert.equal(g.drawRange.count,cursor);g.dispose();
+  for(const [key,region]of topology.regions){
+    const finish=iterator=>{let result;do{result=iterator.next();}while(!result.done);return result.value;};
+    const reference=finish(buildGridRegion(topology,region.ids,4)),packed=finish(buildGridRegion(topology,region.ids,4,key));
+    for(const attribute of ['position','cellId','edge'])assert.deepEqual(packed.attributes[attribute].array,reference.attributes[attribute].array);
+    assert.deepEqual(packed.index.array,reference.index.array);assert.equal(packed.drawRange.count,reference.drawRange.count);
+    const point=new THREE.Vector3();for(let i=0;i<packed.attributes.position.count;i++)assert.ok(packed.boundingSphere.containsPoint(point.fromBufferAttribute(packed.attributes.position,i)));
+    reference.dispose();packed.dispose();
+  }
 });
 
 test('a stalled region does not block other visible geometry; cached views survive topology eviction',async()=>{

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {REGION_COUNT, regionBounds} from './region-format.js';
 
 const bounds=Array.from({length:REGION_COUNT},(_,key)=>regionBounds(key));
+function gridRegionSphere(key,radius){const {direction,angle}=bounds[key],a=angle+.005;return new THREE.Sphere(new THREE.Vector3(...direction).multiplyScalar(radius*Math.cos(a)),radius*Math.sin(a)+.002);}
 
 // Conservative bounds include polygon corners across cube-region seams.
 export function visibleGridRegions(camera, globe, radius, margin=1) {
@@ -14,31 +15,38 @@ export function visibleGridRegions(camera, globe, radius, margin=1) {
   return bounds.flatMap(({direction:p,angle},key)=>{
     const a=angle+.005,centre=new THREE.Vector3(...p),score=centre.dot(direction);
     if(score<Math.cos(horizon+a))return [];
-    const sphere=new THREE.Sphere(centre.multiplyScalar(radius*Math.cos(a)),radius*Math.sin(a)+.002);
+    const sphere=gridRegionSphere(key,radius);
     return frustum.intersectsSphere(sphere)?[{key,score}]:[];
   }).sort((a,b)=>b.score-a.score).map(({key})=>key);
 }
 
 // Indexed centre fans retain canonical corners and IDs with seven vertices
 // per hexagon instead of eighteen. Each region can be built independently.
-export function* buildGridRegion(topology, cells, radius) {
+export function* buildGridRegion(topology, cells, radius, key=null) {
+  const region=key===null?null:topology.regions.get(key);
   const positions=new Float32Array(cells.length*7*3),ids=new Float32Array(cells.length*7),edges=new Uint8Array(cells.length*7);
   const indices=new Uint16Array(cells.length*18);
   let vertex=0,index=0;
   for(let i=0;i<cells.length;i++){
-    if(i%64===0)yield;
-    const id=cells[i],polygon=topology.polygon(id),points=[topology.centre(id),...polygon],base=vertex;
-    for(let k=0;k<points.length;k++,vertex++){
-      for(let axis=0;axis<3;axis++)positions[vertex*3+axis]=points[k][axis]*(radius+.0009);
+    if(i%32===0)yield;
+    const id=cells[i],polygon=region?null:topology.polygon(id),degree=region?region.degrees[i]:polygon.length,base=vertex;
+    for(let k=0;k<=degree;k++,vertex++){
+      // Regions already contain canonical packed arrays. Read them directly
+      // instead of allocating polygon arrays and touching the LRU per vertex.
+      const source=region?(k===0?region.centres:region.vertices):(k===0?topology.centre(id):polygon[k-1]);
+      const offset=region?(k===0?i*3:region.rings[i*6+k-1]*3):0;
+      for(let axis=0;axis<3;axis++)positions[vertex*3+axis]=source[offset+axis]*(radius+.0009);
       ids[vertex]=id-1;edges[vertex]=k===0?1:0;
     }
-    for(let k=0;k<polygon.length;k++){indices[index++]=base;indices[index++]=base+k+1;indices[index++]=base+(k+1)%polygon.length+1;}
+    for(let k=0;k<degree;k++){indices[index++]=base;indices[index++]=base+k+1;indices[index++]=base+(k+1)%degree+1;}
   }
   const geometry=new THREE.BufferGeometry();
   geometry.setAttribute('position',new THREE.BufferAttribute(positions.subarray(0,vertex*3),3));
   geometry.setAttribute('cellId',new THREE.BufferAttribute(ids.subarray(0,vertex),1));
   geometry.setAttribute('edge',new THREE.BufferAttribute(edges.subarray(0,vertex),1));
-  geometry.setIndex(new THREE.BufferAttribute(indices,1));geometry.setDrawRange(0,index);geometry.computeBoundingSphere();
+  geometry.setIndex(new THREE.BufferAttribute(indices,1));geometry.setDrawRange(0,index);
+  // The known region bound avoids scanning every vertex on the final frame.
+  if(key!==null)geometry.boundingSphere=gridRegionSphere(key,radius+.0009);else geometry.computeBoundingSphere();
   return geometry;
 }
 
@@ -93,7 +101,7 @@ export function createCellDetail(topology, globe, radius, textures, selectionMod
         if(!job){
           const key=[...visible,...keys].find(key=>!cache.has(key)&&topology.regions.has(key));
           if(key===undefined)break;
-          job={key,iterator:buildGridRegion(topology,topology.regions.get(key).ids,radius)};
+          job={key,iterator:buildGridRegion(topology,topology.regions.get(key).ids,radius,key)};
         }
         if(!topology.regions.has(job.key)){job.iterator.return();job=null;break;}
         const result=job.iterator.next();
