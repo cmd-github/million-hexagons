@@ -2019,7 +2019,7 @@ function createHudThumbnail(source){const art=document.createElement('canvas');c
 async function inspectPlacement(id){
   const version=++inspectorVersion;
   try {return await prepareInspector(id,version);}
-  catch {if(version===inspectorVersion){hexSearchStatus.textContent='Could not load this placement. Try again.';document.querySelector('#inspectorStatus').textContent='Could not load this placement. Try again.';}return false;}
+  catch(error){console.error('Could not load placement inspector',error);if(version===inspectorVersion){hexSearchStatus.textContent='Could not load this placement. Try again.';document.querySelector('#inspectorStatus').textContent='Could not load this placement. Try again.';}return false;}
 }
 async function prepareInspector(id,version){
   if(snapshotEnabled){await prepareLocation(id);const owner=await snapshotRuntime?.owner(regionForPoint(topology.centre(id)),id)||sessionPlacements.get(id)?.placementId;if(owner){const client=await import('./staging-client.js');await applyPersistentPlacements([await client.getPublicPlacement(owner)]);}else return false;}
@@ -2061,12 +2061,17 @@ async function prepareInspector(id,version){
   const deleteButton=document.querySelector('#deleteTestPlacement');deleteButton.hidden=!record?.placementId||!stagingClient;deleteButton.dataset.placementId=record?.placementId||'';
   clearSelectionColours();for(const cellId of queue)writeCellColour(selectionColourData,{id:cellId},'#d7ff55');
   selectionColourTexture.needsUpdate=true;selectionModeUniform.value=1;
-  const nearby=document.querySelector('#nearbyPlacements');nearby.replaceChildren();
-  const selectedRecord=record?.placementId?publicPlacementRecords.get(record.placementId)||record:null;
-  const areas=closestPlacements([...publicPlacementRecords.values()],selectedRecord,cellId=>topology.centre(cellId));
+  await renderNearbyPlacements();
+  document.querySelector('#inspectorStatus').textContent='';panel.hidden=false;controls.autoRotate=false;return true;
+}
+async function renderNearbyPlacements(){
+  const nearby=document.querySelector('#nearbyPlacements'),targetId=inspectedId;nearby.replaceChildren();
+  const record=targetId?sessionPlacements.get(targetId):null,selectedRecord=record?.placementId?publicPlacementRecords.get(record.placementId)||record:null,records=[...publicPlacementRecords.values()];
+  if(selectedRecord&&records.length>1){const loading=document.createElement('p');loading.className='nearby-empty';loading.textContent='Finding nearby placements…';nearby.append(loading);try{await topology.ensureCells([...new Set(records.map(item=>item.anchor))]);}catch{if(inspectedId===targetId)loading.textContent='Nearby is temporarily unavailable. Try again.';return;}}
+  if(inspectedId!==targetId)return;nearby.replaceChildren();
+  const areas=closestPlacements(records,selectedRecord,cellId=>topology.centre(cellId));
   for(const area of areas){const button=document.createElement('button');const image=document.createElement('img'),source=area.thumbnailDataUrl||area.artworkDataUrl;image.alt='';image.hidden=!source;if(source)image.src=source;const name=document.createElement('span');name.textContent=area.title||'Untitled placement';const arrow=document.createElement('span');arrow.textContent='\u2197';arrow.setAttribute('aria-hidden','true');button.append(image,name,arrow);button.onclick=async()=>{await applyPersistentPlacements([area]);if(await inspectPlacement(area.anchor))viewInspectedPlacement();};nearby.append(button);}
   if(!areas.length){const empty=document.createElement('p');empty.className='nearby-empty';empty.textContent=selectedRecord?'No other live placements yet.':'Nearby is available for live placements.';nearby.append(empty);}
-  document.querySelector('#inspectorStatus').textContent='';panel.hidden=false;controls.autoRotate=false;return true;
 }
 function closeInspector(force=false){
   if(hudPinned&&!force)return;
@@ -2075,6 +2080,7 @@ function closeInspector(force=false){
   if(!document.body.classList.contains('creating')){clearSelectionColours();selectionModeUniform.value=0;}
 }
 function showNearby(open,focus=false){
+  if(open)void renderNearbyPlacements();
   document.querySelector('#placementInspector').classList.toggle('show-nearby',open);
   for(const [id,active] of [['hudDetails',!open],['hudNearby',open]]){const page=document.getElementById(id);page.inert=!active;page.setAttribute('aria-hidden',String(!active));}
   document.querySelector('#showNearby').setAttribute('aria-expanded',String(open));
@@ -2136,8 +2142,9 @@ function flyToCell(id,angle,duration=1500,onComplete=()=>{},onCancel=()=>{}){
 function viewInspectedPlacement(){
   const n=topology.centre(inspectedId);let dot=1;
   for(const id of inspectedCells){const p=topology.centre(id);dot=Math.min(dot,n[0]*p[0]+n[1]*p[1]+n[2]*p[2]);}
-  const panel=document.querySelector('#placementInspector');panel.hidden=true;
-  flyToCell(inspectedId,Math.acos(Math.max(-1,dot))+.004,1500,()=>{panel.hidden=false;},()=>closeInspector(true));
+  const panel=document.querySelector('#placementInspector'),targetId=inspectedId;panel.hidden=true;
+  const reveal=()=>{if(inspectedId===targetId&&document.body.classList.contains('inspecting'))panel.hidden=false;};
+  flyToCell(inspectedId,Math.acos(Math.max(-1,dot))+.004,1500,reveal,reveal);
 }
 
 let activeShare=null;
