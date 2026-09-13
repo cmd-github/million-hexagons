@@ -4,9 +4,15 @@ import assert from 'node:assert/strict';
 const b=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
 try{
 for(const [width,height] of [[320,568],[390,844],[1024,768],[1440,900]]){
- const p=await b.newPage({viewport:{width,height}});await p.goto(base+'/?geodesicQA');await p.waitForSelector('#world[data-ready=true]',{timeout:60000});await p.locator('#claimButton').click();await p.locator('#designStep').waitFor({state:'visible'});
+ const p=await b.newPage({viewport:{width,height}});await p.goto(base+'/?geodesicQA');await p.waitForSelector('#world[data-ready=true]',{timeout:60000});
+ if(width<=390){
+  const targets=await p.locator('.globe-controls button:visible, #claimButton').evaluateAll(elements=>elements.map(element=>{const box=element.getBoundingClientRect();return{id:element.id,width:box.width,height:box.height,right:box.right,bottom:box.bottom};}));
+  assert.ok(targets.every(target=>target.width>=44&&target.height>=41&&target.right<=width&&target.bottom<=height),`Mobile globe controls must be reachable touch targets: ${JSON.stringify(targets)}`);
+ }
+ await p.locator('#claimButton').click();await p.locator('#designStep').waitFor({state:'visible'});
  await p.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');await p.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Change image');await p.locator('#moveImageMode').click();
  const box=await p.locator('#buyPanel').evaluate(e=>({height:e.clientHeight,scroll:e.scrollHeight,width:e.clientWidth,scrollWidth:e.scrollWidth}));console.log(width,height,box);assert.ok(box.scroll<=box.height+1&&box.scrollWidth<=box.width+1);
+ if(width<=390){const close=await p.locator('#closeBuy').boundingBox();assert.ok(close&&close.width>=44&&close.height>=44,'Mobile editor close control must be a full touch target');}
  await p.screenshot({path:'artifacts/globe-design/fit-'+width+'.png'});await p.close();
 }
 const p=await b.newPage({viewport:{width:1440,height:900}});

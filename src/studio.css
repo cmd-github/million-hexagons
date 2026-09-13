@@ -58,7 +58,7 @@ body[data-flow=design] .globe-controls{right:490px;left:auto;top:auto;bottom:30p
 @media(max-width:700px){
  body[data-flow=design] .buy-panel{inset:70px 8px 8px;width:auto;padding:14px;border-radius:16px}
  body.creating .flow-progress{margin:0 40px 12px 0}
- body[data-flow=design] .buy-panel .close{width:30px;height:30px;top:10px;right:10px}
+ body[data-flow=design] .buy-panel .close{width:44px;height:44px;top:6px;right:6px}
  body[data-flow=design] #designStep{gap:10px}
  #designIntro{display:none}
  #designStep .add-image{height:36px;font-size:11px}
@@ -71,6 +71,7 @@ body[data-flow=design] .globe-controls{right:490px;left:auto;top:auto;bottom:30p
  #designStep .design-footer .primary{padding:9px 18px;font-size:11px}
  .canvas-caption{font-size:9px;padding:0 8px}
  .popover-content{width:170px}
+ #designStep .studio-more .popover-content{top:auto;bottom:calc(100% + 6px)}
  #designStep #uploadStatus{left:14px;right:14px;bottom:68px}
 }
 @media(max-height:650px){
@@ -187,6 +188,8 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
  body[data-flow=design] #customPaintTools .studio-more summary{padding:4px;min-width:20px}
  #designStep .studio-count input{width:66px}
  #designStep .add-image{padding:0 6px}
+ body:not(.creating) .globe-controls{right:5px;max-width:none}
+ body:not(.creating) .globe-controls button{width:44px;flex:0 0 44px}
 }
 @media(max-height:650px) and (max-width:700px){
  body[data-flow=design][data-surface=globe] .buy-panel{max-height:58vh;padding:10px 14px;padding-top:36px}
@@ -332,7 +335,7 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 #placementInspector #inspectorClicks{color:var(--lime)}
 #inspectorContext{display:inline-block!important;padding:4px 7px;border:1px solid #ffffff20;border-radius:5px;margin:8px 0;color:#b4c8c5}
 .hud-actions{display:flex;align-items:center;gap:8px;margin-top:8px}
-#placementInspector #inspectorShare{font-size:16px;vertical-align:middle;display:grid;place-items:center;padding:9px}
+#placementInspector #inspectorShare{font-size:16px;vertical-align:middle;display:grid;place-items:center;padding:9px;min-width:44px;min-height:44px;box-sizing:border-box}
 #inspectorShare .ico{--ico:18px}
 #claimFeedItems .example-activity span{display:block}
 #claimFeedItems .example-activity small{display:block;border:0;padding:0;margin-top:5px;font-size:9px;color:#8da9a3}
@@ -343,7 +346,7 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
  #claimFeed{left:10px}
  #placementInspector{width:auto;left:10px;right:10px}
  .globe-controls{max-width:calc(100% - 20px)}
- .globe-controls button{width:35px}
+ .globe-controls button{width:44px}
  #claimFeedItems{overflow:auto}
 }
 @media(min-width:901px){
@@ -370,7 +373,7 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
     overlays, so each one's top must clear the height of the one above it. */
  #globalMetrics{top:96px;bottom:auto}
  .inspecting #globalMetrics{display:flex}
- #placementInspector, #claimFeed{bottom:18px}
+ #placementInspector, #claimFeed{bottom:max(18px,env(safe-area-inset-bottom))}
  body:not(.creating) .globe-controls{top:136px;bottom:auto;transform:none}
  #placementInspector{max-height:calc(100dvh - 200px)}
  #claimFeedItems{height:160px;max-height:160px}
@@ -391,12 +394,12 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 #placementInspector .hud-stats span{font-size:10px;color:#8ca7a2}
 #placementInspector #inspectorContext{border:0;padding:0;margin:0 0 12px;color:var(--lime);font-size:10px}
 #placementInspector .hud-actions{margin-top:0}
-#placementInspector .hud-actions a{display:flex;align-items:center;padding:10px 13px;border-color:#d7ff5544;color:var(--lime);justify-content:center;gap:8px;flex:1;font-size:12px}
+#placementInspector .hud-actions a{display:flex;align-items:center;padding:10px 13px;border-color:#d7ff5544;color:var(--lime);justify-content:center;gap:8px;flex:1;font-size:12px;min-height:44px;box-sizing:border-box}
 .hud-actions .ico, .activity-icon .ico{--ico:18px}
-#placementInspector #showNearby{display:flex;width:100%;justify-content:space-between;align-items:center;border:0;border-top:1px solid #ffffff12;border-radius:0;background:none;margin-top:12px;padding:11px 0 0;color:#9ab3ae;font-size:11px}
+#placementInspector #showNearby{display:flex;width:100%;justify-content:space-between;align-items:center;border:0;border-top:1px solid #ffffff12;border-radius:0;background:none;margin-top:12px;padding:11px 0 0;color:#9ab3ae;font-size:11px;min-height:44px}
 #placementInspector .nearby-heading{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px}
 .nearby-heading h3{font-size:12px;font-weight:600;margin:0}
-#placementInspector #backNearby{background:none;border:0;padding:5px 0 5px 12px;color:#b8ccc3;font-size:11px}
+#placementInspector #backNearby{background:none;border:0;padding:5px 0 5px 12px;color:#b8ccc3;font-size:11px;min-height:44px}
 #placementInspector #nearbyPlacements{position:static;padding:0;background:none;border:0;border-radius:0;box-shadow:none;max-height:none;overflow:visible}
 #placementInspector #nearbyPlacements button{display:flex!important;align-items:center;gap:12px;min-height:45px;border:0;border-top:1px solid #ffffff12;border-radius:0;background:none;padding:8px 0;color:#e7efea;font-size:12px}
 #nearbyPlacements img{width:28px;height:28px;object-fit:contain}
@@ -502,7 +505,7 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 .share-card-actions button+button{background:#d7ff5508;color:var(--lime)}
 #shareCardStatus{display:block;margin-top:10px;letter-spacing:0;color:#a9bfbb}
 @media(max-width:620px){
- .my-globe{inset:10px;padding:18px;border-radius:18px}
+ .my-globe{inset:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));padding:18px;border-radius:18px}
  .my-globe>header{margin-bottom:16px}
  .my-globe-card{grid-template-columns:88px 1fr}
  .my-globe-card>img, .my-globe-placeholder{width:88px;min-height:170px}

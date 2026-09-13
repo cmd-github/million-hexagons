@@ -11,7 +11,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 ## Next
 
 - [ ] Execute the prepared 1k/10k/100k/1M varied-image acceptance matrix, including sustained navigation, faults and physical iOS/Android. The matrix is a specification, not generated datasets or completed results.
-- [ ] High priority — fix and polish the complete mobile UI, then verify the globe, Create a placement, Nearby, activity and checkout journeys on physical iOS and Android devices.
+- [ ] Complete physical-device acceptance for the mobile globe, Create a placement, Nearby, activity and checkout journeys on iOS and Android; apply any device-specific follow-up found there.
 - [ ] High priority — reimagine the Create a placement UI while preserving the exact Design → Place → Review contract, existing creative tools and purchased-cell accuracy.
 - [ ] High priority — rewrite and test the main page title/headline so it communicates the product, scarcity and primary action immediately.
 - [ ] High priority — augment the background-space treatment with green hexagons without reducing globe readability, accessibility, interaction clarity or performance.
@@ -27,6 +27,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Later: design explicit domain rules for voluntarily merging connected purchases under the same verified owner so one artwork can span the expanded holding.
 
 ## Done
+
+- [x] Completed the browser-based launch mobile UI pass and deployed it as staging version `ebe32edb-e798-4088-a5f8-6ae32b45a010`. The seven-button globe rail now retains 44x44 px targets even at 320px, the primary Create CTA and editor close control meet the mobile target size, HUD/share/Nearby actions are easier to tap, and bottom sheets, HUD/feed and My Globe respect safe-area insets. The design More menu now opens upward inside 320x568 and 390x844 instead of putting Start over outside the viewport. Repaired current-flow QA assumptions for preserved drafts, authoritative activity and empty staging inventory. Desktop/mobile Design -> Place -> Review, checkout reservation/release, public placement/Nearby, post-payment restoration, adjacent purchases, My Globe and account access passed; live 320px and 390px screenshots were inspected. Physical iOS/Android testing remains open.
 
 - [x] Removed the post-placement click-to-HUD stall and deployed it as staging version `05ce9cb5-252e-4cbf-9990-17224b9e169b`. Placement metadata now opens the HUD immediately once the already-clicked anchor is ready; complete footprint geometry and Nearby ranking continue without blocking the card, and camera travel keeps it visible. A desktop/mobile regression delays unrelated regional downloads by 800 ms yet records HUD appearance in 58/65 ms. Live staging measured 85 ms desktop and 76 ms mobile for the newest 2,000-cell placement; screenshots were inspected. Nearby completion, the controlled post-payment lifecycle, adjacent purchases, restoration and My Globe remained green. Physical devices remain unverified.
 

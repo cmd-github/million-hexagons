@@ -36,6 +36,7 @@ for(const mobile of [false,true]){
  await page.locator('#previewPurchase').click();await page.waitForFunction(()=>document.querySelector('#buyPanel').getAttribute('aria-hidden')==='true',null,{timeout:60000});
  const committed=await page.evaluate(()=>window.geodesicQA.state().committed);assert.ok(ids.every(id=>committed.includes(id)));
  await page.locator('#claimButton').click();await page.locator('#designStep').waitFor({state:'visible'});
+ await page.locator('.studio-more summary').click();await page.locator('#startOver').click();
  assert.equal(await page.locator('#addImageLabel').textContent(),'Add image');
  assert.equal(await page.locator('#logoOrientation').inputValue(),'0');
  await page.locator('#closeBuy').click();
@@ -46,7 +47,7 @@ for(const mobile of [false,true]){
  assert.equal(await page.locator('#inspectorLogo').isVisible(),true);assert.ok(await page.locator('#inspectorLogo').evaluate(e=>e.complete&&e.naturalWidth>0));
  assert.equal(await page.locator('#inspectorDescription').textContent(),'Independent design for curious people.');
  assert.match(await page.locator('#inspectorDate').textContent(),/\d{2}\/\d{2}\/\d{2}/);
- assert.match(await page.locator('#claimFeedItems').textContent(),/Orbit Studio/);
+ assert.doesNotMatch(await page.locator('#claimFeedItems').textContent(),/Orbit Studio/);assert.match(await page.locator('#claimFeedItems').textContent(),/next live placement/i);
  assert.equal(await page.locator('#discoverPlacement').count(),0);
  await page.locator('#pinInspector').click();await page.mouse.click(8,100);assert.equal(await page.locator('#placementInspector').isVisible(),true);
  await page.locator('#pinInspector').click();await page.mouse.click(8,100);assert.equal(await page.locator('#placementInspector').isVisible(),false);
