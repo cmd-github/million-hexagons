@@ -546,7 +546,7 @@ This is not merely a rendering operation. Define explicit domain rules before im
 
 ---
 
-# 15. Sharing — HIGH PRIORITY GROWTH FEATURE
+# 15. Sharing — LAUNCH CRITICAL
 
 A successful purchase should create an emotional/shareable moment.
 
@@ -608,6 +608,13 @@ Support:
 The core goal is:
 
 > Every purchase should create another potential source of visitors.
+
+Before launch, decide the exact sharing package for a newly completed purchase
+and implement it as part of the checkout-success journey. The decision must cover
+what the buyer receives, which share destinations are supported, the permanent
+placement URL and preview artwork, the mobile and desktop interaction, analytics,
+failure/fallback behaviour and what remains deliberately post-launch. Do not treat
+the existing generic share card or copied location link as acceptance by itself.
 
 ---
 
@@ -1118,6 +1125,7 @@ A buyer must be able to:
 - rewrite and test the main page title/headline so the product proposition, scarcity and action are immediately clear
 - review the public activity log/feed for trustworthy data, useful ordering, clear empty/error states and unobtrusive mobile behaviour
 - enrich the background space treatment with deliberate green hexagon elements while protecting globe legibility, interaction clarity, accessibility and rendering performance
+- decide and implement the launch sharing experience for new purchases, including the post-payment moment, permanent placement link, share asset, supported destinations, mobile/desktop fallbacks and measurement
 
 ---
 

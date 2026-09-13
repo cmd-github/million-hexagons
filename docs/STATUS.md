@@ -18,6 +18,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] High priority — rewrite and test the main page title/headline so it communicates the product, scarcity and primary action immediately.
 - [ ] High priority — review the public activity log/feed for authoritative data, ordering, usefulness, and unobtrusive responsive behaviour.
 - [ ] High priority — augment the background-space treatment with green hexagons without reducing globe readability, accessibility, interaction clarity or performance.
+- [ ] Key launch priority — decide and implement the sharing experience for new purchases. Define the post-payment moment, permanent placement link and preview asset, supported share destinations, desktop/mobile fallbacks, analytics and failure states; verify the complete checkout-to-share journey rather than relying on the existing generic share card alone.
 - [ ] Complete the commercial launch decisions: pricing, refunds, permanent-use wording, seller identity and governing law.
 - [ ] Publish the required customer-facing legal and commercial pages before enabling production checkout: terms, privacy, content policy, contact/seller identity and refund/purchase terms; link them before payment and from persistent site navigation.
 - [ ] Complete the launch web-quality surface: real 404 handling, indexable public routes, unique titles/descriptions/canonicals, favicon variants, `robots.txt`, `sitemap.xml`, Open Graph/social metadata and a tested share image.
@@ -29,6 +30,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Later: design explicit domain rules for voluntarily merging connected purchases under the same verified owner so one artwork can span the expanded holding.
 
 ## Done
+
+- [x] Captured the decision and implementation of new-purchase sharing as a key launch requirement, with an explicit acceptance boundary beyond the existing generic share card.
 
 - [x] Recorded Craig's additional pre-launch product priorities in the product direction and operational queue: mobile UI, Create a placement redesign, adjacent-purchase testing, Nearby, headline copy, activity feed and green-hexagon background treatment.
 
