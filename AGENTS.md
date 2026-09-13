@@ -14,6 +14,14 @@
 - Keep authoritative ownership/domain data separate from rendered R2 output.
 - Use permanent `placementId` identity for purchased placements.
 
+## Product alignment
+
+- When Craig introduces, explores or materially reshapes a product idea, do not jump straight to implementation.
+- First reflect back the intended outcome and ask concise clarifying questions about ambiguous behaviour, scope, presentation and important tradeoffs.
+- Establish agreed acceptance criteria before editing code when multiple reasonable interpretations could produce materially different results.
+- Treat shorthand such as “one more thing”, “capture this” or a list of ideas as direction to discuss or document unless implementation is explicitly requested.
+- Do not delay straightforward fixes or already-defined work with unnecessary questions; clarify only what could materially change the result.
+
 ## Progress
 
 - `docs/STATUS.md` is the operational source of truth.
