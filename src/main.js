@@ -12,6 +12,7 @@ import { createCameraFlight, placementPose } from './globe/camera-flight.js';
 import { rotatedImageBox, containRotatedImage } from './placements/artwork-fit.js';
 import { createDemoTour } from './globe/demo-tour.js';
 import { footprintBounds, centre } from './placements/geometry.js';
+import { closestPlacements, milestoneStatus, newestPlacements, recommendedMilestones } from './placements/discovery.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import './style.css';
@@ -224,6 +225,7 @@ let ownerEdit = null;
 let editorPainting = false;
 const selectedCellColours = new Map();
 const sessionPlacements = new Map();
+const publicPlacementRecords = new Map();
 let explorationStart = null;
 let requestedAnchor = null;
 let pinnedCell = null;
@@ -1523,9 +1525,10 @@ function showCheckoutExpiry(){
 function persistentArtwork(canvas){const limit=900,scale=Math.min(1,limit/Math.max(canvas.width,canvas.height)),copy=document.createElement('canvas');copy.width=Math.max(1,Math.round(canvas.width*scale));copy.height=Math.max(1,Math.round(canvas.height*scale));copy.getContext('2d').drawImage(canvas,0,0,copy.width,copy.height);return copy.toDataURL('image/webp',.86);}
 function publicationArtwork(canvas){return canvas.toDataURL('image/webp',.95);}
 async function applyPersistentPlacements(records,{focus=false}={}){
+  for(const record of records)publicPlacementRecords.set(record.placementId,record);
   if(snapshotEnabled){
     for(const record of records){
-      const value={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor,cells:record.cells,logo:record.thumbnailDataUrl||record.artworkDataUrl};
+      const value={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor,cells:record.cells,logo:record.thumbnailDataUrl||record.artworkDataUrl,publicationStatus:record.publicationStatus,status:record.status,moderationStatus:record.moderationStatus};
       // Retain inspected records only; authoritative occupancy is separate.
       for(const [id,old] of sessionPlacements)if(old.placementId===record.placementId)sessionPlacements.delete(id);
       record.cells.forEach(id=>sessionPlacements.set(id,value));
@@ -1535,7 +1538,7 @@ async function applyPersistentPlacements(records,{focus=false}={}){
   }
   const fresh=records.filter(record=>!restoredPlacementIds.has(record.placementId));if(!fresh.length)return records;
   const restored=fresh.map(record=>{
-    const placementRecord={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor,cells:record.cells};
+    const placementRecord={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor,cells:record.cells,publicationStatus:record.publicationStatus,status:record.status,moderationStatus:record.moderationStatus};
     record.cells.forEach(id=>{occupiedCells[id-1]=255;sessionPlacements.set(id,placementRecord);});
     restoredPlacementIds.add(record.placementId);
     return{record,placementRecord};
@@ -1663,7 +1666,7 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
   document.querySelector('#sendOwnerLink').onclick=event=>sendLink(document.querySelector('#stagingOwnerEmail').value,event.currentTarget,status);
   document.querySelector('#sendAccountLink').onclick=event=>sendLink(document.querySelector('#accountEmail').value,event.currentTarget,accountStatus);
   document.querySelector('#accountSignOut').onclick=async event=>{event.currentTarget.disabled=true;try{closeMyGlobe();await stagingClient.signOutOwner();accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');}finally{event.currentTarget.disabled=false;}};
-  const adminWorkspace=document.querySelector('#adminWorkspace'),adminResults=document.querySelector('#adminResults'),adminStatus=document.querySelector('#adminStatus'),adminQuery=document.querySelector('#adminQuery');
+  const adminWorkspace=document.querySelector('#adminWorkspace'),adminResults=document.querySelector('#adminResults'),adminStatus=document.querySelector('#adminStatus'),adminQuery=document.querySelector('#adminQuery'),adminMilestones=document.querySelector('#adminMilestones');
   const escapeAdmin=value=>String(value??'').replace(/[&<>"']/g,character=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
   const adminActionName=action=>({'remove-artwork':'Artwork removed','remove-link':'Link removed','remove-description':'Description removed','edit-link':'Link edited','edit-description':'Description edited','suspend':'Content suspended','reinstate':'Content reinstated','restore-version':'Version restored',revoke:'Placement revoked','credit-issue':'Credits granted','credit-redeem':'Credits redeemed','grant-credits':'Credits granted',refund:'Refund requested'}[action]||action);
   function renderAdminPlacement(placement){
@@ -1678,7 +1681,13 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
     try{const result=await stagingClient.adminLookup(query);adminResults.innerHTML=result.placements.length?result.placements.map(renderAdminPlacement).join(''):'<p class="admin-empty">No placements found.</p>';adminStatus.textContent=`${result.placements.length} ${result.placements.length===1?'placement':'placements'} found.`;}
     catch(error){adminStatus.textContent=error.code==='administrator-required'?'Administrator access is required.':`Lookup failed: ${error.message}`;}
   }
-  document.querySelector('#openAdmin').onclick=()=>{accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');adminWorkspace.hidden=false;document.body.classList.add('admin-open');adminQuery.focus();};
+  async function renderAdminMilestones(){
+    const status=adminMilestones.querySelector('[role=status]'),list=adminMilestones.querySelector('.admin-milestone-list'),recommendations=adminMilestones.querySelector('.admin-milestone-recommendations');status.textContent='Refreshing live progress…';
+    try{const {stats}=await stagingClient.getPublicStats(),rows=milestoneStatus(stats),next=recommendedMilestones(stats);list.innerHTML=rows.map(item=>`<li data-achieved="${item.achieved}"><span><b>${escapeAdmin(item.label)}</b><small>${item.current.toLocaleString()} / ${item.target.toLocaleString()}</small></span><progress max="1" value="${item.progress}">${Math.round(item.progress*100)}%</progress></li>`).join('');recommendations.innerHTML=next.length?`<b>Recommended next milestones</b><ul>${next.map(item=>`<li>${escapeAdmin(item.label)}</li>`).join('')}</ul>`:'<b>Every configured milestone has been achieved.</b>';status.textContent=`Updated from live totals · ${rows.filter(item=>item.achieved).length} of ${rows.length} achieved.`;}
+    catch(error){status.textContent=`Could not refresh milestones: ${error.message}`;}
+  }
+  document.querySelector('#refreshAdminMilestones').onclick=()=>void renderAdminMilestones();
+  document.querySelector('#openAdmin').onclick=()=>{accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');adminWorkspace.hidden=false;document.body.classList.add('admin-open');void renderAdminMilestones();adminQuery.focus();};
   document.querySelector('#closeAdmin').onclick=()=>{adminWorkspace.hidden=true;document.body.classList.remove('admin-open');accountToggle.focus();};
   document.querySelector('#adminSearch').onsubmit=event=>{event.preventDefault();void runAdminLookup();};
   adminResults.onclick=async event=>{
@@ -1857,6 +1866,7 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('geodesicQA'
       await prepareLocation(id);controls.autoRotate=false;orientToCell(id,radius+distance);
     },
     async place(id) { await prepareLocation(id);await choosePatternOrigin({uv:new THREE.Vector2(),point:pointForCell({id})},cellForId(id));focusSelection(); },
+    neighbours(id) { return topology.neighboursOf(id); },
     missNextIntersection() { forceIntersectionMiss=true; },
     state() { return { inspectedId, rotationSpeed:controls.rotateSpeed, orientation:globe.quaternion.toArray(), selected: selectedCells.map(c=>c.id), design: previewCells().map(c=>c.id), designAnchor, requestedAnchor, sold, committed: [...sessionPlacements.keys()], connected: topology.isConnected(selectedCells), camera:camera.position.toArray(), detailVertices:cellDetail?.stats.vertices||0, drawCalls:renderer.info.render.calls,tiles:{...artworkTiles.stats},retainedPlacements:placementLayers.children.length }; },
     screen(id) { const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return {x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2}; },
@@ -2052,12 +2062,10 @@ async function prepareInspector(id,version){
   clearSelectionColours();for(const cellId of queue)writeCellColour(selectionColourData,{id:cellId},'#d7ff55');
   selectionColourTexture.needsUpdate=true;selectionModeUniform.value=1;
   const nearby=document.querySelector('#nearbyPlacements');nearby.replaceChildren();
-  const centre=topology.centre(id);
-  const areas=[...bootstrap.sampleAreas].sort((a,b)=>{
-    const dot=x=>topology.centre(x.anchor).reduce((sum,v,i)=>sum+v*centre[i],0);
-    return dot(b)-dot(a);
-  }).filter((a,index,all)=>a.campaign!==owner-1&&all.findIndex(other=>other.campaign===a.campaign)===index).slice(0,3);
-  for(const area of areas){const button=document.createElement('button');const image=document.createElement('img');image.src='/brands/'+area.campaign+'.svg';image.alt='';const name=document.createElement('span');name.textContent=bootstrap.sampleCampaigns[area.campaign].name;const arrow=document.createElement('span');arrow.textContent='\u2197';arrow.setAttribute('aria-hidden','true');button.append(image,name,arrow);button.onclick=async()=>{if(await inspectPlacement(area.anchor))viewInspectedPlacement();};nearby.append(button);}
+  const selectedRecord=record?.placementId?publicPlacementRecords.get(record.placementId)||record:null;
+  const areas=closestPlacements([...publicPlacementRecords.values()],selectedRecord,cellId=>topology.centre(cellId));
+  for(const area of areas){const button=document.createElement('button');const image=document.createElement('img'),source=area.thumbnailDataUrl||area.artworkDataUrl;image.alt='';image.hidden=!source;if(source)image.src=source;const name=document.createElement('span');name.textContent=area.title||'Untitled placement';const arrow=document.createElement('span');arrow.textContent='\u2197';arrow.setAttribute('aria-hidden','true');button.append(image,name,arrow);button.onclick=async()=>{await applyPersistentPlacements([area]);if(await inspectPlacement(area.anchor))viewInspectedPlacement();};nearby.append(button);}
+  if(!areas.length){const empty=document.createElement('p');empty.className='nearby-empty';empty.textContent=selectedRecord?'No other live placements yet.':'Nearby is available for live placements.';nearby.append(empty);}
   document.querySelector('#inspectorStatus').textContent='';panel.hidden=false;controls.autoRotate=false;return true;
 }
 function closeInspector(force=false){
@@ -2104,13 +2112,11 @@ function activityIcon(kind){
 function renderClaimFeed(){
   const target=document.querySelector('#claimFeedItems');target.replaceChildren();
   const ticker=[];
-  for(const record of [...new Set(sessionPlacements.values())].sort((a,b)=>b.createdAt-a.createdAt).slice(0,5)){
-    const button=document.createElement('button');button.className='example-activity';const icon=document.createElement('span');icon.className='activity-icon';icon.innerHTML=activityIcon('claim');const title=document.createElement('span');title.textContent=(record.name||'You')+' claimed '+record.count.toLocaleString()+(record.count===1?' hexagon':' hexagons');const date=document.createElement('small');date.textContent=new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'});button.append(icon,title,date);
-    button.onclick=async()=>{if(await inspectPlacement(record.anchor))viewInspectedPlacement();};target.append(button);
+  for(const record of newestPlacements([...publicPlacementRecords.values()])){
+    const button=document.createElement('button');button.className='example-activity';const icon=document.createElement('span');icon.className='activity-icon';icon.innerHTML=activityIcon('claim');const title=document.createElement('span');title.textContent=(record.title||'Untitled placement')+' claimed '+record.cellCount.toLocaleString()+(record.cellCount===1?' hexagon':' hexagons');const date=document.createElement('small');date.textContent=new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'});button.append(icon,title,date);
+    button.onclick=async()=>{await applyPersistentPlacements([record]);if(await inspectPlacement(record.anchor))viewInspectedPlacement();};target.append(button);
     ticker.push(title.textContent);
   }
-  const examples=[];
-  for(const [headline,detail,campaign] of examples){const button=document.createElement(campaign===null?'div':'button');button.className='example-activity';const title=document.createElement('span');title.textContent=headline;const meta=document.createElement('small');meta.textContent=detail;const icon=document.createElement('span');icon.className='activity-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML=activityIcon(campaign===10?'claim':campaign===8?'trend':campaign===4?'milestone':'globe');button.append(icon,title,meta);if(campaign!==null)button.onclick=async()=>{if(await inspectPlacement(bootstrap.sampleAreas.find(area=>area.campaign===campaign).anchor))viewInspectedPlacement();};target.append(button);ticker.push(headline);}
   if(!ticker.length){const empty=document.createElement('div');empty.className='example-activity';empty.textContent='The next live placement will appear here.';target.append(empty);ticker.push('Waiting for the next live placement');}
   const tickerText=ticker.join('  ·  '),tickerElement=document.querySelector('#claimTicker'),track=tickerElement.querySelector('.ticker-track');
   tickerElement.setAttribute('aria-label','Latest activity: '+ticker.join('. '));track.textContent=tickerText+'  ·  '+tickerText;

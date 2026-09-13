@@ -644,6 +644,12 @@ Initially achievements can simply be derived server-side from trustworthy owners
 
 Avoid achievements that accidentally encourage manipulation or bots.
 
+The public activity feed must contain only real published placements, newest first;
+it must never be padded with illustrative claims, trends or milestones. Founder controls
+should provide a separate milestone planner showing every configured threshold, current
+live progress and recommended next milestones. Recommendations require founder review
+and do not publish themselves into the public feed.
+
 ---
 
 # 17. Country representation

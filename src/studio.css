@@ -255,10 +255,24 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 .admin-audit summary{cursor:pointer;color:#b8cbc6;font-size:11px}
 .admin-audit ol{padding-left:18px;color:#8fa6a0;font-size:10px;line-height:1.6}
 .admin-empty{padding:20px;border:1px dashed #ffffff22;border-radius:12px;text-align:center;color:#91aaa4;font-size:11px}
+.admin-milestones{margin-top:22px;padding-top:18px;border-top:1px solid #ffffff18}
+.admin-milestones header{align-items:center;padding:0;border:0}
+.admin-milestones h3{margin:3px 0 0;font-size:17px}
+.admin-milestones>p,.admin-milestones>small{display:block;color:#91aaa4;font-size:10px;line-height:1.5}
+.admin-milestone-list{display:grid;gap:7px;padding:0;list-style:none}
+.admin-milestone-list li{display:grid;grid-template-columns:minmax(0,1fr) 110px;align-items:center;gap:12px;padding:9px;border:1px solid #ffffff14;border-radius:9px;background:#ffffff04}
+.admin-milestone-list li[data-achieved=true]{border-color:#d7ff5540;background:#d7ff5508}
+.admin-milestone-list b,.admin-milestone-list small{display:block;font-size:10px}
+.admin-milestone-list small{margin-top:3px;color:#91aaa4}
+.admin-milestone-list progress{width:100%;accent-color:var(--lime)}
+.admin-milestone-recommendations{margin:12px 0;padding:12px;border-radius:10px;background:#d7ff5508;color:#dce8e6;font-size:10px}
+.admin-milestone-recommendations ul{margin:7px 0 0;padding-left:18px}
+.nearby-empty{margin:0;padding:13px;color:#91aaa4;font-size:10px;line-height:1.5}
 @media(max-width:600px){
  .admin-workspace{inset:8px;width:auto;padding:17px;border-radius:15px}
  .admin-actions{grid-template-columns:1fr}
  .admin-action.wide{grid-column:auto}
+ .admin-milestone-list li{grid-template-columns:1fr}
 }
 /* Placement inspector brand block, stats row and activity feed entries. */
 #placementInspector .hud-brand{display:flex;align-items:center;gap:12px;padding:6px 0 10px}
@@ -414,7 +428,7 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 .checkout-loading p{margin:0;color:#9fb4b1;font:600 11px Manrope,sans-serif}
 #embeddedCheckoutStatus{color:#9fb4b1;font-size:11px;line-height:1.5;text-align:center}
 .buy-panel:has(.embedded-checkout:not([hidden]))>.close, .buy-panel:has(.embedded-checkout:not([hidden]))>.flow-progress{visibility:hidden}
-#claimFeed{width:360px;padding:0;overflow:hidden}
+#claimFeed{width:min(360px,calc(100vw - 20px));padding:0;overflow:hidden}
 #claimFeed summary{cursor:pointer;display:flex;align-items:center;gap:10px;height:46px;padding:0 14px;list-style:none;overflow:hidden}
 #claimFeed summary::-webkit-details-marker{display:none}
 .ticker-kicker{flex:0 0 auto;color:var(--lime);font:700 9px 'DM Mono',monospace;letter-spacing:.12em;text-transform:uppercase}
@@ -423,7 +437,7 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 .feed-title{display:none;color:#dce8e6;font-size:11px}
 .feed-toggle{flex:0 0 16px;color:#8da9a3;text-align:center;font-size:15px}
 .feed-toggle:after{content:'+'}
-#claimFeed[open]{width:300px;padding:12px 15px;overflow:visible}
+#claimFeed[open]{width:min(300px,calc(100vw - 50px));padding:12px 15px;overflow:visible}
 #claimFeed[open] summary{height:auto;padding:0;overflow:visible}
 #claimFeed[open] .ticker-kicker, #claimFeed[open] #claimTicker{display:none}
 #claimFeed[open] .feed-title{display:block;flex:1}

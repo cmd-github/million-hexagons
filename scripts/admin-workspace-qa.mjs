@@ -17,10 +17,11 @@ try{
     await page.locator('#openAdmin').evaluate(button=>{button.hidden=false;button.click();});
     const workspace=page.locator('#adminWorkspace');await workspace.waitFor({state:'visible'});assert.equal(await page.locator('#adminQuery').evaluate(element=>element===document.activeElement),true);
     for(const selector of ['#adminSearch','#closeAdmin'])assert.equal(await page.locator(selector).isVisible(),true);assert.equal(await page.locator('#adminResults').count(),1);
+    await page.waitForFunction(()=>document.querySelectorAll('.admin-milestone-list li').length>0);assert.equal(await page.locator('.admin-milestone-list li').count(),10);assert.ok(await page.locator('.admin-milestone-recommendations').textContent());
     const box=await workspace.boundingBox();assert.ok(box);assert.ok(box.x>=0&&box.y>=0&&box.x+box.width<=viewport.width&&box.y+box.height<=viewport.height,`Admin workspace must stay in the viewport: ${JSON.stringify({mobile,viewport,box})}`);
     await page.screenshot({path:`artifacts/admin-workspace/${mobile?'mobile':'desktop'}-open.png`,animations:'disabled'});
     await page.locator('#closeAdmin').click();assert.equal(await workspace.isHidden(),true);assert.deepEqual(errors,[]);
-    report.push({mobile,inViewport:true,queryFocused:true,controlsVisible:true,closes:true});await page.close();
+    report.push({mobile,inViewport:true,queryFocused:true,controlsVisible:true,milestonePlanner:true,closes:true});await page.close();
   }
 }finally{await browser.close();}
 console.log(JSON.stringify(report,null,2));

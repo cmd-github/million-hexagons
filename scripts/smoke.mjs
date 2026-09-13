@@ -25,7 +25,7 @@ await page.goto((process.env.SMOKE_URL || 'http://127.0.0.1:4175')+'?tourFast');
 await page.waitForSelector('#world[data-ready="true"]', { timeout: 60000 });
 
 if (!(await page.locator('#demoTour').evaluate((element) => element.closest('.globe-controls') !== null))) errors.push('Demo control was not in the globe toolbar');
-if ((await page.locator('#demoTour').textContent()) !== '✈') errors.push('Globe tour did not use the plane control');
+if (!(await page.locator('#demoTour .ico').count())) errors.push('Globe tour icon did not render');
 await page.click('#zoomIn');
 await page.click('#zoomIn');
 await page.click('#zoomIn');
@@ -36,22 +36,19 @@ if (!globe) throw new Error('Globe canvas was unavailable');
 await page.mouse.click(globe.x + globe.width / 2, globe.y + globe.height / 2);
 await page.waitForFunction(() => document.querySelector('#rotationToggle').getAttribute('aria-pressed') === 'false');
 if ((await page.locator('#rotationToggle').getAttribute('aria-pressed')) !== 'false') errors.push('Close globe click did not pause rotation');
-if ((await page.locator('#rotationToggle').textContent()) !== '⟳') errors.push('Paused globe control did not use the rotate icon');
+if (!(await page.locator('#rotationToggle .ico').count())) errors.push('Rotation control icon did not render');
 await page.screenshot({path:'artifacts/visual-qa/desktop-rotate-control.png'});
 await page.click('#rotationToggle');
 if ((await page.locator('#rotationToggle').getAttribute('aria-pressed')) !== 'true') errors.push('Rotation control did not restart rotation');
 if (await page.locator('#cellPosition').count()) errors.push('Tile tooltip still included coordinates');
-await page.click('#toggleHexSearch');
-await page.locator('#hexSearchInput').fill('2');
-await page.locator('#hexSearch').evaluate((form) => form.requestSubmit());
-await page.waitForFunction(() => document.querySelector('#hexSearchStatus').textContent.includes('Centred on'));
-await page.waitForTimeout(400);
-await page.mouse.move(globe.x + globe.width / 2, globe.y + globe.height / 2);
-await page.waitForFunction(() => document.querySelector('#cellTooltip').classList.contains('show'));
-if ((await page.locator('#cellOwner').textContent()) !== 'Adidas') errors.push('Sample tile did not show its advertiser name');
-if ((await page.locator('#cellDestination').textContent()) !== 'adidas.com') errors.push('Sample tile did not show its advertiser URL');
-await page.screenshot({path:'artifacts/visual-qa/desktop-owner-tooltip.png'});
-await page.click('#toggleHexSearch');
+await page.waitForSelector('#claimFeedItems button',{timeout:60000});
+const liveActivity=await page.locator('#claimFeedItems button').first().textContent();
+await page.locator('#claimFeed summary').click();
+await page.locator('#claimFeedItems button').first().click();
+await page.waitForSelector('#placementInspector:not([hidden])',{timeout:60000});
+if (!(await page.locator('#inspectorName').textContent()).trim()) errors.push('Live placement path did not expose a placement name');
+await page.screenshot({path:'artifacts/visual-qa/desktop-live-placement.png'});
+await page.keyboard.press('Escape');
 await page.click('#demoTour');
 await page.waitForFunction(() => document.querySelector('#demoTour').getAttribute('aria-pressed') === 'true', null, {timeout:60000});
 const firstTourCell=await page.locator('#demoTour').getAttribute('data-cell');
@@ -110,6 +107,7 @@ console.log(JSON.stringify({
   paintedCount,
   activeScreen: await page.locator('.flow-screen.active').getAttribute('id'),
   detectedColours: await page.locator('#logoSwatches button').count(),
+  liveActivity: liveActivity.trim(),
   tourVaried: firstTourCell !== secondTourCell,
   errors,
 }));

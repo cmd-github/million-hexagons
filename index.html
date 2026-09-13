@@ -71,6 +71,13 @@
       <form id="adminSearch"><label for="adminQuery">Placement ID, owner email or owner ID</label><div><input id="adminQuery" autocomplete="off" required><button type="submit">Find</button></div></form>
       <p id="adminStatus" role="status">Find a placement to review its public content and audit history.</p>
       <div id="adminResults"></div>
+      <section id="adminMilestones" class="admin-milestones" aria-labelledby="adminMilestonesTitle">
+        <header><div><small>LIVE PROGRESS</small><h3 id="adminMilestonesTitle">Milestone planner</h3></div><button type="button" id="refreshAdminMilestones">Refresh</button></header>
+        <p role="status">Open founder controls to load live milestone progress.</p>
+        <ul class="admin-milestone-list"></ul>
+        <div class="admin-milestone-recommendations"></div>
+        <small>Milestones are recommendations for review. They never appear in the public activity feed automatically.</small>
+      </section>
     </section>
     <div class="cell-tooltip glass" id="cellTooltip"><small id="cellNumber"></small><b id="cellOwner">Available</b><small id="cellDestination" hidden></small><button type="button" id="claimCell" hidden>Claim this space</button></div>
 
