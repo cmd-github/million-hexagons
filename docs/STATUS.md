@@ -11,6 +11,13 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 ## Next
 
 - [ ] Execute the prepared 1k/10k/100k/1M varied-image acceptance matrix, including sustained navigation, faults and physical iOS/Android. The matrix is a specification, not generated datasets or completed results.
+- [ ] High priority — fix and polish the complete mobile UI, then verify the globe, Create a placement, Nearby, activity and checkout journeys on physical iOS and Android devices.
+- [ ] High priority — reimagine the Create a placement UI while preserving the exact Design → Place → Review contract, existing creative tools and purchased-cell accuracy.
+- [ ] High priority — test buying available cells directly neighbouring an existing placement under the same verified owner across reservation, payment, publication and My Globe. Keep the purchase separate; do not introduce automatic merging.
+- [ ] High priority — repair and review Nearby for relevance, navigation, empty/error states and desktop/mobile interaction.
+- [ ] High priority — rewrite and test the main page title/headline so it communicates the product, scarcity and primary action immediately.
+- [ ] High priority — review the public activity log/feed for authoritative data, ordering, usefulness, and unobtrusive responsive behaviour.
+- [ ] High priority — augment the background-space treatment with green hexagons without reducing globe readability, accessibility, interaction clarity or performance.
 - [ ] Complete the commercial launch decisions: pricing, refunds, permanent-use wording, seller identity and governing law.
 - [ ] Publish the required customer-facing legal and commercial pages before enabling production checkout: terms, privacy, content policy, contact/seller identity and refund/purchase terms; link them before payment and from persistent site navigation.
 - [ ] Complete the launch web-quality surface: real 404 handling, indexable public routes, unique titles/descriptions/canonicals, favicon variants, `robots.txt`, `sitemap.xml`, Open Graph/social metadata and a tested share image.
@@ -22,6 +29,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Later: design explicit domain rules for voluntarily merging connected purchases under the same verified owner so one artwork can span the expanded holding.
 
 ## Done
+
+- [x] Recorded Craig's additional pre-launch product priorities in the product direction and operational queue: mobile UI, Create a placement redesign, adjacent-purchase testing, Nearby, headline copy, activity feed and green-hexagon background treatment.
 
 - [x] Promoted the launch website checklist into explicit product acceptance criteria covering routing/404s, SEO and social metadata, accessibility, responsive conversion UX, legal/privacy surfaces, consent-aware analytics, post-purchase confirmation and image delivery. Audited the current repository state and recorded the missing implementation work under Next.
 

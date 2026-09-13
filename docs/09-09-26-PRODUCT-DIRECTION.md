@@ -1108,6 +1108,17 @@ A buyer must be able to:
 - consent-gated non-essential analytics and verified server-side purchase measurement
 - compressed/responsive images and physical-device performance acceptance
 
+### Product experience priorities
+
+- fix and polish the complete mobile interface through rendered physical-device journeys, not isolated breakpoint checks
+- reimagine the Create a placement interface so a first-time visitor can understand, design, place and review confidently without losing the power of the existing tools
+- test purchasing available cells directly neighbouring an existing placement owned by the same verified owner, including availability, reservation, payment, publication and owner-dashboard behaviour
+- keep a neighbouring purchase as a distinct placement unless the later connected-purchase merge rules have been explicitly designed and approved
+- repair and review Nearby so it reliably finds relevant surrounding placements, navigates to them and behaves correctly on desktop and mobile
+- rewrite and test the main page title/headline so the product proposition, scarcity and action are immediately clear
+- review the public activity log/feed for trustworthy data, useful ordering, clear empty/error states and unobtrusive mobile behaviour
+- enrich the background space treatment with deliberate green hexagon elements while protecting globe legibility, interaction clarity, accessibility and rendering performance
+
 ---
 
 # 29. High-priority shortly after / around launch
