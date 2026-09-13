@@ -2034,7 +2034,6 @@ async function prepareInspector(id,version){
     }
     return queue;
   });
-  await topology.ensureCells(prepared);
   if(version!==inspectorVersion)return false;
   cameraFlight.cancel();
   const sameOwner=inspectedOwner===ownerKey(id);inspectedOwner=ownerKey(id);
@@ -2061,8 +2060,11 @@ async function prepareInspector(id,version){
   const deleteButton=document.querySelector('#deleteTestPlacement');deleteButton.hidden=!record?.placementId||!stagingClient;deleteButton.dataset.placementId=record?.placementId||'';
   clearSelectionColours();for(const cellId of queue)writeCellColour(selectionColourData,{id:cellId},'#d7ff55');
   selectionColourTexture.needsUpdate=true;selectionModeUniform.value=1;
-  await renderNearbyPlacements();
-  document.querySelector('#inspectorStatus').textContent='';panel.hidden=false;controls.autoRotate=false;return true;
+  document.querySelector('#inspectorStatus').textContent='';panel.hidden=false;controls.autoRotate=false;
+  void renderNearbyPlacements();
+  await topology.ensureCells(prepared);
+  if(version!==inspectorVersion)return false;
+  return true;
 }
 async function renderNearbyPlacements(){
   const nearby=document.querySelector('#nearbyPlacements'),targetId=inspectedId;nearby.replaceChildren();
@@ -2142,9 +2144,7 @@ function flyToCell(id,angle,duration=1500,onComplete=()=>{},onCancel=()=>{}){
 function viewInspectedPlacement(){
   const n=topology.centre(inspectedId);let dot=1;
   for(const id of inspectedCells){const p=topology.centre(id);dot=Math.min(dot,n[0]*p[0]+n[1]*p[1]+n[2]*p[2]);}
-  const panel=document.querySelector('#placementInspector'),targetId=inspectedId;panel.hidden=true;
-  const reveal=()=>{if(inspectedId===targetId&&document.body.classList.contains('inspecting'))panel.hidden=false;};
-  flyToCell(inspectedId,Math.acos(Math.max(-1,dot))+.004,1500,reveal,reveal);
+  flyToCell(inspectedId,Math.acos(Math.max(-1,dot))+.004);
 }
 
 let activeShare=null;

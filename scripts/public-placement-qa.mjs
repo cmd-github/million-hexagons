@@ -149,17 +149,30 @@ try {
       await page.locator("#claimTicker").getAttribute("aria-label"),
       /Unpublished placement/,
     );
+    await page.route("**/topology/regions-v1/*.gz", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      await route.continue();
+    });
     await page.keyboard.press("Escape");
     await page.locator("#claimFeed summary").click();
+    const hudStarted = Date.now();
     await page.locator("#claimFeedItems button").first().click();
     await page.waitForSelector("#placementInspector:not([hidden])", {
       timeout: 10000,
     });
+    const hudImmediateMs = Date.now() - hudStarted;
+    assert.ok(
+      hudImmediateMs < 500,
+      `Cached placement HUD took ${hudImmediateMs}ms while unrelated regional geometry was delayed`,
+    );
     assert.equal(
       await page.locator("#inspectorName").textContent(),
       record.title,
     );
     await page.locator("#showNearby").click();
+    await page.waitForFunction(
+      () => document.querySelectorAll("#nearbyPlacements button").length === 3,
+    );
     assert.equal(await page.locator("#nearbyPlacements button").count(), 3);
     assert.doesNotMatch(
       await page.locator("#nearbyPlacements").textContent(),
@@ -238,6 +251,7 @@ try {
       catalogueBlockedUntilInspector: true,
       authoritativeActivity: true,
       activityNavigation: true,
+      hudImmediateMs,
       nearbyClosestLive: true,
       shareCard: true,
       typedEvents: true,
