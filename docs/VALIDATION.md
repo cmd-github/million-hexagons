@@ -2,6 +2,21 @@
 
 Run checks relevant to the changed area. A passing build or scripted assertion does not establish visual quality.
 
+## Browser QA environment
+
+The interactive Codex/in-app Browser connection is not the repository's browser-test runtime. If the interactive connection reports `No browser is available`, do not infer that Playwright is missing.
+
+This Windows repository currently uses Playwright through its checked-in QA scripts and can launch installed Chrome or Edge. Diagnose the local capability before reporting it unavailable:
+
+```powershell
+npm.cmd exec -- playwright --version
+Test-Path 'C:\Program Files\Google\Chrome\Application\chrome.exe'
+Test-Path 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
+Test-Path "$env:LOCALAPPDATA\ms-playwright"
+```
+
+Prefer the task-specific commands in this document and inspect their screenshots/artifacts. Active Codex tool instructions may require the in-app Browser and prohibit a command-line fallback; when that happens, record it as an interactive-tool policy constraint, not as missing Playwright or missing installed browsers.
+
 For deployment/runtime-origin changes, run `npm run test:deployment` and the separated-build browser workflow in [STAGING.md](STAGING.md). Inspect its desktop/mobile screenshots. Cloudflare dry runs and a local R2 stand-in do not establish live CDN, rollback or physical-device readiness.
 
 ## Core checks

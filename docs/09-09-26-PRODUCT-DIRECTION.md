@@ -761,6 +761,17 @@ A tile being downloaded does NOT mean an advertiser was actually viewed.
 
 Metrics should eventually have clearly defined measurement rules.
 
+## Claimed-placement HUD measurement contract
+
+The claimed-placement HUD should expose four distinct values:
+
+- **Views** — qualified exposures where any part of the live placement is actually visible in a visitor's rendered viewport, at any globe zoom level. This is not an inspector-open count and must never be inferred from artwork/tile downloads.
+- **Clicks** — deliberate in-app interaction with the placement, such as selecting/clicking it to open its placement information.
+- **Visits** — deliberate activation of the placement's outbound website link, kept separate from in-app clicks.
+- **Claimed** — the placement's acquisition/claim date from authoritative placement data.
+
+Before implementation, agree the visibility threshold, minimum dwell time, back-face/occlusion behaviour and visitor/session deduplication window. Views must be exposure-based rather than frame-based so a placement remaining visible does not generate a count on every render frame. The analytics event model and public aggregates must keep `placement_viewed`, `placement_clicked` and `outbound_link_clicked` separate, and browser regression coverage must prove the four HUD values and their mobile presentation.
+
 ---
 
 # 20. Public web pages / SEO / AI discovery

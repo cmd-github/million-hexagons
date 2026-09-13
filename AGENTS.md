@@ -32,6 +32,9 @@
 ## Validation
 
 - For UI/globe changes, run relevant browser journeys and inspect desktop/mobile behaviour.
+- The Codex in-app Browser connection and this repository's Playwright browser QA are separate. An in-app message such as `No browser is available` does not mean Playwright or a local browser is missing.
+- Before reporting browser QA as unavailable, check `npm.cmd exec -- playwright --version` and the expected Chrome/Edge executable, then use the repository-owned journeys documented in `docs/VALIDATION.md` when the active tool policy permits command-line browser automation.
+- If an active tool policy requires the in-app Browser and prohibits command-line Playwright, report that exact constraint. Do not say that Playwright or the required browser is uninstalled.
 - For backend/data changes, run targeted tests and verify important failure/race cases.
 - Report anything not verified.
 
