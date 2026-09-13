@@ -760,7 +760,9 @@ Useful principle:
 
 The current Vite globe is client-rendered and lacks public page routing.
 
-Eventually introduce indexable routes.
+Introduce indexable routes before real launch. The globe may remain a client-rendered
+application, but explanatory, commercial and legal content must be available through
+normal crawlable URLs.
 
 Possible core routes:
 
@@ -771,14 +773,45 @@ Possible core routes:
 - `/faq`
 - `/about`
 
-Required commercial/legal pages may include:
+Required commercial/legal pages include:
 
 - terms
 - privacy
-- cookies if required
 - content policy
 - contact
 - refund/purchase terms
+
+A cookie notice and consent controls are also required whenever the production site
+uses non-essential cookies or similar browser storage. Non-essential analytics must
+not start until the required consent has been given. If the production implementation
+uses only strictly necessary storage, the privacy information must still explain it.
+
+## Launch web-quality requirements
+
+Before real launch, the public site and globe experience must provide:
+
+- a useful custom 404 page which returns the correct HTTP status rather than the home page as a soft 404
+- a unique, descriptive meta title and meta description for every indexable page
+- a clear primary call to action above the fold
+- a complete favicon set suitable for modern browsers and saved mobile shortcuts
+- a deliberate `robots.txt` policy
+- a valid `sitemap.xml` containing the canonical public URLs intended for indexing
+- canonical URL metadata on every indexable page
+- Open Graph and social-card metadata, including a tested share image
+- appropriate alternative text for meaningful images, with decorative images explicitly marked as such
+- responsive mobile breakpoints covering the supported viewport range
+- a persistent or sticky mobile call to action at the points where it materially helps the purchase journey
+- accessible loading, success, empty and error states for asynchronous actions
+- inline validation and recoverable error states for every customer form
+- a deliberate post-purchase success experience which confirms ownership and leads into viewing and sharing the placement; this may be a page or an equivalent durable application state
+- public privacy, terms, content, contact and refund/purchase information linked before checkout and from the global site footer or equivalent navigation
+- consent controls before non-essential cookies or similar storage are used
+- production analytics for the agreed conversion funnel, with server-authoritative purchase events and privacy-minimal browser events
+- compressed, correctly sized and efficiently delivered images, with launch-scale artwork performance verified on supported physical devices
+
+These are acceptance criteria, not permission to add generic pages or intrusive UI.
+The mobile CTA, consent interface and post-purchase experience should be designed for
+this product and tested in the real journey.
 
 Keep these concise rather than creating dozens of generic SEO pages.
 
@@ -1055,10 +1088,25 @@ A buyer must be able to:
 
 - terms
 - privacy
+- cookie/storage disclosure and consent where required
 - content/moderation rules
 - permanent ownership wording
 - refund rules
 - pricing
+
+### Public web quality and conversion
+
+- indexable public routes with unique titles, descriptions and canonical metadata
+- custom 404 behaviour with the correct HTTP status
+- favicon set, `robots.txt` and `sitemap.xml`
+- Open Graph/social metadata and a tested share image
+- meaningful image alternative text and semantic accessible content
+- above-the-fold primary call to action and appropriate sticky mobile purchase action
+- loading, empty, success and recoverable form/error states
+- post-purchase ownership confirmation and sharing journey
+- public legal/footer navigation available before checkout
+- consent-gated non-essential analytics and verified server-side purchase measurement
+- compressed/responsive images and physical-device performance acceptance
 
 ---
 
@@ -1079,7 +1127,6 @@ These can materially improve growth but must not block safe purchasing.
 - edit placement metadata
 - edit artwork
 - initial placement public pages
-- sitemap / metadata / Open Graph
 
 Some of these may be worth including at launch if cheap to implement.
 

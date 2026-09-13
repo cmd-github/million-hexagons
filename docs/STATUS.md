@@ -1,6 +1,6 @@
 # Million Hexagons — Status
 
-Updated: 12 September 2026
+Updated: 13 September 2026
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
@@ -12,12 +12,18 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 - [ ] Execute the prepared 1k/10k/100k/1M varied-image acceptance matrix, including sustained navigation, faults and physical iOS/Android. The matrix is a specification, not generated datasets or completed results.
 - [ ] Complete the commercial launch decisions: pricing, refunds, permanent-use wording, seller identity and governing law.
+- [ ] Publish the required customer-facing legal and commercial pages before enabling production checkout: terms, privacy, content policy, contact/seller identity and refund/purchase terms; link them before payment and from persistent site navigation.
+- [ ] Complete the launch web-quality surface: real 404 handling, indexable public routes, unique titles/descriptions/canonicals, favicon variants, `robots.txt`, `sitemap.xml`, Open Graph/social metadata and a tested share image.
+- [ ] Add production privacy controls: document all cookies/browser storage, prevent non-essential analytics before consent where required, and verify the production funnel plus server-authored purchase events.
+- [ ] Complete customer-facing acceptance across the purchase journey: meaningful image alternatives, above-the-fold and appropriate sticky mobile CTAs, accessible loading/empty/success/error states, recoverable form failures, and a durable post-purchase ownership/share experience.
 - [ ] Decide how the studio panel should use its spare height. This is structural, not a spacing bug: `resize()` narrows the globe canvas by 490px so the design stays visible beside the panel, so the panel has to fill that column. Measured on desktop, the empty band is 405px in Design, 253px in Place and 160px in Review. A content-height panel cuts Design to 85px but exposes a dead strip where the globe is not drawn; redistributing the space strands the toolbar mid-panel. The options are to put something useful there — a flat preview of the design, which would also address the design being unreadable on the globe past a few hundred cells — or to float a content-height panel over a full-width globe using a camera view offset, which changes rendering behaviour. Related latent bug: `body[data-surface=globe][data-flow=design] .studio-workspace{flex:0}` never applies because `#designStep .studio-workspace{flex:1}` wins on ID specificity, so the workspace never collapses as intended.
 - [ ] Repoint the smoke journey at the live placement path. `scripts/smoke.mjs` still asserts the Adidas demo tooltip that the empty default runtime no longer ships, so `npm test` fails at that assertion before reaching the tour, sharing and publication checks. Failure predates the UI work and reproduces on an unmodified tree.
 - [ ] Choose the next launch-critical engineering slice after the commercial decisions are settled.
 - [ ] Later: design explicit domain rules for voluntarily merging connected purchases under the same verified owner so one artwork can span the expanded holding.
 
 ## Done
+
+- [x] Promoted the launch website checklist into explicit product acceptance criteria covering routing/404s, SEO and social metadata, accessibility, responsive conversion UX, legal/privacy surfaces, consent-aware analytics, post-purchase confirmation and image delivery. Audited the current repository state and recorded the missing implementation work under Next.
 
 - [x] Replaced the circular grid patch with cached exact regions covering the viewport and a small offscreen margin. Packed geometry builds incrementally, retains canonical IDs/corners and survives topology eviction. Integrated the four stylesheet/icon/mobile/Escape/draft commits from local main. Ten regional/grid tests, combined desktop/mobile UI and owner-editing journeys passed. Final controlled cold full-grid readiness: 1.53 s desktop / 1.67 s CPU-throttled mobile; settled frame p95 about 17 ms, with mobile cold-loading spikes still present. Deployed the combined frontend as `5f47e9e6-6fed-4d51-8592-72ef0b9be856`; all 1,549 runtime objects and live health/CDN checks passed. Live desktop/mobile zoom/pan, owner-key/account panel and admin-shell screenshots inspected with no page errors. My Globe editing used controlled API fixtures; actual authenticated admin operations and physical devices were not tested. See [grid evidence](GRID-RENDERING.md). Removed the redundant in-flight stash as requested. The stale smoke fixture and studio-height decision remain under Next.
 
