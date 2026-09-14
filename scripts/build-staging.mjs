@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { build, loadEnv } from 'vite';
 import { runtimeFiles, copyFiles, sha256, contentType, listFiles, assetOrigin } from './deployment-assets.mjs';
+import { stagingViteDefines } from './staging-vite-defines.mjs';
 
 const root = process.cwd();
 const settings = { ...loadEnv('staging', root, 'MH_'), ...process.env };
@@ -20,7 +21,7 @@ await copyFiles(path.join(root, 'public'), runtimeDir, files);
 // Detect a source mutation during preparation rather than publishing mixed bytes.
 for (const object of objects) if (sha256(await readFile(path.join(runtimeDir, object.path))) !== object.sha256) throw Error(`Asset changed during build: ${object.path}`);
 const base = `${origin}/${prefix}`;
-await build({ mode: 'staging', build: { outDir: 'staging-dist', emptyOutDir: true }, define: { 'import.meta.env.VITE_RUNTIME_ASSET_BASE': JSON.stringify(base), 'import.meta.env.VITE_STAGING_SANDBOX': JSON.stringify(true), 'import.meta.env.VITE_STAGING_API_URL': JSON.stringify(settings.MH_STAGING_API_URL || 'https://europe-west1-million-hexagons.cloudfunctions.net/stagingPlacements'), 'import.meta.env.VITE_STAGING_CHECKOUT_URL': JSON.stringify(settings.MH_STAGING_CHECKOUT_URL || 'https://europe-west1-million-hexagons.cloudfunctions.net/stagingCheckout'), 'import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY': JSON.stringify(settings.MH_STRIPE_PUBLISHABLE_KEY || 'pk_test_51UE3XXFvLW1Gl1Cp1fLy8dvjJecfZW10OpoG7ac9j0P588l7gRq1129roDlVXuJ7POgZ9IE8GwsNvv8ht4Ahb7EB00oLw46QtT') } });
+await build({ mode: 'staging', build: { outDir: 'staging-dist', emptyOutDir: true }, define: stagingViteDefines(settings, base) });
 
 const builtScripts=(await listFiles('staging-dist')).filter(file=>file.endsWith('.js'));
 const builtJavaScript=(await Promise.all(builtScripts.map(file=>readFile(path.join('staging-dist',file),'utf8')))).join('\n');

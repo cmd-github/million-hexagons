@@ -20,6 +20,17 @@ npm run build
 npm run preview -- --port 4181
 ```
 
+To compare launch-globe surface studies locally with real staging artwork, run
+`npm.cmd run dev:globe-study -- --port 4184` and open the LAN URL Vite prints on your phone.
+The floating controls switch between Current, Drift, Strata Drape and Strata Crisp without
+moving the globe; **Show staging artwork** hides or restores artwork for visual comparison.
+This is a development-only mode using public staging data and the pinned runtime release
+in `deploy/staging-monitor.json`. Hiding artwork does not release claimed cells, change
+live totals or create a genuinely empty inventory. The first-pass studies colour the
+base sphere; they do not reproduce the full tiny-hex overview grid in the concept images.
+No account credentials are needed just to browse. Do not submit a test checkout unless
+you intend to create a staging test placement.
+
 ## What is implemented
 
 - Exact, versioned one-million-cell geodesic topology with stable IDs and claimable pentagons.

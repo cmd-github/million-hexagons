@@ -1,14 +1,25 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import { cp, stat } from 'node:fs/promises';
-import { createReadStream } from 'node:fs';
+import { createReadStream, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { appFiles, runtimeFiles, copyFiles } from './scripts/deployment-assets.mjs';
+import { stagingViteDefines } from './scripts/staging-vite-defines.mjs';
 
 // Ship visitor assets; the optional stress fixture and canonical compiler inputs
 // stay local. Use Vite's resolved paths so other project roots still work.
 let config;
-export default defineConfig({
+export default defineConfig(({mode,command})=>({
+  // This mode is dev-only: it hot-reloads against public staging artwork without
+  // building a deployable staging-dist bundle or exposing private MH_* settings.
+  define:mode==='globe-study'&&command==='serve'?(()=>{
+    const monitor=JSON.parse(readFileSync(new URL('./deploy/staging-monitor.json',import.meta.url),'utf8'));
+    const settings={...loadEnv('staging',process.cwd(),'MH_'),...process.env};
+    return {
+      ...stagingViteDefines(settings,`${monitor.assetOrigin}/releases/${monitor.release}`),
+      'import.meta.env.VITE_ARTWORK_SNAPSHOTS':JSON.stringify('false'),
+    };
+  })():{},
   server: { watch: { ignored: ['**/public/artwork/**','**/artifacts/**'] } },
   build: { target: 'es2022', copyPublicDir: false },
   plugins: [{
@@ -46,4 +57,4 @@ export default defineConfig({
     },
   }],
   preview: { allowedHosts: true },
-});
+}));

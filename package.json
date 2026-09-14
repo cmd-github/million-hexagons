@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "dev:globe-study": "vite --host 0.0.0.0 --mode globe-study",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "build:coming-soon": "vite build coming-soon --outDir ../coming-soon-dist --emptyOutDir",
@@ -17,6 +18,7 @@
     "test:geodesic-visual": "node scripts/geodesic-visual-qa.mjs",
     "test:geodesic-gestures": "node scripts/geodesic-gestures.mjs",
     "test:visual": "node scripts/globe-design-qa.mjs && node scripts/globe-navigation-qa.mjs",
+    "test:globe-study": "node scripts/globe-study-qa.mjs",
     "test:studio-scale": "node scripts/studio-scale-qa.mjs",
     "build:runtime": "node scripts/build-runtime-assets.mjs",
     "build:regions": "node scripts/build-topology-regions.mjs",
