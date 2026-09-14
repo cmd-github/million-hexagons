@@ -124,9 +124,9 @@ for (let i = 0; i < 950; i += 1) {
 }
 const starGeometry = new THREE.BufferGeometry();
 starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(stars, 3));
-const starArt=document.createElement('canvas');starArt.width=32;starArt.height=32;const starContext=starArt.getContext('2d');starContext.strokeStyle='#ffffff';starContext.lineWidth=2;starContext.beginPath();for(let i=0;i<6;i++){const angle=i*Math.PI/3;const x=16+12*Math.cos(angle),y=16+12*Math.sin(angle);if(i)starContext.lineTo(x,y);else starContext.moveTo(x,y);}starContext.closePath();starContext.stroke();
+const starArt=document.createElement('canvas');starArt.width=32;starArt.height=32;const starContext=starArt.getContext('2d');starContext.strokeStyle='#ffffff';starContext.lineWidth=3;starContext.beginPath();for(let i=0;i<6;i++){const angle=i*Math.PI/3;const x=16+12*Math.cos(angle),y=16+12*Math.sin(angle);if(i)starContext.lineTo(x,y);else starContext.moveTo(x,y);}starContext.closePath();starContext.stroke();
 const starTexture=new THREE.CanvasTexture(starArt);
-scene.add(new THREE.Points(starGeometry,new THREE.PointsMaterial({map:starTexture,color:0xd7ff55,size:7,sizeAttenuation:false,transparent:true,opacity:.26,depthWrite:false,fog:false})));
+scene.add(new THREE.Points(starGeometry,new THREE.PointsMaterial({map:starTexture,color:0xd7ff55,size:10,sizeAttenuation:false,transparent:true,opacity:.66,depthWrite:false,fog:false})));
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;

@@ -10,8 +10,8 @@ await mkdir(shots,{recursive:true});
 const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
 const cases=[
   {name:'desktop',viewport:{width:1440,height:900},mobile:false,layoutWidth:1440},
-  {name:'phone-390',viewport:{width:390,height:844},mobile:true,layoutWidth:900},
-  {name:'phone-320',viewport:{width:320,height:568},mobile:true,layoutWidth:900},
+  {name:'phone-390',viewport:{width:390,height:844},mobile:true,layoutWidth:800},
+  {name:'phone-320',viewport:{width:320,height:568},mobile:true,layoutWidth:800},
 ];
 const report=[];
 const assertDesktopPanel=(box,name)=>{
