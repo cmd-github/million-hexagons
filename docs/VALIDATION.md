@@ -43,6 +43,8 @@ For purchase-flow changes, exercise image, solid colour, and mixed per-cell pain
 
 `test:studio-scale` uses a test-only empty occupancy response to exercise 50,000/100,000-cell editing, undo/redo, image framing, canvas pan/zoom, relocation and a 100,000-cell publication. It leaves real sample inventory unchanged. Inspect `artifacts/studio-scale/`; report timing as local/emulated results and distinguish capacity from available contiguous space. Run this check against the development server because it uses the existing `geodesicQA` hooks.
 
+`npm run test:mobile-layout` holds the narrow-screen layout contract at 320x568, 390x844, 430x932 and 820x1180 plus desktop: the canvas is full-bleed and never offset or shrunk, the globe fills the width, it centres in the band the floating chrome leaves free, the dock owns the hero copy/activity/primary action, the control row and placement HUD stack without overlapping, touch targets stay 44px, the rail flyouts stay on screen, the hero hands the band back on the first drag and returns from Re-centre, and the studio sheet keeps the same contract. Owner access is only wired up where a staging client is configured, so its flyout is reported as not exercised locally; the run prints what it skipped. Inspect `artifacts/mobile-layout/`. Emulated viewports are not physical-device certification: real safe-area insets and a collapsing URL bar changing `100dvh` still need a device.
+
 ## Geodesic and gesture checks
 
 Focused controls are available on the development server:

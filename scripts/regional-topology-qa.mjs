@@ -36,7 +36,7 @@ try {
       const resources=await page.evaluate(()=>performance.getEntriesByType('resource').filter(r=>r.name.includes('/topology/regions-v1/')).map(r=>({url:r.name,bytes:r.encodedBodySize,ms:r.duration})));
       const report={mobile,warm,readyMs:Math.round(readyMs),picked,geometryBytes:resources.reduce((sum,r)=>sum+r.bytes,0),state,errors};reports.push(report);console.log(JSON.stringify(report));
       assert.equal(requests.some(url=>url.includes('geodesic-v1.packed')||url.includes('geodesic-v1.bin')),false,'Close-up must never request the whole topology');
-      assert.ok(state.regions.loadedCells<50000,'Cold close-up must retain only a small fraction of the topology');
+      if(!warm)assert.ok(state.regions.loadedCells<50000,'Cold close-up must retain only a small fraction of the topology');
       await page.screenshot({path:`artifacts/regions/${mobile?'mobile':'desktop'}-${warm?'warm':'cold'}.png`});
       if(!warm){await page.locator('#homeView').click();await page.waitForTimeout(2400);}
     }

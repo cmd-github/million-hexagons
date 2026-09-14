@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { placementPose, cinematicEase } from './camera-flight.js';
 import { setIcon } from '../icons.js';
 
-export function createDemoTour({camera,globe,controls,radius,button,wideDistance,cancelZoom,loadStops,prepareDetail=()=>{},onStop=()=>{},timeScale=1}) {
+export function createDemoTour({camera,globe,controls,radius,button,wideDistance,framingTangent,cancelZoom,loadStops,prepareDetail=()=>{},onStop=()=>{},timeScale=1}) {
   const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');
   let active=false,loading=false,stops=null,index=0,phase=0,elapsed=0,last=0,segment=null,generation=0,batch=0;
   const normalRoute=[['travel',4],['approach',3],['hold',6],['pullback',3]];
@@ -27,10 +27,11 @@ export function createDemoTour({camera,globe,controls,radius,button,wideDistance
     const normal=new THREE.Vector3(...place.normal);
     const east=new THREE.Vector3().crossVectors(Math.abs(normal.y)<.99999?new THREE.Vector3(0,1,0):new THREE.Vector3(0,0,-1),normal).normalize();
     const north=new THREE.Vector3().crossVectors(normal,east);
-    const mobile=innerWidth<=700||(innerWidth<=900&&innerHeight>innerWidth);
     const frame={east:east.toArray(),north:north.toArray(),normal:normal.toArray()};
     const wide=step==='travel'||step==='pullback';
-    const pose=placementPose(frame,camera,radius,place.angle,{mobile:!wide&&mobile,...(wide?{distance:wideDistance()}:{})});
+    // Tour stops are framed against the band the floating chrome leaves free, the same region
+    // every other arrival targets, rather than the full-bleed canvas behind the panels.
+    const pose=placementPose(frame,camera,radius,place.angle,{tangent:framingTangent(),...(wide?{distance:wideDistance()}:{})});
     segment={from:camera.position.clone(),to:pose.position,fromQ:globe.quaternion.clone(),toQ:pose.quaternion};
     onStop(place,step);
     button.dataset.stop=place.name;button.dataset.cell=place.id||'';button.dataset.phase=step;

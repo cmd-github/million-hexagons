@@ -228,7 +228,7 @@ summary{cursor:pointer;color:#a7bec0;font-size:12px;padding:8px 0}
  body[data-flow=place] #backToDesign{grid-column:1;margin:0;justify-self:start;min-height:28px}
  body[data-flow=place] #placeStep h2{font-size:20px;grid-column:1/-1;margin:3px 0 8px}
  body[data-flow=place] #placeStep>.panel-intro, body[data-flow=place] .availability-key{display:none}
- body[data-flow=place] #suggestLocation{grid-column:2;grid-row:1;padding:3px;font-size:11px;border:0;min-height:28px;margin-right:28px;width:auto;color:var(--lime)}
+ body[data-flow=place] #suggestLocation{grid-column:2;grid-row:1;padding:3px;font-size:11px;border:0;min-height:28px;margin-right:48px;width:auto;color:var(--lime)}
  body[data-flow=place] .interaction-modes{grid-column:1/-1;margin:0 0 8px}
  body[data-flow=place] .interaction-modes button{padding:8px;min-height:48px}
  body[data-flow=place] #selectionStatus{grid-column:1/-1;padding:8px 10px;font-size:11px;min-height:35px}

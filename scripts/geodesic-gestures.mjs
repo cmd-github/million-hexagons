@@ -42,6 +42,11 @@ try {
   await page.evaluate(id=>geodesicQA.focus(id,.6),id);await page.waitForTimeout(300);
   const p=await page.evaluate(id=>geodesicQA.screen(id),id);
   if(mobile)await page.touchscreen.tap(p.x,p.y);else await page.mouse.click(p.x,p.y);
+  // Placing awaits the region for the tapped cell, so read the selection once the product says
+  // it is committed rather than in the same tick as the tap. Whether that region is already
+  // resident depends on what the current framing streamed, which made the old immediate read
+  // pass or fail by luck.
+  await page.waitForFunction(()=>!document.querySelector('#toReview').disabled,null,{timeout:15000});
   const placement=await page.evaluate(()=>geodesicQA.state());assert.equal(placement.selected.length,50);assert.ok(placement.selected.includes(id));assert.equal(placement.connected,true);
   await page.locator('#toReview').click();await page.locator('#previewPurchase').click();
   await page.waitForFunction(()=>document.querySelector('#buyPanel').getAttribute('aria-hidden')==='true',null,{timeout:60000});
