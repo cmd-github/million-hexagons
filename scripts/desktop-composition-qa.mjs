@@ -10,8 +10,8 @@ await mkdir(shots,{recursive:true});
 const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
 const cases=[
   {name:'desktop',viewport:{width:1440,height:900},mobile:false,layoutWidth:1440},
-  {name:'phone-390',viewport:{width:390,height:844},mobile:true,layoutWidth:1024},
-  {name:'phone-320',viewport:{width:320,height:568},mobile:true,layoutWidth:1024},
+  {name:'phone-390',viewport:{width:390,height:844},mobile:true,layoutWidth:900},
+  {name:'phone-320',viewport:{width:320,height:568},mobile:true,layoutWidth:900},
 ];
 const report=[];
 const assertDesktopPanel=(box,name)=>{
@@ -41,12 +41,14 @@ try {
     await page.locator('#designStep').waitFor({state:'visible'});
     await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');
     await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Change image');
+    await page.waitForFunction(()=>Math.abs(innerWidth-document.querySelector('#buyPanel').getBoundingClientRect().right-16)<=1);
     const design=await page.evaluate(()=>{const box=document.querySelector('#buyPanel').getBoundingClientRect();return {top:box.top,right:innerWidth-box.right,bottom:innerHeight-box.bottom,width:box.width};});
     assertDesktopPanel(design,`${item.name}: Design`);
     await page.screenshot({path:`${shots}/${item.name}-design.png`});
 
     await page.locator('#toPlacement').click();
     await page.locator('#placeStep').waitFor({state:'visible'});
+    await page.waitForFunction(()=>Math.abs(innerWidth-document.querySelector('#buyPanel').getBoundingClientRect().right-16)<=1);
     const place=await page.evaluate(()=>{const box=document.querySelector('#buyPanel').getBoundingClientRect();return {top:box.top,right:innerWidth-box.right,bottom:innerHeight-box.bottom,width:box.width};});
     assertDesktopPanel(place,`${item.name}: Place`);
     await page.screenshot({path:`${shots}/${item.name}-place.png`});
