@@ -3,17 +3,11 @@ import * as THREE from 'three';
 export const cinematicEase=t=>t*t*t*(t*(t*6-15)+10);
 
 // Allocate poses at navigation boundaries, never in the frame loop.
-// `tangent` is the limiting tangent of the region the caller actually wants the placement to
-// land in. On a full-bleed canvas that is the band left free by the floating chrome, not the
-// whole viewport, so it replaces both camera.aspect and the old mobile-only shrink factor.
-export function placementPose(frame,camera,radius,angle,{tangent,distance}={}) {
-  const half=Math.atan(tangent??Math.min(Math.tan(THREE.MathUtils.degToRad(camera.fov)/2),Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*camera.aspect));
+export function placementPose(frame,camera,radius,angle,{distance}={}) {
+  const half=Math.min(THREE.MathUtils.degToRad(camera.fov)/2,Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*camera.aspect));
   const field=half*.82;
   const fit=radius*Math.cos(angle)+radius*Math.sin(angle)/Math.tan(field);
   const depth=Math.max(radius+.4,distance??fit);
-  // Narrow screens keep the placement dead centre. Clearing the panels is the camera view
-  // offset's job in main.js resize(); shifting the look target here as well moved arrivals
-  // off the top of the screen once both compensations applied.
   const orientation=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(...frame.east),new THREE.Vector3(...frame.north),new THREE.Vector3(...frame.normal))).invert();
   return {position:new THREE.Vector3(0,0,depth),quaternion:orientation};
 }

@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=1440" />
     <meta name="theme-color" content="#050b14" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Million Hexagons — Own a piece of the world</title>
@@ -146,11 +146,6 @@
         <section id="embeddedCheckoutPanel" class="embedded-checkout" hidden aria-label="Secure payment"><header><button type="button" id="closeEmbeddedCheckout">← Back to review</button><div><b>Complete your placement</b><small>Secure payment by Stripe</small></div></header><div id="embeddedCheckout"></div><p id="embeddedCheckoutStatus" role="status"></p></section>
       </div>
     </section>
-
-    <!-- Narrow screens move the hero copy, activity pill and primary action in here so the
-         globe keeps the whole screen. main.js syncMobileDock() moves the existing nodes on a
-         breakpoint change; there is no duplicate copy or second click handler. -->
-    <div class="mobile-dock" id="mobileDock" hidden></div>
 
     <div class="toast glass" id="toast" role="status"><b>Welcome to the world.</b><span>Your preview is on the globe for this session.</span><a id="placementWebsite" hidden target="_blank" rel="noopener noreferrer">Visit website</a><button id="dismissToast" data-icon="close" aria-label="Dismiss confirmation"></button></div>
     <script type="module">

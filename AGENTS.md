@@ -9,7 +9,6 @@
 ## Priorities
 
 - Preserve the exact 1,000,000-cell globe and Design -> Place -> Review flow unless explicitly changing them.
-- Keep the narrow-screen globe canvas full-bleed. Never reintroduce a canvas top offset or reduced canvas height to clear chrome; use the camera view offset described in `docs/ARCHITECTURE.md`.
 - Prioritise launch-critical work before later features.
 - Avoid unrelated refactors or changes to working behaviour.
 - Keep authoritative ownership/domain data separate from rendered R2 output.

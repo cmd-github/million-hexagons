@@ -78,27 +78,10 @@ select{font-size:10px;text-transform:none}
 .toast.show{transform:translate(-50%,0)}
 .toast b, .toast span{display:block}
 .toast b{color:var(--lime);font-size:12px}
-@media(max-width:900px){
- body.inspecting .toast.show{z-index:22;top:184px;bottom:auto;transform:translate(-50%,0)}
-}
 body.selecting #world{cursor:crosshair}
 .selecting .intro, .selecting .activity{opacity:.08;pointer-events:none;transition:.25s}
 body.detail-view:not(.selecting) .intro{opacity:0;transform:translateX(-35px);pointer-events:none}
 body.detail-view:not(.selecting) .activity{opacity:0;transform:translateX(35px);pointer-events:none}
-@media(max-width:900px){
- .activity{display:none}
- h1{font-size:34px}
- .brand b, .brand strong{font-size:11px}
- .buy-panel{inset:100px 12px 12px auto}
-}
-@media(max-width:900px){
- .hex-search>div{right:0;top:auto;bottom:calc(100% + 10px)}
-}
-@media(max-width:620px){
- .intro>p:not(.eyebrow), .facts{display:none}
- h1{font-size:29px}
- .topbar .primary{padding:12px;font-size:11px}
-}
 /* Placement studio panel: step indicator, flow screens, editor and footer. */
 .flow-progress{display:grid;grid-template-columns:24px 1fr 24px 1fr 24px;align-items:center;margin:3px 42px 28px 0}
 .flow-progress i{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;border:1px solid #38515c;color:#69828a;background:#0b1b25;font:600 9px 'DM Mono';font-style:normal}
@@ -128,10 +111,6 @@ body.detail-view:not(.selecting) .activity{opacity:0;transform:translateX(35px);
 body.selecting:not(.placing-design) #world{cursor:grab}
 body.selecting:not(.placing-design) #world:active{cursor:grabbing}
 body.placing-design #world{cursor:crosshair}
-@media(max-width:620px){
- .flow-progress{margin-right:38px}
- .design-footer{margin-inline:-21px;padding-inline:21px}
-}
 /* Brand palette and chrome refinements applied over the base rules above. */
 :root{--lime:#d5fa77;--line:rgba(190,214,213,.18)}
 .topbar{position:fixed;z-index:5;inset:0 0 auto;display:flex;align-items:center;justify-content:space-between;pointer-events:none;height:88px;padding:20px 32px}
@@ -192,83 +171,13 @@ summary{cursor:pointer;color:#a7bec0;font-size:12px;padding:8px 0}
 .toast button{position:absolute;right:12px;top:12px;background:none;border:0;color:white;font-size:24px}
 .toast span{font-size:10px;color:#98acb0;margin-top:3px;line-height:1.5}
 #websiteError{color:#ffb7b7;font-size:12px}
-@media(min-width:1100px){
- body:not(.creating) #world{left:120px}
-}
-@media(max-width:700px), (max-width:900px) and (orientation:portrait){
- .topbar{height:68px;padding:12px 16px}
- .mark{width:36px;height:36px}
- .topbar .primary{padding:11px 13px;font-size:11px;min-height:44px}
- .brand b, .brand strong{font-size:10px}
- .intro{top:192px;left:22px;width:calc(100% - 44px);pointer-events:none}
- .intro h1{font-size:34px;line-height:1.03}
- .intro h1 br:nth-of-type(2){display:none}
- .intro .eyebrow{display:none}
- .intro>p:not(.eyebrow){display:block;font-size:12px;line-height:1.5;max-width:260px;margin-top:10px}
- .intro .facts, .intro .secondary, .activity{display:none}
- .globe-controls{right:12px;top:auto;bottom:18px;transform:none;display:flex}
- .globe-controls button{width:44px;height:44px}
- .buy-panel{inset:72px 8px max(8px,env(safe-area-inset-bottom));width:auto;padding:22px;border-radius:22px;transform:translateY(calc(100% + 90px))}
- .buy-panel.open{transform:none}
- .buy-panel>.eyebrow{display:none}
- .flow-progress{margin:0 54px 20px 0}
- .flow-screen h2{font-size:27px}
- .flow-screen .panel-intro{font-size:12px}
- .design-footer{margin-inline:-22px;padding-inline:22px}
- .hex-editor{margin:14px 0}
- .creating .globe-controls{right:12px;bottom:auto;top:76px}
- .creating .topbar{pointer-events:none}
- .creating .topbar .brand{pointer-events:none}
- .creating .intro{display:none}
- body[data-flow=place] .buy-panel, body[data-flow=review] .buy-panel{inset:auto 0 0;height:min(320px,48dvh);border-radius:22px 22px 0 0;padding:14px 18px max(12px,env(safe-area-inset-bottom));transform:none;border-bottom:0}
- body[data-flow=review] .buy-panel{height:55dvh}
- body[data-flow=place] .flow-progress, body[data-flow=review] .flow-progress{display:none}
- body[data-flow=place] .buy-panel .close, body[data-flow=review] .buy-panel .close{top:4px;right:8px;width:44px;height:44px}
- body[data-flow=place] #placeStep{display:grid;grid-template-columns:1fr 1fr;column-gap:10px}
- body[data-flow=place] #backToDesign{grid-column:1;margin:0;justify-self:start;min-height:28px}
- body[data-flow=place] #placeStep h2{font-size:20px;grid-column:1/-1;margin:3px 0 8px}
- body[data-flow=place] #placeStep>.panel-intro, body[data-flow=place] .availability-key{display:none}
- body[data-flow=place] #suggestLocation{grid-column:2;grid-row:1;padding:3px;font-size:11px;border:0;min-height:28px;margin-right:48px;width:auto;color:var(--lime)}
- body[data-flow=place] .interaction-modes{grid-column:1/-1;margin:0 0 8px}
- body[data-flow=place] .interaction-modes button{padding:8px;min-height:48px}
- body[data-flow=place] #selectionStatus{grid-column:1/-1;padding:8px 10px;font-size:11px;min-height:35px}
- body[data-flow=place] .place-summary{border:0;margin:8px 0 0;padding:0;display:block;align-self:center;font-size:10px}
- body[data-flow=place] .place-summary b{display:block;font-size:20px}
- body[data-flow=place] #toReview{font-size:12px;min-height:46px;padding:10px;margin-top:8px}
- .review-card b, .review-card span{font-size:10px}
- body[data-flow=type] #world, body[data-flow=design] #world{opacity:.22;pointer-events:none}
-}
+body:not(.creating) #world{left:120px}
 @media(prefers-reduced-motion:reduce){
  *, *:before, *:after{animation:none!important;transition:none!important}
 }
 .buy-panel{transition:transform .25s ease}
-@media(max-width:700px), (max-width:900px) and (orientation:portrait){
- body[data-flow=place] .buy-panel, body[data-flow=review] .buy-panel{transition:none}
-}
 #uploadStatus{font-size:11px;line-height:1.5;color:#a8bec1;margin:10px 0}
 .creating .topbar{z-index:4}
-@media(max-width:700px), (max-width:900px) and (orientation:portrait){
- .buy-panel{scroll-padding-bottom:70px}
-}
-@media(max-width:700px), (max-width:900px) and (orientation:portrait){
- body[data-flow=review] .review-footer{position:sticky;bottom:-12px;background:#0d1b24;padding:10px 0 12px;z-index:3;border-top:1px solid var(--line)}
- body[data-flow=review] .review-footer .price{display:flex;align-items:center;gap:8px;border:0;padding:0;margin:0 0 10px}
- body[data-flow=review] .review-footer .price b{margin-left:auto;font-size:22px;order:3}
- body[data-flow=review] .review-footer .price small{font-size:9px}
- body[data-flow=review] #previewPurchase{bottom:0;z-index:2;position:static;box-shadow:none;min-height:46px;padding:12px;font-size:12px}
- body[data-flow=review] .mock-note{font-size:9px;margin-top:6px}
-}
-@media(max-width:700px), (max-width:900px) and (orientation:portrait){
- body[data-flow=review] .panel-intro{margin:6px 0 10px;display:none}
- body[data-flow=review] .flow-screen h2{font-size:24px;margin-bottom:10px}
- body[data-flow=review] .review-card{margin:auto;max-width:180px}
- body[data-flow=review] .review-card canvas{max-height:112px;height:66px;aspect-ratio:auto;object-fit:contain}
- body[data-flow=review] .review-card>div{padding:6px 8px}
- body[data-flow=review] #reviewEditDesign{padding:8px 0;font-size:11px}
- body[data-flow=review] .review-warning{font-size:10px;margin:4px 0;padding:7px 9px}
- body[data-flow=review] label{margin-top:8px;font-size:11px}
- body[data-flow=review] #website{padding:10px;font-size:14px;margin-top:5px}
-}
 #demoTour{color:#fff}
 #demoTour[aria-pressed="true"]{background:var(--lime);color:#09151c}
 #rotationToggle[aria-pressed="true"]{color:var(--lime)}

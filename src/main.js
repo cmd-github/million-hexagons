@@ -143,18 +143,17 @@ const cameraFlight=createCameraFlight(camera,globe,controls,reducedMotion);
 for(const event of ['pointerdown','wheel','keydown'])document.addEventListener(event,()=>{initialPlacementFocusAllowed=false;cameraFlight.cancel();},{capture:true,passive:true});
 addEventListener('resize',()=>cameraFlight.cancel());
 
-// The globe is the product, so narrow screens frame it edge to edge: the sphere is fitted to
-// the horizontal field alone and allowed to run past the top and bottom of the visible band,
-// where floating chrome overlays it. Wider screens keep the fully contained overview.
-function narrowViewport() {
-  return innerWidth <= 700 || (innerWidth <= 900 && innerHeight > innerWidth);
-}
-
 function globeFitDistance() {
   const verticalFov = THREE.MathUtils.degToRad(camera.fov);
   const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
-  if (narrowViewport()) return (radius + .06) / Math.sin(horizontalFov / 2);
   return (radius + .24) / Math.sin(Math.min(verticalFov, horizontalFov) / 2) * 1.12;
+}
+
+// Keep editor artwork inside the rendered canvas at any viewport aspect ratio. This is shared
+// camera geometry, not a device-specific layout: the same desktop composition remains in use.
+function distanceForArc(arc) {
+  const halfVertical = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+  return radius + arc / Math.min(halfVertical, halfVertical * camera.aspect);
 }
 
 function frameGlobe(reset = false) {
@@ -242,9 +241,6 @@ let hoverTimer, globeStroke = null, flightVersion=0;
 let forceIntersectionMiss=false;
 for(const type of ['pointerdown','wheel','keydown'])document.addEventListener(type,()=>flightVersion++,{capture:true,passive:true});
 canvas.addEventListener('pointerdown', event => { explorationStart = {x:event.clientX,y:event.clientY}; });
-canvas.addEventListener('pointermove', event => {
-  if(explorationStart&&narrowViewport()&&!document.body.dataset.flow&&Math.hypot(event.clientX-explorationStart.x,event.clientY-explorationStart.y)>6) dismissHero(true);
-});
 canvas.addEventListener('pointerup', async event => {
   const start=explorationStart;explorationStart=null;
   if(document.body.classList.contains('creating')||!start)return;
@@ -1029,8 +1025,8 @@ function enterPlacement() {
 function focusSelection() {
   if(!selectedCells.length)return;
   const middle=new THREE.Vector3(...topology.centre(selectedCell.id));
-  const limitingFov=Math.atan(framingTangent());
-  let distance=distanceForArc(.12);
+  const halfVertical=THREE.MathUtils.degToRad(camera.fov)/2, halfHorizontal=Math.atan(Math.tan(halfVertical)*camera.aspect),limitingFov=Math.min(halfVertical,halfHorizontal);
+  let distance=radius+.35;
   for(const cell of selectedCells)for(const p of topology.polygon(cell.id)) {
     const point=new THREE.Vector3(...p).multiplyScalar(radius+.001),depth=point.dot(middle);
     const perpendicular=point.clone().addScaledVector(middle,-depth).length();
@@ -1778,107 +1774,15 @@ async function paintPlacement() {
 }
 document.querySelector('#previewPurchase').addEventListener('click', paintPlacement);
 
-// Narrow screens move the hero copy, activity pill and primary action into one bottom dock so
-// the globe keeps the whole screen. The existing nodes are moved rather than duplicated, so
-// #claimButton keeps its single click handler and the hero copy has one source.
-const mobileDock = document.querySelector('#mobileDock');
-const introPanel = document.querySelector('.intro');
-const claimEntry = document.querySelector('#claimButton');
-const activityFeed = document.querySelector('#claimFeed');
-const globeControls = document.querySelector('.globe-controls');
-const mobileDockHomes = new Map([
-  [introPanel, { parent: introPanel.parentElement, next: introPanel.nextElementSibling }],
-  [claimEntry, { parent: claimEntry.parentElement, next: claimEntry.nextElementSibling }],
-  [activityFeed, { parent: activityFeed.parentElement, next: activityFeed.nextElementSibling }],
-]);
-let heroCollapse = null;
-
-function syncMobileDock() {
-  const narrow = narrowViewport();
-  mobileDock.hidden = !narrow;
-  if (narrow) {
-    if (claimEntry.parentElement !== mobileDock) mobileDock.append(activityFeed, introPanel, claimEntry);
-    return;
-  }
-  if (claimEntry.parentElement !== mobileDock) return;
-  clearTimeout(heroCollapse);
-  heroCollapse = null;
-  for (const [element, home] of mobileDockHomes) home.parent.insertBefore(element, home.next);
-  document.body.classList.remove('hero-dismissed', 'hero-collapsed');
-}
-
-// The hero copy earns the screen only until the visitor starts exploring the globe. It fades on the
-// first drag and the dock collapses to the action row, handing the freed band back to the
-// globe; Re-centre brings it back for anyone who wants the pitch again.
-function dismissHero(dismissed) {
-  if (document.body.classList.contains('hero-dismissed') === dismissed) return;
-  clearTimeout(heroCollapse);
-  document.body.classList.toggle('hero-dismissed', dismissed);
-  if (!dismissed) { document.body.classList.remove('hero-collapsed'); resize(); return; }
-  if (reducedMotion()) { document.body.classList.add('hero-collapsed'); resize(); return; }
-  heroCollapse = setTimeout(() => { document.body.classList.add('hero-collapsed'); resize(); }, 320);
-  resize();
-}
-document.querySelector('#homeView').addEventListener('click', () => { if (narrowViewport()) dismissHero(false); });
-
-// Narrow screens render the globe full-bleed and float every control over it. Chrome never
-// shrinks the canvas; instead the frustum is offset so the globe centres in the band the
-// overlays leave free. One mechanism, so nothing double-compensates for the same panel.
-function bottomChrome() {
-  const flow = document.body.dataset.flow;
-  if (flow === 'place' || flow === 'review' || (flow === 'design' && designSurface === 'globe')) return document.querySelector('#buyPanel');
-  if (flow) return null;
-  if (document.body.classList.contains('inspecting')) return document.querySelector('#placementInspector');
-  return document.querySelector('.mobile-dock');
-}
-
-function chromeInsets() {
-  if (!narrowViewport()) return { top: 0, bottom: 0 };
-  // --dock-height is always the dock's own height, never the measured bottom chrome, because
-  // surfaces that stack on top of the dock (the placement HUD) position themselves against it.
-  // It is published before anything else is measured so those positions are already settled.
-  const dockRect = mobileDock.hidden ? null : mobileDock.getBoundingClientRect();
-  document.body.style.setProperty('--dock-height', `${dockRect ? Math.round(Math.max(0, innerHeight - dockRect.top)) : 0}px`);
-  // The control row wraps to a second line when seven buttons will not fit a 320px screen at
-  // the 44px touch target, so its height is measured rather than assumed. It is published
-  // after --dock-height because the row is positioned against the dock.
-  const railRect = globeControls.getBoundingClientRect();
-  document.body.style.setProperty('--rail-height', `${Math.round(railRect.height)}px`);
-  if (document.body.dataset.flow === 'design' && designSurface !== 'globe') return { top: 0, bottom: 0 };
-  const element = bottomChrome();
-  const rect = element && !element.hidden ? element.getBoundingClientRect() : null;
-  const bottom = rect && rect.height ? Math.min(innerHeight * .62, Math.max(0, innerHeight - rect.top)) : 0;
-  return { top: document.body.dataset.flow ? 0 : 64, bottom };
-}
-
-// A fixed camera distance no longer implies a fixed on-screen size. The canvas is full-bleed,
-// so camera.aspect now describes a region partly hidden behind the studio sheet and the dock,
-// and framing against it magnified everything on narrow screens. Every framing decision works
-// in the limiting tangent of the band the chrome leaves free instead.
-function framingTangent() {
-  const half = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
-  const width = canvas.clientWidth || innerWidth, height = canvas.clientHeight || innerHeight;
-  const { top, bottom } = chromeInsets();
-  const band = Math.max(160, height - top - bottom);
-  return Math.min(half * band / height, half * width / height);
-}
-
-// Camera distance that frames an arc of the given half-width inside that band.
-function distanceForArc(arc) { return radius + arc / framingTangent(); }
-
 function resize() {
-  syncMobileDock();
   const active = document.body.dataset.flow==='design' && designSurface==='globe'?'place':document.body.dataset.flow;
-  const narrow = narrowViewport();
-  const width = active && !narrow ? innerWidth - 490 : innerWidth;
+  const width = active ? innerWidth - 490 : innerWidth;
   const height = innerHeight;
   canvas.style.left='0px';
   canvas.style.top='0px';
   canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
   camera.aspect = width / height;
-  const { top, bottom } = chromeInsets();
-  if (top || bottom) camera.setViewOffset(width, height, 0, (bottom - top) / 2, width, height);
-  else camera.clearViewOffset();
+  camera.clearViewOffset();
   camera.updateProjectionMatrix();
   renderer.setSize(width, height, false);
   frameGlobe(false);
@@ -1912,7 +1816,7 @@ async function createTourStops(){
   if(selected.length>1)detailSlots.add((firstDetail+1+Math.floor(Math.random()*(selected.length-1)))%selected.length);
   return selected.map((area,index)=>({id:area.anchor,name:area.name,normal:Array.from(grid.centre(area.anchor)),angle:area.angle||.012,detail:detailSlots.has(index)||Math.random()<.35,offset:(Math.random()-.5)*.07}));
 }
-const demoTour=createDemoTour({camera,globe,controls,radius,button:document.querySelector('#demoTour'),wideDistance:globeFitDistance,framingTangent,cancelZoom(){cameraFlight.cancel();zoom.cancel();cameraDistanceTarget=null;},loadStops:createTourStops,onStop(place,phase){if(phase==='hold'&&place.id)inspectPlacement(place.id);else if(phase==='travel')closeInspector(true);},prepareDetail(){void ensureTopology().catch(()=>{});},timeScale:import.meta.env.DEV&&new URLSearchParams(location.search).has('tourFast')?.005:1});
+const demoTour=createDemoTour({camera,globe,controls,radius,button:document.querySelector('#demoTour'),wideDistance:globeFitDistance,cancelZoom(){cameraFlight.cancel();zoom.cancel();cameraDistanceTarget=null;},loadStops:createTourStops,onStop(place,phase){if(phase==='hold'&&place.id)inspectPlacement(place.id);else if(phase==='travel')closeInspector(true);},prepareDetail(){void ensureTopology().catch(()=>{});},timeScale:import.meta.env.DEV&&new URLSearchParams(location.search).has('tourFast')?.005:1});
 const rotationToggle=document.querySelector('#rotationToggle');
 let displayedRotationState=null;
 function updateRotationControl(){
@@ -1978,18 +1882,6 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('geodesicQA'
   };
 }
 if(import.meta.env.DEV)window.performanceQA={screen(id){const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return{x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2};},tiles:artworkTiles.stats,focus(direction,altitude){zoom.cancel();controls.autoRotate=false;cameraDistanceTarget=null;globe.rotation.set(0,0,0);camera.position.set(...direction).normalize().multiplyScalar(radius+altitude);controls.update();},state(){return{tiles:{...artworkTiles.stats},topologyLoaded:!!topology,topologyTiming:topology?.loadTiming,regions:topology?{...topology.stats,retained:topology.regions.size}:null,detailVertices:cellDetail?.stats.vertices||0,grid:cellDetail?{...cellDetail.stats}:null,detailOpacity:cellDetail?.material.uniforms.visibility.value||0,inventoryLoaded:stagingInventoryLoaded,drawCalls:renderer.info.render.calls,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,camera:camera.position.toArray(),retainedPlacements:placementLayers.children.length};}};
-
-// Layout QA: the mobile rework's contract is that the canvas is never offset or shrunk and
-// the globe centres in the band the floating chrome leaves free. Both are measurable, so
-// they are reported here rather than eyeballed from screenshots alone.
-if(import.meta.env.DEV)window.layoutQA={metrics(){
-  const rect=canvas.getBoundingClientRect(),distance=camera.position.length();
-  const silhouette=Math.tan(Math.asin(Math.min(1,radius/distance)))/Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*rect.height/2;
-  const offsetY=camera.view&&camera.view.enabled?camera.view.offsetY:0;
-  return {canvas:{top:rect.top,left:rect.left,width:rect.width,height:rect.height},
-    diameter:silhouette*2,centre:{x:rect.left+rect.width/2,y:rect.top+rect.height/2-offsetY},
-    offsetY,insets:chromeInsets(),narrow:narrowViewport()};
-}};
 
 // Globe and canvas share the source footprint, original image and per-cell edits.
 function syncGlobeDesign(){
@@ -2251,7 +2143,7 @@ renderClaimFeed();
 
 function flyToCell(id,angle,duration=1500,onComplete=()=>{},onCancel=()=>{}){
   zoom.cancel();cameraDistanceTarget=null;
-  const pose=placementPose(topology.frame(id),camera,radius,angle,{tangent:framingTangent()});
+  const pose=placementPose(topology.frame(id),camera,radius,angle);
   const direction=pose.position.clone().applyQuaternion(pose.quaternion.clone().invert()).normalize();
   const cap=Math.min(.32,Math.max(.055,(pose.position.length()-radius)/radius*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*Math.max(camera.aspect,1)*1.9));
   void topology.ensureCap(direction.toArray(),cap+.025).catch(()=>{});

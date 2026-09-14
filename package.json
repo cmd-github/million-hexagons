@@ -39,7 +39,7 @@
     "test:persistent-checkout": "node scripts/persistent-checkout-qa.mjs",
     "test:payment-lifecycle": "node scripts/payment-lifecycle-live-qa.mjs",
     "test:globe-startup": "node scripts/globe-startup-qa.mjs",
-    "test:mobile-layout": "node scripts/mobile-layout-qa.mjs",
+    "test:desktop-composition": "node scripts/desktop-composition-qa.mjs",
     "test:globe-detail": "node --test scripts/globe-detail.test.mjs",
     "test:discovery": "node --test scripts/discovery.test.mjs"
   },
