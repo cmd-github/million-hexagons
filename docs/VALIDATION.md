@@ -43,7 +43,7 @@ For purchase-flow changes, exercise image, solid colour, and mixed per-cell pain
 
 `test:studio-scale` uses a test-only empty occupancy response to exercise 50,000/100,000-cell editing, undo/redo, image framing, canvas pan/zoom, relocation and a 100,000-cell publication. It leaves real sample inventory unchanged. Inspect `artifacts/studio-scale/`; report timing as local/emulated results and distinguish capacity from available contiguous space. Run this check against the development server because it uses the existing `geodesicQA` hooks.
 
-`npm run test:desktop-composition` holds the single-layout contract at 1440x900 and in 390x844 and 320x568 mobile browser contexts. It confirms that phones receive the desktop layout viewport, that no mobile dock exists, and that the desktop header, hero, vertical control rail and fixed right-hand Design and Place panel retain their desktop geometry. Inspect `artifacts/desktop-composition/`. Emulated mobile contexts are not physical-device certification; confirm real browser viewport scaling and touch interaction on iOS and Android before launch.
+`npm run test:desktop-composition` holds the single-layout contract at 1440x900 and in 390x844 and 320x568 mobile browser contexts. It confirms that phones receive the readable 1024px desktop layout viewport, that no mobile dock exists, and that the desktop header, hero, vertical control rail and fixed right-hand Design and Place panel retain their desktop geometry. Inspect `artifacts/desktop-composition/`. Emulated mobile contexts are not physical-device certification; confirm real browser viewport scaling and touch interaction on iOS and Android before launch.
 
 ## Geodesic and gesture checks
 
