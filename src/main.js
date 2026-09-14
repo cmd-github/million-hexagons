@@ -115,18 +115,36 @@ const fill = new THREE.DirectionalLight(0xc5e5ff, 2.4);
 fill.position.set(7, -6, -5);
 scene.add(fill);
 
-const stars = [];
-for (let i = 0; i < 950; i += 1) {
-  const r = 25 + Math.random() * 35;
-  const theta = Math.random() * Math.PI * 2;
-  const phi = Math.acos(2 * Math.random() - 1);
-  stars.push(r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
+// A fixed seed keeps the distant hexagons stable across reloads. Perspective sizing provides
+// depth without animation or per-frame position updates.
+let starSeed=0x68786573;
+const starRandom=()=>((starSeed=Math.imul(starSeed,1664525)+1013904223|0)>>>0)/4294967296;
+const starStyles=[
+  {chance:.55,size:2.2,opacity:.25,blur:1,filled:true,minRadius:38,range:22},
+  {chance:.30,size:2.8,opacity:.34,blur:0,filled:true,minRadius:29,range:23},
+  {chance:.15,size:3.2,opacity:.40,blur:0,filled:false,minRadius:25,range:19},
+];
+const starPositions=starStyles.map(()=>[]);
+for(let i=0;i<800;i++){
+  const choice=starRandom();let style=0,threshold=starStyles[0].chance;
+  while(choice>=threshold&&style<starStyles.length-1)threshold+=starStyles[++style].chance;
+  const {minRadius,range}=starStyles[style];
+  const r=minRadius+starRandom()*range,theta=starRandom()*Math.PI*2,phi=Math.acos(2*starRandom()-1);
+  starPositions[style].push(r*Math.sin(phi)*Math.cos(theta),r*Math.cos(phi),r*Math.sin(phi)*Math.sin(theta));
 }
-const starGeometry = new THREE.BufferGeometry();
-starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(stars, 3));
-const starArt=document.createElement('canvas');starArt.width=32;starArt.height=32;const starContext=starArt.getContext('2d');starContext.strokeStyle='#ffffff';starContext.lineWidth=3;starContext.beginPath();for(let i=0;i<6;i++){const angle=i*Math.PI/3;const x=16+12*Math.cos(angle),y=16+12*Math.sin(angle);if(i)starContext.lineTo(x,y);else starContext.moveTo(x,y);}starContext.closePath();starContext.stroke();
-const starTexture=new THREE.CanvasTexture(starArt);
-scene.add(new THREE.Points(starGeometry,new THREE.PointsMaterial({map:starTexture,color:0xd7ff55,size:10,sizeAttenuation:false,transparent:true,opacity:.66,depthWrite:false,fog:false})));
+function hexStarTexture({filled,blur}){
+  const art=document.createElement('canvas');art.width=64;art.height=64;
+  const context=art.getContext('2d');context.strokeStyle='#fff';context.fillStyle='#fff';
+  context.lineWidth=4;if(blur)context.filter=`blur(${blur}px)`;
+  context.beginPath();for(let i=0;i<6;i++){const angle=i*Math.PI/3,x=32+21*Math.cos(angle),y=32+21*Math.sin(angle);if(i)context.lineTo(x,y);else context.moveTo(x,y);}context.closePath();
+  if(filled)context.fill();else context.stroke();
+  return new THREE.CanvasTexture(art);
+}
+for(let i=0;i<starStyles.length;i++){
+  const style=starStyles[i],geometry=new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.Float32BufferAttribute(starPositions[i],3));
+  scene.add(new THREE.Points(geometry,new THREE.PointsMaterial({map:hexStarTexture(style),color:0xd7ff55,size:style.size,sizeAttenuation:true,transparent:true,opacity:style.opacity,depthWrite:false,fog:false})));
+}
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
