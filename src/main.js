@@ -2,6 +2,7 @@ import { CELL_COUNT } from './globe/topology.js';
 import { loadRegionalTopology, MissingRegion } from './globe/regional-topology.js';
 import { runtimeAsset, fetchRuntimeJson, fetchRuntimeGzip } from './runtime-assets.js';
 import { createCellDetail } from './globe/detail.js';
+import { createTwinklePreview } from './globe/twinkle-preview.js';
 import { ArtworkTiles } from './globe/tiles.js';
 import {SnapshotRuntime} from './globe/snapshot-runtime.js';
 import {regionForPoint} from './globe/region-format.js';
@@ -1848,6 +1849,8 @@ function updateRotationControl(){
   rotationToggle.setAttribute('aria-label',next);rotationToggle.title=next;
 }
 let lastTopologyTrim=0,topologyTrimReady=false;
+let twinklePreview=null,twinkleLoad=null;
+const twinklesAllowed=!millionFixture&&!matchMedia('(prefers-reduced-motion: reduce)').matches;
 function animate() {
   requestAnimationFrame(animate);
   controls.rotateSpeed=.42*Math.min(1,Math.max(.045,(camera.position.length()-radius)/4));
@@ -1865,6 +1868,13 @@ function animate() {
   updateRotationControl();
   artworkTiles.update(camera,canvas.clientHeight*renderer.getPixelRatio(),performance.now());
   snapshotRuntime?.update(camera,canvas.clientHeight*renderer.getPixelRatio(),performance.now());
+  // Wait for the authoritative inventory and first paint before loading the
+  // optional decorative layer. It never participates in picking or the grid.
+  if(twinklesAllowed&&stagingInventoryLoaded&&!twinkleLoad&&performance.now()>2500){
+    twinkleLoad=ensureTopology().then(value=>createTwinklePreview({globe,camera,radius,topology:value,occupiedCells}))
+      .then(preview=>{twinklePreview=preview;}).catch(error=>console.warn('Cell twinkles unavailable',error));
+  }
+  twinklePreview?.update(performance.now());
   if(!topology&&!topologyPromise&&camera.position.length()<radius+3.5)void ensureTopology().catch(()=>{});
   if(topology){
     cellDetail.update(camera,canvas.clientHeight,performance.now(),cameraFlight.active);
