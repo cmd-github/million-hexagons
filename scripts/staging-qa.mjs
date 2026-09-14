@@ -55,10 +55,18 @@ try {
     await page.locator('#website').fill('https://example.com/');
     await screenshot(page, `${mobile ? 'mobile' : 'desktop'}-review`);
     await page.locator('#previewPurchase').click();
-    await page.waitForFunction(() => document.querySelector('#buyPanel').getAttribute('aria-hidden') === 'true', null, { timeout: 90000 });
-    await screenshot(page, `${mobile ? 'mobile' : 'desktop'}-published`);
+    // Durable staging opens Stripe rather than publishing a session preview. Prove that the
+    // secure checkout mounts, but do not submit a payment; then close the studio so its test
+    // reservation is released before the next journey.
+    await page.locator('#embeddedCheckoutPanel').waitFor({ state: 'visible', timeout: 90000 });
+    await page.locator('#embeddedCheckout iframe').first().waitFor({ state: 'visible', timeout: 90000 });
+    await screenshot(page, `${mobile ? 'mobile' : 'desktop'}-checkout`);
+    await page.locator('#closeEmbeddedCheckout').click();
+    await page.locator('#closeBuy').click();
+    await page.waitForFunction(() => document.querySelector('#buyPanel').getAttribute('aria-hidden') === 'true');
+    await page.waitForTimeout(500);
     await page.reload(); await page.waitForSelector('#world[data-ready=true]', { timeout: 90000 });
-    report.journeys.push({ mobile, count, roundTrip: true, publication: true, warmReload: true });
+    report.journeys.push({ mobile, count, roundTrip: true, checkoutMounted: true, paymentSubmitted: false, warmReload: true });
     await page.close();
   }
   const page = await browser.newPage();
