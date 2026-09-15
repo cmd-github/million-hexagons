@@ -62,9 +62,11 @@ export function createCellDetail(topology, globe, radius, textures, selectionMod
         float border=1.0-smoothstep(0.0,max(fwidth(vEdge)*1.1,.0001),vEdge);
         vec3 line=mix(vec3(.07,.23,.29),vec3(.28,.65,.72),selectionMode);
         if(abs(id-hover)<.25)line=vec3(.8,1.,.3);
-        if(selected.a>.5)line=vec3(.45,.8,1.);
+        if(selected.a>.5)line=mix(vec3(.45,.8,1.),vec3(.82,1.,.25),selectionMode);
         float artwork=max(occupied,step(.5,selected.a));
-        gl_FragColor=vec4(line,visibility*border*mix(.48,.07,artwork));
+        float alpha=visibility*border*mix(.48,.035,artwork);
+        if(selected.a>.5)alpha=visibility*border*mix(.035,.8,selectionMode);
+        gl_FragColor=vec4(line,alpha);
         #include <colorspace_fragment>
       }`,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,
   });

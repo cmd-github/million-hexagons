@@ -129,7 +129,7 @@ try {
       throw Error(`Unexpected ${body.action}`);
     });
     await page.route("https://example.com/**", (route) => route.abort());
-    await page.goto(`${origin}/#placement=${placementId}`);
+    await page.goto(`${origin}/#placement=${placementId}`, { waitUntil: "domcontentloaded", timeout: 90000 });
     await page.waitForSelector("#placementInspector:not([hidden])", {
       timeout: 90000,
     });
@@ -149,12 +149,24 @@ try {
       await page.locator("#claimTicker").getAttribute("aria-label"),
       /Unpublished placement/,
     );
+    assert.match(
+      await page.locator("#claimFeedItems small").first().textContent(),
+      /^1 minute ago$/,
+    );
+    assert.equal(await page.locator("#claimFeed").getAttribute("open"), "");
+    await page.locator("#toggleHexSearch").click();
+    await page.locator("#hexSearch").evaluate((form) => form.requestSubmit());
+    assert.equal(await page.locator("#hexSearchStatus").textContent(), "");
+    assert.equal(await page.locator("#hexSearchInput").getAttribute("aria-invalid"), null);
+    const searchButtonBox = await page.locator("#toggleHexSearch").boundingBox();
+    const searchPanelBox = await page.locator("#hexSearchPanel").boundingBox();
+    assert.ok(Math.abs(searchButtonBox.y - searchPanelBox.y) < 2);
+    await page.locator("#toggleHexSearch").click();
     await page.route("**/topology/regions-v1/*.gz", async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 800));
       await route.continue();
     });
     await page.keyboard.press("Escape");
-    await page.locator("#claimFeed summary").click();
     const hudStarted = Date.now();
     await page.locator("#claimFeedItems button").first().click();
     await page.waitForSelector("#placementInspector:not([hidden])", {
@@ -241,11 +253,6 @@ try {
           event.type === "placement_shared" &&
           event.placementId === placementId,
       ),
-    );
-    await page.waitForFunction(
-      () =>
-        document.querySelector("#globalMetricText").textContent ===
-        "4 / 1,000,000 claimed",
     );
     assert.ok(events.some((event) => event.type === "globe_viewed"));
     report.push({

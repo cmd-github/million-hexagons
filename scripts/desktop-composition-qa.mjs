@@ -42,8 +42,8 @@ try {
     await page.screenshot({path:`${shots}/${item.name}-globe.png`});
 
     await page.locator('#claimButton').click();
-    await page.locator('#designStep').waitFor({state:'visible'});
-    const start=await page.evaluate(()=>window.geodesicQA.state().designAnchor);await page.evaluate(id=>window.geodesicQA.focus(id,.6),start);await page.waitForFunction(()=>window.geodesicQA.state().detailVertices>0);await page.waitForTimeout(250);const point=await page.evaluate(id=>window.geodesicQA.screen(id),start);if(item.mobile)await page.touchscreen.tap(point.x,point.y);else await page.mouse.click(point.x,point.y);await page.locator('#claimCell').waitFor({state:'visible'});await page.locator('#claimCell').click();await page.waitForFunction(()=>window.geodesicQA.state().design.length===1);
+    await page.locator('#locationStep').waitFor({state:'visible'});
+    const start=await page.evaluate(()=>window.geodesicQA.state().designAnchor);await page.evaluate(id=>window.geodesicQA.focus(id,.6),start);await page.waitForFunction(()=>window.geodesicQA.state().detailVertices>0);await page.waitForTimeout(250);const point=await page.evaluate(id=>window.geodesicQA.screen(id),start);if(item.mobile)await page.touchscreen.tap(point.x,point.y);else await page.mouse.click(point.x,point.y);await page.locator('#claimCell').waitFor({state:'visible'});await page.locator('#claimCell').click();await page.locator('#shapeStep').waitFor({state:'visible'});await page.locator('#toDesign').click();await page.locator('#designStep').waitFor({state:'visible'});
     await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');
     await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Change image');
     await page.waitForFunction(()=>Math.abs(innerWidth-document.querySelector('#buyPanel').getBoundingClientRect().right-16)<=1);

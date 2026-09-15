@@ -2,20 +2,20 @@
    wins on equal specificity. Advanced design controls float over the canvas, never grow the
    panel. Rule order is significant; see the note at the top of src/style.css. */
 .visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
-body[data-flow=design] .buy-panel{left:auto;right:16px;top:16px;bottom:16px;width:458px;padding:24px;display:flex;flex-direction:column;overflow:visible;border-radius:22px;background:#0d1b24;transform:none}
+body[data-flow=location] .buy-panel,body[data-flow=shape] .buy-panel,body[data-flow=design] .buy-panel{left:auto;right:16px;top:16px;bottom:16px;width:458px;padding:24px;display:flex;flex-direction:column;overflow:visible;border-radius:22px;background:#0d1b24;transform:none}
 body.creating .buy-panel>.eyebrow{display:none}
 body.creating .flow-progress{flex-shrink:0;margin:0 64px 16px 0;display:flex;align-items:center;gap:8px}
 body.creating .flow-progress i{width:20px;height:20px;font-size:10px}
 body.creating .flow-progress>span{width:18px}
 body.creating .flow-progress small{font-size:10px}
 body[data-flow=design] #designStep{display:flex;flex:1;min-height:0;flex-direction:column;gap:14px;animation:none}
+body[data-flow=location] #locationStep,body[data-flow=shape] #shapeStep{display:flex;flex:1;min-height:0;flex-direction:column;gap:16px;animation:none}
 #designStep .studio-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 #designIntro{display:none}
 #startingSpotPrompt{display:none;padding:16px;border:1px solid #d7ff5540;border-radius:12px;background:#d7ff5508;color:#dce8e5}
 #startingSpotPrompt p{margin:0 0 8px;font-size:13px;line-height:1.5}
 #startingSpotPrompt small{color:var(--lime);font-size:10px}
 body.choosing-start #startingSpotPrompt{display:block}
-body.choosing-start #designStep .studio-setup,body.choosing-start #designStep .studio-workspace,body.choosing-start #designStep .design-footer,body.choosing-start #designStep>#artworkQuality,body.choosing-start #designStep>#uploadStatus{display:none!important}
 body.choosing-start .cell-tooltip{z-index:35}
 #designStep .add-image{display:flex;align-items:center;gap:7px;border:1px solid #d4ff5844;background:#d4ff5810;color:var(--lime);border-radius:10px;height:40px;cursor:pointer;white-space:nowrap;font-size:12px}
 #designStep .add-image>span:first-child{font-size:20px}
@@ -82,6 +82,9 @@ body.creating .flow-progress small:nth-of-type(2){order:4}
 body.creating .flow-progress span:nth-of-type(2){order:5}
 body.creating .flow-progress i:nth-of-type(3){order:6}
 body.creating .flow-progress small:nth-of-type(3){order:7}
+body.creating .flow-progress span:nth-of-type(3){order:8}
+body.creating .flow-progress i:nth-of-type(4){order:9}
+body.creating .flow-progress small:nth-of-type(4){order:10}
 #designStep .studio-count input:focus-visible, #designStep button:focus-visible, #designStep summary:focus-visible, #designStep .add-image:has(+input:focus-visible){outline:2px solid var(--lime);outline-offset:2px}
 /* Shared studio shell across Design, Place and Review. */
 body.creating .buy-panel{border-radius:22px;background:#0d1b24}
@@ -107,10 +110,22 @@ body.creating .flow-screen h2{font-size:30px;letter-spacing:-1.2px}
 body.creating .flow-screen .panel-intro{font-size:12px}
 body.creating .back-link{font-size:11px}
 body.creating .globe-controls{right:490px}
-body[data-flow=place] .buy-panel, body[data-flow=review] .buy-panel{display:flex;flex-direction:column}
-body[data-flow=place] #placeStep, body[data-flow=review] #reviewStep{display:flex;flex:1;min-height:0;flex-direction:column}
-#placeStep .place-summary{margin-top:auto;padding-top:18px}
-#placeStep #toReview{margin-top:14px;min-height:46px;border-radius:12px}
+body[data-flow=location] .buy-panel,body[data-flow=shape] .buy-panel,body[data-flow=review] .buy-panel{display:flex;flex-direction:column}
+body[data-flow=location] .globe-controls,body[data-flow=shape] .globe-controls{right:490px;left:auto}
+#shapeStep .shape-mode,#logoOptions.image-layout-choice{display:flex;gap:8px}
+#shapeStep .shape-mode label,#logoOptions.image-layout-choice label{display:flex;align-items:center;gap:7px;flex:1;padding:10px;border:1px solid #29414b;border-radius:9px;color:#b7c9cf;font-size:11px;cursor:pointer}
+#shapeStep .shape-mode label:has(input:checked),#logoOptions.image-layout-choice label:has(input:checked){border-color:#d4ff5870;background:#d4ff5810;color:var(--lime)}
+#shapeStep input[type=radio],#logoOptions input[type=radio]{accent-color:var(--lime)}
+#shapeStep .studio-count{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#b7c9cf;font-size:12px}
+#shapeStep .hex-count-stepper input{width:78px;height:44px;padding:0;border:0;border-radius:0;background:#091720;color:white;text-align:center;font:600 14px 'DM Mono'}
+#shapeStep .hex-count-stepper button{height:44px;min-height:44px;padding:0;border:0;border-radius:0;background:#152b35;color:var(--lime);font-size:22px}
+#shapeStep .hex-count-stepper{grid-template-columns:44px 78px 44px}
+#shapeStep .availability-key{margin-top:4px}
+#shapeStep .step{color:#9eb2b8;font-size:11px;line-height:1.5}
+#shapeStep .place-summary{margin-top:auto}
+#logoOptions.image-layout-choice{min-width:220px}
+#logoOptions.image-layout-choice label{padding:7px 8px;white-space:normal}
+body[data-flow=review] #reviewStep{display:flex;flex:1;min-height:0;flex-direction:column}
 #reviewStep .review-footer{margin-top:auto}
 #reviewStep .review-card{flex-shrink:0}
 body[data-surface=globe][data-flow=design] .hex-editor, body[data-surface=globe][data-flow=design] .canvas-caption{display:none}

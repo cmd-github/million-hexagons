@@ -38,7 +38,7 @@ h1 em{color:var(--lime);font-style:normal}
 .globe-controls button:hover{background:rgba(212,255,88,.1)}
 .hex-search{display:contents}
 .hex-search>button{font-size:19px}
-.hex-search>div{position:absolute;right:calc(100% + 10px);top:0;width:218px;padding:12px;border:1px solid var(--line);border-radius:13px;background:rgba(7,20,30,.96);box-shadow:0 16px 40px #0008;backdrop-filter:blur(18px)}
+.hex-search>div{position:absolute;right:calc(100% + 10px);top:129px;width:218px;padding:12px;border:1px solid var(--line);border-radius:13px;background:rgba(7,20,30,.96);box-shadow:0 16px 40px #0008;backdrop-filter:blur(18px)}
 .hex-search label{margin:0 0 7px;color:#dce8e6;font-size:10px}
 .hex-search span{display:flex}
 .hex-search input{flex:1;width:0;min-width:0;margin:0;border-radius:9px 0 0 9px;padding:10px;font:500 11px 'DM Mono'}
@@ -61,7 +61,7 @@ h2{margin:0 0 6px;font-size:30px;letter-spacing:-.045em}
 .availability-key i{width:9px;height:9px;border-radius:3px;border:1px solid rgba(255,255,255,.3)}
 .availability-key .available{background:#2d8f82;border-color:#72d8c3}
 .availability-key .purchased{background:#192127;border-color:#4b5a60}
-.availability-key .chosen{background:#5967b0;border-color:#9ba7ff}
+.availability-key .chosen{background:transparent;border-color:var(--lime)}
 .step.error{border-color:rgba(255,105,105,.45);background:rgba(255,80,80,.08);color:#ffc2c2}
 .step b{color:var(--lime);margin-right:5px}
 label{display:block;color:#91a6aa;font-size:10px;letter-spacing:.035em;margin-top:12px}

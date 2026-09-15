@@ -25,11 +25,15 @@ export function createDemoTour({camera,globe,controls,radius,button,wideDistance
     const step=route()[phase][0];
     if(step==='travel'&&place.detail)prepareDetail();
     const normal=new THREE.Vector3(...place.normal);
+    if(step==='hold'&&!motionPreference.matches){
+      const driftAxis=new THREE.Vector3().crossVectors(Math.abs(normal.y)<.99999?new THREE.Vector3(0,1,0):new THREE.Vector3(0,0,-1),normal).normalize();
+      normal.applyAxisAngle(driftAxis,THREE.MathUtils.clamp(place.offset||.012,-.018,.018));
+    }
     const east=new THREE.Vector3().crossVectors(Math.abs(normal.y)<.99999?new THREE.Vector3(0,1,0):new THREE.Vector3(0,0,-1),normal).normalize();
     const north=new THREE.Vector3().crossVectors(normal,east);
     const frame={east:east.toArray(),north:north.toArray(),normal:normal.toArray()};
     const wide=step==='travel'||step==='pullback';
-    const pose=placementPose(frame,camera,radius,place.angle,wide?{distance:wideDistance()}:{});
+    const pose=placementPose(frame,camera,radius,Math.max(.012,place.angle||.012)*1.18,wide?{distance:wideDistance()}:{});
     segment={from:camera.position.clone(),to:pose.position,fromQ:globe.quaternion.clone(),toQ:pose.quaternion};
     onStop(place,step);
     button.dataset.stop=place.name;button.dataset.cell=place.id||'';button.dataset.phase=step;

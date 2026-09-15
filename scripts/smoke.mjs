@@ -93,7 +93,8 @@ const liveActivity = await page
   .locator("#claimFeedItems button")
   .first()
   .textContent();
-await page.locator("#claimFeed summary").click();
+if (!(await page.locator("#claimFeed").getAttribute("open")))
+  await page.locator("#claimFeed summary").click();
 await page.locator("#claimFeedItems button").first().click();
 try {
   await page.waitForSelector("#placementInspector:not([hidden])", {

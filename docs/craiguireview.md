@@ -1,17 +1,17 @@
 Activity Log
-- on the activity log - show x days / hours / minutes ago not dates
-- start activity log expanded
-- newly placed items should auto update the activity log - not require refresh
+- [x] on the activity log - show x days / hours / minutes ago not dates
+- [x] start activity log expanded
+- [x] newly placed items should auto update the activity log - not require refresh
 UI
-- improve colour on background 'star' hexs - not brighter but closer to the brand colour 
-- try introducing some white as well as green on bg 'star' hexs
-- rotate the globe faster
-- when auto-spinning on zoomed in the globe should spin slower (i.e. globe speed depends on zoom level)
-- globe tour should maintain full logo / placement in view when going to a target and maintain some slow globe movement on zoom in to keep it feeeling alive
+- [x] improve colour on background 'star' hexs - not brighter but closer to the brand colour
+- [x] try introducing some white as well as green on bg 'star' hexs
+- [x] rotate the globe faster
+- [x] when auto-spinning on zoomed in the globe should spin slower (i.e. globe speed depends on zoom level)
+- [x] globe tour should maintain full logo / placement in view when going to a target and maintain some slow globe movement on zoom in to keep it feeeling alive
 Menu
--"Sign-in link sent. Open it on any device; you may be asked to confirm this email." just sign-in link sent. check spam if not received
--search bar should come out next to search icon, not above it. 
-- seacrh bar allows searching with blank form - it shouldn't show any error if clicked when blank. 
+- [x] "Sign-in link sent. Open it on any device; you may be asked to confirm this email." just sign-in link sent. check spam if not received
+- [x] search bar should come out next to search icon, not above it.
+- [x] seacrh bar allows searching with blank form - it shouldn't show any error if clicked when blank.
 
 Placements
 - create a placemnet button jumps on globe to super zoomed in - clicking that shouldn't move teh globe yet 

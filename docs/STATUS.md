@@ -10,7 +10,6 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Next
 
-- [ ] Finish the remaining [Craig UI review](craiguireview.md): relative and live-updating activity (expanded initially); brand-colour/white background stars; zoom-sensitive spin and living tour framing; shorter sign-in confirmation; an inline search field whose blank submit is a no-op.
 - [ ] Decide whether multiple image layers are a launch requirement; retain the confirmed starting-spot interaction as the availability boundary inside the single Design -> Review flow.
 - [ ] Complete the reservation follow-up: make the initial hold 20 minutes, show a subtle urgency state, and permit one explicit 10-minute extension without indefinite renewal. Validate expiry, extension races, checkout-session expiry and release.
 - [ ] Validate destination URLs through a safe server-side policy before publication, including redirects/timeouts and a clear decision for unreachable or 404 destinations; do not turn the browser into a URL reachability oracle.
@@ -31,6 +30,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Revisit globe surface studies, achievements, advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Completed the placement-flow restructure and Craig's Activity/UI/Menu review. Claim this space now establishes the starting hexagon; Create follows Location -> Size & shape -> Design -> Review; Exact and Freehand footprints remain connected and count changes grow or trim the existing shape; Design combines Paint, Image and Move globe with one colour picker, faint grid lines, visible image-layout radios and colour-preserving uploads. Activity opens expanded, uses relative time and refreshes automatically; the quieter brand-green/white stars, faster zoom-sensitive spin, fully framed living tour, shorter sign-in confirmation and inline blank-safe search are implemented. Production/staging builds, desktop/mobile Design/navigation/public-placement/reservation journeys, artwork camera and desktop composition pass; rendered Shape and Design screens were inspected.
 
 - [x] Refined Review and the landing headline from Craig's UI review. Review now labels the artwork card Preview, gives the 160-character description a five-row field, hides generic Stripe email copy while signed out, and shows only the signed-in email plus an immediate Log out action when authenticated. The hero typewriter now shuffles 16 distinct words, includes the full stop in every typed/deleted word, holds completed words for three seconds and preserves the fixed headline footprint and reduced-motion `brand.` fallback. Typewriter tests, production build, desktop/mobile design/navigation and the identical desktop composition at 1440px, 390px and 320px pass; the compact Review rendering was inspected. Deployed source `0dd32745` as staging Worker `0237e465-4625-4075-82e9-80606f060cea`, retaining runtime release `6121418c93f84b0a7fd8b572f3f386de309edec9ba6bc2aefcc2d44e084374b2`. Live desktop/mobile Design -> Review -> Stripe-mount, warm reload, startup retry and missing-asset checks passed with no payment submitted and zero browser errors or direct Firestore requests; all 1,549 runtime objects and HTTPS/CDN cache checks passed.
 

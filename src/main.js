@@ -126,9 +126,10 @@ scene.add(fill);
 let starSeed=0x68786573;
 const starRandom=()=>((starSeed=Math.imul(starSeed,1664525)+1013904223|0)>>>0)/4294967296;
 const starStyles=[
-  {chance:.55,size:2.2,opacity:.25,blur:1,filled:true,minRadius:38,range:22},
-  {chance:.30,size:2.8,opacity:.34,blur:0,filled:true,minRadius:29,range:23},
-  {chance:.15,size:3.2,opacity:.40,blur:0,filled:false,minRadius:25,range:19},
+  {chance:.48,size:2.2,opacity:.24,blur:1,filled:true,minRadius:38,range:22,color:0xb8df3f},
+  {chance:.30,size:2.8,opacity:.30,blur:0,filled:true,minRadius:29,range:23,color:0xd7ff55},
+  {chance:.14,size:3.2,opacity:.36,blur:0,filled:false,minRadius:25,range:19,color:0xc8ee4c},
+  {chance:.08,size:2.5,opacity:.30,blur:0,filled:true,minRadius:31,range:20,color:0xffffff},
 ];
 const starPositions=starStyles.map(()=>[]);
 for(let i=0;i<800;i++){
@@ -149,7 +150,7 @@ function hexStarTexture({filled,blur}){
 for(let i=0;i<starStyles.length;i++){
   const style=starStyles[i],geometry=new THREE.BufferGeometry();
   geometry.setAttribute('position',new THREE.Float32BufferAttribute(starPositions[i],3));
-  scene.add(new THREE.Points(geometry,new THREE.PointsMaterial({map:hexStarTexture(style),color:0xd7ff55,size:style.size,sizeAttenuation:true,transparent:true,opacity:style.opacity,depthWrite:false,fog:false})));
+  scene.add(new THREE.Points(geometry,new THREE.PointsMaterial({map:hexStarTexture(style),color:style.color,size:style.size,sizeAttenuation:true,transparent:true,opacity:style.opacity,depthWrite:false,fog:false})));
 }
 
 const controls = new OrbitControls(camera, canvas);
@@ -261,7 +262,7 @@ let explorationStart = null;
 let requestedAnchor = null;
 let pinnedCell = null;
 let designSurface = "canvas", exactGlobeArea = false;
-let designStartingSpotConfirmed = false;
+let designStartingSpotConfirmed = false,shapeMode='exact';
 const recentColours=[];
 let hoverTimer, globeStroke = null, flightVersion=0;
 function individualHexagonsVisible(){return Boolean(cellDetail&&cellDetail.stats.ready>0&&cellDetail.material.uniforms.visibility.value>.12);}
@@ -402,13 +403,14 @@ function refreshSelection(preparedCells = null) {
   document.querySelector('#toReview').disabled = !count || !artworkReady;
   renderSelectionPreview();
   clearPlacementPreview();
-  if (count) addHighResolutionPlacement(document.querySelector('#brandColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
+  if(document.body.dataset.flow==='shape')return;
+  if (count) addHighResolutionPlacement(document.querySelector('#brushColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
 }
 
 function renderSelectionPreview() {
   if (document.querySelector('#selectionShape').value !== 'custom') {
     selectionColourData.fill(0);
-    const colour = document.querySelector('#brandColor').value;
+    const colour = document.querySelector('#brushColor').value;
     selectedCells.forEach((cell) => writeCellColour(selectionColourData, cell, cell.color || colour));
   }
   selectionColourTexture.needsUpdate = true;
@@ -465,7 +467,7 @@ function paintCustomCell(hit, cell) {
       }
       selectedCells.push(cell);
     }
-    const colour = document.querySelector('#brandColor').value;
+    const colour = document.querySelector('#brushColor').value;
     selectedCellColours.set(cell.id, colour);
     writeCellColour(selectionColourData, cell, colour);
   } else if (existing >= 0) {
@@ -589,30 +591,33 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   document.querySelector('#artworkQuality').hidden=true;
   uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;draftArtwork=null;
   document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();
-  document.querySelector('#brandColor').value='#5967b0';document.querySelector('#logoTreatment').value='span';document.querySelector('#areaBrush').value='0';document.querySelector('#areaBrushValue').textContent='1 cell';showUploadMessage('');document.querySelector('#uploadStatus').hidden=true;
+  document.querySelector('#brushColor').value='#ff4d6d';document.querySelector('#logoTreatment').value='span';document.querySelector('#areaBrush').value='0';document.querySelector('#areaBrushValue').textContent='1 cell';showUploadMessage('');document.querySelector('#uploadStatus').hidden=true;
   resetLogoTransform();undoStack.length=0;redoStack.length=0;updateHistory();
   logoCells=[];footprintEdited=true;logoEditorMode='paint';
   designAnchor=preparedAnchor;
   amountInput.value=0;
   exactGlobeArea=true;designSurface='globe';document.body.dataset.surface='globe';
   ownerEdit=ownerUpdate;
+  if(!ownerEdit&&Number.isInteger(anchor)){logoCells=topology.cells([{id:preparedAnchor}],preparedAnchor);amountInput.value=1;}
   if(!ownerEdit&&!Number.isInteger(anchor)&&savedDraft)restoreDraft();
   if(ownerEdit){
     const state=ownerEdit.source.designState||{},transform=state.imageTransform||{},source=ownerEdit.source.originalArtworkDataUrl||ownerEdit.source.currentArtworkDataUrl||ownerEdit.record.artworkDataUrl;
     logoCells=topology.cells(state.cells?.length?state.cells:ownerEdit.record.cells.map(id=>({id})),ownerEdit.record.anchor);amountInput.value=logoCells.length;footprintEdited=true;
     uploadedLogo=await studioImage(source);uploadedLogoCrop=uploadedLogo?findLogoContentBounds(uploadedLogo):null;
-    document.querySelector('#brandColor').value=state.baseColour||'#5967b0';document.querySelector('#logoTreatment').value=transform.treatment==='repeat'?'repeat':'span';
+    document.querySelector('#brushColor').value=state.baseColour||'#ff4d6d';document.querySelector('#logoTreatment').value=transform.treatment==='repeat'?'repeat':'span';
     document.querySelector('#logoScale').value=Number(transform.scale||100);document.querySelector('#logoScaleValue').textContent=`${document.querySelector('#logoScale').value}%`;logoPosition.x=Number(transform.x||0);logoPosition.y=Number(transform.y||0);document.querySelector('#logoOrientation').value=Number(transform.rotation||0);updateLogoPreviewOrientation();
     document.querySelector('#companyName').value=ownerEdit.record.title||'';document.querySelector('#companyDescription').value=ownerEdit.record.description||'';document.querySelector('#website').value=ownerEdit.record.destinationUrl||'';
   }
-  designStartingSpotConfirmed=Boolean(ownerEdit||logoCells.length);configureCreation();setDesignSurface('globe');
+  designStartingSpotConfirmed=Boolean(ownerEdit||logoCells.length||Number.isInteger(anchor));configureCreation();setDesignSurface('globe');
   document.body.classList.toggle('choosing-start',!designStartingSpotConfirmed);
   document.body.classList.toggle('owner-editing',Boolean(ownerEdit));
-  document.querySelector('#sizeControls').hidden=Boolean(ownerEdit);document.querySelector('#removeHexMode').hidden=Boolean(ownerEdit);document.querySelector('#changeStartSpot').hidden=Boolean(ownerEdit);
-  document.querySelector('#designTitle').textContent=ownerEdit?'Update your placement.':designStartingSpotConfirmed?'2. Create your design':'1. Choose your starting spot';document.querySelector('#designIntro').textContent=ownerEdit?'Your purchased space is locked. Update what appears inside it.':'Your space. Your design.';
+  document.querySelector('#sizeControls').hidden=Boolean(ownerEdit);document.querySelector('#removeHexMode').hidden=Boolean(ownerEdit);document.querySelector('#backToShape').hidden=Boolean(ownerEdit);
+  document.querySelector('#designTitle').textContent=ownerEdit?'Update your placement.':'3. Create your design';document.querySelector('#designIntro').textContent=ownerEdit?'Your purchased space is locked. Update what appears inside it.':'Your space. Your design.';
   document.querySelector('#toPlacement').textContent=ownerEdit?'Review changes →':'Review placement →';document.querySelector('#previewPurchase').textContent=ownerEdit?'Save changes':'Continue to secure checkout';
   if(ownerEdit)for(const id of ['price','placePrice','reviewPrice'])document.getElementById(id).textContent='Owned';
-  if(!designStartingSpotConfirmed){setEditorMode('pan',false);cameraDistanceTarget=Math.min(camera.position.length(),radius+1.45);document.querySelector('#startingSpotStatus').textContent='Zoom in to select a starting position.';}
+  if(ownerEdit||(!Number.isInteger(anchor)&&logoCells.length)){enterDesignStep();}
+  else if(designStartingSpotConfirmed){enterShapeStep();}
+  else{showFlowStep('location');setEditorMode('pan',false);cameraDistanceTarget=Math.min(camera.position.length(),radius+1.45);document.querySelector('#startingSpotStatus').textContent='Zoom in to select a starting position.';}
   await nextPaint();hideLoading();openingEditor=false;
   trackEvent('design_started',{context:{cellCount:1,source:'studio'}});
 
@@ -636,7 +641,7 @@ function captureDraft() {
     cells:previewCells().map(({id,color,transparent})=>({id,color,transparent})),
     footprintEdited,
     logo:uploadedLogo,logoCrop:uploadedLogoCrop,
-    baseColour:document.querySelector('#brandColor').value,
+    baseColour:document.querySelector('#brushColor').value,
     treatment:document.querySelector('#logoTreatment').value,
     scale:document.querySelector('#logoScale').value,
     rotation:document.querySelector('#logoOrientation').value,
@@ -652,7 +657,7 @@ function restoreDraft() {
   amountInput.value=logoCells.length;
   footprintEdited=draft.footprintEdited;
   uploadedLogo=draft.logo;uploadedLogoCrop=draft.logoCrop;
-  document.querySelector('#brandColor').value=draft.baseColour;
+  document.querySelector('#brushColor').value=draft.baseColour;
   document.querySelector('#logoTreatment').value=draft.treatment;
   document.querySelector('#logoScale').value=draft.scale;
   document.querySelector('#logoScaleValue').textContent=`${draft.scale}%`;
@@ -669,7 +674,7 @@ function discardDraft() {
   document.querySelector('#logoPreview').replaceChildren();
   document.querySelector('#logoPalette').hidden=true;
   document.querySelector('#artworkQuality').hidden=true;
-  document.querySelector('#brandColor').value='#5967b0';
+  document.querySelector('#brushColor').value='#ff4d6d';
   document.querySelector('#logoTreatment').value='span';
   for(const id of ['companyName','companyDescription','website'])document.getElementById(id).value='';
   resetLogoTransform();updateImageControls();
@@ -703,7 +708,7 @@ function closeBuy() {
   clearSelectionColours();
   clearPlacementPreview();
   requestedAnchor = null;
-  ownerEdit=null;designStartingSpotConfirmed=false;document.body.classList.remove('owner-editing','choosing-start');document.querySelector('#removeHexMode').hidden=false;document.querySelector('#changeStartSpot').hidden=false;document.querySelector('#previewPurchase').textContent='Continue to secure checkout';
+  ownerEdit=null;designStartingSpotConfirmed=false;document.body.classList.remove('owner-editing','choosing-start');document.querySelector('#removeHexMode').hidden=false;document.querySelector('#backToShape').hidden=false;document.querySelector('#previewPurchase').textContent='Continue to secure checkout';
   pinnedCell = null;
   document.querySelector('#hint').innerHTML = '<span title="Drag to rotate" role="img" aria-label="Drag to rotate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18m-5-4 4 4-4 4M8 8l-4 4 4 4"/></svg></span><i></i><span title="Scroll to zoom" role="img" aria-label="Scroll to zoom"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14m5 12 6 6M7 10h6m-3-3v6"/></svg></span><i></i><span title="Click a tile" role="img" aria-label="Click a tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3 14 10-7 1-3 7z"/></svg></span>';
 }
@@ -746,6 +751,7 @@ function showHexSearch(open) {
 document.querySelector('#toggleHexSearch').addEventListener('click', () => showHexSearch(hexSearchPanel.hidden));
 hexSearch.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if(!hexSearchInput.value.trim()){hexSearchInput.removeAttribute('aria-invalid');hexSearchStatus.textContent='';return;}
   trackEvent('globe_searched',{context:{source:'search'}});
   const match = hexSearchInput.value.trim().match(/^#?([0-9]{1,7})$/);
   const id = match ? Number(match[1]) : 0;
@@ -785,7 +791,7 @@ function rememberRecentColour(colour){
   const pane=document.querySelector('#recentColours');pane.hidden=!recentColours.length;pane.querySelectorAll('button').forEach(button=>button.remove());
   for(const item of recentColours){const button=document.createElement('button');button.type='button';button.className='recent-colour';button.style.background=item;button.title=item.toUpperCase();button.setAttribute('aria-label',`Use recent colour ${item}`);button.onclick=()=>{document.querySelector('#brushColor').value=item;updatePaintColour();};pane.append(button);}
 }
-document.querySelector('#brandColor').addEventListener('input', updatePaintColour);
+document.querySelector('#brushColor').addEventListener('input', updatePaintColour);
 
 function updateLogoPreviewOrientation() {
   const degrees = Number(document.querySelector('#logoOrientation').value) || 0;
@@ -793,19 +799,19 @@ function updateLogoPreviewOrientation() {
 }
 document.querySelector('#logoOrientation').addEventListener('change', updateLogoPreviewOrientation);
 
-const flowScreens = { design: document.querySelector('#designStep'), place: document.querySelector('#placeStep'), review: document.querySelector('#reviewStep') };
+const flowScreens = {location:document.querySelector('#locationStep'),shape:document.querySelector('#shapeStep'),design:document.querySelector('#designStep'),review:document.querySelector('#reviewStep')};
 function showFlowStep(step) {
   document.body.dataset.flow = step;
   resize();
   Object.entries(flowScreens).forEach(([name, screen]) => { screen.hidden = name !== step; screen.classList.toggle('active', name === step); });
   const progress = [...document.querySelectorAll('.flow-progress i')];
-  const stepNumber = step === 'review' ? 2 : 1;
+  const stepNumber = {location:1,shape:2,design:3,review:4}[step]||1;
   progress.forEach((item, index) => item.classList.toggle('active', index < stepNumber));
   document.querySelector('#buyPanel').scrollTop = 0;
   const heading = flowScreens[step].querySelector('h2');
   heading.tabIndex = -1;
   heading.focus({ preventScroll: true });
-  if(step==='place')trackEvent('cells_selected',{context:{cellCount:placementCount(),source:'studio'}});
+  if(step==='shape')trackEvent('cells_selected',{context:{cellCount:placementCount(),source:'studio'}});
   if(step==='review')trackEvent('design_completed',{context:{cellCount:placementCount(),source:'studio'}});
 }
 
@@ -854,14 +860,19 @@ async function resizeDesign() {
   showLoading();
   let failed=false;
   try {
-    const aspect=uploadedLogo?Math.max(.2,Math.min(5,(uploadedLogoCrop?.width||uploadedLogo.naturalWidth)/(uploadedLogoCrop?.height||uploadedLogo.naturalHeight))):1.25;
-    const cap=Math.min(1.5,Math.max(.12,Math.acos(1-2*count/CELL_COUNT)*Math.sqrt(Math.max(aspect,1/aspect))*1.4));
+    const cap=Math.min(1.5,Math.max(.12,Math.acos(1-2*count/CELL_COUNT)*1.5));
     await prepareLocation(designAnchor,cap);
-    const cells=await topology.run(()=>topology.connected(designAnchor,count,aspect));
+    const source=previewCells().map(cell=>({...cell}));
+    const values=await topology.run(()=>{
+      const byId=new Map(source.map(cell=>[cell.id,cell]));
+      if(count<source.length){const queue=[designAnchor],seen=new Set(queue),kept=[];for(let cursor=0;cursor<queue.length&&kept.length<count;cursor++){const id=queue[cursor],cell=byId.get(id);if(!cell)continue;kept.push(cell);for(const next of topology.neighboursOf(id))if(byId.has(next)&&!seen.has(next)){seen.add(next);queue.push(next);}}return kept;}
+      const queue=[...byId.keys()],seen=new Set(queue);for(let cursor=0;cursor<queue.length&&byId.size<count;cursor++)for(const next of topology.neighboursOf(queue[cursor]))if(!seen.has(next)){seen.add(next);if(!occupiedCells[next-1]){byId.set(next,{id:next});queue.push(next);if(byId.size===count)break;}}return [...byId.values()];
+    });
+    await topology.ensureCells(values.map(cell=>cell.id));const cells=topology.cells(values,designAnchor);
     if(version!==designGeometryVersion)return;
-    resetEditorView();logoCells=cells;footprintEdited=false;selectedCell=null;selectedCells=[];
+    logoCells=cells;footprintEdited=true;selectedCell=cellForId(designAnchor);selectedCells=cells;
   } catch(error) { failed=true; }
-  finally {if(version===designGeometryVersion){designGeometryPending=false;hideLoading();amountInput.value=logoCells?.length||1;drawDesignPreview();updateTotals();if(failed)updateLogoGuidance('Could not load this area. Try the size again.');}}
+  finally {if(version===designGeometryVersion){designGeometryPending=false;hideLoading();amountInput.value=logoCells?.length||1;if(document.body.dataset.flow==='shape'){clearPlacementPreview();refreshSelection(logoCells);document.querySelector('#shapeStatus').textContent=failed?'Could not resize this footprint. Try again.':'The current shape was preserved while its edge was adjusted.';}else drawDesignPreview();updateTotals();if(failed)updateLogoGuidance('Could not load this area. Try the size again.');}}
 }
 function layoutFor(cells) {
   if(layoutCache.has(cells))return layoutCache.get(cells);
@@ -999,10 +1010,16 @@ function configureCreation() {
   document.querySelector('#selectionShape').value = 'logo';
   document.querySelector('#designTitle').textContent = 'Make it yours.';
   document.querySelector('#designIntro').textContent = 'Your space. Your design.';
-  for(const id of ['logoControls','colourControls','customPaintTools','logoFootprintHelp','sizeControls']) document.querySelector(`#${id}`).hidden=false;
+  for(const id of ['logoControls','customPaintTools','logoFootprintHelp']) document.querySelector(`#${id}`).hidden=false;
   updateImageControls();
-  showFlowStep('design');
   drawDesignPreview();updateTotals();
+}
+function enterShapeStep(){
+  shapeMode='exact';document.querySelector('[name="shapeMode"][value="exact"]').checked=true;document.querySelector('#sizeControls').hidden=false;document.querySelector('#shapeStatus').textContent='Adjust the number to grow or trim this footprint.';
+  showFlowStep('shape');selectionModeUniform.value=1;selectedCell=cellForId(designAnchor);selectedCells=previewCells();clearPlacementPreview();refreshSelection(selectedCells);controls.enableRotate=true;updateTotals();
+}
+function enterDesignStep(){
+  document.body.classList.remove('choosing-start');selectionModeUniform.value=0;clearSelectionColours();showFlowStep('design');setDesignSurface('globe');setEditorMode(uploadedLogo?'move':'paint',false);drawDesignPreview();updateTotals();
 }
 async function confirmStartingSpot(id){
   if(!Number.isInteger(id)||occupiedCells[id-1])return;
@@ -1013,14 +1030,15 @@ async function confirmStartingSpot(id){
     if(next.some(cell=>occupiedCells[cell.id-1])){document.querySelector('#startingSpotStatus').textContent='The complete design does not fit here. Choose another available spot.';return;}
     if(logoCells.length)rememberPaint();
     designAnchor=id;logoCells=next;amountInput.value=next.length;footprintEdited=true;exactGlobeArea=true;designStartingSpotConfirmed=true;selectedCell=cellForId(id);selectedCells=next;
-    document.body.classList.remove('choosing-start');pinnedCell=null;tooltip.classList.remove('show','pinned');document.querySelector('#designTitle').textContent='2. Create your design';setEditorMode('paint',false);drawDesignPreview();updateTotals();
+    document.body.classList.remove('choosing-start');pinnedCell=null;tooltip.classList.remove('show','pinned');enterShapeStep();
   }catch{document.querySelector('#startingSpotStatus').textContent='Could not check this spot. Please try again.';}
   finally{button.disabled=false;button.textContent='Start here';}
 }
 function chooseAnotherStartingSpot(){
-  designStartingSpotConfirmed=false;document.body.classList.add('choosing-start');document.querySelector('#designTitle').textContent='1. Choose your starting spot';document.querySelector('#startingSpotStatus').textContent=logoCells.length?'Choose and confirm a new spot to move your complete design.':'Zoom in to select a starting position.';pinnedCell=null;tooltip.classList.remove('show','pinned');setEditorMode('pan',false);
+  designStartingSpotConfirmed=false;document.body.classList.add('choosing-start');showFlowStep('location');document.querySelector('#startingSpotStatus').textContent=logoCells.length?'Choose and confirm a new spot to move your complete design.':'Zoom in to select a starting position.';pinnedCell=null;tooltip.classList.remove('show','pinned');setEditorMode('pan',false);
 }
 function updateImageControls() {
+  document.querySelectorAll('[name="logoTreatmentChoice"]').forEach(input=>input.checked=input.value===document.querySelector('#logoTreatment').value);
   document.querySelector('#removeImage').hidden=!uploadedLogo;
   document.querySelector('#logoOptions').hidden=!uploadedLogo;
   document.querySelector('#moveImageMode').disabled=!uploadedLogo;
@@ -1038,7 +1056,7 @@ function setEditorMode(mode, zoomToCells=true) {
     const button=document.querySelector(`#${id}`),active=value===mode;
     button.setAttribute('aria-pressed',String(active));button.classList.toggle('active',active);
   }
-  document.querySelector('#brushControls').hidden=mode!=='paint';
+  document.querySelector('#brushControls').hidden=!['paint','remove'].includes(mode);
   document.querySelector('#logoPositionControls').hidden=mode!=='move'||!uploadedLogo;
   const hint=mode==='move'?'Move image':mode==='remove'?'Delete hexagons':mode==='relocate'?'Click an available hexagon to move the whole design':mode==='paint'?'Draw over blank hexagons to add them':'Drag to move the globe';
   document.querySelector('#toolHint').textContent=hint;
@@ -1151,6 +1169,11 @@ document.querySelector('#undoPaint').addEventListener('click',()=>restorePaint(u
 document.querySelector('#redoPaint').addEventListener('click',()=>restorePaint(redoStack,undoStack));
 
 document.querySelector('#toPlacement').addEventListener('click', () => {syncGlobeDesign();if(document.querySelector('#toPlacement').disabled)return;draftArtwork=renderArtwork(previewCells());selectedCell=cellForId(designAnchor);selectedCells=previewCells();document.querySelector('#toReview').disabled=false;document.querySelector('#toReview').click();});
+document.querySelector('#toDesign').addEventListener('click',enterDesignStep);
+document.querySelector('#backToLocation').addEventListener('click',chooseAnotherStartingSpot);
+document.querySelectorAll('[name="shapeMode"]').forEach(input=>input.addEventListener('change',()=>{
+  shapeMode=document.querySelector('[name="shapeMode"]:checked').value;const freehand=shapeMode==='freehand';document.querySelector('#sizeControls').hidden=freehand;document.querySelector('#shapeStatus').textContent=freehand?'Click or drag across neighbouring spaces to add them. Click selected edge spaces to remove them.':'Adjust the number to grow or trim this footprint.';logoEditorMode=freehand?'hex':'pan';controls.enableRotate=!freehand;
+}));
 document.querySelector('#backToDesign').addEventListener('click', () => { clearPlacementPreview(); selecting = false; selectionModeUniform.value = 0; document.body.classList.remove('selecting', 'placing-design'); controls.enableRotate = true; showFlowStep('design'); drawDesignPreview(); updateTotals(); });
 document.querySelector('#moveGlobeMode').addEventListener('click', () => setInteractionMode('move'));
 document.querySelector('#placeDesignMode').addEventListener('click', () => setInteractionMode('place'));
@@ -1158,7 +1181,7 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   if (!selectedCells.length) return;
   const button=event.currentTarget,original=button.textContent;button.disabled=true;if(stagingClient)button.textContent='Checking availability…';
   if(stagingClient){
-    if(ownerEdit){showFlowStep('review');setInteractionMode('move');focusSelection();const reviewCanvas=document.querySelector('#reviewCanvas');drawDesignPreview(reviewCanvas);document.querySelector('#reviewKind').textContent='Preview';clearPlacementPreview();addHighResolutionPlacement(document.querySelector('#brandColor').value,document.querySelector('#logoTreatment').value,previewPlacementLayers);button.textContent=original;button.disabled=false;return;}
+    if(ownerEdit){showFlowStep('review');setInteractionMode('move');focusSelection();const reviewCanvas=document.querySelector('#reviewCanvas');drawDesignPreview(reviewCanvas);document.querySelector('#reviewKind').textContent='Preview';clearPlacementPreview();addHighResolutionPlacement(document.querySelector('#brushColor').value,document.querySelector('#logoTreatment').value,previewPlacementLayers);button.textContent=original;button.disabled=false;return;}
     try{await releaseActiveCheckoutReservation();activeCheckoutReservation=await stagingClient.quoteAndReserve(selectedCells.map(cell=>cell.id));document.querySelector('#reviewPrice').textContent=activeCheckoutReservation.quote.displayTotal;showCheckoutExpiry();}
     catch(error){document.querySelector('#selectionStatus').textContent=error.code==='cells-unavailable'?`Hexagon ${error.cellId} was just reserved. Choose another location.`:'Could not reserve this location. Try again.';button.textContent=original;button.disabled=false;return;}
   }
@@ -1172,7 +1195,7 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   warning.hidden = !uploadedLogo||document.querySelector('#artworkQuality').hidden;
   warning.textContent = 'Low resolution. Use SVG or a larger image for sharper artwork.';
   clearPlacementPreview();
-  addHighResolutionPlacement(document.querySelector('#brandColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
+  addHighResolutionPlacement(document.querySelector('#brushColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
   button.textContent=original;button.disabled=false;
 });
 document.querySelector('#backToPlacement').addEventListener('click', () => { void releaseActiveCheckoutReservation();clearPlacementPreview();selecting=false;selectionModeUniform.value=0;document.body.classList.remove('selecting','placing-design');showFlowStep('design');setDesignSurface('globe');setEditorMode('paint',false);drawDesignPreview();updateTotals(); });
@@ -1182,11 +1205,12 @@ amountInput.addEventListener('input', () => { void resizeDesign(); });
 document.querySelector('#addHexagon').addEventListener('click',()=>{amountInput.value=Math.min(100000,placementCount()+1);void resizeDesign();});
 document.querySelector('#removeHexagon').addEventListener('click',()=>{amountInput.value=Math.max(1,placementCount()-1);void resizeDesign();});
 document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
+document.querySelectorAll('[name="logoTreatmentChoice"]').forEach(input=>input.addEventListener('change',()=>{document.querySelector('#logoTreatment').value=input.value;drawDesignPreview();}));
 document.querySelectorAll('[data-treatment]').forEach((button) => button.addEventListener('click', () => { document.querySelector('#logoTreatment').value = button.dataset.treatment; document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
 document.querySelectorAll('[data-treatment]').forEach((item) => item.classList.toggle('active', item === button)); drawDesignPreview(); updateLogoGuidance(); }));
 document.querySelector('#logoScale').addEventListener('input', () => { document.querySelector('#logoScaleValue').textContent = `${document.querySelector('#logoScale').value}%`; drawDesignPreview(); });
 for(const [id,mode] of [['moveImageMode','move'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode));
-document.querySelector('#changeStartSpot').addEventListener('click',chooseAnotherStartingSpot);
+document.querySelector('#backToShape').addEventListener('click',enterShapeStep);
 document.querySelector('#brushColor').addEventListener('input',()=>{document.querySelector('#paintColourChip').style.background=document.querySelector('#brushColor').value;});
 document.querySelector('#fillCells').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;rememberPaint();const colour=document.querySelector('#brushColor').value;logoCells=previewCells().map(c=>({...c,color,transparent:false}));rememberRecentColour(colour);footprintEdited=true;drawDesignPreview();});
 document.querySelector('#removeImage').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;document.querySelector('#artworkQuality').hidden=true;
@@ -1347,17 +1371,13 @@ function showLogoPalette(colours) {
     button.setAttribute('aria-label', `Use detected logo colour ${colour}`);
     button.classList.toggle('active', index === 0);
     button.addEventListener('click', () => {
-      document.querySelector('#brandColor').value = colour;
+      document.querySelector('#brushColor').value = colour;
       swatches.querySelectorAll('button').forEach((item) => item.classList.toggle('active', item === button));
       updatePaintColour();
     });
     swatches.append(button);
   });
   palette.hidden = !colours.length;
-  if (colours[0]) {
-    document.querySelector('#brandColor').value = colours[0];
-    updatePaintColour();
-  }
 }
 
 let uploadVersion = 0;
@@ -1462,7 +1482,7 @@ function largestLogoRect(cells,bounds,aspect,width,height) {
 function renderArtwork(cells) {
   const bounds = layoutFor(cells).bounds;
   const sourceCells=previewCells(),sourceLayout=layoutFor(sourceCells),sourceBounds=sourceLayout.bounds;
-  const signature=[document.querySelector('#logoScale').value,document.querySelector('#logoOrientation').value,document.querySelector('#logoTreatment').value,document.querySelector('#brandColor').value,logoPosition.x,logoPosition.y].join(':');
+  const signature=[document.querySelector('#logoScale').value,document.querySelector('#logoOrientation').value,document.querySelector('#logoTreatment').value,document.querySelector('#brushColor').value,logoPosition.x,logoPosition.y].join(':');
   const cached=artworkCache.get(cells);
   if(cached&&cached.signature===signature&&cached.image===uploadedLogo&&cached.source===sourceCells)return cached.art;
   const art = document.createElement('canvas');
@@ -1482,12 +1502,12 @@ function renderArtwork(cells) {
     const source=uploadedLogoCrop||uploadedLogo;
     const fitted=containRotatedImage(source.width,source.height,width,height,rotation);
     const w=fitted.width,h=fitted.height;
-    drawLogo(context, w, h, document.querySelector('#brandColor').value, true, -w / 2, -h / 2);
+    drawLogo(context, w, h, document.querySelector('#brushColor').value, true, -w / 2, -h / 2);
     context.restore();
   };
   const point = (cell) => { const p = centre(cell); return { x: (p.x - bounds.left)*px, y: (p.y-bounds.top)*py }; };
   context.setTransform(px,0,0,py,-bounds.left*px,-bounds.top*py);
-  context.fillStyle=document.querySelector('#brandColor').value;context.fill(layoutFor(cells).path);
+  context.fillStyle=document.querySelector('#brushColor').value;context.fill(layoutFor(cells).path);
   context.resetTransform();
   if (creationType === 'logo' && uploadedLogo) {
     context.save();context.setTransform(px,0,0,py,-bounds.left*px,-bounds.top*py);context.clip(layoutFor(cells).path);context.resetTransform();
@@ -1572,7 +1592,7 @@ function ensureStagingInventory(){
     const records=await restorePublicPlacements();
     if(records.some(record=>record.artworkDataUrl))void ensureTopology().catch(error=>console.error('Could not prepare placement artwork',error));
     stagingInventoryLoaded=true;
-    return records;
+    renderClaimFeed();return records;
   })().catch(error=>{stagingInventoryPromise=null;throw error;});
   return stagingInventoryPromise;
 }
@@ -1731,7 +1751,7 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
   }
   catch(error){status.textContent=error.message;if(error.code==='email-required'){accountPanel.hidden=false;accountToggle.setAttribute('aria-expanded','true');accountStatus.textContent=error.message;document.querySelector('#sendAccountLink').textContent='Finish sign in';document.querySelector('#accountEmail').focus();}}
   stagingClient.watchOwner(user=>{void reflectStagingUser(user);});
-  const sendLink=async(email,button,target)=>{button.disabled=true;try{if(stagingClient.hasPendingEmailSignIn()){await reflectStagingUser(await stagingClient.completeEmailSignIn(email));target.textContent='Signed in. Your purchases are ready in My Globe.';button.textContent='Email me a sign-in link';}else{await stagingClient.sendOwnerLink(email);target.textContent='Sign-in link sent. Open it on any device; you may be asked to confirm this email.';}}catch(error){target.textContent=error.message;}finally{button.disabled=false;}};
+  const sendLink=async(email,button,target)=>{button.disabled=true;try{if(stagingClient.hasPendingEmailSignIn()){await reflectStagingUser(await stagingClient.completeEmailSignIn(email));target.textContent='Signed in. Your purchases are ready in My Globe.';button.textContent='Email me a sign-in link';}else{await stagingClient.sendOwnerLink(email);target.textContent='Sign-in link sent. Check spam if not received.';}}catch(error){target.textContent=error.message;}finally{button.disabled=false;}};
   document.querySelector('#sendOwnerLink').onclick=event=>sendLink(document.querySelector('#stagingOwnerEmail').value,event.currentTarget,status);
   document.querySelector('#sendAccountLink').onclick=event=>sendLink(document.querySelector('#accountEmail').value,event.currentTarget,accountStatus);
   document.querySelector('#accountSignOut').onclick=async event=>{event.currentTarget.disabled=true;try{closeMyGlobe();await stagingClient.signOutOwner();await reflectStagingUser(null);accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');}finally{event.currentTarget.disabled=false;}};
@@ -1787,7 +1807,7 @@ async function paintPlacement() {
   document.querySelector('#websiteError').hidden=true;
   const link=document.querySelector('#placementWebsite'); link.hidden=!website; link.href=website;
   const amount = selectedCells.length;
-  const color = document.querySelector('#brandColor').value;
+  const color = document.querySelector('#brushColor').value;
   const treatment = document.querySelector('#logoTreatment').value;
   let durablePlacement=null;
   if(stagingClient){
@@ -1853,7 +1873,11 @@ resize();
 frameGlobe(true);
 
 async function createTourStops(){
-  const grid=await ensureTopology(),sessionAreas=[...new Set(sessionPlacements.values())].map((placement,index)=>({anchor:placement.anchor,angle:placement.angle,name:placement.name||'Your placement',key:`session-${index}`}));
+  const grid=await ensureTopology(),sessionAreas=[...new Set(sessionPlacements.values())].map((placement,index)=>{
+    const centre=grid.centre(placement.anchor);let minimumDot=1;
+    for(const id of placement.cells||[placement.anchor]){const point=grid.centre(id);minimumDot=Math.min(minimumDot,centre[0]*point[0]+centre[1]*point[1]+centre[2]*point[2]);}
+    return{anchor:placement.anchor,angle:Math.max(placement.angle||0,Math.acos(Math.max(-1,minimumDot))+.004),name:placement.name||'Your placement',key:`session-${index}`};
+  });
   const candidates=[...(bootstrap.sampleAreas||[]).map((area,index)=>({anchor:area.anchor,angle:area.angle,name:bootstrap.sampleCampaigns[area.campaign].name,key:`sample-${index}`})),...sessionAreas]
     .filter(area=>occupiedCells[area.anchor-1]);
   if(!candidates.length)return [
@@ -1896,6 +1920,8 @@ const twinklesAllowed=!millionFixture&&!matchMedia('(prefers-reduced-motion: red
 function animate() {
   requestAnimationFrame(animate);
   controls.rotateSpeed=.42*Math.min(1,Math.max(.045,(camera.position.length()-radius)/4));
+  const autoRotationRange=Math.min(1,Math.max(0,(camera.position.length()-(radius+.22))/Math.max(.01,globeFitDistance()-(radius+.22))));
+  controls.autoRotateSpeed=THREE.MathUtils.lerp(-.08,-.38,autoRotationRange);
   controls.target.set(0, 0, 0);
   if(!demoTour.active&&!cameraFlight.active)controls.update();
   cameraFlight.update(performance.now());
@@ -1947,7 +1973,7 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('geodesicQA'
     async place(id) { await prepareLocation(id);await choosePatternOrigin({uv:new THREE.Vector2(),point:pointForCell({id})},cellForId(id));focusSelection(); },
     neighbours(id) { return topology.neighboursOf(id); },
     missNextIntersection() { forceIntersectionMiss=true; },
-    state() { return { inspectedId, rotationSpeed:controls.rotateSpeed, orientation:globe.quaternion.toArray(), selected: selectedCells.map(c=>c.id), design: previewCells().map(c=>c.id), designAnchor, requestedAnchor, sold, committed: [...sessionPlacements.keys()], connected: topology.isConnected(selectedCells), camera:camera.position.toArray(), detailVertices:cellDetail?.stats.vertices||0, drawCalls:renderer.info.render.calls,tiles:{...artworkTiles.stats},retainedPlacements:placementLayers.children.length }; },
+    state() { const designCells=previewCells().map(({id,color,transparent})=>({id,color,transparent}));return { inspectedId, rotationSpeed:controls.rotateSpeed, autoRotationSpeed:controls.autoRotateSpeed, orientation:globe.quaternion.toArray(), selected: selectedCells.map(c=>c.id), design:designCells.map(c=>c.id),designCells, designAnchor, requestedAnchor, sold, committed: [...sessionPlacements.keys()], connected: topology.isConnected(selectedCells), camera:camera.position.toArray(), detailVertices:cellDetail?.stats.vertices||0, drawCalls:renderer.info.render.calls,tiles:{...artworkTiles.stats},retainedPlacements:placementLayers.children.length }; },
     screen(id) { const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return {x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2}; },
   };
 }
@@ -1963,7 +1989,7 @@ function syncGlobeDesign(){
   if(blocked)document.querySelector('#toolHint').textContent='This size overlaps purchased hexagons. Reduce the count or move the design.';
   draftArtwork=selectedCells.length?renderArtwork(selectedCells):null;
   clearPlacementPreview();
-  if(selectedCells.length)addHighResolutionPlacement(document.querySelector('#brandColor').value,document.querySelector('#logoTreatment').value,previewPlacementLayers);
+  if(selectedCells.length)addHighResolutionPlacement(document.querySelector('#brushColor').value,document.querySelector('#logoTreatment').value,previewPlacementLayers);
   updateTotals();
 }
 function setDesignSurface(surface){
@@ -1993,7 +2019,7 @@ async function editGlobeCell(id){
       return queue;
     });
     await topology.ensureCells(brush);
-    if(mode!==logoEditorMode||document.body.dataset.flow!=='design'||(globeStroke&&globeStroke!==stroke))return;
+    if(mode!==logoEditorMode||!['design','shape'].includes(document.body.dataset.flow)||(globeStroke&&globeStroke!==stroke))return;
     applyGlobeCell(id,stroke);
   }catch{updateLogoGuidance('Could not load these cells. Try the brush again.');}
 }
@@ -2004,11 +2030,16 @@ function applyGlobeCell(id,stroke){
   let start=0,end=1;
   for(let ring=0;ring<reach;ring++){for(let i=start;i<end;i++)for(const n of topology.neighboursOf(brush[i]))if(!seen.has(n)){seen.add(n);brush.push(n);}start=end;end=brush.length;}
   if(logoEditorMode==='hex'){
-    let pending=brush.filter(n=>!occupiedCells[n-1]&&!next.has(n));
-    for(let pass=0;pending.length&&pass<=reach+1;pass++){
-      const rest=[];for(const n of pending){
-        if(next.size<100000&&topology.neighboursOf(n).some(k=>next.has(k)))next.set(n,{id:n});else rest.push(n);
-      }if(rest.length===pending.length)break;pending=rest;
+    if(document.body.dataset.flow==='shape'&&next.has(id)){
+      const candidate=new Map(next);for(const n of brush)if(n!==designAnchor)candidate.delete(n);
+      if(candidate.size&&topology.isConnected([...candidate.values()])){next.clear();for(const [key,value] of candidate)next.set(key,value);}
+    }else{
+      let pending=brush.filter(n=>!occupiedCells[n-1]&&!next.has(n));
+      for(let pass=0;pending.length&&pass<=reach+1;pass++){
+        const rest=[];for(const n of pending){
+          if(next.size<100000&&topology.neighboursOf(n).some(k=>next.has(k)))next.set(n,{id:n});else rest.push(n);
+        }if(rest.length===pending.length)break;pending=rest;
+      }
     }
   }else if(logoEditorMode==='remove'){
     for(const n of brush)next.delete(n);
@@ -2019,11 +2050,11 @@ function applyGlobeCell(id,stroke){
     for(let pass=0;pending.length&&pass<=reach+1;pass++){const rest=[];for(const n of pending){if(next.size<100000&&topology.neighboursOf(n).some(k=>next.has(k)))next.set(n,{id:n});else rest.push(n);}if(rest.length===pending.length)break;pending=rest;}
     const colour=document.querySelector('#brushColor').value;for(const n of brush){const cell=next.get(n);if(cell){cell.color=colour;delete cell.transparent;}}rememberRecentColour(colour);
   }
-  logoCells=topology.cells([...next.values()],designAnchor);footprintEdited=true;exactGlobeArea=true;amountInput.value=next.size;queueDesignPreview();
+  logoCells=topology.cells([...next.values()],designAnchor);footprintEdited=true;exactGlobeArea=true;amountInput.value=next.size;if(document.body.dataset.flow==='shape'){selectedCell=cellForId(designAnchor);selectedCells=logoCells;clearPlacementPreview();refreshSelection(logoCells);updateTotals();}else queueDesignPreview();
 }
 canvas.addEventListener('pointerdown',event=>{
   clearTimeout(hoverTimer);
-  if(document.body.dataset.flow!=='design'||designSurface!=='globe'||logoEditorMode==='pan'||event.button!==0)return;
+  const flow=document.body.dataset.flow;if(!['design','shape'].includes(flow)||flow==='shape'&&shapeMode!=='freehand'||designSurface!=='globe'||logoEditorMode==='pan'||event.button!==0)return;
   const hit=intersect(event);if(!hit)return;
   globeStroke={last:null,x:event.clientX,y:event.clientY,position:{...logoPosition}};
   rememberPaint();canvas.setPointerCapture(event.pointerId);
@@ -2197,11 +2228,17 @@ hexSearchInput.addEventListener('input',()=>{hexSearchInput.removeAttribute('ari
 function activityIcon(kind){
  return icon(kind==='trend'?'trend':kind==='milestone'?'milestone':'claim');
 }
+function relativeActivityTime(createdAt){
+  const elapsed=Math.max(0,Date.now()-Number(createdAt||Date.now())),minutes=Math.max(1,Math.floor(elapsed/60000));
+  if(minutes<60)return `${minutes} minute${minutes===1?'':'s'} ago`;
+  const hours=Math.floor(minutes/60);if(hours<24)return `${hours} hour${hours===1?'':'s'} ago`;
+  const days=Math.floor(hours/24);return `${days} day${days===1?'':'s'} ago`;
+}
 function renderClaimFeed(){
   const target=document.querySelector('#claimFeedItems');target.replaceChildren();
   const ticker=[];
   for(const record of newestPlacements([...publicPlacementRecords.values()])){
-    const button=document.createElement('button');button.className='example-activity';const icon=document.createElement('span');icon.className='activity-icon';icon.innerHTML=activityIcon('claim');const title=document.createElement('span');title.textContent=(record.title||'Untitled placement')+' claimed '+record.cellCount.toLocaleString()+(record.cellCount===1?' hexagon':' hexagons');const date=document.createElement('small');date.textContent=new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'});button.append(icon,title,date);
+    const button=document.createElement('button');button.className='example-activity';const icon=document.createElement('span');icon.className='activity-icon';icon.innerHTML=activityIcon('claim');const title=document.createElement('span');title.textContent=(record.title||'Untitled placement')+' claimed '+record.cellCount.toLocaleString()+(record.cellCount===1?' hexagon':' hexagons');const date=document.createElement('small');date.textContent=relativeActivityTime(record.createdAt);button.append(icon,title,date);
     button.onclick=async()=>{await applyPersistentPlacements([record]);if(await inspectPlacement(record.anchor))viewInspectedPlacement();};target.append(button);
     ticker.push(title.textContent);
   }
@@ -2211,6 +2248,7 @@ function renderClaimFeed(){
 
 }
 renderClaimFeed();
+setInterval(renderClaimFeed,60000);
 
 function flyToCell(id,angle,duration=1500,onComplete=()=>{},onCancel=()=>{}){
   zoom.cancel();cameraDistanceTarget=null;
@@ -2269,7 +2307,9 @@ addEventListener('hashchange',loadLocationArtwork);
 if(/^#(?:cell=\d+|placement=[0-9a-f-]{36})$/.test(location.hash))void loadLocationArtwork();
 else if(pendingPersistentFocus)void focusPersistentPlacement(pendingPersistentFocus).catch(error=>console.error('Could not focus saved placement',error));
 pendingPersistentFocus=null;
-void initializeStaging().catch(error=>{startupArtworkError=error;console.error('Could not load public staging placements',error);});
+void initializeStaging().then(()=>{
+  if(import.meta.env.VITE_STAGING_SANDBOX&&!snapshotEnabled)setInterval(()=>void restorePublicPlacements().catch(error=>console.warn('Could not refresh live activity',error)),15000);
+}).catch(error=>{startupArtworkError=error;console.error('Could not load public staging placements',error);});
 startArtworkLoading(()=>{
   if(locationLoadError)return{error:locationLoadError};
   if(locationLoading||cameraFlight.active)return{message:'Preparing your location…'};
