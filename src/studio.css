@@ -120,12 +120,20 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 #placementInspector button:not(#closeInspector), #placementInspector a{display:inline-block;padding:8px 10px;font-size:11px;margin:3px 3px 3px 0;background:#ffffff06}
 #placementInspector details{font-size:11px;margin-top:9px}
 #designStep .studio-context{height:auto;min-height:44px;flex-wrap:wrap;align-content:center}
-#designStep #logoPositionControls{width:100%;display:grid;grid-template-columns:1fr;gap:3px}
+#designStep #logoPositionControls{width:100%;display:grid;grid-template-columns:1fr;gap:6px}
 #designStep #logoPositionControls[hidden]{display:none}
 #designStep #logoPositionControls label{width:100%;display:grid;grid-template-columns:64px minmax(0,1fr) 38px;gap:7px;min-width:0}
 #designStep #logoPositionControls input{flex:1;min-width:0;width:100%}
+#designStep #logoPositionControls #logoOptions label{grid-template-columns:64px minmax(0,1fr)}
+#designStep #logoPositionControls #logoOptions select{width:100%;margin:0;padding:5px}
+#designStep #logoPositionControls .image-actions{display:flex;gap:6px}
+#designStep #logoPositionControls .image-actions button{flex:1;border:1px solid #ffffff20;background:#ffffff08;color:#c7d7dc}
 #designStep #areaBrushControls{width:100%}
+#designStep #areaBrushControls select{min-width:92px;padding:6px 8px;margin:0;background:#102630;border:1px solid #35505a;border-radius:7px;color:#edf5f2}
 #designStep #toolHint{margin:0;width:100%}
+.checkout-complete{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.checkout-complete p{margin:20px 0 4px;font-size:24px;font-weight:700;color:#f4faf7}
+.checkout-complete small{font-size:13px;color:#a9bdc2}
 #pinInspector[aria-pressed=true]{color:var(--lime);border-color:var(--lime)}
 #placementInspector h2{clear:both;overflow-wrap:anywhere}
 #placementInspector #inspectorInfo{font-size:15px}

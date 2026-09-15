@@ -6,10 +6,16 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Gate 1 - resolve the commercial launch decisions with Craig and qualified advice where required: price/currency, VAT or sales-tax treatment, receipts/invoices, refunds/disputes, permanent-use wording, seller identity, governing law and support ownership. Record decisions before finalising checkout and legal copy.
+- [ ] Complete Craig's placement-studio review as one tested journey: preserve the globe view when Create opens; make cell painting/add/remove one coherent tool starting in Paint; use Small/Medium/Large/XL brushes; keep image layout/reset/removal with image movement/zoom/rotation; use person-or-company wording; accept normal website addresses; simplify reservation language; and improve the payment-to-publication state. Then validate desktop, 390px and 320px Design -> Place -> Review -> checkout completion.
 
 ## Next
 
+- [ ] Finish the remaining [Craig UI review](craiguireview.md): relative and live-updating activity (expanded initially); brand-colour/white background stars; zoom-sensitive spin and living tour framing; shorter sign-in confirmation; an inline search field whose blank submit is a no-op.
+- [ ] Decide the larger placement-flow questions from the review before implementation: whether multiple image layers are a launch requirement, and whether Design and Place become one globe interaction while retaining an intelligible availability/reservation boundary.
+- [ ] Complete the reservation follow-up: make the initial hold 20 minutes, show a subtle urgency state, and permit one explicit 10-minute extension without indefinite renewal. Validate expiry, extension races, checkout-session expiry and release.
+- [ ] Validate destination URLs through a safe server-side policy before publication, including redirects/timeouts and a clear decision for unreachable or 404 destinations; do not turn the browser into a URL reachability oracle.
+- [ ] Confirm whether Stripe Embedded Checkout can prefill the verified signed-in email without weakening payment/owner identity handling, and add a visible account/change-user or sign-out action in Review.
+- [ ] Gate 1 - resolve the commercial launch decisions with Craig and qualified advice where required: price/currency, VAT or sales-tax treatment, receipts/invoices, refunds/disputes, permanent-use wording, seller identity, governing law and support ownership. Record decisions before finalising checkout and legal copy.
 - [ ] Gate 2 - observe 5-10 first-time users completing Explore -> Design -> Place -> Review -> test Checkout across desktop and phone. Record unaided completion and misunderstandings; redesign Create only in response to repeated evidence.
 - [ ] Gate 3 - complete the 1k/10k/100k/1M varied-image matrix, compiler/publication lifecycle and explicit loading/memory budgets; verify the complete product, background and sparse twinkles on physical iOS and Android.
 - [ ] Gate 4 - accept and implement the durable purchase-to-share experience, permanent placement URL, memento/preview, desktop/mobile destinations, fallbacks and measurement; verify a fresh checkout-to-recipient journey.
@@ -25,6 +31,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Revisit globe surface studies, achievements, advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Started Craig's placement-studio review with the defined, low-risk interaction fixes. Create now keeps the current globe zoom; Cells opens directly in Paint and groups Paint/Add/Remove/Clear/Restore with named Small/Medium/Large/XL brushes; the Image tab owns layout, movement, zoom, rotation, reset and removal; Review uses person-or-company wording and accepts a bare domain by safely normalising it to HTTPS; reservation copy no longer says "server confirmed"; and payment publication uses a larger branded loading state. Production build, exact geometry, desktop/mobile globe-design and desktop-composition journeys pass, and the desktop/mobile editor screenshots were inspected. The staged reservation journey could not complete locally because the staged runtime canvas stayed hidden while loading remote inventory, so checkout-completion rendering remains to be re-run in the canonical staging harness before this active batch is closed.
 
 - [x] Added a polished, continuously rotating hero typewriter: `Your` and `Part of the world.` remain static while the reserved word slot cycles through brand, idea, moment, message, art, story, community and mark with deliberate typing, reading and deletion timing. The fixed-width slot prevents headline or globe reflow, the cursor stays attached to the changing word, and reduced-motion visitors see the static `Your brand.` with no cursor animation. Production build, deterministic sequence checks and the desktop-composition browser journey passed at 1440x900, 390x844 and 320x568; desktop and 320px screenshots were inspected.
 

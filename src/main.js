@@ -584,7 +584,7 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();
   document.querySelector('#brandColor').value='#5967b0';document.querySelector('#logoTreatment').value='span';document.querySelector('#areaBrush').value='0';document.querySelector('#areaBrushValue').textContent='1 cell';showUploadMessage('');document.querySelector('#uploadStatus').hidden=true;
   resetLogoTransform();undoStack.length=0;redoStack.length=0;updateHistory();
-  logoCells=null;footprintEdited=true;logoEditorMode='pan';
+  logoCells=null;footprintEdited=true;logoEditorMode='paint';
   designAnchor=preparedAnchor;
   logoCells=topology.cells([designAnchor],designAnchor);amountInput.value=1;
   exactGlobeArea=true;designSurface='globe';document.body.dataset.surface='globe';
@@ -602,9 +602,8 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   document.body.classList.toggle('owner-editing',Boolean(ownerEdit));
   document.querySelector('#sizeControls').hidden=Boolean(ownerEdit);document.querySelector('#editHexMode').hidden=Boolean(ownerEdit);document.querySelector('#removeHexMode').hidden=Boolean(ownerEdit);
   document.querySelector('#designTitle').textContent=ownerEdit?'Update your placement.':'Make it yours.';document.querySelector('#designIntro').textContent=ownerEdit?'Your purchased space is locked. Update what appears inside it.':'Your space. Your design.';
-  document.querySelector('#toPlacement').textContent=ownerEdit?'Review changes →':'Find my spot →';document.querySelector('#previewPurchase').textContent=ownerEdit?'Save changes':'Continue to secure checkout';
+  document.querySelector('#toPlacement').textContent=ownerEdit?'Review changes →':'Choose location →';document.querySelector('#previewPurchase').textContent=ownerEdit?'Save changes':'Continue to secure checkout';
   if(ownerEdit)for(const id of ['price','placePrice','reviewPrice'])document.getElementById(id).textContent='Owned';
-  if(!requestedAnchor)orientToCell(designAnchor,distanceForArc(.103));
   await nextPaint();hideLoading();openingEditor=false;
   trackEvent('design_started',{context:{cellCount:1,source:'studio'}});
 
@@ -1005,7 +1004,7 @@ function setEditorMode(mode, zoomToCells=true) {
     const button=document.querySelector(`#${id}`),active=id==='paintCells'?brushing:value===mode;
     button.setAttribute('aria-pressed',String(active));button.classList.toggle('active',active);
   }
-  document.querySelector('#brushControls').hidden=!brushing;
+  document.querySelector('#brushControls').hidden=!['hex','remove','paint','transparent','restore'].includes(mode);
   document.querySelector('#logoPositionControls').hidden=mode!=='move'||!uploadedLogo;
   const hint=mode==='move'?'Move image':mode==='hex'?'Add hexagons':mode==='remove'?'Remove hexagons':mode==='transparent'?'Clear colour':mode==='restore'?'Restore artwork':mode==='paint'?'Paint':'Pan';
   document.querySelector('#toolHint').textContent=hint;
@@ -1552,7 +1551,7 @@ function clearCheckoutReservation(){activeCheckoutReservation=null;clearInterval
 async function releaseActiveCheckoutReservation(){const active=activeCheckoutReservation;clearCheckoutReservation();if(active&&stagingClient)await stagingClient.releaseCheckoutReservation(active.reservation.reservationId,active.checkoutToken).catch(()=>{});}
 function showCheckoutExpiry(){
   clearInterval(checkoutExpiryTimer);const message=document.querySelector('#serverQuoteStatus');
-  const update=()=>{if(!activeCheckoutReservation)return;const seconds=Math.max(0,Math.ceil((activeCheckoutReservation.reservation.expiresAtMs-Date.now())/1000)),minutes=Math.floor(seconds/60),remaining=String(seconds%60).padStart(2,'0');message.textContent=seconds?`Server confirmed · reserved for ${minutes}:${remaining}`:'Reservation expired · choose the location again';if(!seconds){document.querySelector('#previewPurchase').disabled=true;clearInterval(checkoutExpiryTimer);}};
+  const update=()=>{if(!activeCheckoutReservation)return;const seconds=Math.max(0,Math.ceil((activeCheckoutReservation.reservation.expiresAtMs-Date.now())/1000)),minutes=Math.floor(seconds/60),remaining=String(seconds%60).padStart(2,'0');message.textContent=seconds?`Location reserved for ${minutes}:${remaining}`:'Reservation expired · choose the location again';if(!seconds){document.querySelector('#previewPurchase').disabled=true;clearInterval(checkoutExpiryTimer);}};
   update();checkoutExpiryTimer=setInterval(update,1000);
 }
 function persistentArtwork(canvas){const limit=900,scale=Math.min(1,limit/Math.max(canvas.width,canvas.height)),copy=document.createElement('canvas');copy.width=Math.max(1,Math.round(canvas.width*scale));copy.height=Math.max(1,Math.round(canvas.height*scale));copy.getContext('2d').drawImage(canvas,0,0,copy.width,copy.height);return copy.toDataURL('image/webp',.86);}
@@ -1620,9 +1619,9 @@ async function showEmbeddedCheckout(checkout){
   const panel=document.querySelector('#embeddedCheckoutPanel'),container=document.querySelector('#embeddedCheckout'),status=document.querySelector('#embeddedCheckoutStatus');panel.hidden=false;status.textContent='';document.querySelector('#buyPanel').scrollTop=0;
   if(embeddedCheckoutInstance)embeddedCheckoutInstance.destroy();
   const stripe=await stripeBrowser();embeddedCheckoutInstance=await stripe.initEmbeddedCheckout({fetchClientSecret:async()=>checkout.clientSecret,onComplete:async()=>{
-    embeddedCheckoutInstance?.destroy();embeddedCheckoutInstance=null;container.replaceChildren();status.textContent='Payment received. Adding your placement to the globe…';
+    embeddedCheckoutInstance?.destroy();embeddedCheckoutInstance=null;const indicator=document.createElement('div');indicator.className='branded-loader checkout-complete';indicator.setAttribute('role','status');indicator.setAttribute('aria-label','Payment received. Adding your placement to the globe.');indicator.append(loading.querySelector('.loading-hex').cloneNode(true));const message=document.createElement('p');message.textContent='Payment received';const detail=document.createElement('small');detail.textContent='Adding your placement to the globe…';indicator.append(message,detail);container.replaceChildren(indicator);status.textContent='';
     for(let attempt=0;attempt<60;attempt++){
-      try{const match=snapshotEnabled?await stagingClient.getPublicPlacement(checkout.placementId):(await stagingClient.listPublicClaims()).find(record=>record.placementId===checkout.placementId);if(match){try{await applyPersistentPlacements([match]);if(snapshotEnabled)void snapshotRuntime.refresh();}catch(error){console.error('Could not render the completed placement before closing checkout',error);}status.textContent='Placement added to the globe.';clearCheckoutReservation();setTimeout(async()=>{panel.hidden=true;closeBuy();if(await inspectPlacement(match.anchor))viewInspectedPlacement(()=>setTimeout(()=>void openShareCard(match,{prompt:true}),800));},700);return;}}
+      try{const match=snapshotEnabled?await stagingClient.getPublicPlacement(checkout.placementId):(await stagingClient.listPublicClaims()).find(record=>record.placementId===checkout.placementId);if(match){try{await applyPersistentPlacements([match]);if(snapshotEnabled)void snapshotRuntime.refresh();}catch(error){console.error('Could not render the completed placement before closing checkout',error);}message.textContent='Your placement is on the globe';detail.textContent='Taking you there…';clearCheckoutReservation();setTimeout(async()=>{panel.hidden=true;closeBuy();if(await inspectPlacement(match.anchor))viewInspectedPlacement(()=>setTimeout(()=>void openShareCard(match,{prompt:true}),800));},700);return;}}
       catch(error){console.error('Could not check completed placement',error);}
       await new Promise(resolve=>setTimeout(resolve,1000));
     }
@@ -1746,7 +1745,7 @@ async function paintPlacement() {
   if (!selectedCell || !selectedCells.length) return;
   const rawWebsite = document.querySelector('#website').value.trim();
   let website = '';
-  try { if(rawWebsite) { const parsed = new URL(rawWebsite); if(!['https:', 'http:'].includes(parsed.protocol)) throw new Error(); website=parsed.href; } } catch { const error=document.querySelector('#websiteError'); error.hidden=false; error.textContent='Enter a full website address starting with https://'; document.querySelector('#website').focus(); return; }
+  try { if(rawWebsite) { const parsed = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(rawWebsite)?rawWebsite:`https://${rawWebsite}`); if(!['https:', 'http:'].includes(parsed.protocol)||!parsed.hostname.includes('.')) throw new Error(); website=parsed.href;document.querySelector('#website').value=website; } } catch { const error=document.querySelector('#websiteError'); error.hidden=false; error.textContent='Enter a valid website address, such as example.com'; document.querySelector('#website').focus(); return; }
   document.querySelector('#websiteError').hidden=true;
   const link=document.querySelector('#placementWebsite'); link.hidden=!website; link.href=website;
   const amount = selectedCells.length;
