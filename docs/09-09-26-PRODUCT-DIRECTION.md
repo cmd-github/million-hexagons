@@ -399,7 +399,7 @@ The current design flow is:
 
 Design on globe → Review
 
-There is no separate Place stage. Location is part of Design: people can move the globe, move the complete design to an available area, draw directly onto visible blank neighbouring hexagons to add them, and delete outside hexagons without disconnecting the footprint. The primary action proceeds directly to Review, where availability is validated and the exact footprint is reserved.
+There is no separate Place stage. Location is part of Design: a new studio opens with zero hexagons selected, and the first brush stroke on a visible available hexagon establishes the placement anchor and brush-shaped footprint. People can then move the globe, move the complete design to another available area, draw directly onto visible blank neighbouring hexagons to add them, and delete outside hexagons without disconnecting the footprint. Nothing is priced or reviewable before that first stroke. The primary action proceeds directly to Review, where availability is validated and the exact footprint is reserved.
 
 Existing creative capabilities include:
 

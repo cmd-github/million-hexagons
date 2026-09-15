@@ -104,7 +104,7 @@
         <header class="studio-heading"><h2 id="designTitle">Make it yours.</h2><span id="designIntro"></span></header>
         <div class="studio-setup">
           <div id="logoControls"><label class="add-image" for="logoUpload"><span class="ico-slot" data-icon="plus"></span><span id="addImageLabel">Add image</span></label><input id="logoUpload" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" aria-label="Add image" /></div>
-          <label class="studio-count" id="sizeControls"><span>Hexagons</span><span class="hex-count-stepper"><button type="button" id="removeHexagon" aria-label="Remove one hexagon">−</button><input id="hexAmount" type="number" min="1" max="100000" step="1" value="150" /><button type="button" id="addHexagon" aria-label="Add one hexagon">+</button></span></label>
+          <label class="studio-count" id="sizeControls"><span>Hexagons</span><span class="hex-count-stepper"><button type="button" id="removeHexagon" aria-label="Remove one hexagon" disabled>−</button><input id="hexAmount" type="number" min="0" max="100000" step="1" value="0" readonly /><button type="button" id="addHexagon" aria-label="Add one hexagon" disabled>+</button></span></label>
 
           <label class="studio-colour" id="colourControls"><input id="brandColor" aria-label="Background colour" type="color" value="#5967b0" /><span>Background</span></label>
         </div>
@@ -122,7 +122,7 @@
           <div class="hex-editor"><canvas id="designCanvas" width="1000" height="600" tabindex="0" aria-label="Design canvas. Scroll or pinch to zoom. Use Pan to move the canvas."></canvas><span id="editorEmpty">Add an image or choose a colour</span><div class="canvas-navigation"><button type="button" id="editorZoomOut" data-icon="minus" aria-label="Zoom out of design"></button><button type="button" id="editorFit" title="Fit whole design">Fit</button><button type="button" id="editorZoomIn" data-icon="plus" aria-label="Zoom into design"></button></div></div>
           <div class="canvas-caption"><span id="logoFootprintHelp">Scroll or pinch to zoom in to individual cells.</span><span id="editorZoomValue">100%</span></div>
         </div>
-        <div class="design-footer"><div class="mini-price"><span id="designCount">150 hexagons</span><b id="price">$150</b></div><button class="primary" id="toPlacement">Review placement &rarr;</button></div>
+        <div class="design-footer"><div class="mini-price"><span id="designCount">0 hexagons</span><b id="price">$0</b></div><button class="primary" id="toPlacement" disabled>Review placement &rarr;</button></div>
         <small id="artworkQuality" role="status" hidden title="Images under 512px may look soft when enlarged. Prefer SVG or a larger original.">Low resolution &#9888;</small><p id="uploadStatus" role="status" aria-live="polite" hidden></p>
         <div hidden><select id="selectionShape"><option value="logo">Logo</option></select><select id="logoFit"><option value="contain">contain</option></select><div id="logoPreview"></div><div id="logoPalette"><div id="logoSwatches"></div></div><span id="logoGuidance"></span></div>
       </div>

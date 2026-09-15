@@ -584,9 +584,9 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();
   document.querySelector('#brandColor').value='#5967b0';document.querySelector('#logoTreatment').value='span';document.querySelector('#areaBrush').value='0';document.querySelector('#areaBrushValue').textContent='1 cell';showUploadMessage('');document.querySelector('#uploadStatus').hidden=true;
   resetLogoTransform();undoStack.length=0;redoStack.length=0;updateHistory();
-  logoCells=null;footprintEdited=true;logoEditorMode='paint';
+  logoCells=[];footprintEdited=true;logoEditorMode='paint';
   designAnchor=preparedAnchor;
-  logoCells=topology.cells([designAnchor],designAnchor);amountInput.value=1;
+  amountInput.value=0;
   exactGlobeArea=true;designSurface='globe';document.body.dataset.surface='globe';
   ownerEdit=ownerUpdate;
   if(!ownerEdit&&!Number.isInteger(anchor)&&savedDraft)restoreDraft();
@@ -665,7 +665,7 @@ function discardDraft() {
   for(const id of ['companyName','companyDescription','website'])document.getElementById(id).value='';
   resetLogoTransform();updateImageControls();
   undoStack.length=0;redoStack.length=0;updateHistory();
-  logoCells=topology.cells([designAnchor],designAnchor);amountInput.value=1;footprintEdited=true;
+  logoCells=[];amountInput.value=0;footprintEdited=true;
   previewCache=null;
   drawDesignPreview();updateTotals();
 }
@@ -794,7 +794,7 @@ function showFlowStep(step) {
 }
 
 function placementCount() {
-  return Math.max(1, Math.min(100000, Math.floor(Number(amountInput.value)) || 1));
+  return Math.max(0, Math.min(100000, Math.floor(Number(amountInput.value)) || 0));
 }
 
 function updateTotals() {
@@ -809,6 +809,8 @@ function updateTotals() {
   document.querySelector('#reviewCount').textContent = countText;
   document.querySelector('#reviewPrice').textContent = priceText;
   document.querySelector('#toPlacement').disabled = !count;
+  document.querySelector('#addHexagon').disabled=!count||count>=100000;
+  document.querySelector('#removeHexagon').disabled=count<=1;
   document.querySelectorAll('.size-presets button').forEach((button) => button.classList.toggle('active', Number(button.dataset.size) === count));
   updateLogoGuidance();
 }
@@ -1923,11 +1925,11 @@ function syncGlobeDesign(){
   selectedCell=cellForId(designAnchor);
   selectedCells=previewCells();
   const owned=ownerEdit?new Set(ownerEdit.record.cells):null,blocked=selectedCells.some(c=>occupiedCells[c.id-1]&&!owned?.has(c.id));
-  document.querySelector('#toPlacement').disabled=blocked;
+  document.querySelector('#toPlacement').disabled=blocked||!selectedCells.length;
   if(blocked)document.querySelector('#toolHint').textContent='This size overlaps purchased hexagons. Reduce the count or move the design.';
-  draftArtwork=renderArtwork(selectedCells);
+  draftArtwork=selectedCells.length?renderArtwork(selectedCells):null;
   clearPlacementPreview();
-  addHighResolutionPlacement(document.querySelector('#brandColor').value,document.querySelector('#logoTreatment').value,previewPlacementLayers);
+  if(selectedCells.length)addHighResolutionPlacement(document.querySelector('#brandColor').value,document.querySelector('#logoTreatment').value,previewPlacementLayers);
   updateTotals();
 }
 function setDesignSurface(surface){
@@ -1979,9 +1981,8 @@ function applyGlobeCell(id,stroke){
     if(!next.size||!topology.isConnected([...next.values()]))return;
   }else if(logoEditorMode==='paint'){
     let pending=brush.filter(n=>!occupiedCells[n-1]&&!next.has(n));
-    for(let pass=0;pending.length&&pass<=reach+1;pass++){
-      const rest=[];for(const n of pending){if(next.size<100000&&topology.neighboursOf(n).some(k=>next.has(k)))next.set(n,{id:n});else rest.push(n);}if(rest.length===pending.length)break;pending=rest;
-    }
+    if(!next.size&&pending.includes(id)){designAnchor=id;next.set(id,{id});pending=pending.filter(n=>n!==id);}
+    for(let pass=0;pending.length&&pass<=reach+1;pass++){const rest=[];for(const n of pending){if(next.size<100000&&topology.neighboursOf(n).some(k=>next.has(k)))next.set(n,{id:n});else rest.push(n);}if(rest.length===pending.length)break;pending=rest;}
     for(const n of brush){const cell=next.get(n);if(cell){cell.color=document.querySelector('#brushColor').value;delete cell.transparent;}}
   }
   logoCells=topology.cells([...next.values()],designAnchor);footprintEdited=true;exactGlobeArea=true;amountInput.value=next.size;queueDesignPreview();

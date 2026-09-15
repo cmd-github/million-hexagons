@@ -15,7 +15,7 @@ for(const [width,height] of [[320,568],[390,844],[1024,768],[1440,900]]){
 }
 const p=await b.newPage({viewport:{width:1440,height:900}});
 await p.goto(base+'/?geodesicQA');await p.waitForSelector('#world[data-ready=true]',{timeout:60000});await p.locator('#claimButton').click();await p.locator('#designStep').waitFor({state:'visible'});
-const id=await p.evaluate(()=>window.geodesicQA.state().design[0]);await p.locator('#closeBuy').click();
+const id=await p.evaluate(()=>window.geodesicQA.state().designAnchor);await p.locator('#closeBuy').click();
 await p.evaluate(id=>window.geodesicQA.focus(id,.98),id);await p.waitForTimeout(300);
 const pos=await p.evaluate(id=>window.geodesicQA.screen(id),id);await p.mouse.click(pos.x,pos.y);await p.locator('#claimCell').waitFor({state:'visible'});
 const before=await p.evaluate(()=>window.geodesicQA.state().camera);await p.locator('#claimCell').click();const after=await p.evaluate(()=>window.geodesicQA.state().camera);assert.ok(Math.abs(Math.hypot(...before)-Math.hypot(...after))<.0001);
