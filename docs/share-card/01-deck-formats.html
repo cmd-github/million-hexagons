@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html{color-scheme:dark}
+  body{margin:0}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+</style>
+<title>Claim Card Formats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap">
+<style>
+:root{
+  --ground:#050b14;
+  --panel:#0a141f;
+  --rise:#101d2b;
+  --rule:#1b2836;
+  --ink:#e8eef5;
+  --ink-2:#b9c6d4;
+  --muted:#6f8195;
+  --lime:#d5fa77;
+  --sans:Manrope,system-ui,-apple-system,sans-serif;
+  --mono:'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--ground);color:var(--ink);
+  font:400 15px/1.6 var(--sans);-webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px;margin:0 auto;padding-block:56px 96px;padding-left:20px;padding-right:20px}
+
+/* ---------- page header ---------- */
+.eyebrow{margin:0;color:var(--lime);font:500 11px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase}
+h1{margin:18px 0 0;font:800 clamp(34px,5.4vw,52px)/1.04 var(--sans);letter-spacing:-.025em;text-wrap:balance}
+.standfirst{max-width:62ch;margin:20px 0 0;color:var(--ink-2);font-size:16.5px}
+.standfirst b{color:var(--ink);font-weight:600}
+.masthead{padding-bottom:34px;border-bottom:1px solid var(--rule)}
+
+/* ---------- controls ---------- */
+.controls{
+  display:flex;flex-wrap:wrap;gap:10px 28px;align-items:center;
+  margin-top:28px;padding:16px 18px;
+  border:1px solid var(--rule);border-radius:12px;background:var(--panel);
+}
+.controls p{margin:0;color:var(--muted);font:500 10.5px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase}
+.seg{display:flex;gap:4px;padding:4px;border:1px solid var(--rule);border-radius:9px;background:var(--ground)}
+.seg button{
+  padding:7px 14px;border:0;border-radius:6px;background:none;
+  color:var(--muted);font:600 12.5px var(--sans);cursor:pointer;
+}
+.seg button[aria-pressed="true"]{background:var(--lime);color:#071019}
+.seg button:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+
+/* ---------- format bays ---------- */
+.bay{
+  display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:44px;align-items:start;
+  padding-block:52px;border-bottom:1px solid var(--rule);
+}
+.bay-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;margin-bottom:22px}
+.bay-head h2{margin:0;font:800 23px/1.15 var(--sans);letter-spacing:-.015em}
+.dims{color:var(--lime);font:500 12px var(--mono);letter-spacing:.05em}
+.chans{width:100%;margin:0;color:var(--muted);font:500 10.5px var(--mono);letter-spacing:.15em;text-transform:uppercase}
+.note{margin:0 0 18px;color:var(--ink-2);font-size:14.5px}
+.note:last-child{margin-bottom:0}
+.note strong{color:var(--ink);font-weight:600}
+.aside-label{
+  margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid var(--rule);
+  color:var(--lime);font:500 10px var(--mono);letter-spacing:.2em;text-transform:uppercase;
+}
+
+/* ---------- the card canvas ---------- */
+.frame{container-type:inline-size;width:100%;aspect-ratio:var(--ar);max-width:100%}
+.card{
+  width:calc(var(--base) * 1px);
+  height:calc(var(--base) * 1px / (var(--ar)));
+  transform-origin:top left;
+  transform:scale(calc(100cqw / (var(--base) * 1px)));
+  background:var(--ground);
+  border:1px solid var(--rule);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+
+/* card internals — all sizes are TRUE px on the export canvas */
+.c-top{display:flex;justify-content:space-between;align-items:baseline;gap:24px}
+.c-brand{color:var(--lime);font:500 22px var(--mono);letter-spacing:.22em}
+.c-date{color:var(--muted);font:400 22px var(--mono);letter-spacing:.12em}
+.c-name{margin:0;color:var(--ink);font:800 58px/1.1 var(--sans);letter-spacing:-.02em;text-wrap:balance}
+.c-desc{margin:0;color:var(--ink-2);font:400 30px/1.42 var(--sans)}
+.c-label{color:var(--muted);font:500 20px var(--mono);letter-spacing:.24em}
+.c-num{color:var(--lime);font:500 118px/1 var(--mono);letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.c-count{color:var(--ink-2);font:400 24px var(--mono);letter-spacing:.14em}
+.c-url{color:var(--muted);font:400 24px var(--mono);letter-spacing:.08em}
+.c-rule{height:1px;background:var(--rule)}
+
+/* artwork placeholder — pointy-top hexagon */
+.art{
+  display:grid;place-items:center;
+  aspect-ratio:1;max-width:100%;
+  clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  background:
+    radial-gradient(circle at 50% 42%, rgba(213,250,119,.20), rgba(213,250,119,.04) 62%),
+    var(--rise);
+}
+.art span{color:#7f93a8;font:400 20px var(--mono);letter-spacing:.24em}
+
+/* 1:1 */
+.card-1x1{padding:74px 74px 66px;gap:0}
+.card-1x1 .art{width:360px;margin:56px auto 52px}
+.card-1x1 .c-name{margin-bottom:14px}
+.card-1x1 .c-foot{margin-top:auto;padding-top:38px;display:flex;justify-content:space-between;align-items:flex-end;gap:28px}
+.card-1x1 .c-claim{display:flex;flex-direction:column;gap:10px}
+
+/* 1.91:1 — artwork left, claim right, number demoted to header */
+.card-og{--pad:56px;flex-direction:row;padding:var(--pad);gap:54px;align-items:center}
+.card-og .art{width:430px;flex:none}
+.card-og .og-body{display:flex;flex-direction:column;gap:20px;min-width:0}
+.card-og .c-head{color:var(--muted);font:500 21px var(--mono);letter-spacing:.14em}
+.card-og .c-head b{color:var(--ink-2);font-weight:500}
+.card-og .c-name{font-size:72px;color:var(--lime)}
+.card-og .c-desc{font-size:29px}
+.card-og .c-foot{margin-top:12px;color:var(--muted);font:400 21px var(--mono);letter-spacing:.12em}
+
+/* 4:5 — spells out the instruction */
+.card-4x5{padding:78px 74px 70px;gap:0}
+.card-4x5 .art{width:400px;margin:62px auto 54px}
+.card-4x5 .c-name{text-align:center}
+.card-4x5 .c-desc{margin-top:16px;text-align:center}
+.card-4x5 .c-search{margin-top:auto;padding-top:56px;display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center}
+.card-4x5 .c-instruct{color:var(--ink-2);font:500 26px/1.4 var(--mono);letter-spacing:.14em;text-transform:uppercase;max-width:20ch}
+.card-4x5 .c-num{font-size:150px}
+
+/* 9:16 — middle third, reserved bottom band */
+.card-9x16{padding:0}
+.card-9x16 .safe-top{height:250px;flex:none}
+.card-9x16 .stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:0 84px;text-align:center}
+.card-9x16 .art{width:420px;margin:48px 0 46px}
+.card-9x16 .c-instruct{margin-top:54px;color:var(--ink-2);font:500 28px var(--mono);letter-spacing:.16em}
+.card-9x16 .c-num{margin-top:22px;font-size:158px}
+.card-9x16 .c-count{margin-top:18px}
+.card-9x16 .c-url{margin-top:40px}
+.card-9x16 .safe-bot{
+  height:320px;flex:none;display:grid;place-items:center;
+  border-top:1px dashed rgba(213,250,119,.28);
+}
+.card-9x16 .safe-bot span{color:rgba(213,250,119,.5);font:400 22px var(--mono);letter-spacing:.2em}
+.card-9x16 .safe-top,.card-9x16 .safe-bot{background:rgba(213,250,119,.035)}
+body:not(.safe) .card-9x16 .safe-top,
+body:not(.safe) .card-9x16 .safe-bot{background:none;border-top-color:transparent}
+body:not(.safe) .card-9x16 .safe-bot span{visibility:hidden}
+
+/* anonymous default: rows are removed, never placeholdered */
+body.anon .if-named{display:none}
+
+/* ---------- close ---------- */
+.close{padding-block:56px 0}
+.close h2{margin:0 0 16px;font:800 26px var(--sans);letter-spacing:-.02em}
+.close p{max-width:64ch;margin:0 0 14px;color:var(--ink-2)}
+.close .c-strip{
+  display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:26px;padding-top:20px;
+  border-top:1px solid var(--rule);color:var(--muted);font:500 12px var(--mono);letter-spacing:.14em;
+}
+.close .c-strip b{color:var(--lime);font-weight:500}
+
+@media (max-width:880px){
+  .bay{grid-template-columns:minmax(0,1fr);gap:28px}
+  .frame{max-width:520px}
+}
+@media (prefers-reduced-motion:no-preference){
+  .seg button{transition:background .15s ease,color .15s ease}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Million Hexagons · Share memento</p>
+    <h1>The Claim Card, at every ratio</h1>
+    <p class="standfirst">The four export formats from the design deck, drawn at their true export dimensions and scaled to fit. <b>Type sizes are honest</b> — what looks small here is small at 1080px. Artwork is a placeholder; everything else is the specified copy.</p>
+
+    <div class="controls">
+      <p>Fields</p>
+      <div class="seg" role="group" aria-label="Field state">
+        <button type="button" id="stateNamed" aria-pressed="true">Named buyer</button>
+        <button type="button" id="stateAnon" aria-pressed="false">Anonymous (default)</button>
+      </div>
+      <p>9:16 safe areas</p>
+      <div class="seg" role="group" aria-label="Safe area overlay">
+        <button type="button" id="safeOn" aria-pressed="true">Show</button>
+        <button type="button" id="safeOff" aria-pressed="false">Hide</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= 1:1 ================= -->
+  <section class="bay">
+    <div>
+      <div class="bay-head">
+        <h2>Square</h2>
+        <span class="dims">1:1 · 1080×1080</span>
+        <p class="chans">LinkedIn / Slack / Discord</p>
+      </div>
+      <div class="frame" style="--ar:1/1;--base:1080">
+        <div class="card card-1x1">
+          <div class="c-top">
+            <span class="c-brand">MILLION HEXAGONS</span>
+            <span class="c-date">CLAIMED 14.09.2026</span>
+          </div>
+          <div class="art"><span>ARTWORK</span></div>
+          <h3 class="c-name if-named">Northbound Coffee</h3>
+          <p class="c-desc if-named">Small-batch roasters. Two rooms in Leeds.</p>
+          <div class="c-foot">
+            <div class="c-claim">
+              <span class="c-label">PLACEMENT</span>
+              <span class="c-num">#847231</span>
+              <span class="c-count">48 HEXAGONS, CENTRED</span>
+            </div>
+            <span class="c-url">millionhexagons.com</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <aside>
+      <p class="aside-label">Why it's built this way</p>
+      <p class="note">Links are clickable here, so the number doesn't have to carry the whole load — but it stays large because it's <strong>the only part that survives a screenshot</strong>.</p>
+      <p class="note">Switch to anonymous and the name and description rows are removed outright. The layout recentres; nothing is placeholdered.</p>
+    </aside>
+  </section>
+
+  <!-- ================= 1.91:1 ================= -->
+  <section class="bay">
+    <div>
+      <div class="bay-head">
+        <h2>Landscape</h2>
+        <span class="dims">1.91:1 · 1200×630</span>
+        <p class="chans">X / Facebook / OG image</p>
+      </div>
+      <div class="frame" style="--ar:1200/630;--base:1200">
+        <div class="card card-og">
+          <div class="art"><span>ARTWORK</span></div>
+          <div class="og-body">
+            <span class="c-head">MILLION HEXAGONS · <b>PLACEMENT #847231</b></span>
+            <h3 class="c-name if-named">Northbound Coffee</h3>
+            <p class="c-desc if-named">Small-batch roasters. Two rooms in Leeds.</p>
+            <span class="c-count">48 HEXAGONS, CENTRED</span>
+            <span class="c-foot">14.09.2026 · MILLIONHEXAGONS.COM</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <aside>
+      <p class="aside-label">Why it's built this way</p>
+      <p class="note">The one inversion in the set: links always work here, so the number <strong>demotes to a mono line in the header</strong> and the lime goes to the claim instead.</p>
+      <p class="note">This is also the Open Graph image. It's the format that stops a pasted link arriving as grey text — but it needs the metadata built to do that job.</p>
+    </aside>
+  </section>
+
+  <!-- ================= 4:5 ================= -->
+  <section class="bay">
+    <div>
+      <div class="bay-head">
+        <h2>Portrait</h2>
+        <span class="dims">4:5 · 1080×1350</span>
+        <p class="chans">Instagram feed</p>
+      </div>
+      <div class="frame" style="--ar:1080/1350;--base:1080">
+        <div class="card card-4x5">
+          <div class="c-top">
+            <span class="c-brand">MILLION HEXAGONS</span>
+            <span class="c-date">14.09.2026</span>
+          </div>
+          <div class="art"><span>ARTWORK</span></div>
+          <h3 class="c-name if-named">Northbound Coffee</h3>
+          <p class="c-desc if-named">Small-batch roasters. Two rooms in Leeds.</p>
+          <div class="c-search">
+            <span class="c-instruct">Search to find us at millionhexagons.com</span>
+            <span class="c-num">#847231</span>
+            <span class="c-count">48 HEXAGONS, CENTRED</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <aside>
+      <p class="aside-label">Why it's built this way</p>
+      <p class="note">4:5 takes more feed height than square, so this is the one handed to buyers for Instagram.</p>
+      <p class="note">It's the only card that <strong>spells out the instruction</strong>, centred and set large — because the caption's link can't be tapped.</p>
+      <p class="note">No QR code. A viewer can't scan the device they're holding, and it would take the space the number needs.</p>
+    </aside>
+  </section>
+
+  <!-- ================= 9:16 ================= -->
+  <section class="bay">
+    <div>
+      <div class="bay-head">
+        <h2>Vertical</h2>
+        <span class="dims">9:16 · 1080×1920</span>
+        <p class="chans">Stories / TikTok</p>
+      </div>
+      <div class="frame" style="--ar:1080/1920;--base:1080">
+        <div class="card card-9x16">
+          <div class="safe-top"></div>
+          <div class="stage">
+            <span class="c-brand">MILLION HEXAGONS</span>
+            <div class="art"><span>ARTWORK</span></div>
+            <h3 class="c-name if-named">Northbound Coffee</h3>
+            <span class="c-instruct">SEARCH TO FIND US</span>
+            <span class="c-num">#847231</span>
+            <span class="c-count">48 HEXAGONS, CENTRED</span>
+            <span class="c-url">millionhexagons.com</span>
+          </div>
+          <div class="safe-bot"><span>LINK STICKER SITS HERE</span></div>
+        </div>
+      </div>
+    </div>
+    <aside>
+      <p class="aside-label">Why it's built this way</p>
+      <p class="note">Everything pulls into the middle third. The shaded bands are the reserved safe areas — <strong>250px top, 320px bottom</strong> — for the link sticker or TikTok's own UI.</p>
+      <p class="note">The description is dropped at this ratio even for named buyers. At arm's length on a story, it wouldn't be read.</p>
+    </aside>
+  </section>
+
+  <section class="close">
+    <h2>What this render is for</h2>
+    <p>Check three things: whether <strong>#847231</strong> holds its weight against the artwork at every ratio, whether the anonymous state reads as a deliberate default rather than a stripped-down version, and whether the 9:16 middle third survives once a link sticker lands on it.</p>
+    <p>Not decided here: the type scale is a first pass, not the spec. The deck gave hierarchy and safe areas, not sizes.</p>
+    <div class="c-strip">
+      <span>PLACEMENT <b>#847231</b></span>
+      <span>48 HEXAGONS, CENTRED</span>
+      <span>MILLIONHEXAGONS.COM</span>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  function pair(aId, bId, on, off){
+    var a = document.getElementById(aId), b = document.getElementById(bId);
+    function set(isA){
+      a.setAttribute('aria-pressed', String(isA));
+      b.setAttribute('aria-pressed', String(!isA));
+      (isA ? on : off)();
+    }
+    a.addEventListener('click', function(){ set(true); });
+    b.addEventListener('click', function(){ set(false); });
+  }
+  var body = document.body;
+  body.classList.add('safe');
+  pair('stateNamed','stateAnon',
+    function(){ body.classList.remove('anon'); },
+    function(){ body.classList.add('anon'); });
+  pair('safeOn','safeOff',
+    function(){ body.classList.add('safe'); },
+    function(){ body.classList.remove('safe'); });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#050b14"/>
+  <g transform="translate(900 315)" fill="none" stroke="#d5fa77" stroke-opacity=".28" stroke-width="2">
+    <circle r="232" fill="#0b2631" stroke-opacity=".5"/>
+    <path d="M-180-120h360M-215-40h430M-215 40h430M-180 120h360M-110-200c70 120 70 280 0 400M0-230c55 135 55 325 0 460M110-200c-70 120-70 280 0 400"/>
+    <path d="M-195-125 0-230l195 105v250L0 230l-195-105z" stroke-opacity=".7"/>
+  </g>
+  <text x="70" y="82" fill="#d5fa77" font-family="monospace" font-size="20" letter-spacing="4">MILLION HEXAGONS</text>
+  <text x="70" y="210" fill="#d5dde7" font-family="Arial,sans-serif" font-size="62" font-weight="700">A place on</text>
+  <text x="70" y="282" fill="#d5dde7" font-family="Arial,sans-serif" font-size="62" font-weight="700">the globe.</text>
+  <text x="70" y="350" fill="#9db2ae" font-family="Arial,sans-serif" font-size="25">One shared globe. Exactly 1,000,000 spaces.</text>
+  <text x="70" y="550" fill="#d5fa77" font-family="Arial,sans-serif" font-size="28" font-weight="700">See it on the globe →</text>
+</svg>

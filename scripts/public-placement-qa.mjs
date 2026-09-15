@@ -188,21 +188,24 @@ try {
     await card.waitFor({ state: "visible" });
     assert.equal(
       await page.locator("#shareCardName").textContent(),
-      record.title,
+      `${record.title} is on the globe.`,
     );
     assert.match(
       await page.locator("#shareCardUrl").textContent(),
       new RegExp(`#placement=${placementId}$`),
     );
     assert.equal(await page.locator("#shareCardCells").textContent(), "1");
+    assert.equal(await page.locator("#shareCardPreview").getAttribute("width"), "1080");
+    assert.equal(await page.locator("#downloadSharePlacement").isVisible(), true);
     const box = await card.boundingBox(),
-      viewport = page.viewportSize();
+      viewport = await page.evaluate(() => ({width: innerWidth, height: innerHeight}));
     assert.ok(
       box &&
         box.x >= 0 &&
         box.y >= 0 &&
         box.x + box.width <= viewport.width &&
         box.y + box.height <= viewport.height,
+      `Share card ${JSON.stringify(box)} exceeded viewport ${JSON.stringify(viewport)}`,
     );
     await page.locator("#copySharePlacement").click();
     assert.match(

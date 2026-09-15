@@ -172,13 +172,15 @@ try {
       await page.locator(".my-globe-metrics").textContent(),
       /40 views.*5 visits.*12.5% CTR/s,
     );
+    assert.equal(await page.locator('[data-owner-action="share"]').textContent(), "Share");
     const box = await workspace.boundingBox();
+    const layoutViewport = await page.evaluate(() => ({width: innerWidth, height: innerHeight}));
     assert.ok(
       box &&
         box.x >= 0 &&
         box.y >= 0 &&
-        box.x + box.width <= viewport.width &&
-        box.y + box.height <= viewport.height,
+        box.x + box.width <= layoutViewport.width &&
+        box.y + box.height <= layoutViewport.height,
     );
     await page.locator("[data-owner-action=edit]").click();
     await page

@@ -60,7 +60,7 @@ try {
     await page.locator('#companyName').fill('Fresh saved placement');await page.locator('#previewPurchase').click();await page.locator('.checkout-loading').waitFor({state:'visible'});
     await page.waitForFunction(()=>!!window.__completeTestCheckout);records.push(checkoutPlacement);
     await page.evaluate(()=>window.__completeTestCheckout());await page.waitForFunction(()=>document.querySelector('#embeddedCheckoutPanel').hidden&&!document.body.classList.contains('creating'));
-    assert.equal(await page.locator('#inspectorName').textContent(),'Fresh saved placement');
+    assert.equal(await page.locator('#inspectorName').textContent(),'Fresh saved placement');await page.locator('#shareCard').waitFor({state:'visible',timeout:5000});assert.equal(await page.locator('#shareCardName').textContent(),'Fresh saved placement is on the globe.');await page.locator('#closeShareCard').click();
     assert.equal(checkoutPlacement.anchor,adjacentAnchor);assert.ok(await page.evaluate(({existingAnchor,adjacentAnchor})=>window.geodesicQA.neighbours(existingAnchor).includes(adjacentAnchor),{existingAnchor,adjacentAnchor}));
     await page.locator('#toggleAccount').click();await page.locator('#openMyGlobe').click();await page.locator('#myGlobePlacements .my-globe-card').first().waitFor();assert.equal(await page.locator('#myGlobePlacements .my-globe-card').count(),3);assert.equal(new Set(await page.locator('#myGlobePlacements .my-globe-card').evaluateAll(cards=>cards.map(card=>card.dataset.placementId))).size,3);await page.locator('#closeMyGlobe').click();
     await page.waitForFunction(()=>window.geodesicQA.state().retainedPlacements===1);

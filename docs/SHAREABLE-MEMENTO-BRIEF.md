@@ -29,7 +29,58 @@ currently sits at a softened `#d5dde7`. If that still glares, try **reducing the
 from 60px to ~52px and giving the space back to the globe** rather than tinting the white
 any further — the problem is likely the mass of type, not its brightness.
 
-### Still unbuilt, and still the blocker
+## Where and when the share assets appear
+
+Decided 15 Sept 2026, from the flow as built. This holds regardless of which card design
+we land on.
+
+### The moment we already have and do not use
+
+Post-payment ([`src/main.js`](../src/main.js) `onComplete`): payment clears, a poll waits
+for the placement to resolve, then after 700ms the checkout panel closes, the studio
+closes, and `inspectPlacement()` flies the globe to the new placement and opens the
+inspector. The buyer is looking at their own artwork on the globe — and nothing asks them
+to share it.
+
+**Trigger the card on the placement resolving, not on a timer.** The concept deck proposed
+"T+3s"; there is no fixed T+3, because that poll runs up to 60 attempts at one-second
+intervals. If the poll exhausts, the card must not appear at all — the existing fallback
+message already tells the buyer it will show after a refresh.
+
+**Never cover the flight.** The camera arrival is the payoff. The card assembles in the
+inspector once the flight settles, about 800ms after arrival — not as a modal over it.
+
+### The four surfaces
+
+1. **Post-purchase, in the inspector.** The primary moment. Share, Download, Copy link;
+   nothing else on screen.
+2. **My Globe.** Owner cards currently offer *View on globe* and *Edit placement* only,
+   with no share control anywhere. This is where an owner returns days later, and the
+   cheapest meaningful change on this list. Roughly two-thirds of buyers will not post in
+   the first five minutes; this is the surface that catches them.
+3. **The inspector share control.** Today `#inspectorShare` is an unlabelled icon with the
+   tooltip "Copy location link". Quiet is right for a stranger viewing someone else's
+   placement; for the signed-in owner viewing their own it should be a labelled button.
+   One control, two states.
+4. **The link preview.** The Open Graph image displays itself every time anyone pastes a
+   link, with no action from the buyer — the only share asset that works unattended, and
+   the one that does not exist.
+
+### Where it must not appear
+
+- Over the camera flight, or inside the checkout panel while Stripe is still mounted.
+- Before moderation passes. Generate after, never before — otherwise we hand someone a
+  polished asset containing content we are about to remove.
+- As a repeat prompt. Once per placement, in a fixed home. A prompt that reappears reads
+  as pressure and costs the goodwill the moment earned.
+
+### The gap this leaves
+
+With no post-purchase email, a buyer who closes the tab loses the moment permanently — the
+card then lives only where they cannot see it. My Globe softens this for signed-in owners,
+but only for those who return unprompted.
+
+## Still unbuilt, and still the blocker
 
 None of the above compensates for a pasted link arriving as grey text. Open Graph and
 Twitter Card metadata ship alongside the card or the loop leaks where it converts best.

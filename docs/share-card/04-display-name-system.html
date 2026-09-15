@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html{color-scheme:dark}
+  body{margin:0}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+</style>
+<title>The Display Name System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap">
+<style>
+:root{
+  --ground:#050b14;--panel:#0a141f;--rise:#101d2b;--rule:#1b2836;
+  --ink:#e8eef5;--ink-2:#b9c6d4;--muted:#6f8195;--lime:#d5fa77;--warn:#ffb86b;
+  --sans:Manrope,system-ui,-apple-system,sans-serif;
+  --mono:'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:400 15px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding-block:56px 96px;padding-left:20px;padding-right:20px}
+
+.eyebrow{margin:0;color:var(--lime);font:500 11px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase}
+h1{margin:18px 0 0;font:800 clamp(34px,5.2vw,50px)/1.05 var(--sans);letter-spacing:-.025em;text-wrap:balance}
+.standfirst{max-width:64ch;margin:20px 0 0;color:var(--ink-2);font-size:16.5px}
+.standfirst b{color:var(--ink);font-weight:600}
+.masthead{padding-bottom:34px;border-bottom:1px solid var(--rule)}
+
+.verdict{margin-top:30px;padding:24px 26px;border:1px solid rgba(213,250,119,.3);border-radius:14px;background:rgba(213,250,119,.05)}
+.verdict h2{margin:0 0 10px;color:var(--lime);font:500 10.5px var(--mono);letter-spacing:.2em;text-transform:uppercase}
+.verdict p{margin:0;max-width:66ch;color:var(--ink);font-size:16px}
+.verdict .tpl{display:block;margin-top:16px;color:var(--lime);font:500 19px/1.7 var(--mono)}
+.verdict .tpl i{color:var(--ink-2);font-style:normal}
+
+.bay{padding-block:52px;border-bottom:1px solid var(--rule)}
+.bay-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;margin-bottom:10px}
+.bay-head h2{margin:0;font:800 24px/1.15 var(--sans);letter-spacing:-.018em}
+.bay-head h3{margin:0;font:700 17px var(--sans)}
+.dims{color:var(--lime);font:500 12px var(--mono)}
+.bay>.note{max-width:66ch;margin:0 0 30px;color:var(--ink-2);font-size:14.5px}
+.note strong{color:var(--ink);font-weight:600}
+.flag{max-width:66ch;margin:0 0 26px;padding:13px 16px;border-left:2px solid var(--warn);background:rgba(255,184,107,.06);color:var(--ink-2);font-size:14px}
+.flag b{color:var(--warn);font-weight:600}
+
+/* ---------- card canvas ---------- */
+.frame{container-type:inline-size;width:100%;aspect-ratio:var(--ar);max-width:100%}
+.card{width:calc(var(--base) * 1px);height:calc(var(--base) * 1px / (var(--ar)));
+  transform-origin:top left;transform:scale(calc(100cqw / (var(--base) * 1px)));
+  background:var(--ground);border:1px solid var(--rule);display:flex;flex-direction:column;overflow:hidden}
+.c-top{display:flex;justify-content:space-between;align-items:baseline;gap:24px}
+.c-brand{color:var(--lime);font:500 22px var(--mono);letter-spacing:.22em}
+.c-date{color:var(--muted);font:400 22px var(--mono);letter-spacing:.12em}
+.globe{margin:0 auto;flex:none}
+.globe svg{display:block;width:100%;height:100%}
+
+/* one uniform headline colour — a softened off-white rather than the full
+   #e8eef5, so the mass of type sits back without splitting the sentence */
+.head{margin:0;color:#d5dde7;font:800 60px/1.08 var(--sans);letter-spacing:-.03em;text-wrap:balance}
+.head b{color:inherit;font-weight:inherit}
+.head.len-m{font-size:50px}
+.head.len-l{font-size:42px}
+.sub{margin:16px 0 0;color:var(--ink-2);font:400 29px/1.4 var(--sans)}
+.sub b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+
+.foot{margin-top:auto;padding-top:32px;border-top:1px solid var(--rule);
+  display:flex;justify-content:space-between;align-items:center;gap:22px}
+.cta{display:flex;align-items:center;gap:13px;color:var(--lime);font:700 30px var(--sans);letter-spacing:-.01em}
+.cta em{font-style:normal;font-family:var(--mono);font-weight:500;font-size:25px}
+.addr{display:flex;flex-direction:column;align-items:flex-end;gap:6px;text-align:right;flex:none}
+.addr .k{color:var(--muted);font:400 16px var(--mono);letter-spacing:.14em}
+.addr .v{padding:5px 13px;border:1px solid rgba(213,250,119,.35);border-radius:6px;
+  color:var(--lime);font:500 25px var(--mono);font-variant-numeric:tabular-nums}
+
+.card-1x1{padding:58px 58px 52px}
+.card-1x1 .globe{margin-top:26px;margin-bottom:34px}
+
+.card-og{--base:1200;flex-direction:row;padding:50px 54px;gap:46px;align-items:center}
+.card-og .globe{margin:0}
+.card-og .og-side{display:flex;flex-direction:column;flex:1;min-width:0}
+.card-og .og-meta{color:var(--muted);font:500 20px var(--mono);letter-spacing:.14em;margin-bottom:18px}
+.card-og .og-meta b{color:var(--lime);font-weight:500}
+.card-og .head{font-size:52px}
+.card-og .sub{margin-top:14px;font-size:25px}
+.card-og .foot{margin-top:26px;padding-top:22px}
+.card-og .cta{font-size:25px}.card-og .cta em{font-size:21px}
+.card-og .addr .v{font-size:21px}.card-og .addr .k{font-size:14px}
+
+/* 4:5 — no clickable link, so the CTA becomes an instruction */
+.card-4x5{--base:1080;padding:66px 62px 58px;text-align:center}
+.card-4x5 .globe{margin:38px auto 36px}
+.card-4x5 .sub{margin-top:14px}
+.card-4x5 .find{margin-top:auto;padding-top:38px;border-top:1px solid var(--rule);
+  display:flex;flex-direction:column;align-items:center;gap:16px}
+.card-4x5 .instruct{color:var(--lime);font:700 34px/1.3 var(--sans);letter-spacing:-.01em}
+.card-4x5 .addr-line{display:flex;align-items:center;gap:13px;color:var(--muted);font:400 23px var(--mono);letter-spacing:.1em}
+.card-4x5 .addr-line b{padding:4px 12px;border:1px solid rgba(213,250,119,.3);border-radius:6px;color:var(--lime);font-weight:500;font-variant-numeric:tabular-nums}
+
+/* 9:16 */
+.card-9{--base:1080;padding:0}
+.card-9 .safe-top{height:250px;flex:none;background:rgba(213,250,119,.03)}
+.card-9 .stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 72px;text-align:center}
+.card-9 .head{font-size:68px}
+.card-9 .sub{margin-top:18px;font-size:31px}
+.card-9 .globe{margin:44px 0 42px}
+.card-9 .instruct{color:var(--lime);font:700 34px var(--sans);letter-spacing:-.01em}
+.card-9 .addr-line{margin-top:20px;display:flex;align-items:center;gap:14px;color:var(--muted);font:400 22px var(--mono);letter-spacing:.1em}
+.card-9 .addr-line b{padding:4px 12px;border:1px solid rgba(213,250,119,.3);border-radius:6px;color:var(--lime);font-weight:500;font-variant-numeric:tabular-nums}
+.card-9 .safe-bot{height:320px;flex:none;display:grid;place-items:center;border-top:1px dashed rgba(213,250,119,.26);background:rgba(213,250,119,.03)}
+.card-9 .safe-bot span{color:rgba(213,250,119,.45);font:400 21px var(--mono);letter-spacing:.2em}
+
+/* ---------- grids ---------- */
+.trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:30px;align-items:start}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:34px;align-items:start}
+figure{margin:0}
+figcaption{margin-bottom:13px;padding-bottom:11px;border-bottom:1px solid var(--rule)}
+figcaption b{display:block;color:var(--ink);font:700 15px var(--sans)}
+figcaption span{color:var(--muted);font:500 10px var(--mono);letter-spacing:.16em;text-transform:uppercase}
+.body{margin:14px 0 0;color:var(--muted);font-size:13.5px}
+.body em{color:var(--ink-2);font-style:normal}
+
+/* ---------- matrix ---------- */
+.scroll{overflow-x:auto;border:1px solid var(--rule)}
+table{width:100%;min-width:780px;border-collapse:collapse;font-size:13.5px}
+th,td{padding:13px 15px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}
+thead th{position:sticky;top:0;background:var(--rise);color:var(--lime);font:500 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;white-space:nowrap}
+tbody th{width:150px;color:var(--ink);font:600 13.5px var(--sans);background:var(--panel)}
+td{color:var(--ink-2);font-family:var(--mono);font-size:12.5px;line-height:1.55}
+td.off{color:var(--muted);font-style:italic;font-family:var(--sans)}
+tbody tr:last-child th,tbody tr:last-child td{border-bottom:0}
+
+/* ---------- ordered hierarchy ---------- */
+ol.rank{counter-reset:r;list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+ol.rank li{counter-increment:r;display:grid;grid-template-columns:34px 1fr;gap:16px;padding:15px 18px;background:var(--panel);border:1px solid var(--rule);border-bottom:0}
+ol.rank li:last-child{border-bottom:1px solid var(--rule)}
+ol.rank li::before{content:counter(r);color:var(--lime);font:500 13px var(--mono)}
+ol.rank b{display:block;color:var(--ink);font:600 14.5px var(--sans)}
+ol.rank span{color:var(--muted);font-size:13.5px}
+
+ul.plain{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:14px}
+ul.plain li{padding-left:18px;border-left:2px solid var(--rule);color:var(--ink-2);font-size:14.5px}
+ul.plain b{color:var(--ink);font-weight:600}
+
+pre{margin:0;padding:20px 22px;overflow-x:auto;border:1px solid var(--rule);border-radius:10px;background:var(--panel);
+  color:var(--ink-2);font:400 12.5px/1.75 var(--mono)}
+pre .c{color:var(--muted)}
+pre .k{color:var(--lime)}
+pre .s{color:#e8eef5}
+
+.close{padding-block:52px 0}
+.close h2{margin:0 0 16px;font:800 25px var(--sans);letter-spacing:-.02em}
+.close p{max-width:66ch;margin:0 0 14px;color:var(--ink-2)}
+
+@media (max-width:1020px){.trio{grid-template-columns:1fr;gap:44px}.two{grid-template-columns:1fr}.frame{max-width:540px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Million Hexagons · Share card copy system</p>
+    <h1>The display name system</h1>
+    <p class="standfirst">One visual system, one voice, no pronouns. The owner's display name is the subject of every card, so a person, a company, a creator, a project and a fan community all pass through the <b>same template with no branching</b>.</p>
+
+    <div class="verdict">
+      <h2>Recommendation — default direction</h2>
+      <p><b>Presence.</b> It is true on the first day and in the tenth year, it needs no eligibility check, it carries no claim about value, and it is the only one of the three that reads correctly for every kind of owner without supervision. Ship it as the default and treat the other two as opt-in variants.</p>
+      <span class="tpl">
+        <i>{displayName}</i> is on the globe.<br>
+        <i>{count}</i> of 1,000,000 hexagons claimed.<br>
+        See it on the globe &rarr;
+      </span>
+    </div>
+  </header>
+
+  <!-- ============ ONE TEMPLATE, THREE OWNERS ============ -->
+  <section class="bay">
+    <div class="bay-head"><h2>One template, three kinds of owner</h2><span class="dims">1:1 · 1080×1080</span></div>
+    <p class="note">Identical structure, identical type scale, identical layout. The only variables are <strong>display name, count, hexagon ID and date</strong>. Nothing branches on who the owner is.</p>
+
+    <div class="trio">
+      <figure>
+        <figcaption><b>Company</b><span>Northbound Coffee</span></figcaption>
+        <div class="frame" style="--ar:1/1;--base:1080">
+          <div class="card card-1x1">
+            <div class="c-top"><span class="c-brand">MILLION HEXAGONS</span><span class="c-date">CLAIMED 14.09.2026</span></div>
+            <div class="globe" style="width:400px;height:400px" data-globe="400"></div>
+            <h3 class="head"><b>Northbound Coffee</b> is on the globe.</h3>
+            <p class="sub"><b>48</b> of <b>1,000,000</b> hexagons claimed.</p>
+            <div class="foot">
+              <span class="cta">See it on the globe <em>&rarr;</em></span>
+              <span class="addr"><span class="k">MILLIONHEXAGONS.COM</span><span class="v">#847231</span></span>
+            </div>
+          </div>
+        </div>
+      </figure>
+
+      <figure>
+        <figcaption><b>Individual</b><span>Craig Duffy</span></figcaption>
+        <div class="frame" style="--ar:1/1;--base:1080">
+          <div class="card card-1x1">
+            <div class="c-top"><span class="c-brand">MILLION HEXAGONS</span><span class="c-date">CLAIMED 14.09.2026</span></div>
+            <div class="globe" style="width:400px;height:400px" data-globe="400"></div>
+            <h3 class="head"><b>Craig Duffy</b> is on the globe.</h3>
+            <p class="sub"><b>6</b> of <b>1,000,000</b> hexagons claimed.</p>
+            <div class="foot">
+              <span class="cta">See it on the globe <em>&rarr;</em></span>
+              <span class="addr"><span class="k">MILLIONHEXAGONS.COM</span><span class="v">#412907</span></span>
+            </div>
+          </div>
+        </div>
+      </figure>
+
+      <figure>
+        <figcaption><b>Community · long name</b><span>Million Hexagons Fans</span></figcaption>
+        <div class="frame" style="--ar:1/1;--base:1080">
+          <div class="card card-1x1">
+            <div class="c-top"><span class="c-brand">MILLION HEXAGONS</span><span class="c-date">CLAIMED 14.09.2026</span></div>
+            <div class="globe" style="width:400px;height:400px" data-globe="400"></div>
+            <h3 class="head len-m"><b>Million Hexagons Fans</b> has a place on the globe.</h3>
+            <p class="sub"><b>1,204</b> of <b>1,000,000</b> hexagons claimed.</p>
+            <div class="foot">
+              <span class="cta">See it on the globe <em>&rarr;</em></span>
+              <span class="addr"><span class="k">MILLIONHEXAGONS.COM</span><span class="v">#615088</span></span>
+            </div>
+          </div>
+        </div>
+      </figure>
+    </div>
+
+    <p class="flag" style="margin-top:34px"><b>One wrinkle worth knowing about.</b> Removing pronouns does not remove grammatical number. <em>"Million Hexagons Fans is on the globe"</em> reads slightly wrong to some people, and no reliable rule detects a plural display name. Two honest options: accept it — collective names routinely take a singular verb and the awkwardness is mild — or use the <strong>agreement-free headline</strong> <em>"{displayName} — now on the globe."</em> everywhere, which never breaks but loses a little punch. The third card above uses the Permanence template, which happens to sidestep it; that is not a rule you can rely on. My call: keep <em>"is on the globe"</em> and accept the rare soft edge.</p>
+  </section>
+
+  <!-- ============ THE THREE DIRECTIONS ============ -->
+  <section class="bay">
+    <div class="bay-head"><h2>The three directions, one voice</h2></div>
+    <p class="note">All pronoun-free, all name-first, all sharing the universal CTA.</p>
+    <div class="trio">
+      <figure>
+        <figcaption><b>1 · Presence</b><span>Default</span></figcaption>
+        <div class="scroll" style="border-radius:10px">
+          <table><tbody>
+            <tr><th>Headline</th><td>{displayName} is on the globe.</td></tr>
+            <tr><th>Support</th><td>{count} of 1,000,000 hexagons claimed.</td></tr>
+            <tr><th>CTA</th><td>See it on the globe &rarr;</td></tr>
+          </tbody></table>
+        </div>
+        <p class="body">No eligibility test, no expiry, no value claim. <em>Use for every card unless the owner picks otherwise.</em></p>
+      </figure>
+
+      <figure>
+        <figcaption><b>2 · Early status</b><span>Gated</span></figcaption>
+        <div class="scroll" style="border-radius:10px">
+          <table><tbody>
+            <tr><th>Headline</th><td>{displayName} got here early.</td></tr>
+            <tr><th>Support</th><td>{count} hexagons claimed while the globe was still mostly empty.</td></tr>
+            <tr><th>CTA</th><td>See it on the globe &rarr;</td></tr>
+          </tbody></table>
+        </div>
+        <p class="body">Best click of the three. <em>Gate it on a stored flag, not a live check</em> — see the threshold rule below.</p>
+        <p class="flag" style="margin-top:12px;font-size:13px"><b>Compliance edge.</b> "Early" must stay a statement about <em>when</em>, never a hint about what the placement will be worth. Do not pair it with any word about value, growth or scarcity running out.</p>
+      </figure>
+
+      <figure>
+        <figcaption><b>3 · Permanence</b><span>Opt-in</span></figcaption>
+        <div class="scroll" style="border-radius:10px">
+          <table><tbody>
+            <tr><th>Headline</th><td>{displayName} has a place on the globe.</td></tr>
+            <tr><th>Support</th><td>{count} of 1,000,000 hexagons. Claimed permanently.</td></tr>
+            <tr><th>CTA</th><td>See it on the globe &rarr;</td></tr>
+          </tbody></table>
+        </div>
+        <p class="body">The most collectible, and the one that makes the hexagon number feel earned. <em>Also the most robust headline for awkward display names.</em></p>
+      </figure>
+    </div>
+
+    <p class="note" style="margin-top:30px;max-width:72ch"><strong>Threshold rule for "early".</strong> Set <code style="font-family:var(--mono);color:var(--lime)">earlyEligible</code> to true at the moment of purchase when the placement falls inside the <strong>first 10,000 claims</strong> (1% of inventory), and store it on the record. Never recompute it later: the card must say the same thing in year five as it did on day one, and a live check would silently switch a buyer's card from "got here early" to "is on the globe" behind their back.</p>
+  </section>
+
+  <!-- ============ FORMATS ============ -->
+  <section class="bay">
+    <div class="bay-head"><h2>Final copy, every format</h2></div>
+    <p class="note">The only copy that changes between formats is the last line. Where a link is clickable the universal CTA stands; where it is not, the CTA is <strong>replaced</strong> by a search instruction, because "see it on the globe" is a broken promise on a platform with nothing to tap.</p>
+
+    <div class="two" style="gap:40px">
+      <figure>
+        <figcaption><b>1.91:1 · 1200×630</b><span>X / Facebook / OG image · link works</span></figcaption>
+        <div class="frame" style="--ar:1200/630;--base:1200">
+          <div class="card card-og">
+            <div class="globe" style="width:280px;height:280px" data-globe="280"></div>
+            <div class="og-side">
+              <span class="og-meta">MILLION HEXAGONS · <b>#847231</b> · 14.09.2026</span>
+              <h3 class="head"><b>Northbound Coffee</b> is on the globe.</h3>
+              <p class="sub"><b>48</b> of <b>1,000,000</b> hexagons claimed.</p>
+              <div class="foot">
+                <span class="cta">See it on the globe <em>&rarr;</em></span>
+                <span class="addr"><span class="k">MILLIONHEXAGONS.COM</span><span class="v">#847231</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="body">Landscape compresses the eyebrow, number and date into one mono line so the headline gets the height it needs.</p>
+      </figure>
+
+      <figure>
+        <figcaption><b>4:5 · 1080×1350</b><span>Instagram feed · no clickable link</span></figcaption>
+        <div class="frame" style="--ar:1080/1350;--base:1080">
+          <div class="card card-4x5">
+            <div class="c-top"><span class="c-brand">MILLION HEXAGONS</span><span class="c-date">14.09.2026</span></div>
+            <div class="globe" style="width:390px;height:390px" data-globe="390"></div>
+            <h3 class="head"><b>Northbound Coffee</b> is on the globe.</h3>
+            <p class="sub"><b>48</b> of <b>1,000,000</b> hexagons claimed.</p>
+            <div class="find">
+              <span class="instruct">Search 847231 to find it</span>
+              <span class="addr-line">millionhexagons.com <b>#847231</b></span>
+            </div>
+          </div>
+        </div>
+        <p class="body">The CTA becomes the instruction. The number is named in the sentence <em>and</em> shown as the address — the one place repeating it earns its space.</p>
+      </figure>
+    </div>
+
+    <div class="two" style="gap:40px;margin-top:44px">
+      <figure>
+        <figcaption><b>9:16 · 1080×1920</b><span>Stories / TikTok · no clickable link</span></figcaption>
+        <div class="frame" style="--ar:1080/1920;--base:1080">
+          <div class="card card-9">
+            <div class="safe-top"></div>
+            <div class="stage">
+              <h3 class="head"><b>Northbound Coffee</b> is on the globe.</h3>
+              <p class="sub"><b>48</b> of <b>1,000,000</b> hexagons claimed.</p>
+              <div class="globe" style="width:480px;height:480px" data-globe="480"></div>
+              <span class="instruct">Search 847231 to find it</span>
+              <span class="addr-line">millionhexagons.com <b>#847231</b></span>
+            </div>
+            <div class="safe-bot"><span>LINK STICKER SITS HERE</span></div>
+          </div>
+        </div>
+      </figure>
+      <div>
+        <div class="bay-head"><h3>Where everything sits</h3></div>
+        <p class="note" style="margin-bottom:20px">Same order on every ratio. Landscape runs it left-to-right instead of top-to-bottom; nothing is resequenced.</p>
+        <ol class="rank">
+          <li><b>Display name</b><span>Largest element. Answers <em>who</em>. Never truncated below 44 characters.</span></li>
+          <li><b>Claim count</b><span>Directly beneath, one step down. Answers <em>what happened</em> and gives the scale its meaning against 1,000,000.</span></li>
+          <li><b>The globe</b><span>The visual proof. Answers <em>why it matters</em> — the artwork sits in the claimed cells.</span></li>
+          <li><b>CTA or instruction</b><span>Accent colour, sans, one line. Answers <em>how to find it</em>.</span></li>
+          <li><b>Hexagon number</b><span>Last, in a hairline token. An address, not an action. Present on every card so a screenshot still resolves.</span></li>
+          <li><b>Date &amp; wordmark</b><span>Mono, muted, top edge. Provenance for anyone who looks twice.</span></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MATRIX ============ -->
+  <section class="bay">
+    <div class="bay-head"><h2>Copy matrix</h2></div>
+    <p class="note">Everything the renderer needs. <code style="font-family:var(--mono);color:var(--lime)">—</code> means the element is absent at that ratio, not empty.</p>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Element</th><th>1:1</th><th>1.91:1</th><th>4:5</th><th>9:16</th></tr>
+        </thead>
+        <tbody>
+          <tr><th>Wordmark</th><td>MILLION HEXAGONS</td><td class="off">merged into meta line</td><td>MILLION HEXAGONS</td><td class="off">dropped — safe area</td></tr>
+          <tr><th>Date</th><td>CLAIMED {date}</td><td>in meta line</td><td>{date}</td><td class="off">dropped</td></tr>
+          <tr><th>Headline</th><td colspan="4">{displayName} is on the globe.</td></tr>
+          <tr><th>Support</th><td colspan="4">{count} of 1,000,000 hexagons claimed.</td></tr>
+          <tr><th>Globe</th><td>400px, centred</td><td>280px, left</td><td>390px, centred</td><td>480px, centred</td></tr>
+          <tr><th>Action</th><td>See it on the globe &rarr;</td><td>See it on the globe &rarr;</td><td>Search {hexId} to find it</td><td>Search {hexId} to find it</td></tr>
+          <tr><th>Address</th><td>millionhexagons.com · #{hexId}</td><td>millionhexagons.com · #{hexId}</td><td>millionhexagons.com · #{hexId}</td><td>millionhexagons.com · #{hexId}</td></tr>
+          <tr><th>Reserved</th><td class="off">—</td><td class="off">—</td><td class="off">—</td><td>250px top · 320px bottom</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="two" style="margin-top:40px">
+      <div>
+        <div class="bay-head"><h3>Display name handling</h3></div>
+        <p class="note" style="margin-bottom:18px">The name is now load-bearing, so its length has to be a spec rather than a hope.</p>
+        <ul class="plain">
+          <li><b>1–18 characters</b> — headline at 60px. <em>"Craig Duffy", "Northbound Coffee"</em></li>
+          <li><b>19–30 characters</b> — 50px. <em>"Million Hexagons Fans"</em></li>
+          <li><b>31–44 characters</b> — 42px, wraps to three lines.</li>
+          <li><b>45+ characters</b> — truncate at 44 with an ellipsis. Show the truncation live in the editor so it is never a surprise on the card.</li>
+          <li><b>No name set</b> — the sentence loses its subject, so the card falls back to <em>"A new place on the globe."</em> with the count and number unchanged. Nothing is placeholdered.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="bay-head"><h3>What makes it less certificate</h3></div>
+        <p class="note" style="margin-bottom:18px">Five changes, cheapest first.</p>
+        <ul class="plain">
+          <li><b>Name the scale, not the total.</b> "48 of 1,000,000" makes a small claim feel deliberate; a bare "48 hexagons" makes it feel minor.</li>
+          <li><b>Show neighbours on the globe.</b> A few other claimed clusters visible around the owner's proves it is a shared place, not an empty vanity map.</li>
+          <li><b>Let the globe be posed, not fixed.</b> Rotate so the claim sits slightly off-centre. Dead-centre framing is what makes a certificate a certificate.</li>
+          <li><b>Give the count a live counterpart.</b> "48 of 1,000,000 hexagons claimed" invites the question "how many are left?" — and the answer is your site.</li>
+          <li><b>Drop the border.</b> The card currently has a hairline frame. Frames say diploma. Let the artwork and globe run to the edge instead.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ IMPLEMENTATION ============ -->
+  <section class="bay">
+    <div class="bay-head"><h2>Simplest implementation</h2></div>
+    <p class="note">Copy is data, layout is a stylesheet, output is one canvas. No server rendering, no template branching, no new dependency. One pure function produces every string on every card, which is also what makes the copy reviewable without opening the renderer.</p>
+
+    <div class="two">
+      <div>
+        <pre><span class="c">// src/share/card-copy.js — the whole copy system</span>
+
+<span class="k">const</span> TOTAL = <span class="s">1000000</span>;
+
+<span class="c">// name and tail stay separate so the name can be set in lime</span>
+<span class="k">export const</span> DIRECTIONS = {
+  presence:   { tail: <span class="s">' is on the globe.'</span>,
+                sub:  c =&gt; <span class="s">`${c} of 1,000,000 hexagons claimed.`</span> },
+  early:      { tail: <span class="s">' got here early.'</span>,
+                sub:  c =&gt; <span class="s">`${c} hexagons claimed while the globe`</span> +
+                           <span class="s">` was still mostly empty.`</span> },
+  permanence: { tail: <span class="s">' has a place on the globe.'</span>,
+                sub:  c =&gt; <span class="s">`${c} of 1,000,000 hexagons.`</span> +
+                           <span class="s">` Claimed permanently.`</span> }
+};
+
+<span class="k">export function</span> cardCopy(record, ratio) {
+  <span class="k">const</span> d = DIRECTIONS[record.direction] ?? DIRECTIONS.presence;
+  <span class="k">const</span> name  = displayName(record);
+  <span class="k">const</span> count = record.cells.length.toLocaleString();
+  <span class="k">const</span> linkable = ratio === <span class="s">'1x1'</span> || ratio === <span class="s">'og'</span>;
+
+  <span class="k">return</span> {
+    <span class="c">// renderer wraps `name` in the accent colour, `tail` stays ink</span>
+    name: name || <span class="s">''</span>,
+    tail: name ? d.tail : <span class="s">'A new place on the globe.'</span>,
+    sub:  d.sub(count),
+    <span class="c">// the ONLY place format changes the words</span>
+    action: linkable
+      ? <span class="s">'See it on the globe →'</span>
+      : <span class="s">`Search ${record.hexId} to find it`</span>,
+    hexId: <span class="s">`#${record.hexId}`</span>,
+    date:  formatDate(record.claimedAt),
+    url:   <span class="s">'millionhexagons.com'</span>
+  };
+}</pre>
+      </div>
+      <div>
+        <ul class="plain">
+          <li><b>One function, no branching on owner type.</b> <code style="font-family:var(--mono);color:var(--lime)">displayName()</code> returns the company name, the account name, or empty — and the card never asks which it was.</li>
+          <li><b>Direction is a stored field on the placement</b>, defaulting to <code style="font-family:var(--mono);color:var(--lime)">presence</code>. <code style="font-family:var(--mono);color:var(--lime)">early</code> is only offerable when <code style="font-family:var(--mono);color:var(--lime)">earlyEligible</code> was set at purchase.</li>
+          <li><b>Four ratios are four CSS classes</b> over identical markup, exactly as rendered on this page. The 1080px base means every size in the stylesheet is the real export size.</li>
+          <li><b>Rasterise without a library.</b> Serialise the card's SVG, draw it to a canvas at 1× or 2×, then <code style="font-family:var(--mono);color:var(--lime)">toBlob</code>. The globe is already SVG here; the artwork is an image you control.</li>
+          <li><b>Reuse the real globe instead.</b> You already render one in <em>src/globe</em> — capturing the live canvas with the claim lit gives a better picture than any redraw, and the flyover concept later needs that capture path anyway.</li>
+          <li><b>Captions ship from the same object</b>, so the post text and the card can never disagree about the count or the number.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="close">
+    <h2>What I would change about your spec</h2>
+    <p>Two things, both small. <strong>The universal CTA cannot be fully universal</strong> — on Instagram and TikTok "See it on the globe →" points at nothing tappable, so it has to become the search instruction. That is the one permitted format branch, and it is about the platform, never about the owner.</p>
+    <p>And <strong>"early" should be a stored flag, not a rule evaluated at render time</strong>. Otherwise a buyer's card quietly changes what it says about them as the globe fills, which is worse than never having offered the direction.</p>
+    <p>Everything else holds: one visual system, name as subject, no pronouns, no owner-type templates, number demoted to an address.</p>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  var NS = 'http://www.w3.org/2000/svg', uid = 0;
+
+  function hexPoints(cx, cy, r){
+    var pts = [];
+    for (var i = 0; i < 6; i++){
+      var a = Math.PI / 180 * (60 * i - 90);
+      pts.push((cx + r * Math.cos(a)).toFixed(2) + ',' + (cy + r * Math.sin(a)).toFixed(2));
+    }
+    return pts.join(' ');
+  }
+  function el(name, attrs){
+    var n = document.createElementNS(NS, name);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    return n;
+  }
+
+  function drawGlobe(host){
+    var size = Number(host.getAttribute('data-globe')) || 400;
+    var id = 'claim' + (++uid);
+    var svg = el('svg', {viewBox: '0 0 ' + size + ' ' + size});
+    svg.setAttribute('aria-hidden', 'true');
+
+    var R = size / 2 - 2, cx = size / 2, cy = size / 2;
+    var step = size / 13, rad = step * 0.5, rowH = step * 0.86;
+
+    // posed slightly off-centre, so it reads as a viewpoint rather than a diagram
+    var claim = {x: 0.12, y: -0.15, r: 0.32};
+    // other claimed clusters — the globe is a shared place, not an empty map
+    var others = [
+      {x: -0.42, y: 0.22, r: 0.15},
+      {x: -0.10, y: 0.52, r: 0.11},
+      {x: 0.48, y: 0.34, r: 0.10},
+      {x: -0.34, y: -0.40, r: 0.09}
+    ];
+
+    svg.appendChild(el('circle', {cx: cx, cy: cy, r: R, fill: '#0b1724'}));
+
+    var lit = [], minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+    var dim = el('g', {});
+
+    for (var row = -9; row <= 9; row++){
+      var y = cy + row * rowH;
+      var offset = (row % 2 === 0) ? 0 : step / 2;
+      for (var col = -9; col <= 9; col++){
+        var x = cx + col * step + offset;
+        var dx = (x - cx) / R, dy = (y - cy) / R;
+        var d2 = dx * dx + dy * dy;
+        if (d2 > 0.985) continue;
+
+        var z = Math.sqrt(1 - d2);
+        var r = rad * (0.34 + 0.66 * z) * 0.9;
+
+        if (Math.hypot(dx - claim.x, dy - claim.y) < claim.r && z > 0.34){
+          lit.push({x: x, y: y, r: r});
+          if (x - r < minX) minX = x - r;
+          if (y - r < minY) minY = y - r;
+          if (x + r > maxX) maxX = x + r;
+          if (y + r > maxY) maxY = y + r;
+          continue;
+        }
+
+        var neighbour = false;
+        for (var o = 0; o < others.length; o++){
+          if (Math.hypot(dx - others[o].x, dy - others[o].y) < others[o].r){ neighbour = true; break; }
+        }
+
+        dim.appendChild(el('polygon', {
+          points: hexPoints(x, y, r),
+          fill: neighbour ? '#33506b' : '#17283a',
+          'fill-opacity': ((neighbour ? 0.34 : 0.20) + 0.60 * z).toFixed(3)
+        }));
+      }
+    }
+    svg.appendChild(dim);
+
+    var defs = el('defs', {}), clip = el('clipPath', {id: id});
+    for (var i = 0; i < lit.length; i++){
+      clip.appendChild(el('polygon', {points: hexPoints(lit[i].x, lit[i].y, lit[i].r)}));
+    }
+    defs.appendChild(clip);
+    svg.appendChild(defs);
+
+    var w = maxX - minX, h = maxY - minY;
+    var art = el('g', {'clip-path': 'url(#' + id + ')'});
+    var pad = Math.max(w, h) * 0.06;
+    art.appendChild(el('rect', {x: minX - pad, y: minY - pad, width: w + pad * 2, height: h + pad * 2, fill: '#f0e7d6'}));
+    var mx = minX + w / 2, my = minY + h / 2, u = Math.min(w, h);
+    art.appendChild(el('circle', {cx: mx, cy: my, r: u * 0.34, fill: '#0e2030'}));
+    art.appendChild(el('polygon', {
+      points: [mx + ',' + (my - u * 0.20),
+               (mx + u * 0.15) + ',' + (my + u * 0.06),
+               mx + ',' + (my - u * 0.02),
+               (mx - u * 0.15) + ',' + (my + u * 0.06)].join(' '),
+      fill: '#f0e7d6'
+    }));
+    svg.appendChild(art);
+
+    var edges = el('g', {}), rim = el('g', {});
+    for (var j = 0; j < lit.length; j++){
+      edges.appendChild(el('polygon', {points: hexPoints(lit[j].x, lit[j].y, lit[j].r),
+        fill: 'none', stroke: 'rgba(5,11,20,.34)', 'stroke-width': Math.max(0.6, size / 520)}));
+      rim.appendChild(el('polygon', {points: hexPoints(lit[j].x, lit[j].y, lit[j].r * 1.02),
+        fill: 'none', stroke: 'rgba(213,250,119,.55)', 'stroke-width': Math.max(0.7, size / 400)}));
+    }
+    svg.appendChild(edges);
+    svg.appendChild(rim);
+
+    svg.appendChild(el('circle', {cx: cx, cy: cy, r: R, fill: 'none',
+      stroke: 'rgba(213,250,119,.16)', 'stroke-width': Math.max(1, size / 340)}));
+
+    host.appendChild(svg);
+  }
+
+  var hosts = document.querySelectorAll('[data-globe]');
+  for (var i = 0; i < hosts.length; i++) drawGlobe(hosts[i]);
+})();
+</script>
+</body>
+</html>

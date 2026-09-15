@@ -26,6 +26,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Recently done
 
+- [x] Implemented the first durable purchase-to-share journey from `SHAREABLE-MEMENTO-BRIEF.md`. A newly published placement now completes its globe flight before the one-time share prompt appears; the prompt never opens when publication polling fails. The same memento remains available from My Globe and the placement inspector, with Share, Copy link and downloadable 1:1, 4:5, 9:16 and 1.91:1 cards using the approved pronoun-free display-name copy. Added generic Open Graph/Twitter metadata and a branded fallback preview. Copy/build tests plus desktop/mobile public-placement and desktop/mobile/reduced-motion checkout-completion journeys pass; the rendered mobile card was inspected. Per-placement server-rendered Open Graph metadata and a true recipient-platform preview check remain open, so Gate 4 is not yet accepted.
+
 - [x] Removed the completed development-only Globe Study and aligned active documentation with the current launch gates, durable staging services, canonical validation command and monitoring evidence. The illumination specification and purchase-memento brief are retained as current design references; no live service changed.
 
 - [x] Replaced the broad pre-launch queue with seven explicit production evidence gates covering commercial decisions, first-time-user usability, artwork/physical devices, purchase-to-share, public/legal quality, production cutover and operational safety. Moved enhanced HUD analytics, connected-purchase merging, visual studies and speculative redesign off the critical path. Repository hygiene and modified-document link checks passed; no production configuration or live services changed.
@@ -62,7 +64,7 @@ Do not infer readiness from an aggregate percentage. Track the seven evidence ga
 - Gate 1 commercial/regulatory decisions: OPEN
 - Gate 2 first-time-user usability: OPEN
 - Gate 3 artwork scale and physical devices: OPEN
-- Gate 4 purchase-to-share: IN PROGRESS (design work exists; journey not accepted)
+- Gate 4 purchase-to-share: IN PROGRESS (durable in-product journey and downloadable cards implemented; per-placement Open Graph delivery and recipient-platform acceptance remain open)
 - Gate 5 public website/legal/customer acceptance: OPEN
 - Gate 6 production cutover rehearsal: OPEN (staging is verified; production configuration is absent)
 - Gate 7 operational safety: OPEN (staging GitHub failure email was confirmed; production backup/restore, recipients and alert delivery are not)

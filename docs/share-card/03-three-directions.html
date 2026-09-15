@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html{color-scheme:dark}
+  body{margin:0}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+</style>
+<title>Three Ways to Say It</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap">
+<style>
+:root{
+  --ground:#050b14;--panel:#0a141f;--rise:#101d2b;--rule:#1b2836;
+  --ink:#e8eef5;--ink-2:#b9c6d4;--muted:#6f8195;--lime:#d5fa77;
+  --warn:#ffb86b;
+  --sans:Manrope,system-ui,-apple-system,sans-serif;
+  --mono:'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:400 15px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding-block:56px 96px;padding-left:20px;padding-right:20px}
+
+.eyebrow{margin:0;color:var(--lime);font:500 11px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase}
+h1{margin:18px 0 0;font:800 clamp(34px,5.2vw,50px)/1.05 var(--sans);letter-spacing:-.025em;text-wrap:balance}
+.standfirst{max-width:64ch;margin:20px 0 0;color:var(--ink-2);font-size:16.5px}
+.standfirst b{color:var(--ink);font-weight:600}
+.masthead{padding-bottom:34px;border-bottom:1px solid var(--rule)}
+
+.fixed{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:2px;margin-top:30px;background:var(--rule);border:1px solid var(--rule)}
+.fixed div{padding:18px 20px;background:var(--panel)}
+.fixed h3{margin:0 0 7px;color:var(--lime);font:500 10px var(--mono);letter-spacing:.18em;text-transform:uppercase}
+.fixed p{margin:0;color:var(--ink-2);font-size:13.5px}
+
+.bay{padding-block:52px;border-bottom:1px solid var(--rule)}
+.bay-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;margin-bottom:10px}
+.bay-head h2{margin:0;font:800 24px/1.15 var(--sans);letter-spacing:-.018em}
+.dims{color:var(--lime);font:500 12px var(--mono)}
+.bay>.note{max-width:66ch;margin:0 0 30px;color:var(--ink-2);font-size:14.5px}
+.note strong{color:var(--ink);font-weight:600}
+
+.trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:30px;align-items:start}
+.dir{margin:0}
+.dir figcaption{margin-bottom:13px;padding-bottom:11px;border-bottom:1px solid var(--rule)}
+.dir figcaption b{display:block;color:var(--ink);font:700 15px var(--sans)}
+.dir figcaption span{color:var(--muted);font:500 10px var(--mono);letter-spacing:.16em;text-transform:uppercase}
+.dir .body{margin:14px 0 0;color:var(--muted);font-size:13.5px}
+.dir .body em{color:var(--ink-2);font-style:normal}
+.flag{margin:12px 0 0;padding:11px 13px;border-left:2px solid var(--warn);background:rgba(255,184,107,.06);color:var(--ink-2);font-size:13px}
+.flag b{color:var(--warn);font-weight:600}
+.pick{margin:12px 0 0;padding:11px 13px;border-left:2px solid var(--lime);background:rgba(213,250,119,.06);color:var(--ink-2);font-size:13px}
+.pick b{color:var(--lime);font-weight:600}
+
+/* ---------- card canvas ---------- */
+.frame{container-type:inline-size;width:100%;aspect-ratio:var(--ar);max-width:100%}
+.card{width:calc(var(--base) * 1px);height:calc(var(--base) * 1px / (var(--ar)));
+  transform-origin:top left;transform:scale(calc(100cqw / (var(--base) * 1px)));
+  background:var(--ground);border:1px solid var(--rule);display:flex;flex-direction:column;overflow:hidden}
+.c-top{display:flex;justify-content:space-between;align-items:baseline;gap:24px}
+.c-brand{color:var(--lime);font:500 22px var(--mono);letter-spacing:.22em}
+.c-date{color:var(--muted);font:400 22px var(--mono);letter-spacing:.12em}
+
+.globe{margin:0 auto;flex:none}
+.globe svg{display:block;width:100%;height:100%}
+
+.head{margin:0;color:var(--ink);font:800 60px/1.08 var(--sans);letter-spacing:-.03em;text-wrap:balance}
+.head b{color:var(--lime);font-weight:800}
+.sub{margin:16px 0 0;color:var(--ink-2);font:400 29px/1.4 var(--sans)}
+.sub b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+
+.foot{margin-top:auto;padding-top:32px;border-top:1px solid var(--rule);
+  display:flex;justify-content:space-between;align-items:center;gap:22px}
+.cta{display:flex;align-items:center;gap:13px;color:var(--lime);font:700 30px var(--sans);letter-spacing:-.01em}
+.cta em{font-style:normal;font-family:var(--mono);font-weight:500;font-size:25px}
+/* the number as a collectible address, not a call to action */
+.addr{display:flex;flex-direction:column;align-items:flex-end;gap:6px;text-align:right;flex:none}
+.addr .k{color:var(--muted);font:400 16px var(--mono);letter-spacing:.14em}
+.addr .v{padding:5px 13px;border:1px solid rgba(213,250,119,.35);border-radius:6px;
+  color:var(--lime);font:500 25px var(--mono);font-variant-numeric:tabular-nums}
+
+.card-1x1{padding:58px 58px 52px}
+.card-1x1 .globe{margin-top:26px;margin-bottom:34px}
+
+/* 1.91:1 */
+.card-og{--base:1200;flex-direction:row;padding:50px 54px;gap:46px;align-items:center}
+.card-og .globe{margin:0}
+.card-og .og-side{display:flex;flex-direction:column;flex:1;min-width:0}
+.card-og .head{font-size:52px}
+.card-og .sub{margin-top:14px;font-size:25px}
+.card-og .foot{margin-top:26px;padding-top:22px}
+.card-og .cta{font-size:25px}
+.card-og .cta em{font-size:21px}
+.card-og .addr .v{font-size:21px}
+.card-og .addr .k{font-size:14px}
+
+/* 9:16 — hierarchy: who → how many → globe → where → address */
+.card-9{padding:0}
+.card-9 .safe-top{height:250px;flex:none;background:rgba(213,250,119,.03)}
+.card-9 .stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 72px;text-align:center}
+.card-9 .head{font-size:70px}
+.card-9 .sub{margin-top:18px;font-size:32px}
+.card-9 .globe{margin:46px 0 44px}
+.card-9 .where{color:var(--lime);font:700 34px var(--sans);letter-spacing:-.01em}
+.card-9 .addr-line{margin-top:20px;display:flex;align-items:center;gap:14px;color:var(--muted);font:400 22px var(--mono);letter-spacing:.1em}
+.card-9 .addr-line b{padding:4px 12px;border:1px solid rgba(213,250,119,.3);border-radius:6px;color:var(--lime);font-weight:500;font-variant-numeric:tabular-nums}
+.card-9 .safe-bot{height:320px;flex:none;display:grid;place-items:center;border-top:1px dashed rgba(213,250,119,.26);background:rgba(213,250,119,.03)}
+.card-9 .safe-bot span{color:rgba(213,250,119,.45);font:400 21px var(--mono);letter-spacing:.2em}
+
+/* ---------- CTA + anonymous ---------- */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:34px;align-items:start}
+.ctas{display:flex;flex-direction:column;gap:2px;background:var(--rule);border:1px solid var(--rule)}
+.ctas div{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;padding:15px 18px;background:var(--panel)}
+.ctas b{color:var(--lime);font:700 19px var(--sans);letter-spacing:-.01em}
+.ctas span{color:var(--muted);font-size:13.5px}
+.ctas .off b{color:var(--muted)}
+
+.close{padding-block:52px 0}
+.close h2{margin:0 0 16px;font:800 25px var(--sans);letter-spacing:-.02em}
+.close p{max-width:66ch;margin:0 0 14px;color:var(--ink-2)}
+
+@media (max-width:1020px){.trio{grid-template-columns:1fr;gap:44px}.two{grid-template-columns:1fr}.frame{max-width:540px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Million Hexagons · Share memento, third pass</p>
+    <h1>Three ways to say it</h1>
+    <p class="standfirst">Same structure, same globe, three different emotions. The buyer is the subject of the sentence in all three — <b>Million Hexagons is the setting, not the hero</b>. The artwork now sits in the claimed cells themselves, and the hexagon number has been demoted to a collectible address.</p>
+
+    <div class="fixed">
+      <div>
+        <h3>Artwork is on the globe</h3>
+        <p>Clipped into the claimed cells and enlarged for legibility, with the hex edges still visible through it. No floating speech bubble.</p>
+      </div>
+      <div>
+        <h3>Buyer leads the sentence</h3>
+        <p>"Northbound Coffee is on the globe" — the name first, the product second.</p>
+      </div>
+      <div>
+        <h3>Number is an address</h3>
+        <p>Set small in a hairline token, below the invitation. It identifies; it no longer shouts.</p>
+      </div>
+      <div>
+        <h3>Invitation points at the globe</h3>
+        <p>"See where we are", not "visit this website". The action names the place.</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= THREE DIRECTIONS ================= -->
+  <section class="bay">
+    <div class="bay-head"><h2>The three directions</h2><span class="dims">1:1 · 1080×1080</span></div>
+    <p class="note">Each carries its own invitation, because the emotion and the action have to agree. Read the headlines alone first — that is what a stranger scrolling actually processes.</p>
+
+    <div class="trio">
+
+      <!-- A -->
+      <figure class="dir">
+        <figcaption><b>We're on the globe</b><span>Presence · recommended</span></figcaption>
+        <div class="frame" style="--ar:1/1;--base:1080">
+          <div class="card card-1x1">
+            <div class="c-top"><span class="c-brand">MILLION HEXAGONS</span><span class="c-date">CLAIMED 14.09.2026</span></div>
+            <div class="globe" style="width:430px;height:430px" data-globe="430"></div>
+            <h3 class="head">Northbound Coffee is on the globe.</h3>
+            <p class="sub"><b>48</b> of <b>1,000,000</b> spaces are now ours.</p>
+            <div class="foot">
+              <span class="cta">See where we are <em>&rarr;</em></span>
+              <span class="addr"><span class="k">MILLIONHEXAGONS.COM</span><span class="v">#847231</span></span>
+            </div>
+          </div>
+        </div>
+        <p class="body">Simple, true on day one and true in three years. Works for a person or a business, and needs no context to land.</p>
+        <p class="pick"><b>Recommended.</b> The only one of the three with no expiry and no compliance edge. Ship this; keep the others as seasonal variants.</p>
+      </figure>
+
+      <!-- B -->
+      <figure class="dir">
+        <figcaption><b>We were early</b><span>Status · time-limited</span></figcaption>
+        <div class="frame" style="--ar:1/1;--base:1080">
+          <div class="card card-1x1">
+            <div class="c-top"><span class="c-brand">MILLION HEXAGONS</span><span class="c-date">CLAIMED 14.09.2026</span></div>
+            <div class="globe" style="width:430px;height:430px" data-globe="430"></div>
+            <h3 class="head">Northbound Coffee got here <b>early</b>.</h3>
+            <p class="sub">Claimed <b>48</b> spaces while the globe was still mostly empty.</p>
+            <div class="foot">
+              <span class="cta">See how full it is now <em>&rarr;</em></span>
+              <span class="addr"><span class="k">MILLIONHEXAGONS.COM</span><span class="v">#847231</span></span>
+            </div>
+          </div>
+        </div>
+        <p class="body">The strongest click of the three — <em>"see how full it is now"</em> is a genuine open question, and the answer is a live page. It also flatters the buyer without flattering the product.</p>
+        <p class="flag"><b>Two cautions.</b> It expires: the same card reads as a boast in year three, so it needs a cut-off. And "early" sits close to implying the placement gains value — which the brief bans outright. Keep it about <em>being there at the start</em>, never about what it will be worth.</p>
+      </figure>
+
+      <!-- C -->
+      <figure class="dir">
+        <figcaption><b>This is our permanent place</b><span>Permanence · collector</span></figcaption>
+        <div class="frame" style="--ar:1/1;--base:1080">
+          <div class="card card-1x1">
+            <div class="c-top"><span class="c-brand">MILLION HEXAGONS</span><span class="c-date">CLAIMED 14.09.2026</span></div>
+            <div class="globe" style="width:430px;height:430px" data-globe="430"></div>
+            <h3 class="head">Northbound Coffee has a <b>place</b> on the globe.</h3>
+            <p class="sub"><b>48</b> of <b>1,000,000</b> spaces. These ones don't move.</p>
+            <div class="foot">
+              <span class="cta">Find our place <em>&rarr;</em></span>
+              <span class="addr"><span class="k">MILLIONHEXAGONS.COM</span><span class="v">#847231</span></span>
+            </div>
+          </div>
+        </div>
+        <p class="body">The most collectible of the three, and the one that makes the number feel earned — an address only means something if it stays put.</p>
+        <p class="flag"><b>One caution.</b> "Permanent" has to describe the <em>claimed cells</em>, not a forever guarantee of the service or the artwork. "These ones don't move" says the true thing without promising the untrue one — I'd avoid the word "forever" on the card entirely.</p>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ================= 9:16 ================= -->
+  <section class="bay">
+    <div class="bay-head"><h2>The recommended direction, vertical</h2><span class="dims">9:16 · 1080×1920 · Stories / TikTok</span></div>
+    <p class="note">Rebuilt to your hierarchy: <strong>who → how many → the globe → where to find them → the address</strong>. The number is the last thing on the card rather than the loudest, and "find us on Million Hexagons" now carries the instruction that "#847231" used to shout.</p>
+    <div class="two">
+      <div class="frame" style="--ar:1080/1920;--base:1080">
+        <div class="card card-9">
+          <div class="safe-top"></div>
+          <div class="stage">
+            <h3 class="head">Northbound Coffee is on the globe.</h3>
+            <p class="sub"><b>48</b> of <b>1,000,000</b> spaces.</p>
+            <div class="globe" style="width:500px;height:500px" data-globe="500"></div>
+            <span class="where">Find us on Million Hexagons</span>
+            <span class="addr-line">millionhexagons.com <b>#847231</b></span>
+          </div>
+          <div class="safe-bot"><span>LINK STICKER SITS HERE</span></div>
+        </div>
+      </div>
+      <div>
+        <p class="note" style="margin-bottom:22px">The globe can sit lower here than on the square card because the headline does the work up top. On a story the first thing read is the name, and the picture rewards the half-second after it.</p>
+        <div class="bay-head" style="margin-bottom:14px"><h2 style="font-size:17px">Landscape, same direction</h2><span class="dims">1.91:1 · OG image</span></div>
+        <div class="frame" style="--ar:1200/630;--base:1200">
+          <div class="card card-og">
+            <div class="globe" style="width:300px;height:300px" data-globe="300"></div>
+            <div class="og-side">
+              <h3 class="head">Northbound Coffee is on the globe.</h3>
+              <p class="sub"><b>48</b> of <b>1,000,000</b> spaces are now ours.</p>
+              <div class="foot">
+                <span class="cta">See where we are <em>&rarr;</em></span>
+                <span class="addr"><span class="k">MILLIONHEXAGONS.COM</span><span class="v">#847231</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CTA + anonymous ================= -->
+  <section class="bay">
+    <div class="two">
+      <div>
+        <div class="bay-head"><h2>The invitation, tested</h2></div>
+        <p class="note">Every one of these names the globe rather than the website. The top three all work; the bottom two are the ones to avoid and why.</p>
+        <div class="ctas">
+          <div><b>See where we are &rarr;</b><span>Best default. Curiosity plus a location.</span></div>
+          <div><b>Find our place &rarr;</b><span>Warmer, slightly more possessive. Pairs with permanence.</span></div>
+          <div><b>See how full it is now &rarr;</b><span>Strongest pull, but only honest on the "early" card.</span></div>
+          <div class="off"><b>Come and find us &rarr;</b><span>Previous version. Fine, but points at the buyer, not the globe.</span></div>
+          <div class="off"><b>Visit millionhexagons.com</b><span>An instruction, not an invitation. The URL already appears below it.</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="bay-head"><h2>When there's no company name</h2></div>
+        <p class="note">Most buyers will have no name, no description and no URL. The headline can't collapse — so the subject shifts from the buyer to the claim, and direction A becomes the fallback for all three.</p>
+        <div class="frame" style="--ar:1/1;--base:1080;max-width:430px">
+          <div class="card card-1x1">
+            <div class="c-top"><span class="c-brand">MILLION HEXAGONS</span><span class="c-date">CLAIMED 14.09.2026</span></div>
+            <div class="globe" style="width:400px;height:400px" data-globe="400"></div>
+            <h3 class="head">We're on the globe.</h3>
+            <p class="sub"><b>48</b> of <b>1,000,000</b> spaces are ours.</p>
+            <div class="foot">
+              <span class="cta">See where we are <em>&rarr;</em></span>
+              <span class="addr"><span class="k">MILLIONHEXAGONS.COM</span><span class="v">#847231</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="close">
+    <h2>What I'd actually ship</h2>
+    <p>Direction A as the default, with the artwork-in-the-claim globe and the demoted number. Direction C as a switchable alternative for buyers who want the collector framing. Direction B held back until someone owns the decision about when it stops being offered — it's the best of the three at getting a click and the only one that can age into an embarrassment.</p>
+    <p>Still unresolved, and still the thing that matters most: none of this compensates for a pasted link arriving as grey text. The Open Graph metadata ships alongside, or the loop leaks where it converts best.</p>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  var NS = 'http://www.w3.org/2000/svg';
+  var uid = 0;
+
+  function hexPoints(cx, cy, r){
+    var pts = [];
+    for (var i = 0; i < 6; i++){
+      var a = Math.PI / 180 * (60 * i - 90);
+      pts.push((cx + r * Math.cos(a)).toFixed(2) + ',' + (cy + r * Math.sin(a)).toFixed(2));
+    }
+    return pts.join(' ');
+  }
+  function el(name, attrs){
+    var n = document.createElementNS(NS, name);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    return n;
+  }
+
+  function drawGlobe(host){
+    var size = Number(host.getAttribute('data-globe')) || 430;
+    var id = 'claim' + (++uid);
+    var svg = el('svg', {viewBox: '0 0 ' + size + ' ' + size});
+    svg.setAttribute('aria-hidden', 'true');
+
+    var R = size / 2 - 2, cx = size / 2, cy = size / 2;
+    var step = size / 13, rad = step * 0.5, rowH = step * 0.86;
+
+    // the claimed cluster, in unit-sphere coords — near centre so the artwork reads
+    var claim = {x: 0.10, y: -0.13, r: 0.33};
+
+    svg.appendChild(el('circle', {cx: cx, cy: cy, r: R, fill: '#0b1724'}));
+
+    var lit = [], minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+    var dim = el('g', {});
+
+    for (var row = -9; row <= 9; row++){
+      var y = cy + row * rowH;
+      var offset = (row % 2 === 0) ? 0 : step / 2;
+      for (var col = -9; col <= 9; col++){
+        var x = cx + col * step + offset;
+        var dx = (x - cx) / R, dy = (y - cy) / R;
+        var d2 = dx * dx + dy * dy;
+        if (d2 > 0.985) continue;
+
+        var z = Math.sqrt(1 - d2);
+        var r = rad * (0.34 + 0.66 * z) * 0.9;
+        var claimed = Math.hypot(dx - claim.x, dy - claim.y) < claim.r && z > 0.34;
+
+        if (claimed){
+          lit.push({x: x, y: y, r: r});
+          if (x - r < minX) minX = x - r;
+          if (y - r < minY) minY = y - r;
+          if (x + r > maxX) maxX = x + r;
+          if (y + r > maxY) maxY = y + r;
+        } else {
+          dim.appendChild(el('polygon', {
+            points: hexPoints(x, y, r),
+            fill: '#17283a',
+            'fill-opacity': (0.20 + 0.60 * z).toFixed(3)
+          }));
+        }
+      }
+    }
+    svg.appendChild(dim);
+
+    // clip the artwork into the claimed cells themselves
+    var defs = el('defs', {});
+    var clip = el('clipPath', {id: id});
+    for (var i = 0; i < lit.length; i++){
+      clip.appendChild(el('polygon', {points: hexPoints(lit[i].x, lit[i].y, lit[i].r)}));
+    }
+    defs.appendChild(clip);
+    svg.appendChild(defs);
+
+    var w = maxX - minX, h = maxY - minY;
+    var art = el('g', {'clip-path': 'url(#' + id + ')'});
+
+    // placeholder artwork, enlarged ~12% so it fills the cluster rather than sitting inside it
+    var pad = Math.max(w, h) * 0.06;
+    art.appendChild(el('rect', {
+      x: minX - pad, y: minY - pad, width: w + pad * 2, height: h + pad * 2, fill: '#f0e7d6'
+    }));
+    var mx = minX + w / 2, my = minY + h / 2, u = Math.min(w, h);
+    art.appendChild(el('circle', {cx: mx, cy: my, r: u * 0.34, fill: '#0e2030'}));
+    art.appendChild(el('polygon', {
+      points: [
+        mx + ',' + (my - u * 0.20),
+        (mx + u * 0.15) + ',' + (my + u * 0.06),
+        mx + ',' + (my - u * 0.02),
+        (mx - u * 0.15) + ',' + (my + u * 0.06)
+      ].join(' '),
+      fill: '#f0e7d6'
+    }));
+    svg.appendChild(art);
+
+    // hex edges still visible through the artwork, so it reads as cells not a sticker
+    var edges = el('g', {});
+    for (var j = 0; j < lit.length; j++){
+      edges.appendChild(el('polygon', {
+        points: hexPoints(lit[j].x, lit[j].y, lit[j].r),
+        fill: 'none',
+        stroke: 'rgba(5,11,20,.34)',
+        'stroke-width': Math.max(0.6, size / 520)
+      }));
+    }
+    svg.appendChild(edges);
+
+    // lime rim marks the claim without covering the art
+    var rim = el('g', {});
+    for (var k = 0; k < lit.length; k++){
+      rim.appendChild(el('polygon', {
+        points: hexPoints(lit[k].x, lit[k].y, lit[k].r * 1.02),
+        fill: 'none',
+        stroke: 'rgba(213,250,119,.55)',
+        'stroke-width': Math.max(0.7, size / 400)
+      }));
+    }
+    svg.appendChild(rim);
+
+    svg.appendChild(el('circle', {
+      cx: cx, cy: cy, r: R, fill: 'none',
+      stroke: 'rgba(213,250,119,.16)', 'stroke-width': Math.max(1, size / 340)
+    }));
+
+    host.appendChild(svg);
+  }
+
+  var hosts = document.querySelectorAll('[data-globe]');
+  for (var i = 0; i < hosts.length; i++) drawGlobe(hosts[i]);
+})();
+</script>
+</body>
+</html>
