@@ -43,7 +43,7 @@ try {
     for(let attempt=0;attempt<5&&await page.locator('#toPlacement').isDisabled();attempt++){
       const world=await page.locator('#world').boundingBox(),x=world.x+world.width*(mobile ? .19 : .34),y=world.y+world.height*.5;
       if(mobile)await page.touchscreen.tap(x,y);else await page.mouse.click(x,y);
-      await page.waitForTimeout(250);
+      await page.waitForTimeout(250);if(await page.locator('#claimCell').isVisible())await page.locator('#claimCell').click();
     }
     assert.equal(await page.locator('#toPlacement').isEnabled(),true,'The first globe brush stroke must establish the placement');
     await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');

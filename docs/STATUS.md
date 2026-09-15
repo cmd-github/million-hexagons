@@ -6,12 +6,12 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Finish the placement-studio migration by validating owner-edit footprint lock and updating remaining scale/regional legacy browser scripts that still encode the removed Place stage. Keep the new direct-on-globe Design -> Review journey as the product contract.
+- [ ] Finish the placement-studio migration by validating owner-edit footprint lock and updating remaining scale/regional legacy browser scripts that still encode the removed Place stage. Keep the confirmed starting-spot and direct-on-globe Design -> Review journey as the product contract.
 
 ## Next
 
 - [ ] Finish the remaining [Craig UI review](craiguireview.md): relative and live-updating activity (expanded initially); brand-colour/white background stars; zoom-sensitive spin and living tour framing; shorter sign-in confirmation; an inline search field whose blank submit is a no-op.
-- [ ] Decide the larger placement-flow questions from the review before implementation: whether multiple image layers are a launch requirement, and whether Design and Place become one globe interaction while retaining an intelligible availability/reservation boundary.
+- [ ] Decide whether multiple image layers are a launch requirement; retain the confirmed starting-spot interaction as the availability boundary inside the single Design -> Review flow.
 - [ ] Complete the reservation follow-up: make the initial hold 20 minutes, show a subtle urgency state, and permit one explicit 10-minute extension without indefinite renewal. Validate expiry, extension races, checkout-session expiry and release.
 - [ ] Validate destination URLs through a safe server-side policy before publication, including redirects/timeouts and a clear decision for unreachable or 404 destinations; do not turn the browser into a URL reachability oracle.
 - [ ] Confirm whether Stripe Embedded Checkout can prefill the verified signed-in email without weakening payment/owner identity handling, and add a visible account/change-user or sign-out action in Review.
@@ -31,6 +31,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Revisit globe surface studies, achievements, advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Replaced the implicit first brush placement with an explicit starting-spot step. Create eases closer without selecting a location, keeps globe navigation active and requires close-up visible hexagons; the first click proposes an available hexagon in the normal cell popup and Start here confirms it. Choose another spot repeats the same two-click interaction and relocates the complete footprint and artwork intact. Painting a colour adds it to an eight-item recent-colours row for one-click reuse. Desktop/mobile browser coverage verifies the zero state, zoom-gated confirmation, unchanged design before confirmation, full-footprint relocation, retained image transform, recent swatches and the direct Review journey; production build and navigation pass.
 
 - [x] Removed the final implicit/random first hexagon from Create. A fresh studio now opens at zero hexagons and $0 with Review and the count controls disabled; the first brush stroke on any visible available globe hexagon establishes the placement anchor and creates the selected hexagonal brush footprint. Only then do price, Review and minus/plus resizing become available. Desktop/mobile browser coverage asserts the zero state, disabled actions, a seven-hexagon first Medium stroke and the subsequent connected growth/delete/undo flow; production build and navigation passed. Deployed source `b77feec0` as staging Worker `1e1dd78f-5105-4124-a1db-890d4d83083d`. The live desktop/mobile Design -> Review -> Stripe-mount and reservation/release journeys passed with no payment submitted; all 1,549 runtime objects and CDN health passed.
 

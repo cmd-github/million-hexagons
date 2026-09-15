@@ -9,6 +9,7 @@ for(const [width,height] of [[320,568],[390,844],[1024,768],[1440,900]]){
  const rail=await p.locator('.globe-controls').evaluate(element=>({display:getComputedStyle(element).display,columns:getComputedStyle(element).gridTemplateColumns}));
  assert.equal(rail.display,'grid');assert.ok(rail.columns.split(' ').length===1,'Every viewport must keep the desktop vertical control rail');
  await p.locator('#claimButton').click();await p.locator('#designStep').waitFor({state:'visible'});
+ const start=await p.evaluate(()=>window.geodesicQA.state().designAnchor);await p.evaluate(id=>window.geodesicQA.focus(id,.6),start);const startPos=await p.evaluate(id=>window.geodesicQA.screen(id),start);if(mobile)await p.touchscreen.tap(startPos.x,startPos.y);else await p.mouse.click(startPos.x,startPos.y);await p.locator('#claimCell').waitFor({state:'visible'});await p.locator('#claimCell').click();await p.waitForFunction(()=>window.geodesicQA.state().design.length===1);
  await p.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');await p.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Change image');await p.locator('#moveImageMode').click();
  const box=await p.locator('#buyPanel').evaluate(e=>({height:e.clientHeight,scroll:e.scrollHeight,width:e.clientWidth,scrollWidth:e.scrollWidth}));console.log(width,height,box);assert.ok(box.scroll<=box.height+1&&box.scrollWidth<=box.width+1);
  await p.screenshot({path:'artifacts/globe-design/fit-'+width+'.png'});await p.close();

@@ -11,6 +11,12 @@ body.creating .flow-progress small{font-size:10px}
 body[data-flow=design] #designStep{display:flex;flex:1;min-height:0;flex-direction:column;gap:14px;animation:none}
 #designStep .studio-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 #designIntro{display:none}
+#startingSpotPrompt{display:none;padding:16px;border:1px solid #d7ff5540;border-radius:12px;background:#d7ff5508;color:#dce8e5}
+#startingSpotPrompt p{margin:0 0 8px;font-size:13px;line-height:1.5}
+#startingSpotPrompt small{color:var(--lime);font-size:10px}
+body.choosing-start #startingSpotPrompt{display:block}
+body.choosing-start #designStep .studio-setup,body.choosing-start #designStep .studio-workspace,body.choosing-start #designStep .design-footer,body.choosing-start #designStep>#artworkQuality,body.choosing-start #designStep>#uploadStatus{display:none!important}
+body.choosing-start .cell-tooltip{z-index:35}
 #designStep .add-image{display:flex;align-items:center;gap:7px;border:1px solid #d4ff5844;background:#d4ff5810;color:var(--lime);border-radius:10px;height:40px;cursor:pointer;white-space:nowrap;font-size:12px}
 #designStep .add-image>span:first-child{font-size:20px}
 #logoUpload:focus-visible+.add-image{outline:2px solid var(--lime)}
@@ -34,6 +40,10 @@ body[data-flow=design] #designStep{display:flex;flex:1;min-height:0;flex-directi
 #logoPositionControls input[type=range]{width:clamp(64px,12vw,160px);padding:0;margin:0;min-height:22px;accent-color:var(--lime)}
 #logoScaleValue{width:32px;font-size:10px}
 #brushControls label{display:flex;align-items:center;gap:5px;font-size:10px}
+#recentColours{display:flex;align-items:center;gap:5px;margin-left:auto}
+#recentColours[hidden]{display:none}
+#recentColours>small{margin-right:2px;color:#8199a2;font-size:9px}
+#designStep #recentColours .recent-colour{width:24px;height:24px;min-height:24px;padding:0;border:2px solid #ffffff55;border-radius:50%}
 #brushControls button{min-height:28px;font-size:10px;padding:4px 8px;background:none;border:1px solid transparent;color:#90a8b2}
 #brushControls button[aria-pressed=true]{color:var(--lime);border-color:#d4ff5840}
 #paintColourChip{display:none}

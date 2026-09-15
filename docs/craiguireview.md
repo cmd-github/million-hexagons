@@ -29,3 +29,7 @@ ux needs redesignign for placements
 - dont require https on website - allow even "xxxx.com" for example - make sure site is not 404
 - if user already logged in can email be prefilled on stripe form
 - on payment recevied screen - and adding placement to globe - make the text larger and use loading animation
+- Create starts with "1. Choose your starting spot" and keeps the globe movable; selection is only available once individual hexagons are visible
+- clicking an available starting hexagon should propose it first, then require an explicit Start here confirmation in the normal cell popup
+- Choose another spot should repeat that confirmation and move the complete design rather than rebuilding or losing it
+- once a paint colour has actually been used, add it to a recent colours pane for quick reuse

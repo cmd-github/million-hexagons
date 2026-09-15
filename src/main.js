@@ -261,18 +261,23 @@ let explorationStart = null;
 let requestedAnchor = null;
 let pinnedCell = null;
 let designSurface = "canvas", exactGlobeArea = false;
+let designStartingSpotConfirmed = false;
+const recentColours=[];
 let hoverTimer, globeStroke = null, flightVersion=0;
 let forceIntersectionMiss=false;
 for(const type of ['pointerdown','wheel','keydown'])document.addEventListener(type,()=>flightVersion++,{capture:true,passive:true});
 canvas.addEventListener('pointerdown', event => { explorationStart = {x:event.clientX,y:event.clientY}; });
 canvas.addEventListener('pointerup', async event => {
   const start=explorationStart;explorationStart=null;
-  if(document.body.classList.contains('creating')||!start)return;
+  if(!start)return;
   if(Math.hypot(event.clientX-start.x,event.clientY-start.y)>6){closeInspector();return;}
+  const choosingStart=document.body.classList.contains('choosing-start');
+  if(document.body.classList.contains('creating')&&!choosingStart)return;
   const interactionVersion=flightVersion;
   if (camera.position.length() < globeFitDistance() * .82) controls.autoRotate = false;
   const hit=await intersectReady(event);if(interactionVersion!==flightVersion)return;if(!hit?.uv){closeInspector();return;}
-  if (!hit.cell.occupied) { closeInspector();if(camera.position.length()>radius+1.0)return; pinnedCell=hit.cell; updateTooltip(event,hit.cell,true); return; }
+  if (!hit.cell.occupied) { closeInspector();if(camera.position.length()>radius+1.0){if(choosingStart)document.querySelector('#startingSpotStatus').textContent='Zoom in until the individual hexagons appear.';return;} pinnedCell=hit.cell; updateTooltip(event,hit.cell,true);if(choosingStart){document.querySelector('#claimCell').textContent='Start here';document.querySelector('#startingSpotStatus').textContent=`Hexagon ${hit.cell.id.toLocaleString()} selected. Confirm it in the popup.`;}return; }
+  if(choosingStart){document.querySelector('#startingSpotStatus').textContent='That hexagon is already purchased. Choose an available one.';return;}
   inspectPlacement(hit.cell.id);
 
 });
@@ -349,6 +354,7 @@ function updateTooltip(event, cell, pinned = false) {
   destination.textContent=cell.destination?new URL(cell.destination).hostname.replace(/^www\./,''):'';
   const claim=document.querySelector('#claimCell');
   claim.hidden=cell.occupied || camera.position.length()>radius+1.0;
+  claim.textContent=document.body.classList.contains('choosing-start')?'Start here':'Claim this space';
   claim.dataset.anchor=cell.occupied?'':String(cell.id);
   tooltip.style.left = `${Math.min(innerWidth - 205, event.clientX + 16)}px`;
   tooltip.style.top = `${Math.min(innerHeight - (cell.occupied ? 90 : 130), event.clientY + 16)}px`;
@@ -598,12 +604,14 @@ async function openBuy(anchor = null, ownerUpdate = null) {
     document.querySelector('#logoScale').value=Number(transform.scale||100);document.querySelector('#logoScaleValue').textContent=`${document.querySelector('#logoScale').value}%`;logoPosition.x=Number(transform.x||0);logoPosition.y=Number(transform.y||0);document.querySelector('#logoOrientation').value=Number(transform.rotation||0);updateLogoPreviewOrientation();
     document.querySelector('#companyName').value=ownerEdit.record.title||'';document.querySelector('#companyDescription').value=ownerEdit.record.description||'';document.querySelector('#website').value=ownerEdit.record.destinationUrl||'';
   }
-  configureCreation();setDesignSurface('globe');
+  designStartingSpotConfirmed=Boolean(ownerEdit||logoCells.length);configureCreation();setDesignSurface('globe');
+  document.body.classList.toggle('choosing-start',!designStartingSpotConfirmed);
   document.body.classList.toggle('owner-editing',Boolean(ownerEdit));
-  document.querySelector('#sizeControls').hidden=Boolean(ownerEdit);document.querySelector('#removeHexMode').hidden=Boolean(ownerEdit);document.querySelector('#relocateDesignMode').hidden=Boolean(ownerEdit);
-  document.querySelector('#designTitle').textContent=ownerEdit?'Update your placement.':'Make it yours.';document.querySelector('#designIntro').textContent=ownerEdit?'Your purchased space is locked. Update what appears inside it.':'Your space. Your design.';
+  document.querySelector('#sizeControls').hidden=Boolean(ownerEdit);document.querySelector('#removeHexMode').hidden=Boolean(ownerEdit);document.querySelector('#changeStartSpot').hidden=Boolean(ownerEdit);
+  document.querySelector('#designTitle').textContent=ownerEdit?'Update your placement.':designStartingSpotConfirmed?'2. Create your design':'1. Choose your starting spot';document.querySelector('#designIntro').textContent=ownerEdit?'Your purchased space is locked. Update what appears inside it.':'Your space. Your design.';
   document.querySelector('#toPlacement').textContent=ownerEdit?'Review changes →':'Review placement →';document.querySelector('#previewPurchase').textContent=ownerEdit?'Save changes':'Continue to secure checkout';
   if(ownerEdit)for(const id of ['price','placePrice','reviewPrice'])document.getElementById(id).textContent='Owned';
+  if(!designStartingSpotConfirmed){setEditorMode('pan',false);cameraDistanceTarget=Math.min(camera.position.length(),radius+1.45);document.querySelector('#startingSpotStatus').textContent='Zoom in to select a starting position.';}
   await nextPaint();hideLoading();openingEditor=false;
   trackEvent('design_started',{context:{cellCount:1,source:'studio'}});
 
@@ -694,7 +702,7 @@ function closeBuy() {
   clearSelectionColours();
   clearPlacementPreview();
   requestedAnchor = null;
-  ownerEdit=null;document.body.classList.remove('owner-editing');document.querySelector('#removeHexMode').hidden=false;document.querySelector('#relocateDesignMode').hidden=false;document.querySelector('#previewPurchase').textContent='Continue to secure checkout';
+  ownerEdit=null;designStartingSpotConfirmed=false;document.body.classList.remove('owner-editing','choosing-start');document.querySelector('#removeHexMode').hidden=false;document.querySelector('#changeStartSpot').hidden=false;document.querySelector('#previewPurchase').textContent='Continue to secure checkout';
   pinnedCell = null;
   document.querySelector('#hint').innerHTML = '<span title="Drag to rotate" role="img" aria-label="Drag to rotate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18m-5-4 4 4-4 4M8 8l-4 4 4 4"/></svg></span><i></i><span title="Scroll to zoom" role="img" aria-label="Scroll to zoom"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14m5 12 6 6M7 10h6m-3-3v6"/></svg></span><i></i><span title="Click a tile" role="img" aria-label="Click a tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3 14 10-7 1-3 7z"/></svg></span>';
 }
@@ -702,6 +710,7 @@ document.querySelector('#claimButton').addEventListener('click', () => openBuy()
 document.querySelector('#claimCell').addEventListener('click', (event) => {
   event.stopPropagation();
   const anchor=Number(event.currentTarget.dataset.anchor);
+  if(document.body.classList.contains('choosing-start')&&anchor){void confirmStartingSpot(anchor);return;}
   if(anchor)openBuy(anchor);
 });
 document.querySelector('#closeBuy').addEventListener('click', closeBuy);
@@ -768,6 +777,12 @@ function updatePaintColour() {
   document.querySelector('#paintColourChip').style.background = document.querySelector('#brushColor').value;
   renderSelectionPreview();
   drawDesignPreview();
+}
+function rememberRecentColour(colour){
+  const value=String(colour||'').toLowerCase();if(!/^#[0-9a-f]{6}$/.test(value))return;
+  const existing=recentColours.indexOf(value);if(existing>=0)recentColours.splice(existing,1);recentColours.unshift(value);recentColours.splice(8);
+  const pane=document.querySelector('#recentColours');pane.hidden=!recentColours.length;pane.querySelectorAll('button').forEach(button=>button.remove());
+  for(const item of recentColours){const button=document.createElement('button');button.type='button';button.className='recent-colour';button.style.background=item;button.title=item.toUpperCase();button.setAttribute('aria-label',`Use recent colour ${item}`);button.onclick=()=>{document.querySelector('#brushColor').value=item;updatePaintColour();};pane.append(button);}
 }
 document.querySelector('#brandColor').addEventListener('input', updatePaintColour);
 
@@ -988,6 +1003,22 @@ function configureCreation() {
   showFlowStep('design');
   drawDesignPreview();updateTotals();
 }
+async function confirmStartingSpot(id){
+  if(!Number.isInteger(id)||occupiedCells[id-1])return;
+  const button=document.querySelector('#claimCell');button.disabled=true;button.textContent='Checking…';
+  try{
+    await prepareLocation(id,.12);
+    const next=logoCells.length?await topology.run(()=>relocateDesign(previewCells(),id)):topology.cells([{id}],id);
+    if(next.some(cell=>occupiedCells[cell.id-1])){document.querySelector('#startingSpotStatus').textContent='The complete design does not fit here. Choose another available spot.';return;}
+    if(logoCells.length)rememberPaint();
+    designAnchor=id;logoCells=next;amountInput.value=next.length;footprintEdited=true;exactGlobeArea=true;designStartingSpotConfirmed=true;selectedCell=cellForId(id);selectedCells=next;
+    document.body.classList.remove('choosing-start');pinnedCell=null;tooltip.classList.remove('show','pinned');document.querySelector('#designTitle').textContent='2. Create your design';setEditorMode('paint',false);drawDesignPreview();updateTotals();
+  }catch{document.querySelector('#startingSpotStatus').textContent='Could not check this spot. Please try again.';}
+  finally{button.disabled=false;button.textContent='Start here';}
+}
+function chooseAnotherStartingSpot(){
+  designStartingSpotConfirmed=false;document.body.classList.add('choosing-start');document.querySelector('#designTitle').textContent='1. Choose your starting spot';document.querySelector('#startingSpotStatus').textContent=logoCells.length?'Choose and confirm a new spot to move your complete design.':'Zoom in to select a starting position.';pinnedCell=null;tooltip.classList.remove('show','pinned');setEditorMode('pan',false);
+}
 function updateImageControls() {
   document.querySelector('#removeImage').hidden=!uploadedLogo;
   document.querySelector('#logoOptions').hidden=!uploadedLogo;
@@ -1002,7 +1033,7 @@ function setEditorMode(mode, zoomToCells=true) {
   logoEditorMode=mode;logoDrag=null;editorPan=null;lastPaintedCell=null;
   document.querySelector('#areaBrushControls').hidden=!['remove','paint'].includes(mode);
   const brushing=mode==='paint';
-  for(const [id,value] of [['moveImageMode','move'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan'],['relocateDesignMode','relocate']]) {
+  for(const [id,value] of [['moveImageMode','move'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan']]) {
     const button=document.querySelector(`#${id}`),active=value===mode;
     button.setAttribute('aria-pressed',String(active));button.classList.toggle('active',active);
   }
@@ -1153,9 +1184,10 @@ document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesig
 document.querySelectorAll('[data-treatment]').forEach((button) => button.addEventListener('click', () => { document.querySelector('#logoTreatment').value = button.dataset.treatment; document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
 document.querySelectorAll('[data-treatment]').forEach((item) => item.classList.toggle('active', item === button)); drawDesignPreview(); updateLogoGuidance(); }));
 document.querySelector('#logoScale').addEventListener('input', () => { document.querySelector('#logoScaleValue').textContent = `${document.querySelector('#logoScale').value}%`; drawDesignPreview(); });
-for(const [id,mode] of [['moveImageMode','move'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan'],['relocateDesignMode','relocate']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode));
+for(const [id,mode] of [['moveImageMode','move'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode));
+document.querySelector('#changeStartSpot').addEventListener('click',chooseAnotherStartingSpot);
 document.querySelector('#brushColor').addEventListener('input',()=>{document.querySelector('#paintColourChip').style.background=document.querySelector('#brushColor').value;});
-document.querySelector('#fillCells').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;rememberPaint();logoCells=previewCells().map(c=>({...c,color:document.querySelector('#brushColor').value,transparent:false}));footprintEdited=true;drawDesignPreview();});
+document.querySelector('#fillCells').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;rememberPaint();const colour=document.querySelector('#brushColor').value;logoCells=previewCells().map(c=>({...c,color,transparent:false}));rememberRecentColour(colour);footprintEdited=true;drawDesignPreview();});
 document.querySelector('#removeImage').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;document.querySelector('#artworkQuality').hidden=true;
   uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();});
 function resetLogoTransform() {
@@ -1983,25 +2015,14 @@ function applyGlobeCell(id,stroke){
     let pending=brush.filter(n=>!occupiedCells[n-1]&&!next.has(n));
     if(!next.size&&pending.includes(id)){designAnchor=id;next.set(id,{id});pending=pending.filter(n=>n!==id);}
     for(let pass=0;pending.length&&pass<=reach+1;pass++){const rest=[];for(const n of pending){if(next.size<100000&&topology.neighboursOf(n).some(k=>next.has(k)))next.set(n,{id:n});else rest.push(n);}if(rest.length===pending.length)break;pending=rest;}
-    for(const n of brush){const cell=next.get(n);if(cell){cell.color=document.querySelector('#brushColor').value;delete cell.transparent;}}
+    const colour=document.querySelector('#brushColor').value;for(const n of brush){const cell=next.get(n);if(cell){cell.color=colour;delete cell.transparent;}}rememberRecentColour(colour);
   }
   logoCells=topology.cells([...next.values()],designAnchor);footprintEdited=true;exactGlobeArea=true;amountInput.value=next.size;queueDesignPreview();
-}
-async function relocateGlobeDesign(id){
-  if(ownerEdit||occupiedCells[id-1]){document.querySelector('#toolHint').textContent=ownerEdit?'Purchased hexagons cannot be moved.':'That hexagon is already purchased.';return;}
-  const button=document.querySelector('#relocateDesignMode');button.disabled=true;document.querySelector('#toolHint').textContent='Checking this location…';
-  try{
-    const relocated=await prepareRelocation(id),blocked=relocated.some(cell=>occupiedCells[cell.id-1]);
-    if(blocked){document.querySelector('#toolHint').textContent='The design overlaps purchased hexagons here. Try another area.';return;}
-    rememberPaint();designAnchor=id;logoCells=topology.cells(relocated,id);selectedCell=cellForId(id);selectedCells=logoCells;footprintEdited=true;exactGlobeArea=true;queueDesignPreview();setEditorMode('paint',false);
-  }catch{document.querySelector('#toolHint').textContent='Could not load this location. Try again.';}
-  finally{button.disabled=false;}
 }
 canvas.addEventListener('pointerdown',event=>{
   clearTimeout(hoverTimer);
   if(document.body.dataset.flow!=='design'||designSurface!=='globe'||logoEditorMode==='pan'||event.button!==0)return;
   const hit=intersect(event);if(!hit)return;
-  if(logoEditorMode==='relocate'){void relocateGlobeDesign(hit.cell.id);return;}
   globeStroke={last:null,x:event.clientX,y:event.clientY,position:{...logoPosition}};
   rememberPaint();canvas.setPointerCapture(event.pointerId);
   if(logoEditorMode!=='move')editGlobeCell(hit.cell.id);
