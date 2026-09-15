@@ -6,7 +6,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Complete Craig's placement-studio review as one tested journey: validate the new direct-on-globe Design -> Review flow, checkout completion and owner-edit footprint lock on staging and update the canonical browser suites that still encode the removed Place stage.
+- [ ] Finish the placement-studio migration by validating owner-edit footprint lock and updating remaining scale/regional legacy browser scripts that still encode the removed Place stage. Keep the new direct-on-globe Design -> Review journey as the product contract.
 
 ## Next
 
@@ -31,6 +31,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Revisit globe surface studies, achievements, advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Removed the customer-visible Place stage and made location part of Design. The studio now goes directly from Design on the globe to Review; Draw paints owned hexagons and grows onto blank connected hexagons, Delete is the only removal tool and cannot disconnect the footprint, Move globe and Move design are first-screen options, the count is labelled Hexagons with large minus/plus controls, and four visible hexagon-shaped brush buttons replace the dropdown. Product direction, README and the core browser journeys now describe the two-step flow. Production/staging builds, exact geometry, desktop/mobile direct-draw/undo/delete/review, desktop composition and live reservation/release passed. Deployed source `bd871d94` as staging Worker `ed183713-d0fb-405c-a8d5-a88f42210c36`, retaining runtime release `6121418c93f84b0a7fd8b572f3f386de309edec9ba6bc2aefcc2d44e084374b2`; all 1,549 objects and live CDN health passed. The live desktop/mobile Design -> Review -> Stripe-mount retry passed with zero browser errors and no payment submitted after one concurrent startup attempt timed out.
 
 - [x] Started Craig's placement-studio review with the defined, low-risk interaction fixes. Create now keeps the current globe zoom; Cells opens directly in Paint and groups Paint/Add/Remove/Clear/Restore with named Small/Medium/Large/XL brushes; the Image tab owns layout, movement, zoom, rotation, reset and removal; Review uses person-or-company wording and accepts a bare domain by safely normalising it to HTTPS; reservation copy no longer says "server confirmed"; and payment publication uses a larger branded loading state. Production build, exact geometry, desktop/mobile globe-design and desktop-composition journeys pass. Deployed source `86b35327` as staging Worker `9c2e654f-770b-4a1b-9dfd-77402afebd1c`, retaining immutable runtime release `6121418c93f84b0a7fd8b572f3f386de309edec9ba6bc2aefcc2d44e084374b2`. All 1,549 runtime objects and the live HTTPS/CDN health check passed. Live desktop/mobile Design -> Place -> Review -> Stripe mount, reservation display/release, warm reload, startup retry and missing-asset checks passed with zero browser errors and no payment submitted; rendered mobile Design and Review were inspected.
 
