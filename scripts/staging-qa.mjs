@@ -40,12 +40,10 @@ try {
     }
     await page.locator('#claimButton').click();
     await page.locator('#designStep').waitFor({ state: 'visible', timeout: 90000 });
-    for(let attempt=0;attempt<5&&await page.locator('#toPlacement').isDisabled();attempt++){
-      const world=await page.locator('#world').boundingBox(),x=world.x+world.width*(mobile ? .19 : .34),y=world.y+world.height*.5;
-      if(mobile)await page.touchscreen.tap(x,y);else await page.mouse.click(x,y);
-      await page.waitForTimeout(250);if(await page.locator('#claimCell').isVisible())await page.locator('#claimCell').click();
-    }
-    assert.equal(await page.locator('#toPlacement').isEnabled(),true,'The first globe brush stroke must establish the placement');
+    await page.locator('#homeView').click();await page.waitForTimeout(2300);for(let zoom=0;zoom<8;zoom++){await page.locator('#zoomIn').click();await page.waitForTimeout(160);}await page.waitForTimeout(500);
+    const world=await page.locator('#world').boundingBox(),panel=await page.locator('#buyPanel').boundingBox(),x=(panel?.x||world.width)*.5,y=world.y+world.height*.5;if(mobile)await page.touchscreen.tap(x,y);else await page.mouse.click(x,y);await page.waitForTimeout(250);if(await page.locator('#claimCell').isVisible()){assert.equal(await page.locator('#claimCell').textContent(),'Start here');await page.locator('#claimCell').click();}
+    await page.waitForFunction(()=>Number(document.querySelector('#hexAmount').value)===1);
+    assert.equal(await page.locator('#toPlacement').isEnabled(),true,'Confirming the starting hexagon must establish the placement');
     await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');
     await page.waitForFunction(() => document.querySelector('#addImageLabel').textContent === 'Change image');
     await page.locator('#moveImageMode').click();

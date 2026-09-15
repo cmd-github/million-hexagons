@@ -264,6 +264,7 @@ let designSurface = "canvas", exactGlobeArea = false;
 let designStartingSpotConfirmed = false;
 const recentColours=[];
 let hoverTimer, globeStroke = null, flightVersion=0;
+function individualHexagonsVisible(){return Boolean(cellDetail&&cellDetail.stats.ready>0&&cellDetail.material.uniforms.visibility.value>.12);}
 let forceIntersectionMiss=false;
 for(const type of ['pointerdown','wheel','keydown'])document.addEventListener(type,()=>flightVersion++,{capture:true,passive:true});
 canvas.addEventListener('pointerdown', event => { explorationStart = {x:event.clientX,y:event.clientY}; });
@@ -276,7 +277,7 @@ canvas.addEventListener('pointerup', async event => {
   const interactionVersion=flightVersion;
   if (camera.position.length() < globeFitDistance() * .82) controls.autoRotate = false;
   const hit=await intersectReady(event);if(interactionVersion!==flightVersion)return;if(!hit?.uv){closeInspector();return;}
-  if (!hit.cell.occupied) { closeInspector();if(camera.position.length()>radius+1.0){if(choosingStart)document.querySelector('#startingSpotStatus').textContent='Zoom in until the individual hexagons appear.';return;} pinnedCell=hit.cell; updateTooltip(event,hit.cell,true);if(choosingStart){document.querySelector('#claimCell').textContent='Start here';document.querySelector('#startingSpotStatus').textContent=`Hexagon ${hit.cell.id.toLocaleString()} selected. Confirm it in the popup.`;}return; }
+  if (!hit.cell.occupied) { closeInspector();if(!individualHexagonsVisible()){if(choosingStart)document.querySelector('#startingSpotStatus').textContent='Zoom in until the individual hexagons appear.';return;} pinnedCell=hit.cell; updateTooltip(event,hit.cell,true);if(choosingStart){document.querySelector('#claimCell').textContent='Start here';document.querySelector('#startingSpotStatus').textContent=`Hexagon ${hit.cell.id.toLocaleString()} selected. Confirm it in the popup.`;}return; }
   if(choosingStart){document.querySelector('#startingSpotStatus').textContent='That hexagon is already purchased. Choose an available one.';return;}
   inspectPlacement(hit.cell.id);
 
@@ -353,7 +354,7 @@ function updateTooltip(event, cell, pinned = false) {
   destination.hidden=!cell.destination;
   destination.textContent=cell.destination?new URL(cell.destination).hostname.replace(/^www\./,''):'';
   const claim=document.querySelector('#claimCell');
-  claim.hidden=cell.occupied || camera.position.length()>radius+1.0;
+  claim.hidden=cell.occupied || !individualHexagonsVisible();
   claim.textContent=document.body.classList.contains('choosing-start')?'Start here':'Claim this space';
   claim.dataset.anchor=cell.occupied?'':String(cell.id);
   tooltip.style.left = `${Math.min(innerWidth - 205, event.clientX + 16)}px`;
@@ -510,7 +511,7 @@ canvas.addEventListener('pointermove', (event) => {
     return;
   }
   const cell = hit.cell;
-  if (!selecting) { clearTimeout(hoverTimer);tooltip.classList.remove('show');if(!event.buttons&&camera.position.length()<=radius+1.0)hoverTimer=setTimeout(()=>updateTooltip(event,cell),250);return;}
+  if (!selecting) { clearTimeout(hoverTimer);tooltip.classList.remove('show');if(!event.buttons&&individualHexagonsVisible())hoverTimer=setTimeout(()=>updateTooltip(event,cell),250);return;}
   if (buyInteractionMode !== 'place') {
     clearHover();
     tooltip.classList.remove('show');
