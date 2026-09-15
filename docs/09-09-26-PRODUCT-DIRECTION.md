@@ -616,6 +616,11 @@ placement URL and preview artwork, the mobile and desktop interaction, analytics
 failure/fallback behaviour and what remains deliberately post-launch. Do not treat
 the existing generic share card or copied location link as acceptance by itself.
 
+Design work for this decision is in
+[the shareable memento brief](SHAREABLE-MEMENTO-BRIEF.md), which links the concept deck
+and the rendered card system. Not yet accepted — the copy system is settled, the headline
+treatment and the Open Graph metadata are not.
+
 ---
 
 # 16. Achievements and social status — POST-LAUNCH / ITERATIVE
@@ -1144,7 +1149,7 @@ A buyer must be able to:
 - rewrite and test the main page title/headline so the product proposition, scarcity and action are immediately clear
 - review the public activity log/feed for trustworthy data, useful ordering, clear empty/error states and unobtrusive mobile behaviour
 - enrich the background space treatment with deliberate green hexagon elements while protecting globe legibility, interaction clarity, accessibility and rendering performance
-- decide and implement the launch sharing experience for new purchases, including the post-payment moment, permanent placement link, share asset, supported destinations, mobile/desktop fallbacks and measurement
+- decide and implement the launch sharing experience for new purchases, including the post-payment moment, permanent placement link, share asset, supported destinations, mobile/desktop fallbacks and measurement — see [the shareable memento brief](SHAREABLE-MEMENTO-BRIEF.md) for the design work to date
 
 ---
 

@@ -2272,13 +2272,3 @@ setInterval(()=>{
   text.classList.add('typing');
   const erase=()=>{length=Math.max(0,length-3);text.textContent=previous.slice(0,length);if(length)metricTimer=setTimeout(erase,20);else{let cursor=0;const type=()=>{cursor=Math.min(next.length,cursor+2);text.textContent=next.slice(0,cursor);if(cursor<next.length)metricTimer=setTimeout(type,32);else text.classList.remove('typing');};metricTimer=setTimeout(type,120);}};erase();
 },14000);
-
-// The comparison lab is available only from `npm run dev:globe-study`. It never
-// enters the staging or production bundle and does not alter claim inventory.
-if(import.meta.env.DEV&&import.meta.env.MODE==='globe-study'){
-  void import('./globe/study-lab.js').then(({mountGlobeStudy})=>mountGlobeStudy({
-    material:globeMaterial,
-    artworkGroups:[artworkTiles.group,placementLayers],
-    pauseRotation(){controls.autoRotate=false;updateRotationControl();},
-  })).catch(error=>console.error('Could not open globe study controls',error));
-}

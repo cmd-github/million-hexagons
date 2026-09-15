@@ -84,7 +84,7 @@ Inspect `artifacts/staging/*-{globe,design,review,checkout}.png` and `browser-re
 
 A local build is explicitly marked and refused by remote upload/deploy commands. Clear the temporary variable with `Remove-Item Env:MH_ASSET_ORIGIN` and rebuild before remote deployment. To check the deployed app, run the same QA script with `$env:SMOKE_URL` set to its actual Workers URL. The script creates only browser-session previews.
 
-CI runs deployment unit checks, geometry tests, the staging build/allowlist checks and a Wrangler dry run with a deliberately non-routable asset origin. It has no cloud credentials and does not deploy. Live CDN, browser and physical-device results are separate evidence.
+CI runs `npm run test:launch`: repository hygiene, all deterministic repository tests, backend tests, the staging build/release-integrity checks and a Wrangler dry run with a deliberately non-routable asset origin. It has no cloud credentials and does not deploy. Live CDN, browser, payment and physical-device results are separate evidence.
 
 Local evidence, 9 September 2026: five deployment tests and four geometry tests passed; normal/staging/holding-site builds and Wrangler dry run passed. The separated-origin browser check passed desktop/mobile publication, Review/Edit, warm reload and failure retry with zero browser errors or Firestore requests. Current exact-cell design/navigation suites passed at 320/390/1024/1440 widths on a fresh development server. Screenshots were inspected. The sample runtime release contains 8,196 files (33.3 MB); the static app contains 20 files. npm audit reported zero vulnerabilities; a scoped Miniflare Sharp override uses the project's patched Sharp dependency.
 
@@ -96,7 +96,7 @@ Rollback rehearsal (9 September 2026): deployed version `7a1235fc-2d95-40b9-a313
 
 Run `node scripts/staging-health.mjs` for a small public check of HTTPS, app JS/CSS/worker bundles, runtime release references, inventory lengths, CORS, cache headers and six root artwork tiles. Reports go to `artifacts/staging/health.json`. A simulated HTTP 503 was confirmed to fail the check. It does not download all tiles or the 17 MB topology on every run and does not replace browser QA.
 
-`.github/workflows/staging-health.yml` runs on relevant pushes, manually and approximately every 30 minutes, retaining reports for 14 days. GitHub schedules can be delayed; this is basic availability monitoring, not a guaranteed alerting service. Configure Craig's GitHub Actions failure notifications and confirm receipt; no email/webhook destination has been configured by the agent. Account budget alerts remain a Cloudflare dashboard task. No visitor identifiers or business events are collected.
+`.github/workflows/staging-health.yml` runs on relevant pushes, manually and approximately every 30 minutes, retaining reports for 14 days. GitHub schedules can be delayed; this is basic availability monitoring, not a guaranteed alerting service. Staging GitHub Actions failure-email delivery was confirmed on 9 September 2026; no separate production alert destination or escalation route is configured. Account budget alerts remain a Cloudflare dashboard task. No visitor identifiers or business events are collected by this health check.
 
 To verify notification delivery without breaking staging, run the workflow manually in GitHub Actions with **Send a test failure notification after the live health check** enabled. The live health check runs first and its report is retained; the final intentional step makes that one run fail. Confirm the failure email arrives, then leave the option disabled for ordinary manual runs.
 
@@ -118,9 +118,9 @@ When updating the monitor to the custom asset hostname, set `requireAssetCacheHi
 
 Provider reference: https://developers.cloudflare.com/r2/buckets/public-buckets/
 
-Use `npm.cmd exec -- wrangler deployments list --config wrangler.staging.jsonc` to find the recorded working version, then `npm.cmd exec -- wrangler rollback <VERSION_ID> --config wrangler.staging.jsonc`. Retain its immutable R2 release and test loading/creation after rollback. Do not delete old releases while a retained Worker version references them. A future paid system must keep ownership/reconciliation running during frontend rollback.
+Use `npm.cmd exec -- wrangler deployments list --config wrangler.staging.jsonc` to find the recorded working version, then `npm.cmd exec -- wrangler rollback <VERSION_ID> --config wrangler.staging.jsonc`. Retain its immutable R2 release and test loading/creation after rollback. Do not delete old releases while a retained Worker version references them. Production rollback must keep ownership, payment reconciliation and publication recovery running independently of the frontend version.
 
-Before phase 1 can be called complete: perform a real upload/deploy and rollback, verify custom-domain cache behaviour, inspect real desktop/mobile delivery and physical-device memory/loading, set account cost alerts, and establish staging/production credentials and operational ownership. Accounts, durable ownership/publication, checkout and production domain cutover remain separate phases in [PRODUCTION-PLAN.md](PRODUCTION-PLAN.md).
+Staging has completed real upload/deploy and rollback, custom-domain cache verification, durable ownership/publication and Stripe test-checkout acceptance. Remaining production and physical-device work is tracked by the seven gates in [production launch acceptance](LAUNCH-ACCEPTANCE.md), including separate production credentials/resources, live payments, DNS cutover, operational ownership, backups, alerts and physical-device memory/loading.
 
 ## Live verification - 9 September 2026, 13:24 UK time (BST)
 

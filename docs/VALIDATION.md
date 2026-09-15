@@ -2,6 +2,8 @@
 
 Run checks relevant to the changed area. A passing build or scripted assertion does not establish visual quality.
 
+`npm run test:launch` is the canonical deterministic pre-production gate. It covers repository hygiene, repository and backend tests, staging build/release integrity and a Worker dry run. Live services, real payments, load testing, visual judgment and physical devices remain separate evidence.
+
 ## Browser QA environment
 
 The interactive Codex/in-app Browser connection is not the repository's browser-test runtime. If the interactive connection reports `No browser is available`, do not infer that Playwright is missing.
@@ -98,9 +100,7 @@ Current globe-only UI checks replace the earlier canvas interaction journeys: sc
 
 Loading transitions: run `node scripts/loading-qa.mjs`. It delays bootstrap/editor topology requests and checks desktop/mobile loading visibility, hidden startup HTML, ready-editor reveal and startup failure retry. Inspect artifacts/loading. Loader CSS is inline in index.html to cover the period before the app stylesheet arrives.
 
-Exploration TODO 14-26: `node scripts/exploration-qa.mjs` checks company search, sample labelling, browser-persistent click counts, eased Home/rotation, tour HUD, hover IDs and outside dismissal on desktop/mobile. `globe-design-qa.mjs` additionally checks company metadata publication, feed entries and HUD pinning. Inspect `artifacts/exploration/` and `artifacts/globe-design/`. Dates remain session-only and click totals are browser-local; this does not validate production analytics or paid claims.
-
-Compact HUD follow-up: exploration QA checks totals after reload, same-owner neighbouring clicks without card mutations (clicked ID is available only in development QA state), sample logos, unique search results and example feed rows. Design QA checks the published image thumbnail. Navigation QA checks claiming at altitude 0.98 and all four viewport widths. Inspect HUD and toolbar screenshots after CSS changes.
+`scripts/exploration-qa.mjs` and its sample/session assertions are legacy prototype coverage, not release evidence for current authoritative activity or analytics. Use the current public-placement, discovery, activity/HUD and durable staging journeys below. Migrate any still-useful interaction assertion before relying on the legacy script.
 
 Artwork and camera polish: run `node --test scripts/artwork-camera.test.mjs` and `node scripts/artwork-camera-qa.mjs`. They cover arbitrary-angle containment, all four artwork corner markers through Review, low-resolution warnings, narrow-screen placement containment, flight cancellation and reduced motion. Inspect `artifacts/artwork-camera/`. Existing globe design/navigation/exploration and streaming checks remain applicable.
 

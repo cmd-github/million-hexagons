@@ -4,7 +4,7 @@ A Vite/Three.js prototype of one shared advertising globe containing exactly 1,0
 
 Current requirements are in [product direction](docs/09-09-26-PRODUCT-DIRECTION.md); [STATUS](docs/STATUS.md) tracks current work. See [architecture](docs/ARCHITECTURE.md) and [validation](docs/VALIDATION.md) when relevant.
 
-The [development-to-production plan](docs/PRODUCTION-PLAN.md) reviews the proposed Cloudflare/Firebase split and defines the implementation sequence and launch gates.
+The ordered release gates and evidence requirements are in [production launch acceptance](docs/LAUNCH-ACCEPTANCE.md).
 
 ## Run
 
@@ -20,14 +20,6 @@ npm run build
 npm run preview -- --port 4181
 ```
 
-To compare launch-globe surface studies locally with real staging artwork, run
-`npm.cmd run dev:globe-study -- --port 4184` and open the LAN URL Vite prints on your phone.
-The floating controls switch between Current, Drift, Strata Drape and Strata Crisp without
-moving the globe; **Show staging artwork** hides or restores artwork for visual comparison.
-This is a development-only mode using public staging data and the pinned runtime release
-in `deploy/staging-monitor.json`. Hiding artwork does not release claimed cells, change
-live totals or create a genuinely empty inventory. The first-pass studies colour the
-base sphere; they do not reproduce the full tiny-hex overview grid in the concept images.
 No account credentials are needed just to browse. Do not submit a test checkout unless
 you intend to create a staging test placement.
 
@@ -51,7 +43,13 @@ Local session previews are not purchases. Staging has accounts, authoritative in
 
 ## Validation
 
-The common suite uses a development server for the exact-cell QA hooks:
+Run the deterministic repository, backend, staging-build and Worker dry-run gate with:
+
+```powershell
+npm run test:launch
+```
+
+Browser journeys use a development server for the exact-cell QA hooks:
 
 ```powershell
 npm run dev -- --port 4180
@@ -66,7 +64,7 @@ Screenshots are written beneath ignored `artifacts/` directories and require ins
 
 ## Hosting
 
-The product globe has a separate [Cloudflare staging workflow](docs/STAGING.md): `npm run build:staging`, `npm run upload:staging`, then `npm run deploy:staging`. It pins an immutable R2 runtime release and retains session-only preview behaviour. One-time account setup and local validation are documented there.
+The product globe has a separate [Cloudflare staging workflow](docs/STAGING.md): `npm run build:staging`, `npm run upload:staging`, then `npm run deploy:staging`. It pins an immutable R2 runtime release and connects the durable staging ownership, publication and Stripe test-checkout services. One-time account setup and local validation are documented there.
 
 Firebase Hosting currently publishes the separate `coming-soon/` site, not the product globe. Its launch signup posts to the `launchSignup` Firebase Function, which stores deduplicated addresses in the server-only `launchSignups` Firestore collection.
 
