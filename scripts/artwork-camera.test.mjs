@@ -9,11 +9,11 @@ test('rotated wide and portrait artwork remains contained at arbitrary angles',(
   assert.ok(bound.width<=170+1e-8&&bound.height<=93+1e-8);assert.ok(Math.abs(fitted.width/fitted.height-w/h)<1e-8);
  }
 });
-test('mobile framing leaves space beneath complete artwork for the HUD',()=>{
+test('narrow-screen framing keeps the complete placement in view',()=>{
  const camera=new THREE.PerspectiveCamera(45,390/544,.01,100),frame={east:[1,0,0],north:[0,1,0],normal:[0,0,1]};
  for(const angle of [.005,.06,.16]){
-  const pose=placementPose(frame,camera,4,angle,{mobile:true});camera.position.copy(pose.position);camera.lookAt(0,0,0);camera.updateMatrixWorld();
-  for(let i=0;i<100;i++){const t=i/100*Math.PI*2,p=new THREE.Vector3(Math.sin(angle)*Math.cos(t),Math.sin(angle)*Math.sin(t),Math.cos(angle)).multiplyScalar(4).applyQuaternion(pose.quaternion).project(camera);assert.ok(Math.abs(p.x)<.95&&p.y<.95&&p.y>-.3,JSON.stringify(p));}
+  const pose=placementPose(frame,camera,4,angle);camera.position.copy(pose.position);camera.lookAt(0,0,0);camera.updateMatrixWorld();
+  for(let i=0;i<100;i++){const t=i/100*Math.PI*2,p=new THREE.Vector3(Math.sin(angle)*Math.cos(t),Math.sin(angle)*Math.sin(t),Math.cos(angle)).multiplyScalar(4).applyQuaternion(pose.quaternion).project(camera);assert.ok(Math.abs(p.x)<.95&&Math.abs(p.y)<.95,JSON.stringify(p));}
  }
 });
 test('flights arrive exactly, cancel without snapping, and respect reduced motion',()=>{

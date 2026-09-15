@@ -12,10 +12,4 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run test:deployment
-      - run: npm run test:geometry
-      - run: npm run build:staging
-        env:
-          MH_ASSET_ORIGIN: https://assets.invalid
-      - run: node --input-type=module -e "import {checkedRelease} from './scripts/staging-release.mjs'; await checkedRelease();"
-      - run: npx wrangler deploy --config wrangler.staging.jsonc --dry-run
+      - run: npm run test:launch

@@ -43,7 +43,9 @@
     "test:globe-startup": "node scripts/globe-startup-qa.mjs",
     "test:desktop-composition": "node scripts/desktop-composition-qa.mjs",
     "test:globe-detail": "node --test scripts/globe-detail.test.mjs",
-    "test:discovery": "node --test scripts/discovery.test.mjs"
+    "test:discovery": "node --test scripts/discovery.test.mjs",
+    "test:hygiene": "node scripts/repo-hygiene.mjs",
+    "test:launch": "node scripts/launch-checks.mjs"
   },
   "dependencies": {
     "firebase": "^12.3.0",
