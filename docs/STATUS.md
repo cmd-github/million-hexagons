@@ -6,28 +6,27 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Complete artwork performance acceptance before activation: benchmark dense varied images, configure the compiler service, and verify the real publication/CDN lifecycle and physical devices. Snapshot publication, bounded changes and regional ownership are implemented behind VITE_ARTWORK_SNAPSHOTS; launch-scale latency is not certified. See [artwork performance](ARTWORK-PERFORMANCE.md).
+- [ ] Gate 1 - resolve the commercial launch decisions with Craig and qualified advice where required: price/currency, VAT or sales-tax treatment, receipts/invoices, refunds/disputes, permanent-use wording, seller identity, governing law and support ownership. Record decisions before finalising checkout and legal copy.
 
 ## Next
 
-- [ ] Execute the prepared 1k/10k/100k/1M varied-image acceptance matrix, including sustained navigation, faults and physical iOS/Android. The matrix is a specification, not generated datasets or completed results.
-- [ ] Complete physical-device acceptance for the desktop composition on iOS and Android, including viewport scaling, touch interaction, globe, Create a placement, Nearby, activity and checkout journeys; apply any browser-specific follow-up found there without adding a second mobile UI.
-- [ ] Review Current, Drift, Strata Drape and Strata Crisp in the local Globe Study mode, blank-visual and with real staging artwork, then choose a direction. The study intentionally omits the concept images' full tiny-hex overview grid and keeps real claimed inventory unchanged. If a cell-aligned overview texture wins, design and performance-test that separately before shipping.
-- [ ] High priority — reimagine the Create a placement UI while preserving the exact Design → Place → Review contract, existing creative tools and purchased-cell accuracy.
-- [ ] High priority — rewrite and test the main page title/headline so it communicates the product, scarcity and primary action immediately.
-- [ ] Review the deployed filled-first green-hexagon background on physical iOS/Android, including perceived depth, text legibility and sustained globe performance. Mobile-emulated frame timing varied between 16.7 and 33.1 ms across local performance runs, so physical-device appearance and performance remain unverified.
-- [ ] High priority — implement the four-value claimed-placement HUD and measurement model: Views for qualified rendered visibility at any zoom, Clicks for deliberate in-app placement selection, Visits for outbound website activation, and Claimed from the authoritative acquisition date. First agree visibility, dwell, occlusion and deduplication rules; keep the three behavioural events separate and add desktop/mobile regression coverage.
-- [ ] Key launch priority — decide and implement the sharing experience for new purchases. Define the post-payment moment, permanent placement link and preview asset, supported share destinations, desktop/mobile fallbacks, analytics and failure states; verify the complete checkout-to-share journey rather than relying on the existing generic share card alone.
-- [ ] Complete the commercial launch decisions: pricing, refunds, permanent-use wording, seller identity and governing law.
-- [ ] Publish the required customer-facing legal and commercial pages before enabling production checkout: terms, privacy, content policy, contact/seller identity and refund/purchase terms; link them before payment and from persistent site navigation.
-- [ ] Complete the launch web-quality surface: real 404 handling, indexable public routes, unique titles/descriptions/canonicals, favicon variants, `robots.txt`, `sitemap.xml`, Open Graph/social metadata and a tested share image.
-- [ ] Add production privacy controls: document all cookies/browser storage, prevent non-essential analytics before consent where required, and verify the production funnel plus server-authored purchase events.
-- [ ] Complete customer-facing acceptance across the purchase journey: meaningful image alternatives, above-the-fold and appropriate sticky mobile CTAs, accessible loading/empty/success/error states, recoverable form failures, and a durable post-purchase ownership/share experience.
-- [ ] Decide how the studio panel should use its spare height. This is structural, not a spacing bug: `resize()` narrows the globe canvas by 490px so the design stays visible beside the panel, so the panel has to fill that column. Measured on desktop, the empty band is 405px in Design, 253px in Place and 160px in Review. A content-height panel cuts Design to 85px but exposes a dead strip where the globe is not drawn; redistributing the space strands the toolbar mid-panel. The options are to put something useful there — a flat preview of the design, which would also address the design being unreadable on the globe past a few hundred cells — or to float a content-height panel over a full-width globe using a camera view offset, which changes rendering behaviour. Related latent bug: `body[data-surface=globe][data-flow=design] .studio-workspace{flex:0}` never applies because `#designStep .studio-workspace{flex:1}` wins on ID specificity, so the workspace never collapses as intended.
-- [ ] Choose the next launch-critical engineering slice after the commercial decisions are settled.
-- [ ] Later: design explicit domain rules for voluntarily merging connected purchases under the same verified owner so one artwork can span the expanded holding.
+- [ ] Gate 2 - observe 5-10 first-time users completing Explore -> Design -> Place -> Review -> test Checkout across desktop and phone. Record unaided completion and misunderstandings; redesign Create only in response to repeated evidence.
+- [ ] Gate 3 - complete the 1k/10k/100k/1M varied-image matrix, compiler/publication lifecycle and explicit loading/memory budgets; verify the complete product, background and sparse twinkles on physical iOS and Android.
+- [ ] Gate 4 - accept and implement the durable purchase-to-share experience, permanent placement URL, memento/preview, desktop/mobile destinations, fallbacks and measurement; verify a fresh checkout-to-recipient journey.
+- [ ] Gate 5 - ship the approved headline, indexable routes, metadata, correct 404, sitemap, Open Graph assets, legal/commercial pages, consent controls, accessibility and recoverable customer states.
+- [ ] Gate 6 - rehearse production Firebase/Storage, R2 custom domain, Stripe live mode/webhooks, Auth domains, DNS cutover and rollback while preserving the coming-soon site and waitlist data.
+- [ ] Gate 7 - prove authoritative backup/restore and R2 regeneration; configure payment/publication/reconciliation/availability and budget alerts with named production recipients and tested delivery.
+- [ ] Launch after all seven gates in [Production launch acceptance](LAUNCH-ACCEPTANCE.md) have current environment-specific evidence and no unresolved stop-ship defect.
+
+## After launch / non-blocking
+
+- [ ] Define richer impression-style Views/Clicks/Visits/Claimed HUD analytics after real usage justifies the measurement work.
+- [ ] Design explicit verified-owner rules for voluntarily merging directly connected purchases.
+- [ ] Revisit globe surface studies, achievements, advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Replaced the broad pre-launch queue with seven explicit production evidence gates covering commercial decisions, first-time-user usability, artwork/physical devices, purchase-to-share, public/legal quality, production cutover and operational safety. Moved enhanced HUD analytics, connected-purchase merging, visual studies and speculative redesign off the critical path. Repository hygiene and modified-document link checks passed; no production configuration or live services changed.
 
 - [x] Removed obsolete generated artwork and monolithic compressed topology outputs from Git, archived three superseded planning documents, split historical completion evidence out of this operational status, and added repository-hygiene and canonical launch checks. The launch gate passes 56 deterministic repository tests, 48 backend tests, staging build/release integrity and a Wrangler dry run. Live services, real payments, load tests and physical devices remain separate gates.
 
@@ -52,16 +51,18 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 - [ ] Configure/confirm the $10 Cloudflare budget alert.
 - [ ] Review and complete [draft commercial terms](DRAFT-COMMERCIAL-TERMS.md), including final pricing, refunds, permanent-use wording and governing law.
-- [ ] Provide physical iOS/Android testing and observed first-time-user feedback.
+- [ ] Confirm seller identity, launch-country VAT/tax and receipt/invoice treatment with qualified advice where required.
+- [ ] Recruit 5-10 first-time participants and provide physical iOS/Android access for observed acceptance.
+- [ ] Name the production operational owner and recipients for payment, publication, availability and budget alerts.
 
 ## Launch progress
 
-Launch readiness: ~25%
+Do not infer readiness from an aggregate percentage. Track the seven evidence gates instead:
 
-- Production foundation: IN PROGRESS
-- Durable ownership/domain: IN PROGRESS (staging ownership, versions and editable sources verified)
-- Inventory + checkout: IN PROGRESS (successful and declined test payments, refund handling, signed webhooks and forced reconciliation verified; final commercial terms and production configuration remain)
-- Publication: IN PROGRESS (immediate publication, public staging projection and backend takedown/rollback verified)
-- Owner experience: IN PROGRESS (passwordless recovery, owned-placement dashboard and recoverable immutable metadata/artwork editing deployed)
-- Growth/sharing: IN PROGRESS (permanent placement links, public share cards, live inventory totals and latest placements deployed; country representation remains)
-- Analytics: IN PROGRESS (typed conversion funnel, server-authored purchases and advertiser views/visits/CTR deployed; geography and time-series reporting remain)
+- Gate 1 commercial/regulatory decisions: OPEN
+- Gate 2 first-time-user usability: OPEN
+- Gate 3 artwork scale and physical devices: OPEN
+- Gate 4 purchase-to-share: IN PROGRESS (design work exists; journey not accepted)
+- Gate 5 public website/legal/customer acceptance: OPEN
+- Gate 6 production cutover rehearsal: OPEN (staging is verified; production configuration is absent)
+- Gate 7 operational safety: OPEN (staging GitHub failure email was confirmed; production backup/restore, recipients and alert delivery are not)

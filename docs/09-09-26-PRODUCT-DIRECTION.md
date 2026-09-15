@@ -1047,6 +1047,8 @@ Physical merchandise such as URL T-shirts is currently low priority.
 
 The following should dominate engineering attention.
 
+Use [Production launch acceptance](LAUNCH-ACCEPTANCE.md) for the ordered evidence gates. In particular, observe first-time users before committing to a broad Create redesign, and treat staging, browser emulation and local builds as evidence for their named environments rather than production acceptance.
+
 ## Must work before real launch
 
 ### Infrastructure
@@ -1163,6 +1165,8 @@ These can materially improve growth but must not block safe purchasing.
 - edit placement metadata
 - edit artwork
 - initial placement public pages
+
+Enhanced impression-style HUD measurement, connected-purchase merging, further globe surface studies and achievements must not hold launch unless evidence from usability, physical-device or production acceptance identifies a concrete launch defect.
 
 Some of these may be worth including at launch if cheap to implement.
 
