@@ -21,9 +21,11 @@ import './studio.css';
 import { icon, renderIcons, setIcon } from './icons.js';
 import {cardCopy} from './share/card-copy.js';
 import {downloadShareCard,renderShareCard} from './share/card-renderer.js';
+import {startHeroTypewriter} from './hero-typewriter.js';
 
 // Fill every [data-icon] before the boot overlay lifts, so no button flashes empty.
 renderIcons(document);
+startHeroTypewriter(document.querySelector('#heroChangingWord'));
 
 const canvas = document.querySelector('#world');
 let initialPlacementFocusAllowed=true;

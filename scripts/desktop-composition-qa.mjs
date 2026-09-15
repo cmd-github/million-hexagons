@@ -28,13 +28,17 @@ try {
     await page.waitForTimeout(400);
     const browse=await page.evaluate(()=>{
       const rect=selector=>{const box=document.querySelector(selector).getBoundingClientRect();return {top:box.top,right:box.right,bottom:box.bottom,left:box.left,width:box.width,height:box.height};};
-      return {innerWidth,innerHeight,mobileDock:!!document.querySelector('#mobileDock'),topbar:rect('.topbar'),intro:rect('.intro'),controls:rect('.globe-controls'),controlDisplay:getComputedStyle(document.querySelector('.globe-controls')).display};
+      return {innerWidth,innerHeight,mobileDock:!!document.querySelector('#mobileDock'),topbar:rect('.topbar'),intro:rect('.intro'),headline:rect('.intro h1'),controls:rect('.globe-controls'),controlDisplay:getComputedStyle(document.querySelector('.globe-controls')).display};
     });
     assert.equal(browse.innerWidth,item.layoutWidth,`${item.name}: must use the readable desktop layout viewport`);
     assert.equal(browse.mobileDock,false,`${item.name}: mobile dock must not exist`);
     assert.equal(Math.round(browse.topbar.height),88,`${item.name}: desktop topbar must remain 88px`);
     assert.equal(Math.round(browse.intro.width),340,`${item.name}: desktop hero width must remain 340px`);
     assert.equal(browse.controlDisplay,'grid',`${item.name}: controls must keep the desktop vertical rail`);
+    await page.waitForFunction(()=>document.querySelector('#heroChangingWord')?.textContent==='idea',null,{timeout:6000});
+    const changedHeadline=await page.locator('.intro h1').boundingBox();
+    assert.equal(Math.round(changedHeadline.width),Math.round(browse.headline.width),`${item.name}: rotating word must not change headline width`);
+    assert.equal(Math.round(changedHeadline.height),Math.round(browse.headline.height),`${item.name}: rotating word must not reflow headline`);
     await page.screenshot({path:`${shots}/${item.name}-globe.png`});
 
     await page.locator('#claimButton').click();
@@ -56,6 +60,11 @@ try {
     report.push({name:item.name,layoutViewport:{width:browse.innerWidth,height:browse.innerHeight},desktopSidePanel:design});
     await page.close();
   }
+  const reduced=await browser.newPage({viewport:{width:1440,height:900},reducedMotion:'reduce'});
+  await reduced.goto(base+'/?geodesicQA');await reduced.waitForSelector('#world[data-ready=true]',{timeout:60000});await reduced.waitForTimeout(3200);
+  assert.equal(await reduced.locator('#heroChangingWord').textContent(),'brand');
+  assert.equal(await reduced.locator('.hero-cursor').evaluate(element=>getComputedStyle(element).display),'none');
+  await reduced.close();
 } finally {
   await browser.close();
 }
