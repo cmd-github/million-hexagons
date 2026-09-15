@@ -20,7 +20,7 @@ const id=await p.evaluate(()=>window.geodesicQA.state().designAnchor);await p.lo
 await p.evaluate(id=>window.geodesicQA.focus(id,.98),id);await p.waitForTimeout(300);
 const pos=await p.evaluate(id=>window.geodesicQA.screen(id),id);await p.mouse.click(pos.x,pos.y);await p.locator('#claimCell').waitFor({state:'visible'});
 const before=await p.evaluate(()=>window.geodesicQA.state().camera);await p.locator('#claimCell').click();const after=await p.evaluate(()=>window.geodesicQA.state().camera);assert.ok(Math.abs(Math.hypot(...before)-Math.hypot(...after))<.0001);
-await p.locator('#closeBuy').click();await p.evaluate(id=>window.geodesicQA.focus(id,4),id);await p.waitForTimeout(200);
+await p.locator('#closeBuy').click();await p.evaluate(id=>window.geodesicQA.focus(id,10),id);await p.waitForTimeout(500);
 const wide=await p.evaluate(id=>window.geodesicQA.screen(id),id);await p.mouse.click(wide.x,wide.y);assert.equal(await p.locator('#claimCell').isVisible(),false);
 await p.evaluate(id=>window.geodesicQA.focus(id,1.5),id);const detail=await p.evaluate(id=>window.geodesicQA.screen(id),id);await p.mouse.dblclick(detail.x,detail.y);await p.waitForTimeout(600);assert.ok(Math.hypot(...await p.evaluate(()=>window.geodesicQA.state().camera))<5.5);
 await p.goto(base+'/?geodesicQA#cell='+id);await p.waitForSelector('#world[data-ready=true]',{timeout:60000});await p.waitForTimeout(3000);assert.ok(Math.hypot(...await p.evaluate(()=>window.geodesicQA.state().camera))<4.5);

@@ -125,7 +125,7 @@ h2:focus{outline:none}
 .intro{position:fixed;z-index:4;border-radius:22px;top:24%;left:4%;width:340px;background:transparent;border:0;box-shadow:none;backdrop-filter:none;padding:0}
 .intro h1{font-size:62px;line-height:1.02;letter-spacing:-.06em}
 .hero-changing-line{display:inline-block;white-space:nowrap}
-.hero-word-slot{display:inline-block;width:9.25ch;text-align:left}
+.hero-word-slot{display:inline-block;width:10.25ch;text-align:left}
 .hero-cursor{display:inline-block;width:2px;height:.82em;margin-left:.06em;background:var(--lime);vertical-align:-.04em;opacity:0}
 .typewriter-running .hero-cursor{opacity:1;animation:hero-cursor-blink 1.05s steps(1,end) infinite}
 @keyframes hero-cursor-blink{50%{opacity:.18}}

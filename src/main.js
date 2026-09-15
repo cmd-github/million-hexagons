@@ -1158,14 +1158,14 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   if (!selectedCells.length) return;
   const button=event.currentTarget,original=button.textContent;button.disabled=true;if(stagingClient)button.textContent='Checking availability…';
   if(stagingClient){
-    if(ownerEdit){showFlowStep('review');setInteractionMode('move');focusSelection();const reviewCanvas=document.querySelector('#reviewCanvas');drawDesignPreview(reviewCanvas);document.querySelector('#reviewKind').textContent=uploadedLogo?'Updated image & colour placement':'Updated colour placement';clearPlacementPreview();addHighResolutionPlacement(document.querySelector('#brandColor').value,document.querySelector('#logoTreatment').value,previewPlacementLayers);button.textContent=original;button.disabled=false;return;}
+    if(ownerEdit){showFlowStep('review');setInteractionMode('move');focusSelection();const reviewCanvas=document.querySelector('#reviewCanvas');drawDesignPreview(reviewCanvas);document.querySelector('#reviewKind').textContent='Preview';clearPlacementPreview();addHighResolutionPlacement(document.querySelector('#brandColor').value,document.querySelector('#logoTreatment').value,previewPlacementLayers);button.textContent=original;button.disabled=false;return;}
     try{await releaseActiveCheckoutReservation();activeCheckoutReservation=await stagingClient.quoteAndReserve(selectedCells.map(cell=>cell.id));document.querySelector('#reviewPrice').textContent=activeCheckoutReservation.quote.displayTotal;showCheckoutExpiry();}
     catch(error){document.querySelector('#selectionStatus').textContent=error.code==='cells-unavailable'?`Hexagon ${error.cellId} was just reserved. Choose another location.`:'Could not reserve this location. Try again.';button.textContent=original;button.disabled=false;return;}
   }
   showFlowStep('review');
   setInteractionMode('move');
   focusSelection();
-  document.querySelector('#reviewKind').textContent = uploadedLogo ? 'Image & colour placement' : 'Colour placement';
+  document.querySelector('#reviewKind').textContent = 'Preview';
   const reviewCanvas = document.querySelector('#reviewCanvas');
   drawDesignPreview(reviewCanvas);
   const warning = document.querySelector('#reviewWarning');
@@ -1671,7 +1671,7 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
   await ensureStagingInventory();
   trackEvent('globe_viewed',{context:{source:location.hash.startsWith('#placement=')?'share':'direct'}});
   try{const {stats}=await stagingClient.getPublicStats();globalMetricExamples=[`${stats.claimedCells.toLocaleString()} / 1,000,000 claimed`,`${stats.remainingCells.toLocaleString()} remaining`,`${stats.placements.toLocaleString()} ${stats.placements===1?'placement':'placements'}`,`${stats.views.toLocaleString()} measured placement views`,`${stats.clicks.toLocaleString()} website visits sent`];document.querySelector('#globalMetricText').textContent=globalMetricExamples[0];}catch{document.querySelector('#globalMetricText').textContent='Live totals temporarily unavailable';}
-  const access=document.querySelector('#stagingOwnerAccess'),status=document.querySelector('#stagingOwnerStatus'),accountPanel=document.querySelector('#accountPanel'),accountStatus=document.querySelector('#accountStatus'),accountToggle=document.querySelector('#toggleAccount');access.hidden=false;
+  const access=document.querySelector('#stagingOwnerAccess'),status=document.querySelector('#stagingOwnerStatus'),accountPanel=document.querySelector('#accountPanel'),accountStatus=document.querySelector('#accountStatus'),accountToggle=document.querySelector('#toggleAccount');
   accountToggle.onclick=()=>{const opening=accountPanel.hidden;accountPanel.hidden=!opening;accountToggle.setAttribute('aria-expanded',String(opening));if(opening&&!stagingUser)document.querySelector('#accountEmail').focus();};
   document.addEventListener('pointerdown',event=>{if(!accountPanel.hidden&&!event.target.closest('.account-access')){accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');}});
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!accountPanel.hidden){accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');accountToggle.focus();}});
@@ -1709,7 +1709,7 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!myGlobe.hidden){closeMyGlobe();accountToggle.focus();}});
   const reflectStagingUser=async user=>{
     stagingUser=user;
-    status.textContent=user?`Signed in as ${user.email}.`:'Stripe securely collects your email and payment details. No account is required before checkout.';
+    access.hidden=!user;status.textContent=user?`Signed in as ${user.email}.`:'';status.hidden=!user;document.querySelector('#reviewSignOut').hidden=!user;
     document.querySelector('#accountSignedOut').hidden=Boolean(user);document.querySelector('#accountSignedIn').hidden=!user;accountToggle.classList.toggle('signed-in',Boolean(user));accountToggle.title=user?'Your account':'Owner sign in';accountToggle.setAttribute('aria-label',user?'Open your account':'Owner sign in');accountStatus.textContent='';
     if(user){document.querySelector('#accountIdentity').textContent=user.email||'Signed-in owner';try{const summary=await stagingClient.getAccountSummary();document.querySelector('#accountPlacementCount').textContent=summary.placements;document.querySelector('#accountCreditCount').textContent=summary.credits;document.querySelector('#openAdmin').hidden=!summary.administrator;}catch(error){accountStatus.textContent='Account details could not be refreshed.';}}
     else closeMyGlobe();
@@ -1734,7 +1734,8 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
   const sendLink=async(email,button,target)=>{button.disabled=true;try{if(stagingClient.hasPendingEmailSignIn()){await reflectStagingUser(await stagingClient.completeEmailSignIn(email));target.textContent='Signed in. Your purchases are ready in My Globe.';button.textContent='Email me a sign-in link';}else{await stagingClient.sendOwnerLink(email);target.textContent='Sign-in link sent. Open it on any device; you may be asked to confirm this email.';}}catch(error){target.textContent=error.message;}finally{button.disabled=false;}};
   document.querySelector('#sendOwnerLink').onclick=event=>sendLink(document.querySelector('#stagingOwnerEmail').value,event.currentTarget,status);
   document.querySelector('#sendAccountLink').onclick=event=>sendLink(document.querySelector('#accountEmail').value,event.currentTarget,accountStatus);
-  document.querySelector('#accountSignOut').onclick=async event=>{event.currentTarget.disabled=true;try{closeMyGlobe();await stagingClient.signOutOwner();accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');}finally{event.currentTarget.disabled=false;}};
+  document.querySelector('#accountSignOut').onclick=async event=>{event.currentTarget.disabled=true;try{closeMyGlobe();await stagingClient.signOutOwner();await reflectStagingUser(null);accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');}finally{event.currentTarget.disabled=false;}};
+  document.querySelector('#reviewSignOut').onclick=async event=>{event.currentTarget.disabled=true;try{closeMyGlobe();await stagingClient.signOutOwner();await reflectStagingUser(null);}finally{event.currentTarget.disabled=false;}};
   const adminWorkspace=document.querySelector('#adminWorkspace'),adminResults=document.querySelector('#adminResults'),adminStatus=document.querySelector('#adminStatus'),adminQuery=document.querySelector('#adminQuery'),adminMilestones=document.querySelector('#adminMilestones');
   const escapeAdmin=value=>String(value??'').replace(/[&<>"']/g,character=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
   const adminActionName=action=>({'remove-artwork':'Artwork removed','remove-link':'Link removed','remove-description':'Description removed','edit-link':'Link edited','edit-description':'Description edited','suspend':'Content suspended','reinstate':'Content reinstated','restore-version':'Version restored',revoke:'Placement revoked','credit-issue':'Credits granted','credit-redeem':'Credits redeemed','grant-credits':'Credits granted',refund:'Refund requested'}[action]||action);

@@ -51,6 +51,7 @@ try {
     const count = await page.locator('#hexAmount').inputValue();
     await screenshot(page, `${mobile ? 'mobile' : 'desktop'}-design`);
     await page.locator('#toPlacement').click();
+    assert.equal(await page.locator('#reviewKind').textContent(),'Preview');assert.equal(await page.locator('#stagingOwnerAccess').isHidden(),true);
     await page.locator('#reviewEditDesign').click();
     assert.equal(await page.locator('#hexAmount').inputValue(), count);
     assert.equal(await page.locator('#logoOrientation').inputValue(), '37');

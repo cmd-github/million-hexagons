@@ -33,3 +33,7 @@ ux needs redesignign for placements
 - clicking an available starting hexagon should propose it first, then require an explicit Start here confirmation in the normal cell popup
 - Choose another spot should repeat that confirmation and move the complete design rather than rebuilding or losing it
 - once a paint colour has actually been used, add it to a recent colours pane for quick reuse
+- Review should not show generic Stripe email copy; show the signed-in email and Log out only when a user is signed in
+- call the artwork card Preview rather than colour placement
+- make the 160-character description field tall enough to show a full entry
+- expand and shuffle the hero's changing words, type and delete the full stop with each word, and hold completed words for one extra second

@@ -35,7 +35,7 @@ try {
     assert.equal(Math.round(browse.topbar.height),88,`${item.name}: desktop topbar must remain 88px`);
     assert.equal(Math.round(browse.intro.width),340,`${item.name}: desktop hero width must remain 340px`);
     assert.equal(browse.controlDisplay,'grid',`${item.name}: controls must keep the desktop vertical rail`);
-    await page.waitForFunction(()=>document.querySelector('#heroChangingWord')?.textContent==='idea',null,{timeout:6000});
+    await page.waitForFunction(()=>document.querySelector('#heroChangingWord')?.textContent.endsWith('.')&&document.querySelector('#heroChangingWord').textContent!=='brand.',null,{timeout:7000});
     const changedHeadline=await page.locator('.intro h1').boundingBox();
     assert.equal(Math.round(changedHeadline.width),Math.round(browse.headline.width),`${item.name}: rotating word must not change headline width`);
     assert.equal(Math.round(changedHeadline.height),Math.round(browse.headline.height),`${item.name}: rotating word must not reflow headline`);
@@ -43,6 +43,7 @@ try {
 
     await page.locator('#claimButton').click();
     await page.locator('#designStep').waitFor({state:'visible'});
+    const start=await page.evaluate(()=>window.geodesicQA.state().designAnchor);await page.evaluate(id=>window.geodesicQA.focus(id,.6),start);await page.waitForFunction(()=>window.geodesicQA.state().detailVertices>0);await page.waitForTimeout(250);const point=await page.evaluate(id=>window.geodesicQA.screen(id),start);if(item.mobile)await page.touchscreen.tap(point.x,point.y);else await page.mouse.click(point.x,point.y);await page.locator('#claimCell').waitFor({state:'visible'});await page.locator('#claimCell').click();await page.waitForFunction(()=>window.geodesicQA.state().design.length===1);
     await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');
     await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Change image');
     await page.waitForFunction(()=>Math.abs(innerWidth-document.querySelector('#buyPanel').getBoundingClientRect().right-16)<=1);
@@ -62,7 +63,7 @@ try {
   }
   const reduced=await browser.newPage({viewport:{width:1440,height:900},reducedMotion:'reduce'});
   await reduced.goto(base+'/?geodesicQA');await reduced.waitForSelector('#world[data-ready=true]',{timeout:60000});await reduced.waitForTimeout(3200);
-  assert.equal(await reduced.locator('#heroChangingWord').textContent(),'brand');
+  assert.equal(await reduced.locator('#heroChangingWord').textContent(),'brand.');
   assert.equal(await reduced.locator('.hero-cursor').evaluate(element=>getComputedStyle(element).display),'none');
   await reduced.close();
 } finally {
