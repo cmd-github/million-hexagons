@@ -41,7 +41,7 @@ try {
     await page.locator('#claimButton').click();
     await page.locator('#designStep').waitFor({ state: 'visible', timeout: 90000 });
     await page.locator('#homeView').click();await page.waitForTimeout(2300);for(let zoom=0;zoom<8;zoom++){await page.locator('#zoomIn').click();await page.waitForTimeout(160);}await page.waitForTimeout(500);
-    const world=await page.locator('#world').boundingBox(),panel=await page.locator('#buyPanel').boundingBox(),x=(panel?.x||world.width)*.5,y=world.y+world.height*.5;if(mobile)await page.touchscreen.tap(x,y);else await page.mouse.click(x,y);await page.waitForTimeout(250);if(await page.locator('#claimCell').isVisible()){assert.equal(await page.locator('#claimCell').textContent(),'Start here');await page.locator('#claimCell').click();}
+    const world=await page.locator('#world').boundingBox(),panel=await page.locator('#buyPanel').boundingBox(),freeWidth=panel?.x||world.width;let confirmed=false;for(const fy of [.2,.35,.5,.65,.8]){for(const fx of [.1,.2,.3,.4,.5,.6,.7,.8,.9]){const x=freeWidth*fx,y=world.y+world.height*fy;if(mobile)await page.touchscreen.tap(x,y);else await page.mouse.click(x,y);await page.waitForTimeout(100);if(await page.locator('#claimCell').isVisible()){assert.equal(await page.locator('#claimCell').textContent(),'Start here');await page.locator('#claimCell').click();confirmed=true;break;}}if(confirmed)break;}
     await page.waitForFunction(()=>Number(document.querySelector('#hexAmount').value)===1);
     assert.equal(await page.locator('#toPlacement').isEnabled(),true,'Confirming the starting hexagon must establish the placement');
     await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');
