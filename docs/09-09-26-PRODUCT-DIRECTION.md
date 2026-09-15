@@ -397,7 +397,9 @@ A first-time visitor should understand how to create and buy a placement in unde
 
 The current design flow is:
 
-Design → Place → Review
+Design on globe → Review
+
+There is no separate Place stage. Location is part of Design: people can move the globe, move the complete design to an available area, draw directly onto visible blank neighbouring hexagons to add them, and delete outside hexagons without disconnecting the footprint. The primary action proceeds directly to Review, where availability is validated and the exact footprint is reserved.
 
 Existing creative capabilities include:
 

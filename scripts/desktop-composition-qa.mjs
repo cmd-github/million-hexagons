@@ -51,11 +51,11 @@ try {
     await page.screenshot({path:`${shots}/${item.name}-design.png`});
 
     await page.locator('#toPlacement').click();
-    await page.locator('#placeStep').waitFor({state:'visible'});
+    await page.locator('#reviewStep').waitFor({state:'visible'});
     await page.waitForFunction(()=>Math.abs(innerWidth-document.querySelector('#buyPanel').getBoundingClientRect().right-16)<=1);
     const place=await page.evaluate(()=>{const box=document.querySelector('#buyPanel').getBoundingClientRect();return {top:box.top,right:innerWidth-box.right,bottom:innerHeight-box.bottom,width:box.width};});
-    assertDesktopPanel(place,`${item.name}: Place`);
-    await page.screenshot({path:`${shots}/${item.name}-place.png`});
+    assertDesktopPanel(place,`${item.name}: Review`);
+    await page.screenshot({path:`${shots}/${item.name}-review.png`});
     assert.deepEqual(errors,[],`${item.name}: browser errors`);
     report.push({name:item.name,layoutViewport:{width:browse.innerWidth,height:browse.innerHeight},desktopSidePanel:design});
     await page.close();

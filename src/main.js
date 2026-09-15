@@ -600,9 +600,9 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   }
   configureCreation();setDesignSurface('globe');
   document.body.classList.toggle('owner-editing',Boolean(ownerEdit));
-  document.querySelector('#sizeControls').hidden=Boolean(ownerEdit);document.querySelector('#editHexMode').hidden=Boolean(ownerEdit);document.querySelector('#removeHexMode').hidden=Boolean(ownerEdit);
+  document.querySelector('#sizeControls').hidden=Boolean(ownerEdit);document.querySelector('#removeHexMode').hidden=Boolean(ownerEdit);document.querySelector('#relocateDesignMode').hidden=Boolean(ownerEdit);
   document.querySelector('#designTitle').textContent=ownerEdit?'Update your placement.':'Make it yours.';document.querySelector('#designIntro').textContent=ownerEdit?'Your purchased space is locked. Update what appears inside it.':'Your space. Your design.';
-  document.querySelector('#toPlacement').textContent=ownerEdit?'Review changes →':'Choose location →';document.querySelector('#previewPurchase').textContent=ownerEdit?'Save changes':'Continue to secure checkout';
+  document.querySelector('#toPlacement').textContent=ownerEdit?'Review changes →':'Review placement →';document.querySelector('#previewPurchase').textContent=ownerEdit?'Save changes':'Continue to secure checkout';
   if(ownerEdit)for(const id of ['price','placePrice','reviewPrice'])document.getElementById(id).textContent='Owned';
   await nextPaint();hideLoading();openingEditor=false;
   trackEvent('design_started',{context:{cellCount:1,source:'studio'}});
@@ -694,7 +694,7 @@ function closeBuy() {
   clearSelectionColours();
   clearPlacementPreview();
   requestedAnchor = null;
-  ownerEdit=null;document.body.classList.remove('owner-editing');document.querySelector('#editHexMode').hidden=false;document.querySelector('#removeHexMode').hidden=false;document.querySelector('#previewPurchase').textContent='Continue to secure checkout';
+  ownerEdit=null;document.body.classList.remove('owner-editing');document.querySelector('#removeHexMode').hidden=false;document.querySelector('#relocateDesignMode').hidden=false;document.querySelector('#previewPurchase').textContent='Continue to secure checkout';
   pinnedCell = null;
   document.querySelector('#hint').innerHTML = '<span title="Drag to rotate" role="img" aria-label="Drag to rotate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18m-5-4 4 4-4 4M8 8l-4 4 4 4"/></svg></span><i></i><span title="Scroll to zoom" role="img" aria-label="Scroll to zoom"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14m5 12 6 6M7 10h6m-3-3v6"/></svg></span><i></i><span title="Click a tile" role="img" aria-label="Click a tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3 14 10-7 1-3 7z"/></svg></span>';
 }
@@ -783,7 +783,7 @@ function showFlowStep(step) {
   resize();
   Object.entries(flowScreens).forEach(([name, screen]) => { screen.hidden = name !== step; screen.classList.toggle('active', name === step); });
   const progress = [...document.querySelectorAll('.flow-progress i')];
-  const stepNumber = step === 'review' ? 3 : step === 'place' ? 2 : 1;
+  const stepNumber = step === 'review' ? 2 : 1;
   progress.forEach((item, index) => item.classList.toggle('active', index < stepNumber));
   document.querySelector('#buyPanel').scrollTop = 0;
   const heading = flowScreens[step].querySelector('h2');
@@ -800,7 +800,7 @@ function placementCount() {
 function updateTotals() {
   const count = placementCount();
   const pentagons = creationType ? previewCells().filter(cell => cell.pentagon).length : 0;
-  const countText = `${count.toLocaleString()} cell${count === 1 ? '' : 's'}${pentagons ? ` · ${pentagons} pentagon${pentagons === 1 ? '' : 's'}` : ''}`;
+  const countText = `${count.toLocaleString()} hexagon${count === 1 ? '' : 's'}${pentagons ? ` · ${pentagons} pentagon${pentagons === 1 ? '' : 's'}` : ''}`;
   const priceText = ownerEdit?'Owned':`$${count.toLocaleString()}`;
   document.querySelector('#designCount').textContent = countText;
   document.querySelector('#price').textContent = priceText;
@@ -995,18 +995,18 @@ function updateImageControls() {
   setEditorMode(logoEditorMode,false);
 }
 function setEditorMode(mode, zoomToCells=true) {
-  if(ownerEdit&&['hex','remove'].includes(mode))return;
+  if(ownerEdit&&['remove','relocate'].includes(mode))return;
   if(designSurface==='globe')controls.enableRotate=mode==='pan';
   logoEditorMode=mode;logoDrag=null;editorPan=null;lastPaintedCell=null;
-  document.querySelector('#areaBrushControls').hidden=!['hex','remove','paint','transparent','restore'].includes(mode);
-  const brushing=['paint','transparent','restore'].includes(mode);
-  for(const [id,value] of [['moveImageMode','move'],['editHexMode','hex'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan'],['colourBrush','paint'],['eraseCells','transparent'],['restoreCells','restore']]) {
-    const button=document.querySelector(`#${id}`),active=id==='paintCells'?brushing:value===mode;
+  document.querySelector('#areaBrushControls').hidden=!['remove','paint'].includes(mode);
+  const brushing=mode==='paint';
+  for(const [id,value] of [['moveImageMode','move'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan'],['relocateDesignMode','relocate']]) {
+    const button=document.querySelector(`#${id}`),active=value===mode;
     button.setAttribute('aria-pressed',String(active));button.classList.toggle('active',active);
   }
-  document.querySelector('#brushControls').hidden=!['hex','remove','paint','transparent','restore'].includes(mode);
+  document.querySelector('#brushControls').hidden=mode!=='paint';
   document.querySelector('#logoPositionControls').hidden=mode!=='move'||!uploadedLogo;
-  const hint=mode==='move'?'Move image':mode==='hex'?'Add hexagons':mode==='remove'?'Remove hexagons':mode==='transparent'?'Clear colour':mode==='restore'?'Restore artwork':mode==='paint'?'Paint':'Pan';
+  const hint=mode==='move'?'Move image':mode==='remove'?'Delete hexagons':mode==='relocate'?'Click an available hexagon to move the whole design':mode==='paint'?'Draw over blank hexagons to add them':'Drag to move the globe';
   document.querySelector('#toolHint').textContent=hint;
   document.querySelector('#logoFootprintHelp').textContent=hint;
   document.querySelector('#designCanvas').style.cursor=['move','pan'].includes(mode)?'grab':'crosshair';
@@ -1116,7 +1116,7 @@ function restorePaint(from,to) {
 document.querySelector('#undoPaint').addEventListener('click',()=>restorePaint(undoStack,redoStack));
 document.querySelector('#redoPaint').addEventListener('click',()=>restorePaint(redoStack,undoStack));
 
-document.querySelector('#toPlacement').addEventListener('click', () => {enterPlacement();if(ownerEdit)document.querySelector('#toReview').click();});
+document.querySelector('#toPlacement').addEventListener('click', () => {syncGlobeDesign();if(document.querySelector('#toPlacement').disabled)return;draftArtwork=renderArtwork(previewCells());selectedCell=cellForId(designAnchor);selectedCells=previewCells();document.querySelector('#toReview').disabled=false;document.querySelector('#toReview').click();});
 document.querySelector('#backToDesign').addEventListener('click', () => { clearPlacementPreview(); selecting = false; selectionModeUniform.value = 0; document.body.classList.remove('selecting', 'placing-design'); controls.enableRotate = true; showFlowStep('design'); drawDesignPreview(); updateTotals(); });
 document.querySelector('#moveGlobeMode').addEventListener('click', () => setInteractionMode('move'));
 document.querySelector('#placeDesignMode').addEventListener('click', () => setInteractionMode('place'));
@@ -1141,15 +1141,17 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   addHighResolutionPlacement(document.querySelector('#brandColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
   button.textContent=original;button.disabled=false;
 });
-document.querySelector('#backToPlacement').addEventListener('click', () => { void releaseActiveCheckoutReservation();clearPlacementPreview();if(ownerEdit){selecting=false;selectionModeUniform.value=0;document.body.classList.remove('selecting','placing-design');showFlowStep('design');drawDesignPreview();return;}showFlowStep('place'); setInteractionMode('move'); refreshSelection(); });
+document.querySelector('#backToPlacement').addEventListener('click', () => { void releaseActiveCheckoutReservation();clearPlacementPreview();selecting=false;selectionModeUniform.value=0;document.body.classList.remove('selecting','placing-design');showFlowStep('design');setDesignSurface('globe');setEditorMode('paint',false);drawDesignPreview();updateTotals(); });
 document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size; button.closest('details').open=false;void resizeDesign(); }));
 amountInput.addEventListener('change', () => { amountInput.value = placementCount(); });
 amountInput.addEventListener('input', () => { void resizeDesign(); });
+document.querySelector('#addHexagon').addEventListener('click',()=>{amountInput.value=Math.min(100000,placementCount()+1);void resizeDesign();});
+document.querySelector('#removeHexagon').addEventListener('click',()=>{amountInput.value=Math.max(1,placementCount()-1);void resizeDesign();});
 document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
 document.querySelectorAll('[data-treatment]').forEach((button) => button.addEventListener('click', () => { document.querySelector('#logoTreatment').value = button.dataset.treatment; document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
 document.querySelectorAll('[data-treatment]').forEach((item) => item.classList.toggle('active', item === button)); drawDesignPreview(); updateLogoGuidance(); }));
 document.querySelector('#logoScale').addEventListener('input', () => { document.querySelector('#logoScaleValue').textContent = `${document.querySelector('#logoScale').value}%`; drawDesignPreview(); });
-for(const [id,mode] of [['moveImageMode','move'],['editHexMode','hex'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan'],['colourBrush','paint'],['eraseCells','transparent'],['restoreCells','restore']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode));
+for(const [id,mode] of [['moveImageMode','move'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan'],['relocateDesignMode','relocate']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode));
 document.querySelector('#brushColor').addEventListener('input',()=>{document.querySelector('#paintColourChip').style.background=document.querySelector('#brushColor').value;});
 document.querySelector('#fillCells').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;rememberPaint();logoCells=previewCells().map(c=>({...c,color:document.querySelector('#brushColor').value,transparent:false}));footprintEdited=true;drawDesignPreview();});
 document.querySelector('#removeImage').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;document.querySelector('#artworkQuality').hidden=true;
@@ -1922,7 +1924,7 @@ function syncGlobeDesign(){
   selectedCells=previewCells();
   const owned=ownerEdit?new Set(ownerEdit.record.cells):null,blocked=selectedCells.some(c=>occupiedCells[c.id-1]&&!owned?.has(c.id));
   document.querySelector('#toPlacement').disabled=blocked;
-  if(blocked)document.querySelector('#toolHint').textContent='This size overlaps occupied cells. Reduce the count or use Add to shape the area.';
+  if(blocked)document.querySelector('#toolHint').textContent='This size overlaps purchased hexagons. Reduce the count or move the design.';
   draftArtwork=renderArtwork(selectedCells);
   clearPlacementPreview();
   addHighResolutionPlacement(document.querySelector('#brandColor').value,document.querySelector('#logoTreatment').value,previewPlacementLayers);
@@ -1940,10 +1942,10 @@ document.querySelector('#editThisSpace').onclick=()=>{
   footprintEdited=true;exactGlobeArea=true;undoStack.length=0;redoStack.length=0;updateHistory();
   document.querySelector('#backToDesign').click();setDesignSurface('globe');
 };
-document.querySelector('#removeHexMode').onclick=()=>setEditorMode('remove',false);
-document.querySelector('#areaBrush').oninput=event=>{
- const r=Number(event.target.value);document.querySelector('#areaBrushValue').textContent=(1+3*r*(r+1)).toLocaleString()+' cells';
-};
+document.querySelectorAll('[data-brush]').forEach(button=>button.addEventListener('click',()=>{
+  const reach=Number(button.dataset.brush);document.querySelector('#areaBrush').value=String(reach);document.querySelector('#areaBrushValue').textContent=(1+3*reach*(reach+1)).toLocaleString();
+  document.querySelectorAll('[data-brush]').forEach(item=>{const active=item===button;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));});
+}));
 async function editGlobeCell(id){
   const stroke=globeStroke,mode=logoEditorMode;
   if(!stroke||stroke.last===id)return;
@@ -1975,18 +1977,30 @@ function applyGlobeCell(id,stroke){
   }else if(logoEditorMode==='remove'){
     for(const n of brush)next.delete(n);
     if(!next.size||!topology.isConnected([...next.values()]))return;
-  }else for(const n of brush){
-    const cell=next.get(n);if(!cell)continue;
-    if(logoEditorMode==='paint'){cell.color=document.querySelector('#brushColor').value;delete cell.transparent;}
-    else if(logoEditorMode==='transparent')cell.transparent=true;
-    else if(logoEditorMode==='restore'){delete cell.color;delete cell.transparent;}
+  }else if(logoEditorMode==='paint'){
+    let pending=brush.filter(n=>!occupiedCells[n-1]&&!next.has(n));
+    for(let pass=0;pending.length&&pass<=reach+1;pass++){
+      const rest=[];for(const n of pending){if(next.size<100000&&topology.neighboursOf(n).some(k=>next.has(k)))next.set(n,{id:n});else rest.push(n);}if(rest.length===pending.length)break;pending=rest;
+    }
+    for(const n of brush){const cell=next.get(n);if(cell){cell.color=document.querySelector('#brushColor').value;delete cell.transparent;}}
   }
   logoCells=topology.cells([...next.values()],designAnchor);footprintEdited=true;exactGlobeArea=true;amountInput.value=next.size;queueDesignPreview();
+}
+async function relocateGlobeDesign(id){
+  if(ownerEdit||occupiedCells[id-1]){document.querySelector('#toolHint').textContent=ownerEdit?'Purchased hexagons cannot be moved.':'That hexagon is already purchased.';return;}
+  const button=document.querySelector('#relocateDesignMode');button.disabled=true;document.querySelector('#toolHint').textContent='Checking this location…';
+  try{
+    const relocated=await prepareRelocation(id),blocked=relocated.some(cell=>occupiedCells[cell.id-1]);
+    if(blocked){document.querySelector('#toolHint').textContent='The design overlaps purchased hexagons here. Try another area.';return;}
+    rememberPaint();designAnchor=id;logoCells=topology.cells(relocated,id);selectedCell=cellForId(id);selectedCells=logoCells;footprintEdited=true;exactGlobeArea=true;queueDesignPreview();setEditorMode('paint',false);
+  }catch{document.querySelector('#toolHint').textContent='Could not load this location. Try again.';}
+  finally{button.disabled=false;}
 }
 canvas.addEventListener('pointerdown',event=>{
   clearTimeout(hoverTimer);
   if(document.body.dataset.flow!=='design'||designSurface!=='globe'||logoEditorMode==='pan'||event.button!==0)return;
   const hit=intersect(event);if(!hit)return;
+  if(logoEditorMode==='relocate'){void relocateGlobeDesign(hit.cell.id);return;}
   globeStroke={last:null,x:event.clientX,y:event.clientY,position:{...logoPosition}};
   rememberPaint();canvas.setPointerCapture(event.pointerId);
   if(logoEditorMode!=='move')editGlobeCell(hit.cell.id);

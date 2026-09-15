@@ -6,7 +6,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Complete Craig's placement-studio review as one tested journey: preserve the globe view when Create opens; make cell painting/add/remove one coherent tool starting in Paint; use Small/Medium/Large/XL brushes; keep image layout/reset/removal with image movement/zoom/rotation; use person-or-company wording; accept normal website addresses; simplify reservation language; and improve the payment-to-publication state. Then validate desktop, 390px and 320px Design -> Place -> Review -> checkout completion.
+- [ ] Complete Craig's placement-studio review as one tested journey: validate the new direct-on-globe Design -> Review flow, checkout completion and owner-edit footprint lock on staging and update the canonical browser suites that still encode the removed Place stage.
 
 ## Next
 

@@ -16,6 +16,10 @@ body[data-flow=design] #designStep{display:flex;flex:1;min-height:0;flex-directi
 #logoUpload:focus-visible+.add-image{outline:2px solid var(--lime)}
 #designStep .studio-count{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:11px;color:#90a8b2}
 #designStep .studio-count input{padding:8px 9px;margin:0;font-size:13px;height:40px;font-variant-numeric:tabular-nums;background:#091720;border:1px solid #29414b;border-radius:9px}
+.hex-count-stepper{display:grid;grid-template-columns:36px 58px 36px;align-items:center;border:1px solid #29414b;border-radius:9px;overflow:hidden;background:#091720}
+#designStep .hex-count-stepper input{width:58px;height:40px;padding:0;border:0;border-radius:0;text-align:center;-moz-appearance:textfield}
+#designStep .hex-count-stepper input::-webkit-inner-spin-button{appearance:none;margin:0}
+#designStep .hex-count-stepper button{height:40px;min-height:40px;padding:0;border:0;border-radius:0;background:#152b35;color:var(--lime);font-size:21px;font-weight:700}
 #designStep input[type=color]{width:28px;height:28px;min-height:0;margin:0;padding:2px;background:none;border:1px solid #45616d;border-radius:50%;cursor:pointer}
 #designStep input[type=color]::-webkit-color-swatch{border:0;border-radius:50%}
 #designStep input[type=color]::-webkit-color-swatch-wrapper{padding:1px}
@@ -109,7 +113,11 @@ body[data-flow=design][data-surface=globe] #world{opacity:1;pointer-events:auto}
 /* Globe-as-canvas design mode, area brush and the placement inspector HUD. */
 #areaBrushControls{display:flex;align-items:center;gap:9px;font-size:11px;color:#a4bac5}
 #areaBrushControls[hidden]{display:none}
-#areaBrushControls input{flex:1;min-width:40px;accent-color:#d7ff55}
+#areaBrushControls button.hex-brush{position:relative;width:34px;height:36px;min-height:36px;padding:0;border:0;background:none;color:#9db1b8}
+#areaBrushControls .hex-brush i{position:absolute;inset:2px;background:#27404a;clip-path:polygon(25% 6%,75% 6%,100% 50%,75% 94%,25% 94%,0 50%)}
+#areaBrushControls .hex-brush small{position:relative;z-index:1;font:700 9px 'DM Mono'}
+#areaBrushControls .hex-brush.active i{background:var(--lime)}
+#areaBrushControls .hex-brush.active small{color:#07121c}
 #areaBrushValue{min-width:62px}
 body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;margin-top:7px}
 #customPaintTools button[aria-pressed=true]{background:#d7ff5530;box-shadow:inset 0 -2px #d7ff55;color:#e5ff94}
@@ -129,7 +137,7 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 #designStep #logoPositionControls .image-actions{display:flex;gap:6px}
 #designStep #logoPositionControls .image-actions button{flex:1;border:1px solid #ffffff20;background:#ffffff08;color:#c7d7dc}
 #designStep #areaBrushControls{width:100%}
-#designStep #areaBrushControls select{min-width:92px;padding:6px 8px;margin:0;background:#102630;border:1px solid #35505a;border-radius:7px;color:#edf5f2}
+#designStep #areaBrushControls{display:flex;align-items:center;gap:5px}
 #designStep #toolHint{margin:0;width:100%}
 .checkout-complete{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 .checkout-complete p{margin:20px 0 4px;font-size:24px;font-weight:700;color:#f4faf7}

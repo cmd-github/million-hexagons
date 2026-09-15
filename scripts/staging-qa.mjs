@@ -46,11 +46,11 @@ try {
     await page.locator('#logoOrientation').fill('37');
     const count = await page.locator('#hexAmount').inputValue();
     await screenshot(page, `${mobile ? 'mobile' : 'desktop'}-design`);
-    await page.locator('#toPlacement').click(); await page.locator('#toReview').click();
+    await page.locator('#toPlacement').click();
     await page.locator('#reviewEditDesign').click();
     assert.equal(await page.locator('#hexAmount').inputValue(), count);
     assert.equal(await page.locator('#logoOrientation').inputValue(), '37');
-    await page.locator('#toPlacement').click(); await page.locator('#toReview').click();
+    await page.locator('#toPlacement').click();
     await page.locator('#companyName').fill('Staging verification');
     await page.locator('#website').fill('https://example.com/');
     await screenshot(page, `${mobile ? 'mobile' : 'desktop'}-review`);

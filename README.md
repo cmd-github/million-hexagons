@@ -1,6 +1,6 @@
 # Million Hexagons
 
-A Vite/Three.js prototype of one shared advertising globe containing exactly 1,000,000 claimable spherical cells: 999,988 hexagons and 12 pentagons. The default local build supports session-only Design -> Place -> Review. Staging supports durable placements, Stripe test checkout and verified-owner artwork editing. The default runtime has no baked demo brands; staging test brands use the durable placement pipeline and verified-owner editor. See [editable test brands](docs/EDITABLE-TEST-BRANDS.md) for rollout status and setup.
+A Vite/Three.js prototype of one shared advertising globe containing exactly 1,000,000 claimable spherical cells: 999,988 hexagons and 12 pentagons. The default local build supports session-only Design on globe -> Review. Staging supports durable placements, Stripe test checkout and verified-owner artwork editing. The default runtime has no baked demo brands; staging test brands use the durable placement pipeline and verified-owner editor. See [editable test brands](docs/EDITABLE-TEST-BRANDS.md) for rollout status and setup.
 
 Current requirements are in [product direction](docs/09-09-26-PRODUCT-DIRECTION.md); [STATUS](docs/STATUS.md) tracks current work. See [architecture](docs/ARCHITECTURE.md) and [validation](docs/VALIDATION.md) when relevant.
 
@@ -31,12 +31,12 @@ you intend to create a staging test placement.
 - Globe-only editing of the exact footprint: start from an available cell, grow around neighbours, or choose Design in this space during placement.
 - Placement inspection with explicit website visits, nearby exploration, a pinnable HUD, tour-stop details and shareable cell-location links.
 - Placement names, descriptions, artwork thumbnails, intentional website visits and a feed of restored placements. Staging statistics and owner analytics use authoritative placement and event data.
-- One Design -> Place -> Review journey for images, colour-only artwork, and mixed designs.
-- A shared right-hand studio carries Design, Place and Review with consistent navigation and controls. Image options and extra cell actions share one menu. Escape unwinds one layer at a time — open menu, then checkout, then the studio — and closing the studio keeps the in-progress design, so reopening it from Create a placement restores the work. Opening on a specific cell or for an owner update starts clean; Start over in the design menu discards a restored draft.
-- Compact globe-only editor for 1-100,000 cells: Add image, exact count, background colour, image zoom/rotation, separate Add/Remove brushes, paint/transparency and undo/redo. Fresh placements start clean; editing preserves the draft. Transparent cells retain count and price.
+- One Design on globe -> Review journey for images, colour-only artwork, and mixed designs.
+- A shared right-hand studio carries Design and Review with consistent navigation and controls. Design contains Draw, Delete, Move globe and Move design modes; drawing on an available adjacent hexagon adds it directly. Escape unwinds one layer at a time — open menu, then checkout, then the studio — and closing the studio keeps the in-progress design, so reopening it from Create a placement restores the work. Opening on a specific cell or for an owner update starts clean; Start over in the design menu discards a restored draft.
+- Compact globe-only editor for 1-100,000 hexagons: large exact-count minus/plus controls, background colour, four hexagon-shaped brushes, direct drawing/growth, connected deletion, image movement/zoom/rotation and undo/redo. Fresh placements start clean; owner editing preserves its locked purchased footprint.
 - Image framing: rotation-aware contained fit, low-resolution upload preflight, 50-400% zoom with cell clipping, drag positioning, and a separate hexagon editing mode. Reset logo restores the original framing.
 - Shared polygon IDs and artwork mapping across flat preview, globe preview, review, and session publication.
-- Suggested available locations, separate Move/Place controls, conflict rejection, undo/redo, and responsive desktop/mobile layouts.
+- First-screen Move globe and Move design controls, conflict rejection, undo/redo, and consistent desktop/mobile layouts.
 - Exact regional topology loading: a 78 KB compressed ID index and immutable geometry partitions replace the 17.2 MB whole-globe download. Picking, purchased artwork and editing share the frozen boundaries. See [regional geometry](docs/REGIONAL-GEOMETRY.md).
 
 Local session previews are not purchases. Staging has accounts, authoritative inventory, test payments, moderation, durable artwork and customer recovery; production launch remains gated in [STATUS](docs/STATUS.md).
