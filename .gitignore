@@ -3,6 +3,10 @@ dist/
 coming-soon-dist/
 artifacts/
 public/artwork/million/
+public/artwork/sample/
+public/artwork/sample-hq/
+public/topology/geodesic-v1.bin.gz
+public/topology/geodesic-v1.packed.gz
 *.log
 xcreds.txt
 .firebase/

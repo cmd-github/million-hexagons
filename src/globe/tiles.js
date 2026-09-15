@@ -9,7 +9,7 @@ function describe(face,level,x,y,radius){
 }
 
 export class ArtworkTiles {
-  constructor(globe,radius,{base='/artwork/sample',maxTiles=128,concurrency=4,anisotropy=8}={}) {
+  constructor(globe,radius,{base='/artwork/empty',maxTiles=128,concurrency=4,anisotropy=8}={}) {
     this.globe=globe;this.radius=radius;this.base=base;this.maxTiles=maxTiles;this.concurrency=concurrency;this.anisotropy=anisotropy;
     this.views=new Map();this.selection=[];this.lastSelection=-Infinity;this.detailBranches=new Set();
     this.cache=new Map();this.queue=[];this.inflight=0;this.epoch=0;this.revision=0;this.errors=0;
