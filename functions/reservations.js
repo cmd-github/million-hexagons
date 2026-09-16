@@ -9,7 +9,7 @@ export function normaliseReservation(input) {
   return ownerId?{ownerId,topologyVersion:TOPOLOGY_VERSION,cells}:null;
 }
 
-export async function reserveTestCells(db, input, nowMs, ttlMs = 15 * 60_000, reservationId = randomUUID(), metadata = {}) {
+export async function reserveTestCells(db, input, nowMs, ttlMs = 20 * 60_000, reservationId = randomUUID(), metadata = {}) {
   const reservation=normaliseReservation(input);
   if (!reservation) throw Object.assign(new Error('invalid-reservation'),{code:'invalid-reservation'});
   const groups=groupCellsByShard(reservation.cells),reference=db.collection('stagingReservations').doc(reservationId);
@@ -22,6 +22,20 @@ export async function reserveTestCells(db, input, nowMs, ttlMs = 15 * 60_000, re
     transaction.create(reference,{reservationId,ownerId:reservation.ownerId,topologyVersion:TOPOLOGY_VERSION,cellsEncoding:'uint32le-base64',cellsData:encodeCells(reservation.cells),cellCount:reservation.cells.length,status:'active',createdAtMs:nowMs,expiresAtMs:nowMs+ttlMs,...metadata});
   });
   return {reservationId,cellCount:reservation.cells.length,status:'active',expiresAtMs:nowMs+ttlMs};
+}
+
+export async function extendTestReservation(db,reservationId,ownerId,nowMs,extensionMs=10*60_000){
+  const reference=db.collection('stagingReservations').doc(reservationId);
+  return db.runTransaction(async transaction=>{
+    const snapshot=await transaction.get(reference);if(!snapshot.exists)throw Object.assign(new Error('reservation-not-found'),{code:'reservation-not-found'});
+    const reservation=snapshot.data();
+    if(reservation.ownerId!==ownerId)throw Object.assign(new Error('reservation-forbidden'),{code:'reservation-forbidden'});
+    if(reservation.status!=='active'||Number(reservation.expiresAtMs)<=nowMs)throw Object.assign(new Error('reservation-expired'),{code:'reservation-expired'});
+    if(reservation.extendedAtMs)throw Object.assign(new Error('reservation-already-extended'),{code:'reservation-already-extended'});
+    if(reservation.checkoutSessionId)throw Object.assign(new Error('checkout-already-open'),{code:'checkout-already-open'});
+    const expiresAtMs=Number(reservation.expiresAtMs)+extensionMs;transaction.update(reference,{expiresAtMs,extendedAtMs:nowMs});
+    return{reservationId,status:'active',cellCount:reservation.cellCount,expiresAtMs,extended:true};
+  });
 }
 
 export async function releaseTestReservation(db,reservationId,ownerId,nowMs,{expiredOnly=false}={}){

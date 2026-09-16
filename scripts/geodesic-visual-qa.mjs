@@ -43,7 +43,7 @@ try {
     if(process.env.QA_LOCATION && name!==process.env.QA_LOCATION)continue;
     await page.locator('#claimButton').click();
     await page.locator('#logoUpload').setInputFiles('scripts/fixtures/geodesic-reference.svg');
-    await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Change image'&&document.querySelector('#uploadStatus').hidden);
+    await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Add another image'&&document.querySelector('#uploadStatus').hidden);
     await page.locator('#hexAmount').fill('150');const originalDesign=await page.evaluate(()=>geodesicQA.state().design);await page.locator('#toPlacement').click();await page.waitForFunction(()=>!document.querySelector('#suggestLocation').disabled);
     await page.evaluate(id=>geodesicQA.place(id),id);await page.waitForTimeout(350);
     const before=await page.evaluate(()=>geodesicQA.state());assert.equal(before.selected.length,150);assert.equal(before.connected,true);

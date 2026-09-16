@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { reserveTestCells, releaseTestReservation } from './reservations.js';
+import { reserveTestCells, releaseTestReservation, extendTestReservation } from './reservations.js';
 
 class MemoryFirestore {
   constructor(){this.documents=new Map();}
@@ -23,4 +23,10 @@ test('rejects early expiry and makes repeated expiry idempotent',async()=>{
   await assert.rejects(releaseTestReservation(db,'expiry','owner',1099,{expiredOnly:true}),error=>error.code==='reservation-not-expired');
   assert.equal((await releaseTestReservation(db,'expiry','owner',1100,{expiredOnly:true})).status,'expired');
   assert.equal((await releaseTestReservation(db,'expiry','owner',1101,{expiredOnly:true})).releasedCells,0);
+});
+
+test('extends an active reservation once without permitting indefinite renewal',async()=>{
+  const db=new MemoryFirestore();await reserveTestCells(db,{ownerId:'owner',topologyVersion:'geodesic-v1',cells:[42]},1000,1_200_000,'extend');
+  const extended=await extendTestReservation(db,'extend','owner',2000);assert.equal(extended.expiresAtMs,1_801_000);assert.equal(extended.extended,true);
+  await assert.rejects(extendTestReservation(db,'extend','owner',3000),error=>error.code==='reservation-already-extended');
 });

@@ -21,7 +21,14 @@ try {
       hasTouch: mobile,
     });
     let quotedCells = [],
-      released = false;
+      released = false,
+      extended = false,
+      reservationExpiry = Date.now() + 1_200_000;
+    await page.addInitScript(() => {
+      const realNow = Date.now.bind(Date); let offset = 0;
+      Date.now = () => realNow() + offset;
+      window.__advanceReservationClock = (milliseconds) => { offset = milliseconds; };
+    });
     await page.route("**/stagingPlacements", async (route) => {
       const body = route.request().postDataJSON();
       if (body.action === "public-list") {
@@ -64,7 +71,7 @@ try {
               reservationId: "qa-reservation",
               cellCount: 1,
               status: "active",
-              expiresAtMs: Date.now() + 900000,
+              expiresAtMs: reservationExpiry,
             },
             checkoutToken: "x".repeat(43),
           }),
@@ -84,6 +91,11 @@ try {
             },
           }),
         });
+        return;
+      }
+      if (body.action === "extend-checkout-reservation") {
+        extended = true; reservationExpiry += 600_000;
+        await route.fulfill({json:{ok:true,reservation:{reservationId:"qa-reservation",cellCount:1,status:"active",expiresAtMs:reservationExpiry,extended:true}}});
         return;
       }
       await route.abort();
@@ -131,8 +143,13 @@ try {
     assert.equal(await page.locator("#reviewPrice").textContent(), "$1");
     assert.match(
       await page.locator("#serverQuoteStatus").textContent(),
-      /^Location reserved for 1[45]:/,
+      /^Location reserved for (?:19|20):/,
     );
+    await page.evaluate(() => window.__advanceReservationClock(16 * 60_000));
+    await page.locator("#extendReservation").waitFor({state:"visible",timeout:3000});
+    await page.locator("#extendReservation").click();
+    await page.waitForFunction(() => /Location reserved for 1[34]:/.test(document.querySelector("#serverQuoteStatus").textContent));
+    assert.equal(extended,true);assert.equal(await page.locator("#extendReservation").isHidden(),true);
     const actionBox = await page.locator("#previewPurchase").boundingBox(),
       layoutHeight = await page.evaluate(
         () => document.documentElement.clientHeight,

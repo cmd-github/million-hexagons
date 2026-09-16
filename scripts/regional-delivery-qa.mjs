@@ -38,7 +38,7 @@ try {
     if(process.env.REGIONAL_TIMINGS_ONLY){assert.deepEqual(errors,[]);await context.close();continue;}
     // Review creates a temporary reservation; close the editor to release it.
     await page.locator('#claimButton').click();await page.locator('#designStep').waitFor({state:'visible',timeout:30000});
-    await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Change image');
+    await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Add another image');
     await page.locator('#logoOrientation').fill('37');const cells=await page.locator('#hexAmount').inputValue();
     await page.locator('#toPlacement').click();
     for(let attempt=0;attempt<5;attempt++){

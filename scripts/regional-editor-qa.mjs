@@ -12,7 +12,7 @@ try {
     await page.route('**/topology/occupancy-v1.gz',r=>r.fulfill({body:gzipSync(Buffer.alloc(1000000)),contentType:'application/octet-stream'}));
     await page.goto((process.env.SMOKE_URL||'http://127.0.0.1:4180')+'/?geodesicQA');await page.waitForFunction(()=>window.geodesicQA);
     await page.locator('#claimButton').click();await page.locator('#designStep').waitFor({state:'visible'});
-    await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Change image');
+    await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Add another image');
     for(const count of [1500,100000]) {
       const started=Date.now();await page.locator('#hexAmount').fill(String(count));
       await page.waitForFunction(n=>!document.querySelector('#appLoading').hidden?false:geodesicQA.state().design.length===n,count);

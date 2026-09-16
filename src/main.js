@@ -231,8 +231,14 @@ let selectedNormal = null;
 let selectedCells = [];
 let uploadedLogo = null;
 let uploadedLogoCrop = null;
+let imageLayers=[];
 let logoEditorMode = 'move', logoDrag = null;
 const logoPosition = { x: 0, y: 0 };
+function activeImageLayer(){return uploadedLogo?{image:uploadedLogo,crop:uploadedLogoCrop,scale:Number(document.querySelector('#logoScale').value),rotation:Number(document.querySelector('#logoOrientation').value),treatment:document.querySelector('#logoTreatment').value,position:{...logoPosition}}:null;}
+function artworkImageLayers(){const active=activeImageLayer();return active?[...imageLayers,active]:imageLayers;}
+function renderImageLayers(){const target=document.querySelector('#imageLayers');if(!target)return;target.replaceChildren();artworkImageLayers().forEach((layer,index)=>{const button=document.createElement('button');button.type='button';button.textContent=`Image ${index+1}`;button.classList.toggle('active',index===imageLayers.length&&uploadedLogo);button.onclick=()=>selectImageLayer(index);target.append(button);});}
+function loadActiveImageLayer(layer){uploadedLogo=layer?.image||null;uploadedLogoCrop=layer?.crop||null;document.querySelector('#logoScale').value=layer?.scale||100;document.querySelector('#logoScaleValue').textContent=`${layer?.scale||100}%`;document.querySelector('#logoOrientation').value=layer?.rotation||0;document.querySelector('#rotationValue').textContent=`${layer?.rotation||0}°`;document.querySelector('#logoTreatment').value=layer?.treatment||'span';logoPosition.x=layer?.position?.x||0;logoPosition.y=layer?.position?.y||0;}
+function selectImageLayer(index){const layers=artworkImageLayers();if(index<0||index>=layers.length||index===layers.length-1&&uploadedLogo)return;const selected=layers.splice(index,1)[0];imageLayers=layers;loadActiveImageLayer(selected);updateImageControls();drawDesignPreview();refreshSelection();}
 let lastPaintedCell = null;
 let editorArtworkSize = { width: 1, height: 1 };
 const editorView = { zoom: 1, x: 0, y: 0 };
@@ -589,7 +595,7 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   panel.scrollTop = 0;
   for(const id of ['companyName','companyDescription','website'])document.getElementById(id).value='';
   document.querySelector('#artworkQuality').hidden=true;
-  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;draftArtwork=null;
+  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;imageLayers=[];draftArtwork=null;
   document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();
   document.querySelector('#brushColor').value='#ff4d6d';document.querySelector('#logoTreatment').value='span';document.querySelector('#areaBrush').value='0';document.querySelector('#areaBrushValue').textContent='1 cell';showUploadMessage('');document.querySelector('#uploadStatus').hidden=true;
   resetLogoTransform();undoStack.length=0;redoStack.length=0;updateHistory();
@@ -640,7 +646,7 @@ function captureDraft() {
     anchor:designAnchor,
     cells:previewCells().map(({id,color,transparent})=>({id,color,transparent})),
     footprintEdited,
-    logo:uploadedLogo,logoCrop:uploadedLogoCrop,
+    logo:uploadedLogo,logoCrop:uploadedLogoCrop,imageLayers:[...imageLayers],
     baseColour:document.querySelector('#brushColor').value,
     treatment:document.querySelector('#logoTreatment').value,
     scale:document.querySelector('#logoScale').value,
@@ -656,7 +662,7 @@ function restoreDraft() {
   logoCells=topology.cells(draft.cells,draft.anchor);
   amountInput.value=logoCells.length;
   footprintEdited=draft.footprintEdited;
-  uploadedLogo=draft.logo;uploadedLogoCrop=draft.logoCrop;
+  uploadedLogo=draft.logo;uploadedLogoCrop=draft.logoCrop;imageLayers=[...(draft.imageLayers||[])];
   document.querySelector('#brushColor').value=draft.baseColour;
   document.querySelector('#logoTreatment').value=draft.treatment;
   document.querySelector('#logoScale').value=draft.scale;
@@ -669,7 +675,7 @@ function restoreDraft() {
 }
 function discardDraft() {
   savedDraft=null;
-  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;draftArtwork=null;
+  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;imageLayers=[];draftArtwork=null;
   document.querySelector('#logoUpload').value='';
   document.querySelector('#logoPreview').replaceChildren();
   document.querySelector('#logoPalette').hidden=true;
@@ -1042,7 +1048,7 @@ function updateImageControls() {
   document.querySelector('#removeImage').hidden=!uploadedLogo;
   document.querySelector('#logoOptions').hidden=!uploadedLogo;
   document.querySelector('#moveImageMode').disabled=!uploadedLogo;
-  document.querySelector('#addImageLabel').textContent=uploadedLogo?'Change image':'Add image';
+  document.querySelector('#addImageLabel').textContent=artworkImageLayers().length?'Add another image':'Add image';renderImageLayers();
   if(!uploadedLogo && logoEditorMode==='move')logoEditorMode='pan';
   setEditorMode(logoEditorMode,false);
 }
@@ -1214,7 +1220,7 @@ document.querySelector('#backToShape').addEventListener('click',enterShapeStep);
 document.querySelector('#brushColor').addEventListener('input',()=>{document.querySelector('#paintColourChip').style.background=document.querySelector('#brushColor').value;});
 document.querySelector('#fillCells').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;rememberPaint();const colour=document.querySelector('#brushColor').value;logoCells=previewCells().map(c=>({...c,color,transparent:false}));rememberRecentColour(colour);footprintEdited=true;drawDesignPreview();});
 document.querySelector('#removeImage').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;document.querySelector('#artworkQuality').hidden=true;
-  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();});
+  uploadVersion++;const previous=imageLayers.pop();loadActiveImageLayer(previous);document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;if(!previous)resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();refreshSelection();});
 function resetLogoTransform() {
   document.querySelector('#logoScale').value = 100;
   document.querySelector('#logoScaleValue').textContent = '100%';
@@ -1384,6 +1390,7 @@ let uploadVersion = 0;
 document.querySelector('#logoUpload').addEventListener('change', (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
+  if(artworkImageLayers().length>=5){showUploadMessage('A placement can contain up to five images.');event.target.value='';return;}
   const version=++uploadVersion;
   if (file.size > 4 * 1024 * 1024) {
     showUploadMessage('Logo must be smaller than 4 MB.');
@@ -1406,6 +1413,7 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
     raster.getContext('2d').imageSmoothingQuality='high';
     raster.getContext('2d').drawImage(image,0,0,raster.width,raster.height);
     raster.naturalWidth=raster.width; raster.naturalHeight=raster.height;
+    if(uploadedLogo)imageLayers.push(activeImageLayer());
     uploadedLogo = raster;
     uploadedLogoCrop = findLogoContentBounds(raster);
     resetLogoTransform();
@@ -1434,25 +1442,25 @@ function showUploadMessage(message) {
   updateLogoGuidance(message);
 }
 
-function drawLogo(context, width, height, color, transparent = false, offsetX = 0, offsetY = 0) {
+function drawLogo(context, width, height, color, transparent = false, offsetX = 0, offsetY = 0, layer=activeImageLayer()) {
   if (!transparent) context.clearRect(offsetX, offsetY, width, height);
   if (!transparent) {
     context.fillStyle = color;
     context.fillRect(offsetX, offsetY, width, height);
   }
-  if (uploadedLogo) {
-    const source = uploadedLogoCrop || { x: 0, y: 0, width: uploadedLogo.naturalWidth, height: uploadedLogo.naturalHeight };
+  if (layer?.image) {
+    const source = layer.crop || { x: 0, y: 0, width: layer.image.naturalWidth, height: layer.image.naturalHeight };
     const fit = document.querySelector('#logoFit').value;
     const padding = 0;
     const availableWidth = width - padding * 2;
     const availableHeight = height - padding * 2;
-    const userScale = document.querySelector('#logoScale') ? Number(document.querySelector('#logoScale').value) / 100 : 1;
+    const userScale = Number(layer.scale||100) / 100;
     const scale = (fit === 'cover'
       ? Math.max(availableWidth / source.width, availableHeight / source.height)
       : Math.min(availableWidth / source.width, availableHeight / source.height)) * userScale;
     const drawWidth = source.width * scale;
     const drawHeight = source.height * scale;
-    context.drawImage(uploadedLogo, source.x, source.y, source.width, source.height, offsetX + (width - drawWidth) / 2, offsetY + (height - drawHeight) / 2, drawWidth, drawHeight);
+    context.drawImage(layer.image, source.x, source.y, source.width, source.height, offsetX + (width - drawWidth) / 2, offsetY + (height - drawHeight) / 2, drawWidth, drawHeight);
   }
 }
 
@@ -1482,9 +1490,9 @@ function largestLogoRect(cells,bounds,aspect,width,height) {
 function renderArtwork(cells) {
   const bounds = layoutFor(cells).bounds;
   const sourceCells=previewCells(),sourceLayout=layoutFor(sourceCells),sourceBounds=sourceLayout.bounds;
-  const signature=[document.querySelector('#logoScale').value,document.querySelector('#logoOrientation').value,document.querySelector('#logoTreatment').value,document.querySelector('#brushColor').value,logoPosition.x,logoPosition.y].join(':');
+  const layers=artworkImageLayers(),signature=document.querySelector('#brushColor').value+JSON.stringify(layers.map(layer=>[layer.scale,layer.rotation,layer.treatment,layer.position.x,layer.position.y]));
   const cached=artworkCache.get(cells);
-  if(cached&&cached.signature===signature&&cached.image===uploadedLogo&&cached.source===sourceCells)return cached.art;
+  if(cached&&cached.signature===signature&&cached.layers?.length===layers.length&&cached.layers.every((image,index)=>image===layers[index].image)&&cached.source===sourceCells)return cached.art;
   const art = document.createElement('canvas');
   const unit = Math.min(128, 3072 / Math.max(bounds.width, bounds.height));
   art.width = Math.ceil(bounds.width * unit);
@@ -1492,29 +1500,29 @@ function renderArtwork(cells) {
   const context = art.getContext('2d');
   context.imageSmoothingQuality='high';
   const px = art.width / bounds.width, py = art.height / bounds.height;
-  const drawRotated = (x, y, width, height) => {
-    const rotation = Number(document.querySelector('#logoOrientation').value) || 0;
-    const repeat = document.querySelector('#logoTreatment').value === 'repeat';
-    const shiftX = logoPosition.x/100 * (repeat ? width : sourceBounds.width * px);
-    const shiftY = logoPosition.y/100 * (repeat ? height : sourceBounds.height * py);
+  const drawRotated = (x, y, width, height,layer) => {
+    const rotation = Number(layer.rotation) || 0;
+    const repeat = layer.treatment === 'repeat';
+    const shiftX = layer.position.x/100 * (repeat ? width : sourceBounds.width * px);
+    const shiftY = layer.position.y/100 * (repeat ? height : sourceBounds.height * py);
     context.save(); context.translate(x + width / 2 + shiftX, y + height / 2 + shiftY);
     context.rotate(THREE.MathUtils.degToRad(rotation));
-    const source=uploadedLogoCrop||uploadedLogo;
+    const source=layer.crop||layer.image;
     const fitted=containRotatedImage(source.width,source.height,width,height,rotation);
     const w=fitted.width,h=fitted.height;
-    drawLogo(context, w, h, document.querySelector('#brushColor').value, true, -w / 2, -h / 2);
+    drawLogo(context, w, h, document.querySelector('#brushColor').value, true, -w / 2, -h / 2,layer);
     context.restore();
   };
   const point = (cell) => { const p = centre(cell); return { x: (p.x - bounds.left)*px, y: (p.y-bounds.top)*py }; };
   context.setTransform(px,0,0,py,-bounds.left*px,-bounds.top*py);
   context.fillStyle=document.querySelector('#brushColor').value;context.fill(layoutFor(cells).path);
   context.resetTransform();
-  if (creationType === 'logo' && uploadedLogo) {
+  if (creationType === 'logo' && layers.length) {
     context.save();context.setTransform(px,0,0,py,-bounds.left*px,-bounds.top*py);context.clip(layoutFor(cells).path);context.resetTransform();
-    if (document.querySelector('#logoTreatment').value === 'repeat') {
-      cells.forEach((cell) => { const p = point(cell); context.save(); polygonPath(context,cell,bounds,px,py); context.clip(); drawRotated(p.x-unit*.525,p.y-unit*.525,unit*1.05,unit*1.05); context.restore(); });
+    for(const layer of layers){if (layer.treatment === 'repeat') {
+      cells.forEach((cell) => { const p = point(cell); context.save(); polygonPath(context,cell,bounds,px,py); context.clip(); drawRotated(p.x-unit*.525,p.y-unit*.525,unit*1.05,unit*1.05,layer); context.restore(); });
     } else {
-      const source = uploadedLogoCrop || { width: uploadedLogo.naturalWidth, height: uploadedLogo.naturalHeight };
+      const source = layer.crop || { width: layer.image.naturalWidth, height: layer.image.naturalHeight };
       const rotation = Math.abs(Number(document.querySelector('#logoOrientation').value) || 0);
       // Fit once in the editor's local coordinate system. A new destination
       // clips that same framing; it must not shrink/recentre the source image.
@@ -1523,8 +1531,8 @@ function renderArtwork(cells) {
       if(sourceLayout.fits.size>12)sourceLayout.fits.clear();
       if(!sourceLayout.fits.has(aspect))sourceLayout.fits.set(aspect,largestLogoRect(sourceCells,sourceBounds,aspect,sourceBounds.width,sourceBounds.height));
       const safeRect=sourceLayout.fits.get(aspect);
-      drawRotated((sourceBounds.left + safeRect.x - bounds.left) * px, (sourceBounds.top + safeRect.y - bounds.top) * py, safeRect.width * px, safeRect.height * py);
-    }
+      drawRotated((sourceBounds.left + safeRect.x - bounds.left) * px, (sourceBounds.top + safeRect.y - bounds.top) * py, safeRect.width * px, safeRect.height * py,layer);
+    }}
     context.restore();
   }
   // Group vector overrides by colour, keeping bulk fills bounded at large counts.
@@ -1537,7 +1545,7 @@ function renderArtwork(cells) {
   context.setTransform(px,0,0,py,-bounds.left*px,-bounds.top*py);
   for(const [color,group] of overrides){const path=layoutFor(group).path;context.globalCompositeOperation=color==='clear'?'destination-out':'source-over';context.fillStyle=color==='clear'?'#000':color;context.fill(path);}
   context.resetTransform();context.globalCompositeOperation='source-over';
-  artworkCache.set(cells,{signature,image:uploadedLogo,source:sourceCells,art});
+  artworkCache.set(cells,{signature,layers:layers.map(layer=>layer.image),source:sourceCells,art});
   return art;
 }
 
@@ -1604,13 +1612,14 @@ async function focusPersistentPlacement(record){
   if(!initialPlacementFocusAllowed||/^#cell=\d+$/.test(location.hash))return;
   flyToCell(record.anchor,.004,1200,()=>inspectPlacement(record.anchor));
 }
-function clearCheckoutReservation(){activeCheckoutReservation=null;clearInterval(checkoutExpiryTimer);checkoutExpiryTimer=null;const message=document.querySelector('#serverQuoteStatus');if(message)message.textContent='Estimated at $1 per cell';}
+function clearCheckoutReservation(){activeCheckoutReservation=null;clearInterval(checkoutExpiryTimer);checkoutExpiryTimer=null;const message=document.querySelector('#serverQuoteStatus'),extend=document.querySelector('#extendReservation');if(message){message.textContent='Estimated at $1 per cell';message.classList.remove('reservation-urgent');}if(extend)extend.hidden=true;}
 async function releaseActiveCheckoutReservation(){const active=activeCheckoutReservation;clearCheckoutReservation();if(active&&stagingClient)await stagingClient.releaseCheckoutReservation(active.reservation.reservationId,active.checkoutToken).catch(()=>{});}
 function showCheckoutExpiry(){
   clearInterval(checkoutExpiryTimer);const message=document.querySelector('#serverQuoteStatus');
-  const update=()=>{if(!activeCheckoutReservation)return;const seconds=Math.max(0,Math.ceil((activeCheckoutReservation.reservation.expiresAtMs-Date.now())/1000)),minutes=Math.floor(seconds/60),remaining=String(seconds%60).padStart(2,'0');message.textContent=seconds?`Location reserved for ${minutes}:${remaining}`:'Reservation expired · choose the location again';if(!seconds){document.querySelector('#previewPurchase').disabled=true;clearInterval(checkoutExpiryTimer);}};
+  const update=()=>{if(!activeCheckoutReservation)return;const seconds=Math.max(0,Math.ceil((activeCheckoutReservation.reservation.expiresAtMs-Date.now())/1000)),minutes=Math.floor(seconds/60),remaining=String(seconds%60).padStart(2,'0'),extend=document.querySelector('#extendReservation');message.textContent=seconds?`Location reserved for ${minutes}:${remaining}`:'Reservation expired · choose the location again';message.classList.toggle('reservation-urgent',seconds>0&&seconds<=300);extend.hidden=!seconds||seconds>300||Boolean(activeCheckoutReservation.reservation.extended);if(!seconds){document.querySelector('#previewPurchase').disabled=true;clearInterval(checkoutExpiryTimer);}};
   update();checkoutExpiryTimer=setInterval(update,1000);
 }
+document.querySelector('#extendReservation').onclick=async event=>{if(!activeCheckoutReservation||!stagingClient)return;event.currentTarget.disabled=true;try{activeCheckoutReservation.reservation=await stagingClient.extendCheckoutReservation(activeCheckoutReservation.reservation.reservationId,activeCheckoutReservation.checkoutToken);showCheckoutExpiry();}catch(error){event.currentTarget.hidden=true;document.querySelector('#serverQuoteStatus').textContent=error.code==='reservation-already-extended'?'The one-time extension has already been used.':'Could not extend this reservation.';}finally{event.currentTarget.disabled=false;}};
 function persistentArtwork(canvas){const limit=900,scale=Math.min(1,limit/Math.max(canvas.width,canvas.height)),copy=document.createElement('canvas');copy.width=Math.max(1,Math.round(canvas.width*scale));copy.height=Math.max(1,Math.round(canvas.height*scale));copy.getContext('2d').drawImage(canvas,0,0,copy.width,copy.height);return copy.toDataURL('image/webp',.86);}
 function publicationArtwork(canvas){return canvas.toDataURL('image/webp',.95);}
 async function applyPersistentPlacements(records,{focus=false}={}){
@@ -1820,8 +1829,8 @@ async function paintPlacement() {
     publishing=true;
     if(!activeCheckoutReservation){publishing=false;const target=document.querySelector('#websiteError');target.hidden=false;target.textContent='This reservation expired. Choose the location again.';return;}
     showEmbeddedCheckoutLoading();await nextPaint();
-    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),placement={topologyVersion:'geodesic-v1',anchor:selectedCell.id,cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},checkout=await stagingClient.createStripeCheckout(placement,activeCheckoutReservation.reservation.reservationId,activeCheckoutReservation.checkoutToken);trackEvent('checkout_started',{context:{cellCount:placement.cells.length,source:'checkout'}});if(checkout.expiresAtMs){activeCheckoutReservation.reservation.expiresAtMs=checkout.expiresAtMs;showCheckoutExpiry();}await showEmbeddedCheckout(checkout);publishing=false;return;}
-    catch(error){publishing=false;hideEmbeddedCheckout();const target=document.querySelector('#websiteError');target.hidden=false;target.textContent=error.code==='reservation-invalid'?'This reservation expired. Choose the location again.':'Could not open secure checkout. Your design is still here.';return;}
+    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),placement={topologyVersion:'geodesic-v1',anchor:selectedCell.id,cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},checkout=await stagingClient.createStripeCheckout(placement,activeCheckoutReservation.reservation.reservationId,activeCheckoutReservation.checkoutToken,stagingUser);trackEvent('checkout_started',{context:{cellCount:placement.cells.length,source:'checkout'}});if(checkout.expiresAtMs){activeCheckoutReservation.reservation.expiresAtMs=checkout.expiresAtMs;showCheckoutExpiry();}await showEmbeddedCheckout(checkout);publishing=false;return;}
+    catch(error){publishing=false;hideEmbeddedCheckout();const target=document.querySelector('#websiteError');target.hidden=false;target.textContent=error.code==='reservation-invalid'?'This reservation expired. Choose the location again.':error.code==='destination-not-found'?'That website returned a 404. Check the address and try again.':error.code?.startsWith('destination-')?'That website could not be safely reached. Check the address and try again.':'Could not open secure checkout. Your design is still here.';return;}
   }
   publishing=true;
   document.querySelector('#buyPanel').inert=true;

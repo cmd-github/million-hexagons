@@ -23,7 +23,7 @@ try {
     await more('clearPaint');await page.locator('#hexAmount').fill(String(count));await page.locator('#editorFit').click();
     if(type==='logo') {
       await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');
-      await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Change image'&&document.querySelector('#uploadStatus').hidden);
+      await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Add another image'&&document.querySelector('#uploadStatus').hidden);
       await page.locator('#moveImageMode').click();await page.locator('#logoScale').fill('220');
       const before=await pixels(),r=await page.locator('#designCanvas').boundingBox();
       if(mobile){const touch=await page.context().newCDPSession(page);await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:r.x+r.width*.5,y:r.y+r.height*.5}]});await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:r.x+r.width*.58,y:r.y+r.height*.54}]});await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await touch.detach();}

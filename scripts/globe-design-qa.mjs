@@ -188,13 +188,17 @@ try {
       .setInputFiles("scripts/fixtures/test-logo.svg");
     await page.waitForFunction(
       () =>
-        document.querySelector("#addImageLabel").textContent === "Change image",
+        document.querySelector("#addImageLabel").textContent === "Add another image",
     );
     assert.deepEqual(
       await page.evaluate(() => window.geodesicQA.state().designCells),
       paintedState,
     );
     assert.equal(await page.locator('[name="logoTreatmentChoice"]').count(), 2);
+    await page.locator("#logoUpload").setInputFiles([]);
+    await page.locator("#logoUpload").setInputFiles("scripts/fixtures/geodesic-reference.svg");
+    await page.waitForFunction(() => document.querySelectorAll("#imageLayers button").length === 2);
+    assert.deepEqual(await page.locator("#imageLayers button").allTextContents(), ["Image 1", "Image 2"]);
     await page.locator('[name="logoTreatmentChoice"][value="repeat"]').check();
     assert.equal(await page.locator("#logoTreatment").inputValue(), "repeat");
     await page.locator("#moveImageMode").click();

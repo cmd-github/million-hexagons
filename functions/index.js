@@ -19,10 +19,11 @@ import { issueCredits, redeemCredits } from './credits.js';
 import { applyModeration, normaliseModeration, publicPlacement } from './moderation.js';
 import { createTestPlacement, decodeCells, deleteTestPlacement, normalisePlacementClaim, placementClaimDiagnostics, updateTestPlacementContent } from './placements.js';
 import { decodeArtworkSource, designObjectPath, publicationObjects, sourceObjectPath } from './publication.js';
-import { releaseTestReservation, reserveTestCells } from './reservations.js';
+import { extendTestReservation, releaseTestReservation, reserveTestCells } from './reservations.js';
 import { quoteCells } from './pricing.js';
 import Stripe from 'stripe';
 import { checkoutLineItem, checkoutOrderId, checkoutOwnerId, paidCheckoutEmail, paidEmailOwnerId } from './payments.js';
+import {validateDestinationUrl} from './destination-validation.js';
 import { ownerIdsForIdentity } from './owner-access.js';
 import { checkoutSessionState, paymentFailure, refundState } from './payment-lifecycle.js';
 import { metricField, normaliseAnalyticsEvent, publicGlobalStats, publicMetrics } from './analytics.js';
@@ -197,17 +198,18 @@ export const stagingPlacements = onRequest(
       await db.runTransaction(async transaction=>{if((await transaction.get(eventRef)).exists){duplicate=true;return;}transaction.create(eventRef,{eventId,type:event.type,...(event.placementId?{placementId:event.placementId}:{}),...(event.context?{context:event.context}:{}),occurredAt:FieldValue.serverTimestamp()});transaction.set(aggregateRef,{[event.type]:FieldValue.increment(1),...(metric?{[metric]:FieldValue.increment(1)}:{}),updatedAt:FieldValue.serverTimestamp()},{merge:true});if(metric)transaction.set(metricsRef,{placementId:event.placementId,[metric]:FieldValue.increment(1),updatedAt:FieldValue.serverTimestamp()},{merge:true});});
       const metrics=metricsRef?await metricsRef.get():null;response.status(200).json({ok:true,duplicate,...(metrics?{metrics:publicMetrics(metrics.data())}:{})});return;
     }
-    if(action==='quote-reserve'||action==='release-checkout-reservation'){
+    if(action==='quote-reserve'||action==='release-checkout-reservation'||action==='extend-checkout-reservation'){
       try{
         const token=String(request.body.checkoutToken||'');
-        if(action==='release-checkout-reservation'){
+        if(action==='release-checkout-reservation'||action==='extend-checkout-reservation'){
           if(token.length<32){response.status(400).json({ok:false,error:'invalid-checkout-token'});return;}
           const ownerId=`checkout:${createHash('sha256').update(token).digest('hex')}`;
           const db=getFirestore(),reservationId=String(request.body.reservationId||''),snapshot=await db.collection('stagingReservations').doc(reservationId).get(),stored=snapshot.data();if(!snapshot.exists||stored.ownerId!==ownerId){response.status(404).json({ok:false,error:'reservation-not-found'});return;}
+          if(action==='extend-checkout-reservation'){const reservation=await extendTestReservation(db,reservationId,ownerId,Date.now());response.status(200).json({ok:true,reservation});return;}
           if(stored.checkoutSessionId){const session=await new Stripe(stripeSecretKey.value()).checkout.sessions.retrieve(stored.checkoutSessionId),state=checkoutSessionState(session);if(state==='paid'){await fulfilPaidCheckout(db,session,Number(session.created)*1000);response.status(409).json({ok:false,error:'payment-already-completed'});return;}if(state==='payment-processing'){response.status(409).json({ok:false,error:'payment-processing'});return;}if(state==='checkout-open')await new Stripe(stripeSecretKey.value()).checkout.sessions.expire(stored.checkoutSessionId);}
           const reservation=await releaseTestReservation(db,reservationId,ownerId,Date.now());if(stored.checkoutSessionId){const orderId=checkoutOrderId(reservationId);await db.collection('stagingOrders').doc(orderId).set({status:'checkout-cancelled',paymentStatus:'unpaid',closedAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()},{merge:true});}response.status(200).json({ok:true,reservation,checkoutClosed:Boolean(stored.checkoutSessionId)});return;
         }
-        const now=Date.now(),ttlMs=15*60_000,checkoutToken=randomBytes(32).toString('base64url'),ownerId=`checkout:${createHash('sha256').update(checkoutToken).digest('hex')}`,reservationId=randomUUID();
+        const now=Date.now(),ttlMs=20*60_000,checkoutToken=randomBytes(32).toString('base64url'),ownerId=`checkout:${createHash('sha256').update(checkoutToken).digest('hex')}`,reservationId=randomUUID();
         const cells=request.body.reservation?.cells,quote=quoteCells(Array.isArray(cells)?cells.length:0,now,ttlMs,randomUUID());
         const reservation=await reserveTestCells(getFirestore(),{...request.body.reservation,ownerId},now,ttlMs,reservationId,{quote});
         response.status(201).json({ok:true,quote,reservation,checkoutToken});return;
@@ -297,10 +299,11 @@ export const stagingPlacements = onRequest(
       if (action === 'update-content') {
         const placementId = String(request.body.placementId || ''), operationId = randomUUID(),db=getFirestore(),placement=await db.collection('stagingPlacements').doc(placementId).get();
         if(!placement.exists||!ownerIds.includes(placement.data().ownerId)||['deleted','revoked'].includes(placement.data().status)){response.status(404).json({ok:false,error:'placement-not-found'});return;}
-        const ownerId=placement.data().ownerId,source = await savePrivateArtwork(`staging-placement-sources/${placementId}/pending/${operationId}/artwork`, request.body.content?.sourceArtworkDataUrl || request.body.content?.artworkDataUrl, { placementId, ownerId });
-        const designSource = await savePrivateDesign(ownerId, `placement-${placementId}-${operationId}`, request.body.content?.designState, request.body.content?.originalArtworkDataUrl);
+        const content={...request.body.content};if(content.destinationUrl)try{content.destinationUrl=await validateDestinationUrl(content.destinationUrl);}catch(error){response.status(400).json({ok:false,error:error.code||'destination-unreachable'});return;}
+        const ownerId=placement.data().ownerId,source = await savePrivateArtwork(`staging-placement-sources/${placementId}/pending/${operationId}/artwork`, content.sourceArtworkDataUrl || content.artworkDataUrl, { placementId, ownerId });
+        const designSource = await savePrivateDesign(ownerId, `placement-${placementId}-${operationId}`, content.designState, content.originalArtworkDataUrl);
         if (!source || !designSource) { response.status(400).json({ ok: false, error: 'invalid-design-source' }); return; }
-        const result = await updateTestPlacementContent(db, placementId, ownerId, request.body.content, FieldValue.serverTimestamp(), source, designSource);
+        const result = await updateTestPlacementContent(db, placementId, ownerId, content, FieldValue.serverTimestamp(), source, designSource);
         response.status(200).json({ ok: true, placement: result });
         return;
       }
@@ -309,7 +312,7 @@ export const stagingPlacements = onRequest(
         if(!placementSnapshot.exists||!ownerIds.includes(placementSnapshot.data().ownerId)||['deleted','revoked'].includes(placementSnapshot.data().status)){response.status(404).json({ok:false,error:'placement-not-found'});return;}
         const currentVersion=Number(placementSnapshot.data().currentVersion||1),contentSnapshot=await db.collection('stagingPlacementVersions').doc(`${placementId}-v${currentVersion}`).get(),current=contentSnapshot.data();
         if(!current?.source){response.status(409).json({ok:false,error:'editable-source-unavailable'});return;}
-        const content={title:request.body.content?.title,description:request.body.content?.description,destinationUrl:request.body.content?.destinationUrl,artworkDataUrl:'',topologyVersion:placementSnapshot.data().topologyVersion,anchor:placementSnapshot.data().anchor,cells:decodeCells(placementSnapshot.data().cellsData)};
+        const content={title:request.body.content?.title,description:request.body.content?.description,destinationUrl:request.body.content?.destinationUrl,artworkDataUrl:'',topologyVersion:placementSnapshot.data().topologyVersion,anchor:placementSnapshot.data().anchor,cells:decodeCells(placementSnapshot.data().cellsData)};if(content.destinationUrl)try{content.destinationUrl=await validateDestinationUrl(content.destinationUrl);}catch(error){response.status(400).json({ok:false,error:error.code||'destination-unreachable'});return;}
         const result=await updateTestPlacementContent(db,placementId,placementSnapshot.data().ownerId,content,FieldValue.serverTimestamp(),current.source,current.designSource||null);
         response.status(200).json({ok:true,placement:result});return;
       }
@@ -458,11 +461,12 @@ async function recordRefund(db,charge){
 }
 
 export const stagingCheckout=onRequest({region:'europe-west1',maxInstances:3,timeoutSeconds:60,memory:'512MiB',secrets:[stripeSecretKey]},async(request,response)=>{
-  response.set('Cache-Control','no-store');const origin=request.get('Origin');if(!stagingOrigin(origin)){response.status(403).json({ok:false,error:'origin-not-allowed'});return;}if(origin)response.set('Access-Control-Allow-Origin',origin).set('Vary','Origin');response.set('Access-Control-Allow-Headers','content-type').set('Access-Control-Allow-Methods','POST, OPTIONS');if(request.method==='OPTIONS'){response.status(204).send('');return;}if(request.method!=='POST'){response.status(405).json({ok:false,error:'method-not-allowed'});return;}if(!stagingSandboxEnabled.value()){response.status(404).json({ok:false,error:'sandbox-disabled'});return;}
+  response.set('Cache-Control','no-store');const origin=request.get('Origin');if(!stagingOrigin(origin)){response.status(403).json({ok:false,error:'origin-not-allowed'});return;}if(origin)response.set('Access-Control-Allow-Origin',origin).set('Vary','Origin');response.set('Access-Control-Allow-Headers','authorization, content-type').set('Access-Control-Allow-Methods','POST, OPTIONS');if(request.method==='OPTIONS'){response.status(204).send('');return;}if(request.method!=='POST'){response.status(405).json({ok:false,error:'method-not-allowed'});return;}if(!stagingSandboxEnabled.value()){response.status(404).json({ok:false,error:'sandbox-disabled'});return;}
   try{
     const reservationId=String(request.body?.reservationId||''),checkoutToken=String(request.body?.checkoutToken||''),orderId=checkoutOrderId(reservationId),db=getFirestore(),reservationSnapshot=await db.collection('stagingReservations').doc(reservationId).get(),reservation=reservationSnapshot.data();
     if(!reservationSnapshot.exists||reservation.status!=='active'||reservation.ownerId!==checkoutOwnerId(checkoutToken)||Number(reservation.expiresAtMs)<=Date.now()){response.status(409).json({ok:false,error:'reservation-invalid'});return;}
     const candidate={...request.body.placement,ownerId:'pending-payment'};if(!normalisePlacementClaim(candidate)||candidate.cells.map(Number).sort((a,b)=>a-b).join(',')!==decodeCells(reservation.cellsData).join(',')){response.status(400).json({ok:false,error:'invalid-placement'});return;}
+    if(candidate.destinationUrl)try{candidate.destinationUrl=await validateDestinationUrl(candidate.destinationUrl);}catch(error){response.status(400).json({ok:false,error:error.code||'destination-unreachable'});return;}
     const orderRef=db.collection('stagingOrders').doc(orderId),existing=await orderRef.get();if(existing.exists&&existing.data().checkoutUrl){response.status(200).json({ok:true,checkout:{orderId,placementId:existing.data().placementId,url:existing.data().checkoutUrl}});return;}
     let placementId=existing.data()?.placementId,sourceReference=existing.data()?.source,placement=existing.data()?.placement,checkoutExpiresAt=existing.data()?.checkoutExpiresAt||(existing.exists?Math.floor(Number(reservation.expiresAtMs)/1000):Math.floor(Date.now()/1000)+30*60);
     if(!existing.exists){
@@ -473,7 +477,8 @@ export const stagingCheckout=onRequest({region:'europe-west1',maxInstances:3,tim
       placement={topologyVersion:candidate.topologyVersion,anchor:candidate.anchor,cells:candidate.cells,title:candidate.title,description:candidate.description,destinationUrl:candidate.destinationUrl,artworkDataUrl:candidate.artworkDataUrl};
       await orderRef.set({orderId,reservationId,reservationOwnerId:reservation.ownerId,placementId,placement,source:sourceReference,quote:reservation.quote,checkoutExpiresAt,status:'checkout-creating',environment:'staging',createdAt:FieldValue.serverTimestamp()},{merge:false});
     }
-    const stripe=new Stripe(stripeSecretKey.value());const session=await stripe.checkout.sessions.create({mode:'payment',ui_mode:'embedded_page',redirect_on_completion:'never',payment_method_types:['card'],line_items:[checkoutLineItem(reservation.quote)],customer_creation:'always',expires_at:checkoutExpiresAt,metadata:{orderId,reservationId,placementId},payment_intent_data:{metadata:{orderId,reservationId,placementId}}},{idempotencyKey:orderId});
+    let verifiedEmail='';const idToken=request.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];if(idToken)try{const identity=await getAuth().verifyIdToken(idToken);if(identity.email_verified)verifiedEmail=String(identity.email||'').trim().toLowerCase();}catch{}
+    const stripe=new Stripe(stripeSecretKey.value());const session=await stripe.checkout.sessions.create({mode:'payment',ui_mode:'embedded_page',redirect_on_completion:'never',payment_method_types:['card'],line_items:[checkoutLineItem(reservation.quote)],customer_creation:'always',...(verifiedEmail?{customer_email:verifiedEmail}:{}),expires_at:checkoutExpiresAt,metadata:{orderId,reservationId,placementId},payment_intent_data:{metadata:{orderId,reservationId,placementId}}},{idempotencyKey:orderId});
     await Promise.all([orderRef.set({stripeCheckoutSessionId:session.id,status:'checkout-open',paymentStatus:'unpaid',updatedAt:FieldValue.serverTimestamp()},{merge:true}),db.collection('stagingReservations').doc(reservationId).set({expiresAtMs:Number(session.expires_at)*1000,checkoutSessionId:session.id},{merge:true})]);response.status(201).json({ok:true,checkout:{orderId,placementId,clientSecret:session.client_secret,expiresAtMs:Number(session.expires_at)*1000}});
   }catch(error){logger.error('Could not create Stripe checkout',error);response.status(500).json({ok:false,error:'checkout-failed'});}
 });

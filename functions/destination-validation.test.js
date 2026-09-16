@@ -1,0 +1,4 @@
+import assert from 'node:assert/strict';import test from 'node:test';import {validateDestinationUrl} from './destination-validation.js';
+const lookup=async()=>['93.184.216.34'];
+test('accepts a reachable public destination and follows a bounded redirect',async()=>{let calls=0;const url=await validateDestinationUrl('https://example.com',{lookup,request:async()=>++calls===1?new Response(null,{status:302,headers:{location:'/home'}}):new Response('',{status:200})});assert.equal(url,'https://example.com/home');});
+test('rejects missing, failing and private destinations',async()=>{await assert.rejects(validateDestinationUrl('https://example.com/missing',{lookup,request:async()=>new Response('',{status:404})}),error=>error.code==='destination-not-found');await assert.rejects(validateDestinationUrl('http://localhost',{lookup:async()=>['127.0.0.1'],request:async()=>new Response('')}),error=>error.code==='destination-unsafe');});
