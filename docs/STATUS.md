@@ -6,14 +6,11 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Finish the placement-studio migration by validating owner-edit footprint lock and updating remaining scale/regional legacy browser scripts that still encode the removed Place stage. Keep the confirmed starting-spot and direct-on-globe Design -> Review journey as the product contract.
+- [ ] Deploy the completed checkout-review backend and frontend after the Firebase deploy identity is granted `serviceusage.services.use` and `iam.serviceAccounts.actAs`; then run the live desktop/mobile checkout journey.
 
 ## Next
 
-- [ ] Decide whether multiple image layers are a launch requirement; retain the confirmed starting-spot interaction as the availability boundary inside the single Design -> Review flow.
-- [ ] Complete the reservation follow-up: make the initial hold 20 minutes, show a subtle urgency state, and permit one explicit 10-minute extension without indefinite renewal. Validate expiry, extension races, checkout-session expiry and release.
-- [ ] Validate destination URLs through a safe server-side policy before publication, including redirects/timeouts and a clear decision for unreachable or 404 destinations; do not turn the browser into a URL reachability oracle.
-- [ ] Confirm whether Stripe Embedded Checkout can prefill the verified signed-in email without weakening payment/owner identity handling, and add a visible account/change-user or sign-out action in Review.
+- [ ] Finish the placement-studio migration by validating owner-edit footprint lock and updating remaining scale/regional legacy browser scripts that still encode the removed Place stage.
 - [ ] Gate 1 - resolve the commercial launch decisions with Craig and qualified advice where required: price/currency, VAT or sales-tax treatment, receipts/invoices, refunds/disputes, permanent-use wording, seller identity, governing law and support ownership. Record decisions before finalising checkout and legal copy.
 - [ ] Gate 2 - observe 5-10 first-time users completing Explore -> Design -> Place -> Review -> test Checkout across desktop and phone. Record unaided completion and misunderstandings; redesign Create only in response to repeated evidence.
 - [ ] Gate 3 - complete the 1k/10k/100k/1M varied-image matrix, compiler/publication lifecycle and explicit loading/memory budgets; verify the complete product, background and sparse twinkles on physical iOS and Android.
@@ -30,6 +27,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Revisit globe surface studies, achievements, advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Implemented the remaining Craig UI review locally and pushed source `730ea945`: placements support up to five independently positioned/scaled/rotated image layers; reservations last 20 minutes with a subtle final-five-minute warning and one server-enforced 10-minute extension; destination URLs are normalised in the browser and checked server-side with public-address, redirect, timeout, 404 and 5xx safeguards; verified signed-in email is passed to Stripe Checkout without becoming the ownership authority. Backend tests (51), production/staging builds, desktop/mobile Design/navigation, exact reservation/extension/release and desktop composition pass. Deployment remains pending because the active Firebase identity lacks the required service-usage and service-account permissions; the existing staging frontend was deliberately left unchanged.
 
 - [x] Completed the placement-flow restructure and Craig's Activity/UI/Menu review. Claim this space now establishes the starting hexagon; Create follows Location -> Size & shape -> Design -> Review; Exact and Freehand footprints remain connected and count changes grow or trim the existing shape; Design combines Paint, Image and Move globe with one colour picker, faint grid lines, visible image-layout radios and colour-preserving uploads. Activity opens expanded, uses relative time and refreshes automatically; the quieter brand-green/white stars, faster zoom-sensitive spin, fully framed living tour, shorter sign-in confirmation and inline blank-safe search are implemented. Production/staging builds, desktop/mobile Design/navigation/public-placement/reservation journeys, artwork camera and desktop composition pass; rendered Shape and Design screens were inspected. Deployed source `db77e0fa` as staging Worker `f69e6a06-69ed-47ec-a90b-80a95a4f7c04`, retaining runtime release `6121418c93f84b0a7fd8b572f3f386de309edec9ba6bc2aefcc2d44e084374b2`. Live desktop/mobile Location -> Shape -> Design -> Review -> Stripe-mount, warm reload, startup retry and missing-asset checks passed with no payment submitted, zero browser errors and zero direct Firestore requests; all 1,549 runtime objects passed deployment verification.
 
@@ -70,6 +69,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Blocked / Needs Craig
 
+- [ ] Grant the Firebase deploy identity `craigmichaelduffy@gmail.com` Service Usage Consumer access and Service Account User access to `million-hexagons@appspot.gserviceaccount.com`, or provide an authorised deployment identity. Backend and frontend rollout `730ea945` is waiting on this.
 - [ ] Configure/confirm the $10 Cloudflare budget alert.
 - [ ] Review and complete [draft commercial terms](DRAFT-COMMERCIAL-TERMS.md), including final pricing, refunds, permanent-use wording and governing law.
 - [ ] Confirm seller identity, launch-country VAT/tax and receipt/invoice treatment with qualified advice where required.
