@@ -35,13 +35,13 @@ export async function createTestClaim(placement, checkout = null) {
   if (!response.ok) throw Object.assign(new Error(result.error || 'Could not create the test placement.'), { code: result.error, cellId: result.cellId });
   return result.placement;
 }
-async function publicRequest(body){const response=await fetch(import.meta.env.VITE_STAGING_API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const result=await response.json().catch(()=>({}));if(!response.ok)throw Object.assign(new Error(result.error||'request-failed'),{code:result.error,cellId:result.cellId});return result;}
+async function publicRequest(body,{signal}={}){const response=await fetch(import.meta.env.VITE_STAGING_API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal});const result=await response.json().catch(()=>({}));if(!response.ok)throw Object.assign(new Error(result.error||'request-failed'),{code:result.error,cellId:result.cellId});return result;}
 export async function artworkRequest(body){const response=await fetch(import.meta.env.DEV?import.meta.env.VITE_STAGING_API_URL:'/api/artwork/state',import.meta.env.DEV?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(10000)}:{signal:AbortSignal.timeout(10000)});if(!response.ok)throw Error('Artwork state unavailable');return response.json();}
 export async function quoteAndReserve(cells){return publicRequest({action:'quote-reserve',reservation:{topologyVersion:'geodesic-v1',cells}});}
 export async function releaseCheckoutReservation(reservationId,checkoutToken){return(await publicRequest({action:'release-checkout-reservation',reservationId,checkoutToken})).reservation;}
 export async function extendCheckoutReservation(reservationId,checkoutToken){return(await publicRequest({action:'extend-checkout-reservation',reservationId,checkoutToken})).reservation;}
-export async function listPublicClaims(){return(await publicRequest({action:'public-list'})).placements;}
-export async function getPublicPlacement(placementId){return(await publicRequest({action:'public-placement',placementId})).placement;}
+export async function listPublicClaims(options){return(await publicRequest({action:'public-list'},options)).placements;}
+export async function getPublicPlacement(placementId,options){return(await publicRequest({action:'public-placement',placementId},options)).placement;}
 export async function getPublicStats(){return publicRequest({action:'public-stats'});}
 export async function searchPublicPlacements(query){return(await publicRequest({action:'public-search',query})).placements;}
 export async function trackEvent(event){return publicRequest({action:'record-event',event});}

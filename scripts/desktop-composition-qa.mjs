@@ -1,5 +1,4 @@
-// One layout contract across desktop and phones. Mobile browsers use the fixed desktop
-// layout viewport from index.html; no mobile dock, bottom sheet or alternate control rail exists.
+// Desktop keeps its side panel; phones use their device viewport and a studio sheet.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
@@ -10,8 +9,8 @@ await mkdir(shots,{recursive:true});
 const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
 const cases=[
   {name:'desktop',viewport:{width:1440,height:900},mobile:false,layoutWidth:1440},
-  {name:'phone-390',viewport:{width:390,height:844},mobile:true,layoutWidth:800},
-  {name:'phone-320',viewport:{width:320,height:568},mobile:true,layoutWidth:800},
+  {name:'phone-390',viewport:{width:390,height:844},mobile:true,layoutWidth:390},
+  {name:'phone-320',viewport:{width:320,height:568},mobile:true,layoutWidth:320},
 ];
 const report=[];
 const assertDesktopPanel=(box,name)=>{
@@ -30,10 +29,10 @@ try {
       const rect=selector=>{const box=document.querySelector(selector).getBoundingClientRect();return {top:box.top,right:box.right,bottom:box.bottom,left:box.left,width:box.width,height:box.height};};
       return {innerWidth,innerHeight,mobileDock:!!document.querySelector('#mobileDock'),topbar:rect('.topbar'),intro:rect('.intro'),headline:rect('.intro h1'),controls:rect('.globe-controls'),controlDisplay:getComputedStyle(document.querySelector('.globe-controls')).display};
     });
-    assert.equal(browse.innerWidth,item.layoutWidth,`${item.name}: must use the readable desktop layout viewport`);
+    assert.equal(browse.innerWidth,item.layoutWidth,`${item.name}: must use its device layout viewport`);
     assert.equal(browse.mobileDock,false,`${item.name}: mobile dock must not exist`);
-    assert.equal(Math.round(browse.topbar.height),88,`${item.name}: desktop topbar must remain 88px`);
-    assert.equal(Math.round(browse.intro.width),340,`${item.name}: desktop hero width must remain 340px`);
+    assert.equal(Math.round(browse.topbar.height),item.mobile?76:88,`${item.name}: desktop topbar must remain 88px`);
+    assert.equal(Math.round(browse.intro.width),item.mobile?item.viewport.width-80:340,`${item.name}: desktop hero width must remain 340px`);
     assert.equal(browse.controlDisplay,'grid',`${item.name}: controls must keep the desktop vertical rail`);
     await page.waitForFunction(()=>document.querySelector('#heroChangingWord')?.textContent.endsWith('.')&&document.querySelector('#heroChangingWord').textContent!=='brand.',null,{timeout:7000});
     const changedHeadline=await page.locator('.intro h1').boundingBox();
@@ -46,16 +45,16 @@ try {
     const start=await page.evaluate(()=>window.geodesicQA.state().designAnchor);await page.evaluate(id=>window.geodesicQA.focus(id,.6),start);await page.waitForFunction(()=>window.geodesicQA.state().detailVertices>0);await page.waitForTimeout(250);const point=await page.evaluate(id=>window.geodesicQA.screen(id),start);if(item.mobile)await page.touchscreen.tap(point.x,point.y);else await page.mouse.click(point.x,point.y);await page.locator('#claimCell').waitFor({state:'visible'});await page.locator('#claimCell').click();await page.locator('#shapeStep').waitFor({state:'visible'});await page.locator('#toDesign').click();await page.locator('#designStep').waitFor({state:'visible'});
     await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');
     await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Replace image');
-    await page.waitForFunction(()=>Math.abs(innerWidth-document.querySelector('#buyPanel').getBoundingClientRect().right-16)<=1);
+    await page.waitForFunction(()=>Math.abs(innerWidth-document.querySelector('#buyPanel').getBoundingClientRect().right-(innerWidth<=700?0:16))<=1);
     const design=await page.evaluate(()=>{const box=document.querySelector('#buyPanel').getBoundingClientRect();return {top:box.top,right:innerWidth-box.right,bottom:innerHeight-box.bottom,width:box.width};});
-    assertDesktopPanel(design,`${item.name}: Design`);
+    if(item.mobile){assert.equal(Math.round(design.width),item.viewport.width);assert.ok(design.top>120&&design.bottom<=1);}else assertDesktopPanel(design,`${item.name}: Design`);
     await page.screenshot({path:`${shots}/${item.name}-design.png`});
 
     await page.locator('#toPlacement').click();
     await page.locator('#reviewStep').waitFor({state:'visible'});
-    await page.waitForFunction(()=>Math.abs(innerWidth-document.querySelector('#buyPanel').getBoundingClientRect().right-16)<=1);
+    await page.waitForFunction(()=>Math.abs(innerWidth-document.querySelector('#buyPanel').getBoundingClientRect().right-(innerWidth<=700?0:16))<=1);
     const place=await page.evaluate(()=>{const box=document.querySelector('#buyPanel').getBoundingClientRect();return {top:box.top,right:innerWidth-box.right,bottom:innerHeight-box.bottom,width:box.width};});
-    assertDesktopPanel(place,`${item.name}: Review`);
+    if(item.mobile){assert.equal(Math.round(place.width),item.viewport.width);assert.ok(place.top>0&&place.bottom<=1);}else assertDesktopPanel(place,`${item.name}: Review`);
     await page.screenshot({path:`${shots}/${item.name}-review.png`});
     assert.deepEqual(errors,[],`${item.name}: browser errors`);
     report.push({name:item.name,layoutViewport:{width:browse.innerWidth,height:browse.innerHeight},desktopSidePanel:design});
@@ -71,4 +70,4 @@ try {
 }
 
 console.table(report);
-console.log('Desktop composition is identical across desktop and mobile browser contexts');
+console.log('Responsive desktop and mobile composition passed');

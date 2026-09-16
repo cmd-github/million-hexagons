@@ -410,11 +410,8 @@ function refreshSelection(preparedCells = null) {
 }
 
 function renderSelectionPreview() {
-  if (document.querySelector('#selectionShape').value !== 'custom') {
-    selectionColourData.fill(0);
-    const colour = document.querySelector('#brushColor').value;
-    selectedCells.forEach((cell) => writeCellColour(selectionColourData, cell, cell.color || colour));
-  }
+  selectionColourData.fill(0);
+  selectedCells.forEach((cell) => {if(cell.color)writeCellColour(selectionColourData,cell,cell.color);});
   selectionColourTexture.needsUpdate = true;
 }
 
@@ -601,6 +598,7 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   exactGlobeArea=true;designSurface='globe';document.body.dataset.surface='globe';
   ownerEdit=ownerUpdate;
   if(!ownerEdit&&Number.isInteger(anchor)){logoCells=await topology.run(()=>availableConnectedSelection(preparedAnchor,10));amountInput.value=logoCells.length;}
+  document.querySelector('#draftNotice').hidden=Boolean(ownerEdit||Number.isInteger(anchor)||!savedDraft);
   if(!ownerEdit&&!Number.isInteger(anchor)&&savedDraft){restoreDraft();logoCells=await topology.run(()=>availableConnectedSelection(designAnchor,logoCells.length,logoCells));amountInput.value=logoCells.length;}
   if(ownerEdit){
     const state=ownerEdit.source.designState||{},transform=state.imageTransform||{},source=ownerEdit.source.originalArtworkDataUrl||ownerEdit.source.currentArtworkDataUrl||ownerEdit.record.artworkDataUrl;
@@ -736,6 +734,9 @@ document.querySelector('#zoomOut').addEventListener('click', () => {
   zoom.change(1.25);
 });
 document.querySelector('#homeView').addEventListener('click', () => {
+  if(document.body.classList.contains('creating')&&designStartingSpotConfirmed&&previewCells().length){
+    controls.autoRotate=false;closeInspector(true);showHexSearch(false);selectedCell=cellForId(designAnchor);selectedCells=previewCells();focusSelection();return;
+  }
   zoom.cancel();cameraDistanceTarget=null;demoTour.stop();closeInspector(true);showHexSearch(false);
   controls.autoRotate=false;controls.target.set(0,0,0);
   ++flightVersion;const fit=globeFitDistance();cameraFlight.start({position:new THREE.Vector3(0,fit*.018,fit),quaternion:new THREE.Quaternion(),duration:2200,onComplete(){controls.autoRotate=!reducedMotion();updateRotationControl();}});
@@ -783,9 +784,7 @@ function updateLogoGuidance(message) {
 }
 
 function updatePaintColour() {
-  document.querySelector('#paintColourChip').style.background = document.querySelector('#brushColor').value;
-  renderSelectionPreview();
-  drawDesignPreview();
+  document.querySelectorAll('[data-colour]').forEach(button=>button.classList.toggle('active',button.dataset.colour.toLowerCase()===document.querySelector('#brushColor').value.toLowerCase()));
 }
 function rememberRecentColour(colour){
   const value=String(colour||'').toLowerCase();if(!/^#[0-9a-f]{6}$/.test(value))return;
@@ -794,6 +793,7 @@ function rememberRecentColour(colour){
   for(const item of recentColours){const button=document.createElement('button');button.type='button';button.className='recent-colour';button.style.background=item;button.title=item.toUpperCase();button.setAttribute('aria-label',`Use recent colour ${item}`);button.onclick=()=>{document.querySelector('#brushColor').value=item;updatePaintColour();};pane.append(button);}
 }
 document.querySelector('#brushColor').addEventListener('input', updatePaintColour);
+document.querySelectorAll('[data-colour]').forEach(button=>button.addEventListener('click',()=>{document.querySelector('#brushColor').value=button.dataset.colour;updatePaintColour();}));
 
 function updateLogoPreviewOrientation() {
   const degrees = Number(document.querySelector('#logoOrientation').value) || 0;
@@ -803,12 +803,13 @@ document.querySelector('#logoOrientation').addEventListener('change', updateLogo
 
 const flowScreens = {location:document.querySelector('#locationStep'),shape:document.querySelector('#shapeStep'),design:document.querySelector('#designStep'),review:document.querySelector('#reviewStep')};
 function showFlowStep(step) {
+  for(const id of ['websiteError','purchaseError']){const error=document.getElementById(id);error.hidden=true;error.textContent='';}
   document.body.dataset.flow = step;
   resize();
   Object.entries(flowScreens).forEach(([name, screen]) => { screen.hidden = name !== step; screen.classList.toggle('active', name === step); });
-  const progress = [...document.querySelectorAll('.flow-progress i')];
+  const progress = [...document.querySelectorAll('.flow-progress button')];
   const stepNumber = {location:1,shape:2,design:3,review:4}[step]||1;
-  progress.forEach((item, index) => item.classList.toggle('active', index < stepNumber));
+  progress.forEach((item, index) => {item.classList.toggle('active',index<stepNumber);item.setAttribute('aria-current',index===stepNumber-1?'step':'false');});
   document.querySelector('#buyPanel').scrollTop = 0;
   const heading = flowScreens[step].querySelector('h2');
   heading.tabIndex = -1;
@@ -854,10 +855,8 @@ function updateTotals() {
   document.querySelector('#placePrice').textContent = priceText;
   document.querySelector('#reviewCount').textContent = countText;
   document.querySelector('#reviewPrice').textContent = priceText;
-  document.querySelector('#toPlacement').disabled = !count;
-  document.querySelector('#addHexagon').disabled=!count||count>=100000;
-  document.querySelector('#removeHexagon').disabled=count<=1;
-  document.querySelectorAll('.size-presets button').forEach((button) => button.classList.toggle('active', Number(button.dataset.size) === count));
+  document.querySelector('#toPlacement').disabled = count<5;
+  document.querySelector('#toDesign').disabled = count<5;
   updateLogoGuidance();
 }
 
@@ -1035,11 +1034,13 @@ function configureCreation() {
   drawDesignPreview();updateTotals();
 }
 function enterShapeStep(){
-  shapeMode='exact';document.querySelector('[name="shapeMode"][value="exact"]').checked=true;document.querySelector('#sizeControls').hidden=false;document.querySelector('#shapeStatus').textContent='Adjust the number to grow or trim your selection.';
+  shapeMode='exact';document.querySelector('[name="shapeMode"][value="exact"]').checked=true;document.querySelector('#sizeControls').hidden=false;document.querySelector('#shapeBrushControls').hidden=true;document.querySelector('#shapeStatus').textContent='Type a total or add 1, 10 or 100 hexagons. Minimum 5.';
   showFlowStep('shape');selectionModeUniform.value=1;selectedCell=cellForId(designAnchor);selectedCells=previewCells();clearPlacementPreview();refreshSelection(selectedCells);controls.enableRotate=true;updateTotals();
 }
 function enterDesignStep(){
-  document.body.classList.remove('choosing-start');selectionModeUniform.value=0;clearSelectionColours();showFlowStep('design');setDesignSurface('globe');setEditorMode(uploadedLogo?'move':'paint',false);drawDesignPreview();updateTotals();
+  if(placementCount()<5){document.querySelector('#shapeStatus').textContent='Choose at least 5 hexagons before continuing.';return;}
+  document.body.classList.remove('choosing-start');selectionModeUniform.value=0;clearSelectionColours();showFlowStep('design');setDesignSurface('globe');setEditorMode('move',false);drawDesignPreview();updateTotals();
+  if(innerWidth<=700){const normal=new THREE.Vector3(...topology.centre(designAnchor));const angle=Math.acos(Math.max(-1,previewCells().reduce((dot,cell)=>Math.min(dot,normal.dot(new THREE.Vector3(...topology.centre(cell.id)))),1)))+.004;flyToCell(designAnchor,angle,600);}
 }
 async function confirmStartingSpot(id){
   if(!Number.isInteger(id)||occupiedCells[id-1])return;
@@ -1170,7 +1171,7 @@ document.querySelector('#dismissToast').addEventListener('click', () => document
 // Escape unwinds the studio one layer at a time: an open menu, then checkout, then the
 // panel itself. It used to close the whole flow from any of those states.
 document.addEventListener('keydown', (event) => {
-  if(event.key !== 'Escape' || document.querySelector('#buyPanel').inert)return;
+  if(event.key !== 'Escape' || document.querySelector('#buyPanel').inert||document.querySelector('#designConfirm').open)return;
   const openMenu=document.querySelector('#buyPanel details[open]');
   if(openMenu){openMenu.open=false;openMenu.querySelector('summary').focus();return;}
   const checkout=document.querySelector('#embeddedCheckoutPanel');
@@ -1193,7 +1194,7 @@ document.querySelector('#toPlacement').addEventListener('click', () => {syncGlob
 document.querySelector('#toDesign').addEventListener('click',enterDesignStep);
 document.querySelector('#backToLocation').addEventListener('click',chooseAnotherStartingSpot);
 document.querySelectorAll('[name="shapeMode"]').forEach(input=>input.addEventListener('change',()=>{
-  shapeMode=document.querySelector('[name="shapeMode"]:checked').value;const freehand=shapeMode==='freehand';document.querySelector('#sizeControls').hidden=freehand;document.querySelector('#shapeStatus').textContent=freehand?'Click or drag across neighbouring spaces to add them. Click selected edge spaces to remove them.':'Adjust the number to grow or trim your selection.';logoEditorMode=freehand?'hex':'pan';controls.enableRotate=!freehand;
+  shapeMode=document.querySelector('[name="shapeMode"]:checked').value;const freehand=shapeMode==='freehand';document.querySelector('#sizeControls').hidden=freehand;document.querySelector('#shapeBrushControls').hidden=!freehand;document.querySelector('#shapeStatus').textContent=freehand?'Choose a brush, then add or remove connected hexagons on the globe. Minimum 5.':'Type a total or add 1, 10 or 100 hexagons. Minimum 5.';logoEditorMode=freehand?'hex':'pan';controls.enableRotate=!freehand;
 }));
 document.querySelector('#backToDesign').addEventListener('click', () => { clearPlacementPreview(); selecting = false; selectionModeUniform.value = 0; document.body.classList.remove('selecting', 'placing-design'); controls.enableRotate = true; showFlowStep('design'); drawDesignPreview(); updateTotals(); });
 document.querySelector('#moveGlobeMode').addEventListener('click', () => setInteractionMode('move'));
@@ -1220,11 +1221,9 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   button.textContent=original;button.disabled=false;
 });
 document.querySelector('#backToPlacement').addEventListener('click', () => { void releaseActiveCheckoutReservation();clearPlacementPreview();selecting=false;selectionModeUniform.value=0;document.body.classList.remove('selecting','placing-design');showFlowStep('design');setDesignSurface('globe');setEditorMode('paint',false);drawDesignPreview();updateTotals(); });
-document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size;void resizeDesign(); }));
-amountInput.addEventListener('change', () => { amountInput.value = placementCount(); });
-amountInput.addEventListener('input', () => { void resizeDesign(); });
-document.querySelector('#addHexagon').addEventListener('click',()=>{amountInput.value=Math.min(100000,placementCount()+1);void resizeDesign();});
-document.querySelector('#removeHexagon').addEventListener('click',()=>{amountInput.value=Math.max(1,placementCount()-1);void resizeDesign();});
+document.querySelectorAll('[data-add-size]').forEach(button=>button.addEventListener('click',()=>{amountInput.value=Math.min(100000,Math.max(5,placementCount())+Number(button.dataset.addSize));void resizeDesign();}));
+amountInput.addEventListener('change',()=>{amountInput.value=Math.max(5,placementCount());void resizeDesign();});
+amountInput.addEventListener('input',()=>{if(placementCount()>=5)void resizeDesign();else updateTotals();});
 document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
 document.querySelectorAll('[name="logoTreatmentChoice"]').forEach(input=>input.addEventListener('change',()=>{document.querySelector('#logoTreatment').value=input.value;drawDesignPreview();}));
 document.querySelectorAll('[data-treatment]').forEach((button) => button.addEventListener('click', () => { document.querySelector('#logoTreatment').value = button.dataset.treatment; document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
@@ -1232,9 +1231,12 @@ document.querySelectorAll('[data-treatment]').forEach((item) => item.classList.t
 document.querySelector('#logoScale').addEventListener('input', () => { document.querySelector('#logoScaleValue').textContent = `${document.querySelector('#logoScale').value}%`; drawDesignPreview(); });
 for(const [id,mode] of [['moveImageMode','move'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode));
 document.querySelector('#backToShape').addEventListener('click',enterShapeStep);
-document.querySelector('#brushColor').addEventListener('input',()=>{document.querySelector('#paintColourChip').style.background=document.querySelector('#brushColor').value;});
-document.querySelector('#fillCells').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;rememberPaint();const colour=document.querySelector('#brushColor').value;logoCells=previewCells().map(c=>({...c,color,transparent:false}));rememberRecentColour(colour);footprintEdited=true;drawDesignPreview();});
-document.querySelector('#removeImage').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;document.querySelector('#artworkQuality').hidden=true;
+document.querySelectorAll('[data-flow-target]').forEach(button=>button.addEventListener('click',()=>{
+  const target=button.dataset.flowTarget;if(target==='review'||ownerEdit&&target!=='design'||!designStartingSpotConfirmed&&target!=='location')return;
+  if(target==='location')chooseAnotherStartingSpot();else if(target==='shape')enterShapeStep();else if(target==='design')enterDesignStep();
+}));
+document.querySelector('#fillCells').addEventListener('click',()=>{rememberPaint();const colour=document.querySelector('#brushColor').value;logoCells=previewCells().map(c=>({...c,color:colour,transparent:false}));rememberRecentColour(colour);footprintEdited=true;drawDesignPreview();});
+document.querySelector('#removeImage').addEventListener('click',()=>{document.querySelector('#artworkQuality').hidden=true;
   uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();refreshSelection();});
 function resetLogoTransform() {
   document.querySelector('#logoScale').value = 100;
@@ -1246,8 +1248,18 @@ function resetLogoTransform() {
 
 document.querySelector('#logoOrientation').addEventListener('change', () => { updateLogoPreviewOrientation(); drawDesignPreview(); });
 document.querySelector('#resetLogo').addEventListener('click', () => { resetLogoTransform(); updateLogoPreviewOrientation(); drawDesignPreview(); });
-document.querySelector('#startOver').addEventListener('click', () => { document.querySelector('.studio-more').open=false; discardDraft(); });
-document.querySelector('#clearPaint').addEventListener('click', () => { document.querySelector('.studio-more').open=false;rememberPaint(); logoCells=previewCells().map(({color,transparent,...cell})=>cell); drawDesignPreview(); updateTotals(); });
+function confirmDesignAction(discard) {
+  const dialog=document.querySelector('#designConfirm');
+  document.querySelector('#designConfirmTitle').textContent=discard?'Start a fresh placement?':'Clear this design?';
+  document.querySelector('#designConfirmCopy').textContent=discard?'Discard this unfinished placement, including its shape, artwork and details.':'Remove the image and all colours. Your selected hexagons stay in place.';
+  dialog.querySelector('[value=confirm]').textContent=discard?'Start fresh':'Clear design';
+  return new Promise(resolve=>{dialog.addEventListener('close',()=>resolve(dialog.returnValue==='confirm'),{once:true});dialog.returnValue='';dialog.showModal();});
+}
+document.querySelector('#discardRestoredDraft').onclick=async()=>{
+  if(!await confirmDesignAction(true))return;
+  discardDraft();document.querySelector('#draftNotice').hidden=true;closeBuy();await openBuy();
+};
+document.querySelector('#clearAllDesign').addEventListener('click',async()=>{if(!await confirmDesignAction(false))return;rememberPaint();uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;document.querySelector('#artworkQuality').hidden=true;logoCells=previewCells().map(({color,transparent,...cell})=>cell);resetLogoTransform();updateImageControls();setEditorMode('move',false);drawDesignPreview();updateTotals();});
 const designCanvas = document.querySelector('#designCanvas');
 const editorPointers=new Map();
 let editorPinch=null;
@@ -1528,12 +1540,8 @@ function renderArtwork(cells) {
     context.restore();
   };
   const point = (cell) => { const p = centre(cell); return { x: (p.x - bounds.left)*px, y: (p.y-bounds.top)*py }; };
-  context.setTransform(px,0,0,py,-bounds.left*px,-bounds.top*py);
-  context.fillStyle=document.querySelector('#brushColor').value;context.fill(layoutFor(cells).path);
-  context.resetTransform();
-  // Cell colours form the artwork background. Images are composited above
-  // them so adding an image never erases the chosen colours or disappears
-  // behind them.
+  // Only explicitly painted cells receive a background. A newly selected
+  // footprint remains transparent and outlined until the user paints or fills it.
   const colourOverrides=new Map();
   for(const cell of cells)if(cell.color){if(!colourOverrides.has(cell.color))colourOverrides.set(cell.color,[]);colourOverrides.get(cell.color).push(cell);}
   context.setTransform(px,0,0,py,-bounds.left*px,-bounds.top*py);
@@ -1691,19 +1699,45 @@ function showEmbeddedCheckoutLoading(){
 function hideEmbeddedCheckout(){
   embeddedCheckoutInstance?.destroy();embeddedCheckoutInstance=null;document.querySelector('#embeddedCheckout').replaceChildren();document.querySelector('#embeddedCheckoutPanel').hidden=true;
 }
+function showPurchaseConfirmation(checkout, summary, record) {
+  const container=document.querySelector('#embeddedCheckout');
+  const card=document.createElement('section');card.className='purchase-confirmation';
+  card.innerHTML='<div class="confirmation-mark" aria-hidden="true">&#10003;</div><p class="eyebrow">PAYMENT RECEIVED</p><h2 tabindex="-1">Your space. Your story.</h2><p class="confirmation-copy"></p><dl><dt>Hexagons</dt><dd class="confirmation-count"></dd><dt>Order total</dt><dd class="confirmation-total"></dd><dt>Placement reference</dt><dd class="reference"></dd></dl><p>Keep this reference. You can find your placement in My Globe using your checkout email.</p><button type="button" class="primary"></button>';
+  card.querySelector('.confirmation-copy').textContent=record?'Your placement is saved. View it on the globe and share your space with the world.':'Your payment is received. Publication is taking longer than usual. Please do not pay again; check My Globe for your placement.';
+  card.querySelector('.confirmation-count').textContent=summary.count.toLocaleString();
+  card.querySelector('.confirmation-total').textContent=summary.total;
+  card.querySelector('.reference').textContent=checkout.placementId;
+  const leave=async()=>{hideEmbeddedCheckout();closeBuy();if(record&&await inspectPlacement(record.anchor))viewInspectedPlacement(()=>setTimeout(()=>void openShareCard(record,{prompt:true}),800));};
+  const button=card.querySelector('button');button.textContent=record?'View & share your placement':'Return to the globe';button.onclick=leave;
+  document.querySelector('#closeEmbeddedCheckout').textContent='Return to globe';document.querySelector('#closeEmbeddedCheckout').onclick=leave;
+  container.replaceChildren(card);document.querySelector('#embeddedCheckoutStatus').textContent='';card.querySelector('h2').focus();
+}
 async function showEmbeddedCheckout(checkout){
   const panel=document.querySelector('#embeddedCheckoutPanel'),container=document.querySelector('#embeddedCheckout'),status=document.querySelector('#embeddedCheckoutStatus');panel.hidden=false;status.textContent='';document.querySelector('#buyPanel').scrollTop=0;
+  const summary={count:selectedCells.length,total:activeCheckoutReservation?.quote?.displayTotal||document.querySelector('#reviewPrice').textContent};
+  document.querySelector('#checkoutSummary').textContent=`${summary.count.toLocaleString()} hexagons \u00b7 ${summary.total} order total`;
+  const back=document.querySelector('#closeEmbeddedCheckout');back.textContent='\u2190 Back to review';back.onclick=hideEmbeddedCheckout;
   if(embeddedCheckoutInstance)embeddedCheckoutInstance.destroy();
   const stripe=await stripeBrowser();embeddedCheckoutInstance=await stripe.initEmbeddedCheckout({fetchClientSecret:async()=>checkout.clientSecret,onComplete:async()=>{
-    embeddedCheckoutInstance?.destroy();embeddedCheckoutInstance=null;const indicator=document.createElement('div');indicator.className='branded-loader checkout-complete';indicator.setAttribute('role','status');indicator.setAttribute('aria-label','Payment received. Adding your placement to the globe.');indicator.append(loading.querySelector('.loading-hex').cloneNode(true));const message=document.createElement('p');message.textContent='Payment received';const detail=document.createElement('small');detail.textContent='Adding your placement to the globe…';indicator.append(message,detail);container.replaceChildren(indicator);status.textContent='';
+    embeddedCheckoutInstance?.destroy();embeddedCheckoutInstance=null;
+    clearCheckoutReservation();discardDraft();document.querySelector('#draftNotice').hidden=true;
+    back.textContent='Payment received';back.disabled=true;
+    const indicator=document.createElement('div');indicator.className='branded-loader checkout-complete';indicator.setAttribute('role','status');indicator.setAttribute('aria-live','polite');indicator.append(loading.querySelector('.loading-hex').cloneNode(true));const message=document.createElement('p');message.textContent='Payment received';const detail=document.createElement('small');detail.textContent='Waiting for your placement to be published...';indicator.append(message,detail);container.replaceChildren(indicator);status.textContent='You do not need to pay again.';
+    const started=Date.now();
     for(let attempt=0;attempt<60;attempt++){
-      try{const match=snapshotEnabled?await stagingClient.getPublicPlacement(checkout.placementId):(await stagingClient.listPublicClaims()).find(record=>record.placementId===checkout.placementId);if(match){try{await applyPersistentPlacements([match]);if(snapshotEnabled)void snapshotRuntime.refresh();}catch(error){console.error('Could not render the completed placement before closing checkout',error);}message.textContent='Your placement is on the globe';detail.textContent='Taking you there…';clearCheckoutReservation();setTimeout(async()=>{panel.hidden=true;discardDraft();closeBuy();if(await inspectPlacement(match.anchor))viewInspectedPlacement(()=>setTimeout(()=>void openShareCard(match,{prompt:true}),800));},700);return;}}
+      const elapsed=Date.now()-started;if(elapsed>=60000)break;
+      if(elapsed>=30000)detail.textContent='This is taking a little longer. Your confirmation will stay here.';
+      else if(elapsed>=10000)detail.textContent='Still waiting for publication. Your payment is complete.';
+      const options={signal:AbortSignal.timeout(Math.max(1,Math.min(10000,60000-elapsed)))};
+      try{const match=snapshotEnabled?await stagingClient.getPublicPlacement(checkout.placementId,options):(await stagingClient.listPublicClaims(options)).find(record=>record.placementId===checkout.placementId);if(match){try{await applyPersistentPlacements([match]);if(snapshotEnabled)void snapshotRuntime.refresh();}catch(error){console.error('Could not render the completed placement',error);}back.disabled=false;showPurchaseConfirmation(checkout,summary,match);return;}}
       catch(error){console.error('Could not check completed placement',error);}
+      if(Date.now()-started>=60000)break;
       await new Promise(resolve=>setTimeout(resolve,1000));
     }
-    status.textContent='Payment received and your placement is saved. Close this panel to return to the globe; it will appear after refresh.';
+    back.disabled=false;showPurchaseConfirmation(checkout,summary,null);
   }});container.replaceChildren();embeddedCheckoutInstance.mount('#embeddedCheckout');
 }
+
 document.querySelector('#closeEmbeddedCheckout').onclick=hideEmbeddedCheckout;
 async function initializeStaging(){
 if(import.meta.env.VITE_STAGING_SANDBOX){
@@ -1831,7 +1865,7 @@ async function paintPlacement() {
   const rawWebsite = document.querySelector('#website').value.trim();
   let website = '';
   try { if(rawWebsite) { const parsed = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(rawWebsite)?rawWebsite:`https://${rawWebsite}`); if(!['https:', 'http:'].includes(parsed.protocol)||!parsed.hostname.includes('.')) throw new Error(); website=parsed.href;document.querySelector('#website').value=website; } } catch { const error=document.querySelector('#websiteError'); error.hidden=false; error.textContent='Enter a valid website address, such as example.com'; document.querySelector('#website').focus(); return; }
-  document.querySelector('#websiteError').hidden=true;
+  for(const id of ['websiteError','purchaseError']){const error=document.getElementById(id);error.hidden=true;error.textContent='';}
   const link=document.querySelector('#placementWebsite'); link.hidden=!website; link.href=website;
   const amount = selectedCells.length;
   const color = document.querySelector('#brushColor').value;
@@ -1841,14 +1875,14 @@ async function paintPlacement() {
     if(ownerEdit){
       publishing=true;document.querySelector('#buyPanel').inert=true;const button=document.querySelector('#previewPurchase'),label=button.textContent;button.disabled=true;button.textContent='Saving changes…';
       try{const sourceCanvas=renderArtwork(previewCells()),placementId=ownerEdit.record.placementId,content={title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:publicationArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas),originalArtworkDataUrl:uploadedLogo?uploadedLogo.toDataURL('image/png'):ownerEdit.source.originalArtworkDataUrl,designState:{schemaVersion:1,topologyVersion:'geodesic-v1',anchor:ownerEdit.record.anchor,cells:previewCells().map(({id,color,transparent})=>({id,...(color?{color}:{}),...(transparent?{transparent:true}:{})})),baseColour:color,imageTransform:{scale:Number(document.querySelector('#logoScale').value),x:logoPosition.x,y:logoPosition.y,rotation:Number(document.querySelector('#logoOrientation').value),treatment}}},saved=await stagingClient.updatePlacementContent(placementId,content);button.textContent='Updating globe…';let published=null;for(let attempt=0;attempt<60;attempt++){published=await stagingClient.getPublicPlacement(placementId).catch(()=>null);if(Number(published?.version)>=Number(saved.version))break;await new Promise(resolve=>setTimeout(resolve,1000));}if(Number(published?.version)<Number(saved.version))throw new Error('Your changes were saved, but the globe is taking longer than expected to update. Refresh in a moment.');sessionStorage.setItem('mh-owner-update-complete',placementId);location.hash=`placement=${placementId}`;location.reload();}
-      catch(error){document.querySelector('#websiteError').hidden=false;document.querySelector('#websiteError').textContent=error.message.startsWith('Your changes were saved')?error.message:`Could not save your changes: ${error.message}`;}
+      catch(error){document.querySelector('#purchaseError').hidden=false;document.querySelector('#purchaseError').textContent=error.message.startsWith('Your changes were saved')?error.message:`Could not save your changes: ${error.message}`;}
       finally{publishing=false;document.querySelector('#buyPanel').inert=false;button.disabled=false;button.textContent=label;}return;
     }
     publishing=true;
-    if(!activeCheckoutReservation){publishing=false;const target=document.querySelector('#websiteError');target.hidden=false;target.textContent='This reservation expired. Choose the location again.';return;}
+    if(!activeCheckoutReservation){publishing=false;const target=document.querySelector('#purchaseError');target.hidden=false;target.textContent='This reservation expired. Choose the location again.';return;}
     showEmbeddedCheckoutLoading();await nextPaint();
     try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),placement={topologyVersion:'geodesic-v1',anchor:selectedCell.id,cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},checkout=await stagingClient.createStripeCheckout(placement,activeCheckoutReservation.reservation.reservationId,activeCheckoutReservation.checkoutToken,stagingUser);trackEvent('checkout_started',{context:{cellCount:placement.cells.length,source:'checkout'}});if(checkout.expiresAtMs){activeCheckoutReservation.reservation.expiresAtMs=checkout.expiresAtMs;showCheckoutExpiry();}await showEmbeddedCheckout(checkout);publishing=false;return;}
-    catch(error){publishing=false;hideEmbeddedCheckout();const target=document.querySelector('#websiteError');target.hidden=false;target.textContent=error.code==='reservation-invalid'?'This reservation expired. Choose the location again.':error.code==='destination-not-found'?'That website returned a 404. Check the address and try again.':error.code?.startsWith('destination-')?'That website could not be safely reached. Check the address and try again.':'Could not open secure checkout. Your design is still here.';return;}
+    catch(error){publishing=false;hideEmbeddedCheckout();const target=document.querySelector('#purchaseError');target.hidden=false;target.textContent=error.code==='reservation-invalid'?'This reservation expired. Choose the location again.':error.code==='destination-not-found'?'That website returned a 404. Check the address and try again.':error.code?.startsWith('destination-')?'That website could not be safely reached. Check the address and try again.':'Could not open secure checkout. Your design is still here.';return;}
   }
   publishing=true;
   document.querySelector('#buyPanel').inert=true;
@@ -1859,7 +1893,7 @@ async function paintPlacement() {
   try {
     await publishToTiles(artworkTiles,renderer,mesh,topology,cells);
   } catch(error) {
-    document.querySelector('#websiteError').hidden=false;document.querySelector('#websiteError').textContent='Could not publish the preview. Your design is still here; please try again.';
+    document.querySelector('#purchaseError').hidden=false;document.querySelector('#purchaseError').textContent='Could not publish the preview. Your design is still here; please try again.';
     return;
   } finally {
     mesh.geometry.dispose();mesh.material.map.dispose();mesh.material.dispose();
@@ -1885,8 +1919,9 @@ document.querySelector('#previewPurchase').addEventListener('click', paintPlacem
 
 function resize() {
   const active = document.body.dataset.flow==='design' && designSurface==='globe'?'place':document.body.dataset.flow;
-  const width = active ? innerWidth - 490 : innerWidth;
-  const height = innerHeight;
+  const mobile=innerWidth<=700;
+  const width = active && !mobile ? Math.max(240,innerWidth - 490) : innerWidth;
+  const height = active && mobile ? Math.max(120,document.querySelector('#buyPanel').getBoundingClientRect().top) : innerHeight;
   canvas.style.left='0px';
   canvas.style.top='0px';
   canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
@@ -2039,6 +2074,10 @@ document.querySelectorAll('[data-brush]').forEach(button=>button.addEventListene
   const reach=Number(button.dataset.brush);document.querySelector('#areaBrush').value=String(reach);document.querySelector('#areaBrushValue').textContent=(1+3*reach*(reach+1)).toLocaleString();
   document.querySelectorAll('[data-brush]').forEach(item=>{const active=item===button;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));});
 }));
+document.querySelectorAll('[data-shape-brush]').forEach(button=>button.addEventListener('click',()=>{
+  document.querySelector('#areaBrush').value=button.dataset.shapeBrush;
+  document.querySelectorAll('[data-shape-brush]').forEach(item=>{const active=item===button;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));});
+}));
 async function editGlobeCell(id){
   const stroke=globeStroke,mode=logoEditorMode;
   if(!stroke||stroke.last===id)return;
@@ -2063,7 +2102,7 @@ function applyGlobeCell(id,stroke){
   if(logoEditorMode==='hex'){
     if(document.body.dataset.flow==='shape'&&next.has(id)){
       const candidate=new Map(next);for(const n of brush)if(n!==designAnchor)candidate.delete(n);
-      if(candidate.size&&topology.isConnected([...candidate.values()])){next.clear();for(const [key,value] of candidate)next.set(key,value);}
+      if(candidate.size>=5&&topology.isConnected([...candidate.values()])){next.clear();for(const [key,value] of candidate)next.set(key,value);}
     }else{
       let pending=brush.filter(n=>!occupiedCells[n-1]&&!next.has(n));
       for(let pass=0;pending.length&&pass<=reach+1;pass++){
@@ -2074,7 +2113,7 @@ function applyGlobeCell(id,stroke){
     }
   }else if(logoEditorMode==='remove'){
     for(const n of brush)next.delete(n);
-    if(!next.size||!topology.isConnected([...next.values()]))return;
+    if(next.size<5||!topology.isConnected([...next.values()]))return;
   }else if(logoEditorMode==='paint'){
     let pending=brush.filter(n=>!occupiedCells[n-1]&&!next.has(n));
     if(!next.size&&pending.includes(id)){designAnchor=id;next.set(id,{id});pending=pending.filter(n=>n!==id);}
@@ -2284,6 +2323,7 @@ setInterval(renderClaimFeed,60000);
 function flyToCell(id,angle,duration=1500,onComplete=()=>{},onCancel=()=>{}){
   zoom.cancel();cameraDistanceTarget=null;
   const pose=placementPose(topology.frame(id),camera,radius,angle);
+  if(innerWidth<=700&&document.body.dataset.flow==='design')pose.position.setLength(Math.max(controls.minDistance,distanceForArc(radius*angle*1.3)));
   const direction=pose.position.clone().applyQuaternion(pose.quaternion.clone().invert()).normalize();
   const cap=Math.min(.32,Math.max(.055,(pose.position.length()-radius)/radius*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*Math.max(camera.aspect,1)*1.9));
   void topology.ensureCap(direction.toArray(),cap+.025).catch(()=>{});

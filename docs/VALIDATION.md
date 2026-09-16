@@ -45,7 +45,7 @@ For purchase-flow changes, exercise image, solid colour, and mixed per-cell pain
 
 `test:studio-scale` uses a test-only empty occupancy response to exercise 50,000/100,000-cell editing, undo/redo, image framing, canvas pan/zoom, relocation and a 100,000-cell publication. It leaves real sample inventory unchanged. Inspect `artifacts/studio-scale/`; report timing as local/emulated results and distinguish capacity from available contiguous space. Run this check against the development server because it uses the existing `geodesicQA` hooks.
 
-`npm run test:desktop-composition` holds the single-layout contract at 1440x900 and in 390x844 and 320x568 mobile browser contexts. It confirms that phones receive the readable 800px desktop layout viewport, that no mobile dock exists, and that the desktop header, hero, vertical control rail and fixed right-hand studio retain their desktop geometry. Inspect `artifacts/desktop-composition/`, including the lime hexagon-star treatment in globe screenshots. Emulated mobile contexts are not physical-device certification; confirm real browser viewport scaling and touch interaction on iOS and Android before launch.
+`npm run test:desktop-composition` checks the desktop side panel and responsive phone studio sheets at 1440x900, 390x844 and 320x568. For focused purchase visuals, run `node scripts/purchase-polish-qa.mjs` (also covers 1024x768); inspect `artifacts/purchase-polish/`. Set `QA_PENDING=1` for the delayed-publication confirmation. Checkout responses are simulated; no payment is submitted. Physical iOS/Android and real Stripe remain separate checks.
 
 ## Geodesic and gesture checks
 

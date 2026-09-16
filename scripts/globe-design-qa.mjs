@@ -44,11 +44,11 @@ try {
     );
     assert.equal(await page.locator("#startingSpotPrompt").isVisible(), true);
     assert.equal(await page.locator("#shapeStep h2").textContent(), "2. Choose your shape");
-    assert.deepEqual(await page.locator(".size-presets button").allTextContents(), ["10", "25", "50", "100"]);
-    assert.equal(await page.locator(".hex-brush").count(), 4);
+    assert.deepEqual(await page.locator(".size-presets button").allTextContents(), ["+1", "+10", "+100"]);
+    assert.equal(await page.locator("#shapeStep .hex-brush").count(), 3);
     assert.match(
       await page
-        .locator(".hex-brush")
+        .locator("#shapeStep .hex-brush")
         .first()
         .evaluate(
           (element) => getComputedStyle(element.querySelector("i")).clipPath,
@@ -98,19 +98,14 @@ try {
       () => window.geodesicQA.state().design,
     );
     assert.equal(await page.locator("#hexAmount").inputValue(), "10");
-    await page.locator('.size-presets [data-size="25"]').click();
-    await page.locator("#hexAmount").press("Enter");
+    await page.locator('.size-presets [data-add-size="10"]').click();
     await page.waitForFunction(
-      () => window.geodesicQA.state().design.length === 25,
+      () => window.geodesicQA.state().design.length === 20,
     );
     const grownIds = await page.evaluate(
       () => window.geodesicQA.state().design,
     );
     assert.ok(startingIds.every((id) => grownIds.includes(id)));
-    await page.locator("#removeHexagon").click();
-    await page.waitForFunction(
-      () => window.geodesicQA.state().design.length === 24,
-    );
     const freeCell = await page.evaluate(() => {
       const state = window.geodesicQA.state(),
         owned = new Set(state.design);
@@ -123,15 +118,15 @@ try {
     await page.evaluate((id) => window.geodesicQA.focus(id, 0.6), freeCell);
     await clickCell(freeCell);
     await page.waitForFunction(
-      () => window.geodesicQA.state().design.length === 25,
+      () => window.geodesicQA.state().design.length === 21,
     );
     const drawnIds = await page.evaluate(
       () => window.geodesicQA.state().design,
     );
     await page.locator('[name="shapeMode"][value="exact"]').check();
-    await page.locator("#hexAmount").fill("26");
+    await page.locator("#hexAmount").fill("22");
     await page.waitForFunction(
-      () => window.geodesicQA.state().design.length === 26,
+      () => window.geodesicQA.state().design.length === 22,
     );
     const resizedDrawn = await page.evaluate(
       () => window.geodesicQA.state().design,
@@ -149,8 +144,8 @@ try {
       "3. Create your design",
     );
     assert.equal(
-      await page.locator('#designStep input[type="color"]').count(),
-      1,
+      await page.locator('#designStep [data-colour]').count(),
+      12,
     );
     assert.deepEqual(
       await page
@@ -158,17 +153,18 @@ try {
         .evaluateAll((elements) =>
           elements.slice(0, 3).map((element) => element.id),
         ),
-      ["paintCells", "moveImageMode", "panEditor"],
+      ["moveImageMode", "paintCells", "panEditor"],
     );
     await page.screenshot({
       path: "artifacts/globe-design/" + mobile + "-draw.png",
     });
+    await page.locator("#paintCells").click();
     await page.locator('[data-brush="2"]').click();
     const neighbour = await page.evaluate(
       (id) => window.geodesicQA.neighbours(id)[0],
       first,
     );
-    await page.locator("#brushColor").fill("#12ab34");
+    await page.locator('[data-colour="#34d399"]').click();
     await page.evaluate((id) => window.geodesicQA.focus(id, 0.6), neighbour);
     await clickCell(neighbour);
     await page.waitForFunction(
@@ -177,7 +173,7 @@ try {
     assert.equal(await page.locator("#recentColours").isVisible(), true);
     assert.equal(
       await page.locator(".recent-colour").first().getAttribute("title"),
-      "#12AB34",
+      "#34D399",
     );
     let ids = await page.evaluate(() => window.geodesicQA.state().design);
     await clickCell(first);
