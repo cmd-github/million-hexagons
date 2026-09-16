@@ -13,7 +13,8 @@ async function screenshot(page, file) {
 }
 await mkdir('artifacts/staging', { recursive: true });
 try {
-  for (const mobile of [false, true]) {
+  const devices=process.env.QA_DEVICE==='desktop'?[false]:process.env.QA_DEVICE==='mobile'?[true]:[false,true];
+  for (const mobile of devices) {
     const page = await browser.newPage({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 900 }, isMobile: mobile, hasTouch: mobile });
     page.setDefaultTimeout(30000);
     page.on('pageerror', error => report.errors.push(error.message));
