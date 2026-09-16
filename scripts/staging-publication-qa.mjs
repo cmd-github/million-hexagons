@@ -39,36 +39,41 @@ const createdIds=[];
 const draftIds=[];
 const reservationIds=[];
 const checkoutReservations=[];
+const moderationOnly=process.env.STAGING_MODERATION_ONLY==='1';
 
 try{
   let largeReservation,largeConflictCell;
-  for(let block=0;block<10&&!largeReservation;block++){
+  for(let block=0;block<10&&!largeReservation&&!moderationOnly;block++){
     const cells=Array.from({length:100_000},(_,index)=>block*100_000+index+1);
     const candidate=await request({action:'reserve',reservation:{topologyVersion:'geodesic-v1',cells}});
     if(candidate.response.status===409)continue;
     assert.ok(candidate.response.ok,JSON.stringify(candidate.result));
     largeReservation=candidate.result.reservation;largeConflictCell=cells[50_000];
   }
-  assert.ok(largeReservation,'Could not find a free 100,000-cell reservation test range');
-  reservationIds.push(largeReservation.reservationId);
-  assert.equal(largeReservation.cellCount,100_000);
-  const reservedConflict=await request({action:'reserve',reservation:{topologyVersion:'geodesic-v1',cells:[largeConflictCell]}});
-  assert.equal(reservedConflict.response.status,409,JSON.stringify(reservedConflict.result));
-  const largeReleased=await request({action:'release-reservation',reservationId:largeReservation.reservationId});
-  assert.ok(largeReleased.response.ok,JSON.stringify(largeReleased.result));
-  reservationIds.splice(reservationIds.indexOf(largeReservation.reservationId),1);
+  if(!moderationOnly){
+    assert.ok(largeReservation,'Could not find a free 100,000-cell reservation test range');
+    reservationIds.push(largeReservation.reservationId);
+    assert.equal(largeReservation.cellCount,100_000);
+    const reservedConflict=await request({action:'reserve',reservation:{topologyVersion:'geodesic-v1',cells:[largeConflictCell]}});
+    assert.equal(reservedConflict.response.status,409,JSON.stringify(reservedConflict.result));
+    const largeReleased=await request({action:'release-reservation',reservationId:largeReservation.reservationId});
+    assert.ok(largeReleased.response.ok,JSON.stringify(largeReleased.result));
+    reservationIds.splice(reservationIds.indexOf(largeReservation.reservationId),1);
+  }
 
-  const expiryCell=750000+Math.floor(Math.random()*50000);
-  const expiring=await request({action:'reserve',ttlMs:1000,reservation:{topologyVersion:'geodesic-v1',cells:[expiryCell]}});
-  assert.ok(expiring.response.ok,JSON.stringify(expiring.result));
-  reservationIds.push(expiring.result.reservation.reservationId);
-  const earlyExpiry=await request({action:'expire-reservation',reservationId:expiring.result.reservation.reservationId});
-  assert.equal(earlyExpiry.response.status,409,JSON.stringify(earlyExpiry.result));
-  await new Promise(resolve=>setTimeout(resolve,1100));
-  const expiryRace=await Promise.all([request({action:'expire-reservation',reservationId:expiring.result.reservation.reservationId}),request({action:'expire-reservation',reservationId:expiring.result.reservation.reservationId})]);
-  assert.equal(expiryRace.every(result=>result.response.ok),true,JSON.stringify(expiryRace.map(result=>result.result)));
-  assert.equal(expiryRace.reduce((total,result)=>total+result.result.reservation.releasedCells,0),1);
-  reservationIds.splice(reservationIds.indexOf(expiring.result.reservation.reservationId),1);
+  if(!moderationOnly){
+    const expiryCell=750000+Math.floor(Math.random()*50000);
+    const expiring=await request({action:'reserve',ttlMs:1000,reservation:{topologyVersion:'geodesic-v1',cells:[expiryCell]}});
+    assert.ok(expiring.response.ok,JSON.stringify(expiring.result));
+    reservationIds.push(expiring.result.reservation.reservationId);
+    const earlyExpiry=await request({action:'expire-reservation',reservationId:expiring.result.reservation.reservationId});
+    assert.equal(earlyExpiry.response.status,409,JSON.stringify(earlyExpiry.result));
+    await new Promise(resolve=>setTimeout(resolve,1100));
+    const expiryRace=await Promise.all([request({action:'expire-reservation',reservationId:expiring.result.reservation.reservationId}),request({action:'expire-reservation',reservationId:expiring.result.reservation.reservationId})]);
+    assert.equal(expiryRace.every(result=>result.response.ok),true,JSON.stringify(expiryRace.map(result=>result.result)));
+    assert.equal(expiryRace.reduce((total,result)=>total+result.result.reservation.releasedCells,0),1);
+    reservationIds.splice(reservationIds.indexOf(expiring.result.reservation.reservationId),1);
+  }
 
   let quoted,quoteCell;
   for(let attempt=0;attempt<30&&!quoted;attempt++){
@@ -114,7 +119,7 @@ try{
   assert.deepEqual(loadedDraft.result.draft.designState,{schemaVersion:1,...designState(cell)});
   assert.equal(loadedDraft.result.draft.originalArtworkDataUrl,artworkDataUrl);
 
-  const updated=await request({action:'update-content',placementId:created.placementId,content:{title:'Updated publication QA',description:'Immutable version two',destinationUrl:'https://updated.example.com/',artworkDataUrl,sourceArtworkDataUrl:artworkDataUrl,originalArtworkDataUrl:artworkDataUrl,designState:designState(cell)}});
+  const updated=await request({action:'update-content',placementId:created.placementId,content:{title:'Updated publication QA',description:'Immutable version two',destinationUrl:'https://example.com/',artworkDataUrl,sourceArtworkDataUrl:artworkDataUrl,originalArtworkDataUrl:artworkDataUrl,designState:designState(cell)}});
   assert.ok(updated.response.ok,JSON.stringify(updated.result));
   assert.equal(updated.result.placement.placementId,created.placementId);
   assert.equal(updated.result.placement.version,2);
@@ -167,7 +172,7 @@ try{
   assert.ok(reuseRemoved.response.ok,JSON.stringify(reuseRemoved.result));
   createdIds.splice(createdIds.indexOf(reused.result.placement.placementId),1);
 
-  console.log(JSON.stringify({serverQuote:true,anonymousReservation:true,atomicReservationFulfillment:true,adminLookup:true,adminAudit:true,moderationQueue:true,twelveHourReviewTarget:true,creditLedger:true,adminIssuedCredits:true,creditIdempotency:true,fieldTakedown:true,fullSuspension:true,versionRollback:true,revocationWithCredit:true,reservation100k:true,reservationConflictSafety:true,expiryRace:true,privateSource:true,recoverableDraft:true,editableDesignSource:true,immutableContentV2:true,backgroundPublication:true,immutableArtwork:true,publicMetadata:true,placementAnalytics:true,typedFunnel:true,publicStats:true,duplicateViewProtection:true,ownerReload:true,overlapRejected:true,deleteRelease:true,cellReuse:true,cell},null,2));
+  console.log(JSON.stringify({serverQuote:true,anonymousReservation:true,atomicReservationFulfillment:true,adminLookup:true,adminAudit:true,moderationQueue:true,twelveHourReviewTarget:true,creditLedger:true,adminIssuedCredits:true,creditIdempotency:true,fieldTakedown:true,fullSuspension:true,versionRollback:true,revocationWithCredit:true,reservation100k:!moderationOnly,reservationConflictSafety:!moderationOnly,expiryRace:!moderationOnly,privateSource:true,recoverableDraft:true,editableDesignSource:true,immutableContentV2:true,backgroundPublication:true,immutableArtwork:true,publicMetadata:true,placementAnalytics:true,typedFunnel:true,publicStats:true,duplicateViewProtection:true,ownerReload:true,overlapRejected:true,deleteRelease:true,cellReuse:true,cell},null,2));
 } finally {
   for(const checkout of checkoutReservations)await publicRequest({action:'release-checkout-reservation',reservationId:checkout.reservation.reservationId,checkoutToken:checkout.checkoutToken}).catch(()=>{});
   for(const draftId of draftIds)await request({action:'delete-draft',draftId}).catch(()=>{});
