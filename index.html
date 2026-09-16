@@ -74,6 +74,11 @@
     </section>
     <section id="adminWorkspace" class="admin-workspace" hidden aria-label="Founder content controls">
       <header><div><small>FOUNDER CONTROLS</small><h2>Placement moderation</h2></div><button type="button" id="closeAdmin" data-icon="close" aria-label="Close content controls"></button></header>
+      <section id="adminReviewQueue" class="admin-review-queue" aria-labelledby="adminReviewQueueTitle">
+        <header><div><small>REVIEW TARGET · 12 HOURS</small><h3 id="adminReviewQueueTitle">Awaiting review</h3></div><button type="button" id="refreshAdminQueue">Refresh</button></header>
+        <p role="status">Open founder controls to load the moderation queue.</p>
+        <ol></ol>
+      </section>
       <form id="adminSearch"><label for="adminQuery">Placement ID, owner email or owner ID</label><div><input id="adminQuery" autocomplete="off" required><button type="submit">Find</button></div></form>
       <p id="adminStatus" role="status">Find a placement to review its public content and audit history.</p>
       <div id="adminResults"></div>

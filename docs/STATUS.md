@@ -6,7 +6,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Finish the placement-studio migration by validating owner-edit footprint lock and updating remaining scale/regional legacy browser scripts that still encode the removed Place stage.
+- [ ] Complete Gate 1 when the accountant confirms international VAT/sales-tax treatment, registrations and launch-country constraints; then finalise checkout tax behaviour and legal copy.
 
 ## Next
 
@@ -26,6 +26,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Revisit globe surface studies, achievements, advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Finished the placement-studio migration and added the first operational moderation workflow. Backend coverage now proves owner edits cannot change the purchased anchor or exact cell IDs; the 50k/100k scale and regional browser journeys use Location -> Shape -> Design -> Review rather than the removed Place stage. New purchases and owner edits enter an oldest-first pending-review queue, with a visible 12-hour target, overdue state, explicit approval and audited interventions. Credits remain append-only and administrator-issued for support, promotions or moderation compensation; one credit equals one hexagon, carries no cash value and is non-transferable, while standalone redemption is administrator-gated until checkout integration exists. The full deterministic launch gate passes 58 repository tests, 52 backend tests, staging build/release integrity and a Worker dry run; desktop/mobile Design/navigation, current scale/regional journeys and rendered founder controls also pass locally. Live staging publication/deployment remains to be run for this change.
 
 - [x] Protected selection and draft integrity around existing purchases. Any available starting hexagon is accepted; the initial ten grows around purchased neighbours and falls back to the reachable available count only when enclosed. Typed and preset sizes preserve the current connected shape while excluding occupied cells, and regression coverage verifies 500 unique available IDs with no hidden overlap. Completed purchases now clear their draft before Claim Your Space can reopen, while deliberately closed unfinished work still restores. The full launch gate, desktop/mobile Design/navigation and the complete persistent-checkout suite pass. Deployed source `e7b596d6` as staging Worker `4c6e0024-882f-4bd6-884b-16a484b863a8`, retaining runtime release `6121418c93f84b0a7fd8b572f3f386de309edec9ba6bc2aefcc2d44e084374b2`. Separate live desktop/mobile 10-hexagon journeys passed through Stripe mount with no payment submitted, zero browser errors, successful reservation round-trip, warm reload, startup retry and missing-asset handling; all 1,549 runtime objects passed deployment verification.
 

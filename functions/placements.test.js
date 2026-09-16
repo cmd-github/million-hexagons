@@ -58,6 +58,7 @@ test('creates durable domain records, rejects conflicts, then releases a deleted
   const db = new MemoryFirestore(), timestamp = 'test-time';
   const first = await createTestPlacement(db, valid, timestamp);
   assert.equal(db.documents.get(`stagingPlacements/${first.placementId}`).cellCount, 3);
+  assert.equal(db.documents.get(`stagingPlacements/${first.placementId}`).moderationReview.status, 'pending');
   assert.equal(db.documents.get(`stagingPlacementVersions/${first.placementId}-v1`).description, 'A durable test.');
   assert.equal(db.documents.get(`stagingOwnershipGrants/${first.placementId}`).status, 'active');
   assert.equal(db.documents.get(`stagingDomainEvents/${first.placementId}-created`).type, 'placement_created');
@@ -89,14 +90,16 @@ test('atomically converts an exact active reservation without reclaiming its cel
   await assert.rejects(createTestPlacement(db,{...valid,ownerId:'other'},'time',{reservationId:'reserved',reservationOwnerId:'checkout:token',nowMs:1000}),error=>error.code==='reservation-invalid');
 });
 
-test('creates immutable content versions without changing ownership or cells', async () => {
+test('creates immutable owner edits while locking ownership, anchor and purchased cells', async () => {
   const db=new MemoryFirestore(),created=await createTestPlacement(db,valid,'created');
   const source={bucket:'private',path:'v2.webp',mimeType:'image/webp',extension:'webp',size:9,sha256:'v2'};
   const designSource={bucket:'private',path:'design.json',size:20,sha256:'design'};
-  const updated=await updateTestPlacementContent(db,created.placementId,'test-owner',{title:'Updated title',description:'Updated',destinationUrl:'https://updated.example',artworkDataUrl:''},'updated',source,designSource);
+  const updated=await updateTestPlacementContent(db,created.placementId,'test-owner',{title:'Updated title',description:'Updated',destinationUrl:'https://updated.example',artworkDataUrl:'',anchor:999,cells:[999]},'updated',source,designSource);
   assert.equal(updated.version,2);
   assert.equal(db.documents.get(`stagingPlacements/${created.placementId}`).currentVersion,2);
   assert.equal(decodeCells(db.documents.get(`stagingPlacements/${created.placementId}`).cellsData).join(','),'1,2,4097');
+  assert.equal(db.documents.get(`stagingPlacements/${created.placementId}`).anchor,2);
+  assert.equal(db.documents.get(`stagingPlacements/${created.placementId}`).moderationReview.status,'pending');
   assert.equal(db.documents.get(`stagingOwnershipGrants/${created.placementId}`).ownerId,'test-owner');
   assert.deepEqual(db.documents.get(`stagingPlacementVersions/${created.placementId}-v2`).designSource,designSource);
   await assert.rejects(updateTestPlacementContent(db,created.placementId,'other-owner',{title:'No',destinationUrl:''},'updated',source,designSource),error=>error.code==='placement-forbidden');

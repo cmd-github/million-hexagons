@@ -134,8 +134,11 @@ try{
   assert.ok(granted.response.ok,JSON.stringify(granted.result));assert.equal(granted.result.credits.available,3);
   const duplicateGrant=await request({action:'grant-credits',ownerId:qaOwner,amount:3,reason:'Automated service-credit acceptance',idempotencyKey:creditKey});
   assert.equal(duplicateGrant.result.credits.available,3);
-  const redeemed=await request({action:'redeem-credits',amount:2,placementId:created.placementId,idempotencyKey:crypto.randomUUID()});
+  const redeemed=await request({action:'redeem-credits',ownerId:qaOwner,amount:2,placementId:created.placementId,idempotencyKey:crypto.randomUUID()});
   assert.ok(redeemed.response.ok,JSON.stringify(redeemed.result));assert.equal(redeemed.result.credits.available,1);
+
+  const reviewQueue=await request({action:'admin-review-queue'});assert.ok(reviewQueue.response.ok,JSON.stringify(reviewQueue.result));assert.ok(reviewQueue.result.result.placements.some(item=>item.placementId===created.placementId));
+  const approved=await request({action:'moderate',placementId:created.placementId,command:{action:'approve',reason:'Automated review acceptance'}});assert.ok(approved.response.ok,JSON.stringify(approved.result));assert.equal(approved.result.placement.reviewStatus,'approved');
 
   const removeLink=await request({action:'moderate',placementId:created.placementId,command:{action:'remove-link',reason:'Automated unsafe-link test'}});assert.ok(removeLink.response.ok,JSON.stringify(removeLink.result));
   let moderated=(await request({action:'public-list'})).result.placements.find(item=>item.placementId===created.placementId);assert.equal(moderated.destinationUrl,'');assert.equal(moderated.description,'Immutable version two');
@@ -164,7 +167,7 @@ try{
   assert.ok(reuseRemoved.response.ok,JSON.stringify(reuseRemoved.result));
   createdIds.splice(createdIds.indexOf(reused.result.placement.placementId),1);
 
-  console.log(JSON.stringify({serverQuote:true,anonymousReservation:true,atomicReservationFulfillment:true,adminLookup:true,adminAudit:true,creditLedger:true,creditIdempotency:true,fieldTakedown:true,fullSuspension:true,versionRollback:true,revocationWithCredit:true,reservation100k:true,reservationConflictSafety:true,expiryRace:true,privateSource:true,recoverableDraft:true,editableDesignSource:true,immutableContentV2:true,backgroundPublication:true,immutableArtwork:true,publicMetadata:true,placementAnalytics:true,typedFunnel:true,publicStats:true,duplicateViewProtection:true,ownerReload:true,overlapRejected:true,deleteRelease:true,cellReuse:true,cell},null,2));
+  console.log(JSON.stringify({serverQuote:true,anonymousReservation:true,atomicReservationFulfillment:true,adminLookup:true,adminAudit:true,moderationQueue:true,twelveHourReviewTarget:true,creditLedger:true,adminIssuedCredits:true,creditIdempotency:true,fieldTakedown:true,fullSuspension:true,versionRollback:true,revocationWithCredit:true,reservation100k:true,reservationConflictSafety:true,expiryRace:true,privateSource:true,recoverableDraft:true,editableDesignSource:true,immutableContentV2:true,backgroundPublication:true,immutableArtwork:true,publicMetadata:true,placementAnalytics:true,typedFunnel:true,publicStats:true,duplicateViewProtection:true,ownerReload:true,overlapRejected:true,deleteRelease:true,cellReuse:true,cell},null,2));
 } finally {
   for(const checkout of checkoutReservations)await publicRequest({action:'release-checkout-reservation',reservationId:checkout.reservation.reservationId,checkoutToken:checkout.checkoutToken}).catch(()=>{});
   for(const draftId of draftIds)await request({action:'delete-draft',draftId}).catch(()=>{});

@@ -11,18 +11,20 @@ try {
     page.setDefaultTimeout(90000);const errors=[],requests=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()));
     await page.route('**/topology/occupancy-v1.gz',r=>r.fulfill({body:gzipSync(Buffer.alloc(1000000)),contentType:'application/octet-stream'}));
     await page.goto((process.env.SMOKE_URL||'http://127.0.0.1:4180')+'/?geodesicQA');await page.waitForFunction(()=>window.geodesicQA);
-    await page.locator('#claimButton').click();await page.locator('#designStep').waitFor({state:'visible'});
-    await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Replace image');
+    await page.locator('#claimButton').click();await page.locator('#locationStep').waitFor({state:'visible'});
+    const anchor=await page.evaluate(()=>geodesicQA.state().designAnchor);await page.evaluate(id=>geodesicQA.start(id),anchor);await page.locator('#shapeStep').waitFor({state:'visible'});
     for(const count of [1500,100000]) {
       const started=Date.now();await page.locator('#hexAmount').fill(String(count));
       await page.waitForFunction(n=>!document.querySelector('#appLoading').hidden?false:geodesicQA.state().design.length===n,count);
       const designMs=Date.now()-started,ids=await page.evaluate(()=>geodesicQA.state().design);
-      await page.locator('#toPlacement').click();assert.deepEqual(await page.evaluate(()=>geodesicQA.state().selected),ids);
-      await page.locator('#toReview').click();assert.deepEqual(await page.evaluate(()=>geodesicQA.state().selected),ids);
+      await page.locator('#toDesign').click();await page.locator('#designStep').waitFor({state:'visible'});
+      await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Replace image');
+      await page.locator('#toPlacement').click();await page.locator('#reviewStep').waitFor({state:'visible'});assert.deepEqual(await page.evaluate(()=>geodesicQA.state().selected),ids);
       assert.equal(await page.evaluate(()=>geodesicQA.state().connected),true);
       await page.screenshot({path:`artifacts/regions/${mobile?'mobile':'desktop'}-${count}-review.png`});
       await page.locator('#reviewEditDesign').click();assert.deepEqual(await page.evaluate(()=>geodesicQA.state().design),ids);
       reports.push({mobile,count,designMs,parity:true,regions:await page.evaluate(()=>performanceQA.state().regions)});console.log(JSON.stringify(reports.at(-1)));
+      if(count===1500)await page.locator('#backToShape').click();
     }
     assert.equal(requests.some(url=>/geodesic-v1\.(packed|bin)/.test(url)),false);assert.deepEqual(errors,[]);await page.close();
   }

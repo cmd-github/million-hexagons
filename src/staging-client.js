@@ -59,7 +59,8 @@ export async function updatePlacementMetadata(placementId, content) { return (aw
 export async function getPlacementContentSource(placementId,version) { return (await ownerRequest({ action: 'get-content-source', placementId, version })).placement; }
 export async function updatePlacementContent(placementId,content) { return (await ownerRequest({ action: 'update-content', placementId, content })).placement; }
 export async function adminLookup(query) { return (await ownerRequest({ action: 'admin-lookup', query })).result; }
+export async function getAdminReviewQueue() { return (await ownerRequest({ action: 'admin-review-queue' })).result; }
 export async function moderateTestClaim(placementId, command) { return (await ownerRequest({ action: 'moderate', placementId, command })).placement; }
-export async function grantTestCredits(ownerId, amount, reason) { return (await ownerRequest({ action: 'grant-credits', ownerId, amount, reason, idempotencyKey: crypto.randomUUID() })).credits; }
+export async function grantTestCredits(ownerId, amount, reason, source='support') { return (await ownerRequest({ action: 'grant-credits', ownerId, amount, reason, source, idempotencyKey: crypto.randomUUID() })).credits; }
 export async function revokeTestClaim(placementId, reason, creditAmount) { return (await ownerRequest({ action: 'revoke', placementId, reason, creditAmount })).placement; }
 export async function refundTestPayment(placementId, amountMinor, reason) { return (await ownerRequest({ action: 'admin-refund', placementId, amountMinor, reason })).refund; }

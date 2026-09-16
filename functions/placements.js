@@ -121,7 +121,7 @@ export async function createTestPlacement(db, input, timestamp, options = {}) {
       topologyVersion: claim.topologyVersion, cellCount: claim.cells.length, anchor: claim.anchor,
       cellsEncoding: 'uint32le-base64', cellsData: encodeCells(claim.cells),
       title: claim.title, titleSearch:claim.title.toLowerCase(), currentVersion: 1,
-      status: 'draft', environment: 'staging', quote, createdAt: timestamp, updatedAt: timestamp
+      status: 'draft', environment: 'staging', quote, moderationReview:{status:'pending',submittedAt:timestamp}, createdAt: timestamp, updatedAt: timestamp
     });
     transaction.create(contentRef, { schemaVersion: 1, placementId, version: 1, topologyVersion: claim.topologyVersion, anchor: claim.anchor, cellCount: claim.cells.length, title: claim.title, description: claim.description, destinationUrl: claim.destinationUrl, artworkDataUrl: claim.artworkDataUrl, source: options.source || null, designSource: options.designSource || null, publication: options.source ? { status: 'queued', attempts: 0 } : { status: 'preview-only', attempts: 0 }, status: 'current', environment: 'staging', createdAt: timestamp });
     transaction.create(grantRef, { placementId, ownerId: claim.ownerId, topologyVersion: claim.topologyVersion, status: 'active', environment: 'staging', grantedAt: timestamp });
@@ -143,7 +143,7 @@ export async function updateTestPlacementContent(db, placementId, ownerId, input
     const version = Number(current.currentVersion || 1) + 1;
     const contentRef = db.collection('stagingPlacementVersions').doc(`${placementId}-v${version}`);
     transaction.create(contentRef, { schemaVersion: 1, placementId, version, topologyVersion: current.topologyVersion, anchor: current.anchor, cellCount: current.cellCount, title: claim.title, description: claim.description, destinationUrl: claim.destinationUrl, source, designSource, publication: { status: 'queued', attempts: 0 }, status: 'current', environment: 'staging', createdAt: timestamp });
-    transaction.update(placementRef, { title: claim.title, currentVersion: version, updatedAt: timestamp });
+    transaction.update(placementRef, { title: claim.title, currentVersion: version, moderationReview:{status:'pending',submittedAt:timestamp}, updatedAt: timestamp });
     transaction.set(db.collection('stagingDomainEvents').doc(`${placementId}-content-v${version}`), { schemaVersion: 1, eventId: `${placementId}-content-v${version}`, type: 'placement_content_updated', placementId, ownerId, version, environment: 'staging', occurredAt: timestamp });
     return { placementId, version, status: 'draft', cellCount: current.cellCount };
   });

@@ -86,7 +86,7 @@ body.creating .flow-progress span:nth-of-type(3){order:8}
 body.creating .flow-progress i:nth-of-type(4){order:9}
 body.creating .flow-progress small:nth-of-type(4){order:10}
 #designStep .studio-count input:focus-visible, #designStep button:focus-visible, #designStep summary:focus-visible, #designStep .add-image:has(+input:focus-visible){outline:2px solid var(--lime);outline-offset:2px}
-/* Shared studio shell across Design, Place and Review. */
+/* Shared studio shell across Location, Shape, Design and Review. */
 body.creating .buy-panel{border-radius:22px;background:#0d1b24}
 body.creating .flow-progress{max-width:none;padding-bottom:14px;border-bottom:1px solid #29404a;height:40px;margin-bottom:20px}
 #designStep .studio-heading h2{margin:0;font-size:30px;letter-spacing:-1.2px}
@@ -222,6 +222,16 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 .admin-workspace button{border:1px solid #ffffff20;border-radius:9px;background:#ffffff08;color:#e9f2ef;padding:9px 12px;cursor:pointer}
 .admin-workspace #closeAdmin{border:0;background:none;font-size:25px;padding:0 5px}
 .admin-workspace form{margin:18px 0}
+.admin-review-queue{margin-top:18px;padding:14px;border:1px solid #d7ff5528;border-radius:13px;background:#d7ff5506}
+.admin-review-queue header{align-items:center;padding:0;border:0}
+.admin-review-queue h3{margin:3px 0 0;font-size:17px}
+.admin-review-queue>p{margin:10px 0;color:#91aaa4;font-size:10px}
+.admin-review-queue ol{display:grid;gap:7px;margin:0;padding:0;list-style:none}
+.admin-review-queue li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:9px;border:1px solid #ffffff14;border-radius:9px;background:#07161f}
+.admin-review-queue li[data-overdue=true]{border-color:#ff8a9860;background:#ff64770a}
+.admin-review-queue li b,.admin-review-queue li small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.admin-review-queue li b{font-size:11px}.admin-review-queue li small{margin-top:3px;color:#91aaa4;font-size:9px}
+.admin-review-queue li[data-overdue=true] small{color:#ff9ba7}
 .admin-workspace label{display:block;color:#9db2ae;font-size:10px}
 .admin-workspace form>div{display:flex;gap:8px;margin-top:6px}
 .admin-workspace input, .admin-workspace textarea, .admin-workspace select{width:100%;box-sizing:border-box;border:1px solid #ffffff20;border-radius:9px;background:#122832;color:white;padding:10px;font:12px inherit}
@@ -236,6 +246,7 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 .admin-action label{margin-bottom:6px}
 .admin-action button{width:100%;margin-top:7px}
 .admin-action.wide{grid-column:1/-1}
+.admin-action.approve{border-color:#d7ff5550;background:#d7ff5508}
 .admin-action.danger{border-color:#ff647735}
 .admin-action.danger button{border-color:#ff647766;color:#ff8a98}
 .admin-audit{margin-top:14px}
