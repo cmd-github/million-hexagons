@@ -14,7 +14,8 @@ const browser=await chromium.launch({headless:true,...(existsSync(chrome)?{execu
 await mkdir('artifacts/persistent-checkout',{recursive:true});
 const report=[];
 try {
-  for(const {mobile,reducedMotion} of [{mobile:false,reducedMotion:'no-preference'},{mobile:true,reducedMotion:'no-preference'},{mobile:true,reducedMotion:'reduce'}]) {
+  const scenarios=[{mobile:false,reducedMotion:'no-preference'},{mobile:true,reducedMotion:'no-preference'},{mobile:true,reducedMotion:'reduce'}];
+  for(const {mobile,reducedMotion} of process.env.QA_QUICK?scenarios.slice(0,1):scenarios) {
     const page=await browser.newPage({viewport:mobile?{width:390,height:844}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile,reducedMotion});
     const errors=[];page.on('pageerror',error=>errors.push(error.message));
     const records=[{placementId:'existing-a',anchor:966329,cells:[966329],cellCount:1,title:'Saved first placement',createdAt:1,artworkDataUrl:`${origin}/__qa/stalled.webp`,publicationStatus:'published',status:'active'},{placementId:'existing-b',anchor:966630,cells:[966630],cellCount:1,title:'Saved second placement',createdAt:2,publicationStatus:'published',status:'active'}];
@@ -56,7 +57,7 @@ try {
     await page.locator('#placementInspector').waitFor({state:'visible'});await page.waitForTimeout(1500);await page.screenshot({path:`artifacts/persistent-checkout/${mobile?'mobile':'desktop'}-restored.png`});
     const existingAnchor=966630,adjacentAnchor=await page.evaluate(anchor=>window.geodesicQA.neighbours(anchor).find(id=>!window.geodesicQA.state().committed.includes(id)),existingAnchor);assert.ok(adjacentAnchor);
     await page.evaluate(id=>window.geodesicQA.focus(id),adjacentAnchor);
-    await page.locator('#claimButton').click();await page.locator('#hexAmount').fill('1');await page.locator('#toPlacement').click();await page.waitForFunction(()=>!document.querySelector('#previewPurchase').disabled);
+    await page.locator('#claimButton').click();await page.locator('#locationStep').waitFor({state:'visible'});await page.evaluate(id=>window.geodesicQA.start(id),adjacentAnchor);await page.locator('#shapeStep').waitFor({state:'visible'});await page.locator('#hexAmount').fill('1');await page.locator('#toDesign').click();await page.locator('#toPlacement').click();await page.waitForFunction(()=>!document.querySelector('#previewPurchase').disabled);
     await page.locator('#companyName').fill('Fresh saved placement');await page.locator('#previewPurchase').click();await page.locator('.checkout-loading').waitFor({state:'visible'});
     await page.waitForFunction(()=>!!window.__completeTestCheckout);records.push(checkoutPlacement);
     await page.evaluate(()=>window.__completeTestCheckout());await page.waitForFunction(()=>document.querySelector('#embeddedCheckoutPanel').hidden&&!document.body.classList.contains('creating'));
@@ -69,8 +70,8 @@ try {
     assert.ok((await page.evaluate(()=>window.geodesicQA.state().committed)).includes(anchor));
     await page.waitForFunction(()=>window.geodesicQA.state().retainedPlacements===1);
     await page.locator('#placementInspector').waitFor({state:'visible'});await page.waitForTimeout(1500);await page.screenshot({path:`artifacts/persistent-checkout/${mobile?'mobile':'desktop'}-completed.png`});
-    await page.evaluate(id=>window.geodesicQA.focus(id),anchor);await page.locator('#claimButton').click();await page.locator('#hexAmount').fill('1');assert.ok(!(await page.evaluate(()=>window.geodesicQA.state().design)).includes(anchor));await page.locator('#relocateDesignMode').click();await page.evaluate(id=>window.geodesicQA.focus(id),anchor);await page.waitForTimeout(200);const point=await page.evaluate(id=>window.geodesicQA.screen(id),anchor);if(mobile)await page.touchscreen.tap(point.x,point.y);else await page.mouse.click(point.x,point.y);assert.match(await page.locator('#toolHint').textContent(),/already purchased/);
-    assert.deepEqual(errors,[]);report.push({mobile,reducedMotion,restoration:true,stalledArtworkDoesNotBlock:true,clientResultsAndErrors:true,loader:true,embeddedCompletion:true,adjacentPurchaseSeparate:true,myGlobeShowsSeparatePlacements:true,reloadWithArtwork:true,overlapBlockedBeforeCheckout:true});await page.close();
+    await page.evaluate(id=>window.geodesicQA.focus(id),anchor);await page.locator('#claimButton').click();await page.locator('#locationStep').waitFor({state:'visible'});assert.deepEqual(await page.evaluate(()=>window.geodesicQA.state().design),[]);assert.equal(await page.locator('#hexAmount').inputValue(),'0');await page.locator('#closeBuy').click();
+    assert.deepEqual(errors,[]);report.push({mobile,reducedMotion,restoration:true,stalledArtworkDoesNotBlock:true,clientResultsAndErrors:true,loader:true,embeddedCompletion:true,adjacentPurchaseSeparate:true,myGlobeShowsSeparatePlacements:true,reloadWithArtwork:true,freshEditorAfterPurchase:true});await page.close();
   }
   console.log(JSON.stringify(report,null,2));
 }finally{await browser.close();await server.close();}

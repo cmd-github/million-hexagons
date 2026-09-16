@@ -66,6 +66,17 @@ try {
     const first = await page.evaluate(
       () => window.geodesicQA.state().designAnchor,
     );
+    const blockedNeighbours=await page.evaluate(id=>window.geodesicQA.neighbours(id),first);
+    await page.evaluate(ids=>window.geodesicQA.setOccupied(ids,true),blockedNeighbours);
+    assert.deepEqual(await page.evaluate(id=>window.geodesicQA.availableSelection(id,10),first),[first]);
+    await page.evaluate(ids=>window.geodesicQA.setOccupied(ids,false),blockedNeighbours);
+    const partialBlock=blockedNeighbours.slice(0,3);
+    await page.evaluate(ids=>window.geodesicQA.setOccupied(ids,true),partialBlock);
+    const fiveHundred=await page.evaluate(id=>window.geodesicQA.availableSelection(id,500),first);
+    assert.equal(fiveHundred.length,500);
+    assert.equal(new Set(fiveHundred).size,500);
+    assert.equal(fiveHundred.some(id=>partialBlock.includes(id)),false);
+    await page.evaluate(ids=>window.geodesicQA.setOccupied(ids,false),partialBlock);
     await page.evaluate((id) => window.geodesicQA.focus(id, 0.6), first);
     await page.waitForFunction(
       () => window.geodesicQA.state().detailVertices > 0,
@@ -205,6 +216,12 @@ try {
     await page.locator("#moveImageMode").click();
     await page.locator("#logoOrientation").fill("37");
     await page.locator("#logoScale").fill("140");
+    const unfinishedDraft=await page.evaluate(() => window.geodesicQA.state().design);
+    await page.locator("#closeBuy").click();
+    await page.locator("#claimButton").click();
+    await page.locator("#designStep").waitFor({state:"visible"});
+    assert.deepEqual(await page.evaluate(() => window.geodesicQA.state().design),unfinishedDraft);
+    assert.equal(await page.locator("#addImageLabel").textContent(),"Replace image");
     const originalIds = [...ids],
       relocation = await page.evaluate((id) => {
         let next = id;
@@ -284,9 +301,9 @@ try {
     );
     assert.ok(ids.every((id) => committed.includes(id)));
     await page.locator("#claimButton").click();
-    await page.locator("#designStep").waitFor({ state: "visible" });
-    await page.locator(".studio-more summary").click();
-    await page.locator("#startOver").click();
+    await page.locator("#locationStep").waitFor({ state: "visible" });
+    assert.deepEqual(await page.evaluate(() => window.geodesicQA.state().design), []);
+    assert.equal(await page.locator("#hexAmount").inputValue(), "0");
     assert.equal(
       await page.locator("#addImageLabel").textContent(),
       "Add image",

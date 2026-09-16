@@ -600,8 +600,8 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   amountInput.value=0;
   exactGlobeArea=true;designSurface='globe';document.body.dataset.surface='globe';
   ownerEdit=ownerUpdate;
-  if(!ownerEdit&&Number.isInteger(anchor)){logoCells=await topology.run(()=>topology.connected(preparedAnchor,10,1.25));amountInput.value=logoCells.length;}
-  if(!ownerEdit&&!Number.isInteger(anchor)&&savedDraft)restoreDraft();
+  if(!ownerEdit&&Number.isInteger(anchor)){logoCells=await topology.run(()=>availableConnectedSelection(preparedAnchor,10));amountInput.value=logoCells.length;}
+  if(!ownerEdit&&!Number.isInteger(anchor)&&savedDraft){restoreDraft();logoCells=await topology.run(()=>availableConnectedSelection(designAnchor,logoCells.length,logoCells));amountInput.value=logoCells.length;}
   if(ownerEdit){
     const state=ownerEdit.source.designState||{},transform=state.imageTransform||{},source=ownerEdit.source.originalArtworkDataUrl||ownerEdit.source.currentArtworkDataUrl||ownerEdit.record.artworkDataUrl;
     logoCells=topology.cells(state.cells?.length?state.cells:ownerEdit.record.cells.map(id=>({id})),ownerEdit.record.anchor);amountInput.value=logoCells.length;footprintEdited=true;
@@ -821,6 +821,28 @@ function placementCount() {
   return Math.max(0, Math.min(100000, Math.floor(Number(amountInput.value)) || 0));
 }
 
+function availableConnectedSelection(anchor,count,source=[]) {
+  const target=Math.max(1,Math.min(100000,Math.floor(Number(count))||1));
+  const sourceById=new Map(source.map(cell=>[cell.id,cell]));
+  const selected=new Map(),sourceQueue=[anchor],sourceSeen=new Set(sourceQueue);
+  // Keep as much of an existing hand-drawn selection as possible when its
+  // exact count changes, but never carry a purchased cell into the draft.
+  for(let cursor=0;cursor<sourceQueue.length&&selected.size<target;cursor++){
+    const id=sourceQueue[cursor],cell=sourceById.get(id);
+    if((id===anchor||cell)&&!occupiedCells[id-1])selected.set(id,cell||{id});
+    for(const next of topology.neighboursOf(id))if(sourceById.has(next)&&!sourceSeen.has(next)){sourceSeen.add(next);sourceQueue.push(next);}
+  }
+  if(!selected.size&&!occupiedCells[anchor-1])selected.set(anchor,sourceById.get(anchor)||{id:anchor});
+  // Grow around occupied neighbours instead of selecting through them. If an
+  // available anchor is completely enclosed, the result is simply smaller.
+  const queue=[...selected.keys()],seen=new Set(queue);
+  for(let cursor=0;cursor<queue.length&&selected.size<target;cursor++)for(const next of topology.neighboursOf(queue[cursor]))if(!seen.has(next)){
+    seen.add(next);if(occupiedCells[next-1])continue;
+    selected.set(next,sourceById.get(next)||{id:next});queue.push(next);if(selected.size===target)break;
+  }
+  return topology.cells([...selected.values()],anchor);
+}
+
 function updateTotals() {
   const count = placementCount();
   const pentagons = creationType ? previewCells().filter(cell => cell.pentagon).length : 0;
@@ -865,16 +887,12 @@ async function resizeDesign() {
     const cap=Math.min(1.5,Math.max(.12,Math.acos(1-2*count/CELL_COUNT)*1.5));
     await prepareLocation(designAnchor,cap);
     const source=previewCells().map(cell=>({...cell}));
-    const values=await topology.run(()=>{
-      const byId=new Map(source.map(cell=>[cell.id,cell]));
-      if(count<source.length){const queue=[designAnchor],seen=new Set(queue),kept=[];for(let cursor=0;cursor<queue.length&&kept.length<count;cursor++){const id=queue[cursor],cell=byId.get(id);if(!cell)continue;kept.push(cell);for(const next of topology.neighboursOf(id))if(byId.has(next)&&!seen.has(next)){seen.add(next);queue.push(next);}}return kept;}
-      const queue=[...byId.keys()],seen=new Set(queue);for(let cursor=0;cursor<queue.length&&byId.size<count;cursor++)for(const next of topology.neighboursOf(queue[cursor]))if(!seen.has(next)){seen.add(next);if(!occupiedCells[next-1]){byId.set(next,{id:next});queue.push(next);if(byId.size===count)break;}}return [...byId.values()];
-    });
-    await topology.ensureCells(values.map(cell=>cell.id));const cells=topology.cells(values,designAnchor);
+    const cells=await topology.run(()=>availableConnectedSelection(designAnchor,count,source));
+    await topology.ensureCells(cells.map(cell=>cell.id));
     if(version!==designGeometryVersion)return;
     logoCells=cells;footprintEdited=true;selectedCell=cellForId(designAnchor);selectedCells=cells;
   } catch(error) { failed=true; }
-  finally {if(version===designGeometryVersion){designGeometryPending=false;hideLoading();amountInput.value=logoCells?.length||1;if(document.body.dataset.flow==='shape'){clearPlacementPreview();refreshSelection(logoCells);document.querySelector('#shapeStatus').textContent=failed?'Could not resize your selection. Try again.':'Your shape was preserved while its edge was adjusted.';}else drawDesignPreview();updateTotals();if(failed)updateLogoGuidance('Could not load this area. Try the size again.');}}
+  finally {if(version===designGeometryVersion){designGeometryPending=false;hideLoading();const requested=count;amountInput.value=logoCells?.length||1;if(document.body.dataset.flow==='shape'){clearPlacementPreview();refreshSelection(logoCells);document.querySelector('#shapeStatus').textContent=failed?'Could not resize your selection. Try again.':logoCells.length<requested?`Only ${logoCells.length.toLocaleString()} connected available hexagon${logoCells.length===1?' is':'s are'} reachable from this spot.`:'Your shape was preserved while its edge was adjusted.';}else drawDesignPreview();updateTotals();if(failed)updateLogoGuidance('Could not load this area. Try the size again.');}}
 }
 function layoutFor(cells) {
   if(layoutCache.has(cells))return layoutCache.get(cells);
@@ -1028,8 +1046,8 @@ async function confirmStartingSpot(id){
   const button=document.querySelector('#claimCell');button.disabled=true;button.textContent='Checking…';
   try{
     await prepareLocation(id,.12);
-    const next=logoCells.length?await topology.run(()=>relocateDesign(previewCells(),id)):await topology.run(()=>topology.connected(id,10,1.25));
-    if(next.some(cell=>occupiedCells[cell.id-1])){document.querySelector('#startingSpotStatus').textContent='The complete design does not fit here. Choose another available spot.';return;}
+    const next=logoCells.length?await topology.run(()=>relocateDesign(previewCells(),id)):await topology.run(()=>availableConnectedSelection(id,10));
+    if(next.some(cell=>occupiedCells[cell.id-1])){document.querySelector('#startingSpotStatus').textContent='Your existing design does not fit here. Choose another available spot.';return;}
     if(logoCells.length)rememberPaint();
     designAnchor=id;logoCells=next;amountInput.value=next.length;footprintEdited=true;exactGlobeArea=true;designStartingSpotConfirmed=true;selectedCell=cellForId(id);selectedCells=next;
     document.body.classList.remove('choosing-start');pinnedCell=null;tooltip.classList.remove('show','pinned');enterShapeStep();
@@ -1679,7 +1697,7 @@ async function showEmbeddedCheckout(checkout){
   const stripe=await stripeBrowser();embeddedCheckoutInstance=await stripe.initEmbeddedCheckout({fetchClientSecret:async()=>checkout.clientSecret,onComplete:async()=>{
     embeddedCheckoutInstance?.destroy();embeddedCheckoutInstance=null;const indicator=document.createElement('div');indicator.className='branded-loader checkout-complete';indicator.setAttribute('role','status');indicator.setAttribute('aria-label','Payment received. Adding your placement to the globe.');indicator.append(loading.querySelector('.loading-hex').cloneNode(true));const message=document.createElement('p');message.textContent='Payment received';const detail=document.createElement('small');detail.textContent='Adding your placement to the globe…';indicator.append(message,detail);container.replaceChildren(indicator);status.textContent='';
     for(let attempt=0;attempt<60;attempt++){
-      try{const match=snapshotEnabled?await stagingClient.getPublicPlacement(checkout.placementId):(await stagingClient.listPublicClaims()).find(record=>record.placementId===checkout.placementId);if(match){try{await applyPersistentPlacements([match]);if(snapshotEnabled)void snapshotRuntime.refresh();}catch(error){console.error('Could not render the completed placement before closing checkout',error);}message.textContent='Your placement is on the globe';detail.textContent='Taking you there…';clearCheckoutReservation();setTimeout(async()=>{panel.hidden=true;closeBuy();if(await inspectPlacement(match.anchor))viewInspectedPlacement(()=>setTimeout(()=>void openShareCard(match,{prompt:true}),800));},700);return;}}
+      try{const match=snapshotEnabled?await stagingClient.getPublicPlacement(checkout.placementId):(await stagingClient.listPublicClaims()).find(record=>record.placementId===checkout.placementId);if(match){try{await applyPersistentPlacements([match]);if(snapshotEnabled)void snapshotRuntime.refresh();}catch(error){console.error('Could not render the completed placement before closing checkout',error);}message.textContent='Your placement is on the globe';detail.textContent='Taking you there…';clearCheckoutReservation();setTimeout(async()=>{panel.hidden=true;discardDraft();closeBuy();if(await inspectPlacement(match.anchor))viewInspectedPlacement(()=>setTimeout(()=>void openShareCard(match,{prompt:true}),800));},700);return;}}
       catch(error){console.error('Could not check completed placement',error);}
       await new Promise(resolve=>setTimeout(resolve,1000));
     }
@@ -1847,6 +1865,7 @@ async function paintPlacement() {
   occupancyTexture.needsUpdate = true;
   sold = Math.min(1000000, sold + amount);
   updateInventoryDisplay();
+  discardDraft();
   closeBuy();
   const toast = document.querySelector('#toast');
   toast.querySelector('b').textContent='Welcome to the world.';
@@ -1972,7 +1991,10 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('geodesicQA'
       await prepareLocation(id);controls.autoRotate=false;orientToCell(id,radius+distance);
     },
     async place(id) { await prepareLocation(id);await choosePatternOrigin({uv:new THREE.Vector2(),point:pointForCell({id})},cellForId(id));focusSelection(); },
+    async start(id){await prepareLocation(id,.2);await confirmStartingSpot(id);},
     neighbours(id) { return topology.neighboursOf(id); },
+    setOccupied(ids,value=true){for(const id of ids)occupiedCells[id-1]=value?255:0;occupancyTexture.needsUpdate=true;},
+    async availableSelection(id,count){await prepareLocation(id,.2);return topology.run(()=>availableConnectedSelection(id,count)).then(cells=>cells.map(cell=>cell.id));},
     missNextIntersection() { forceIntersectionMiss=true; },
     state() { const designCells=previewCells().map(({id,color,transparent})=>({id,color,transparent}));return { inspectedId, rotationSpeed:controls.rotateSpeed, autoRotationSpeed:controls.autoRotateSpeed, orientation:globe.quaternion.toArray(), selected: selectedCells.map(c=>c.id), design:designCells.map(c=>c.id),designCells, designAnchor, requestedAnchor, sold, committed: [...sessionPlacements.keys()], connected: topology.isConnected(selectedCells), camera:camera.position.toArray(), detailVertices:cellDetail?.stats.vertices||0, drawCalls:renderer.info.render.calls,tiles:{...artworkTiles.stats},retainedPlacements:placementLayers.children.length }; },
     screen(id) { const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return {x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2}; },

@@ -41,3 +41,6 @@ Placements
 - [x] simplify Choose your shape with a 10-hexagon default, clear exact/freehand choice and 10/25/50/100 shortcuts
 - [x] rename Your footprint to Your Selection and organise Design around Colour, Image and Move globe
 - [x] make Across area the default for every image and prevent it disappearing on irregular selections
+- [x] always accept an available starting hexagon, shrinking the initial ten only when it is completely enclosed
+- [x] grow typed and preset sizes around purchased cells so the displayed and charged count contains only unique available hexagons
+- [x] restore only unfinished work; clear the completed draft before the next Claim Your Space journey
