@@ -17,7 +17,7 @@ Placements
 - [x] create a placemnet button jumps on globe to super zoomed in - clicking that shouldn't move teh globe yet
 - [x] redesign the placement UX
 - [x] paint, add and remove image should be combined - clicking the hex's on the globe in the placement view should claim them in the colour selected - images can then be added on top (satrt on that option)
-- [x] allow multiple images per placement (up to five layers)
+- [x] keep one image per placement; uploading another image replaces it
 - [x] paint brush sizes dont step sensibly - use a size picker like small (1 hex) medium large and xl
 - [x] three button menu on placement make no sense - image options should go on the image tab
 - [x] image should be moveable as well as zoomable - ie to move within the choosen area
@@ -37,3 +37,7 @@ Placements
 - [x] call the artwork card Preview rather than colour placement
 - [x] make the 160-character description field tall enough to show a full entry
 - [x] expand and shuffle the hero's changing words, type and delete the full stop with each word, and hold completed words for one extra second
+- [x] rename the main action to Claim Your Space and remove the unavailable live-total message
+- [x] simplify Choose your shape with a 10-hexagon default, clear exact/freehand choice and 10/25/50/100 shortcuts
+- [x] rename Your footprint to Your Selection and organise Design around Colour, Image and Move globe
+- [x] make Across area the default for every image and prevent it disappearing on irregular selections

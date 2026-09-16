@@ -12,7 +12,7 @@ try{for(const mobile of [false,true])for(const count of (process.env.QUALITY_COU
  page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:4180/?geodesicQA');await page.waitForFunction(()=>window.geodesicQA);
  await page.locator('#claimButton').click();await page.locator('#designStep').waitFor();
- await page.locator('#hexAmount').fill(String(count));await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Add another image');
+ await page.locator('#hexAmount').fill(String(count));await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Replace image');
  await page.locator('#toPlacement').click();await page.locator('#toReview').click();
  const ids=await page.evaluate(()=>window.geodesicQA.state().selected),id=ids[0];assert.equal(ids.length,count);
  await page.evaluate(id=>window.geodesicQA.focus(id,.22),id);await page.waitForTimeout(1500);

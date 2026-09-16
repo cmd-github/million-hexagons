@@ -1,4 +1,4 @@
-export const HERO_WORDS=['brand','idea','moment','message','art','story','community','mark','dream','project','passion','purpose','vision','voice','cause','business'];
+export const HERO_WORDS=['brand','idea','moment','message','art','story','community','mark','project','vision','cause','business'];
 export const HERO_HOLD_MS=3000;
 
 export function shuffleHeroWords(words,random=Math.random){

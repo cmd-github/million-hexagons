@@ -231,14 +231,10 @@ let selectedNormal = null;
 let selectedCells = [];
 let uploadedLogo = null;
 let uploadedLogoCrop = null;
-let imageLayers=[];
 let logoEditorMode = 'move', logoDrag = null;
 const logoPosition = { x: 0, y: 0 };
 function activeImageLayer(){return uploadedLogo?{image:uploadedLogo,crop:uploadedLogoCrop,scale:Number(document.querySelector('#logoScale').value),rotation:Number(document.querySelector('#logoOrientation').value),treatment:document.querySelector('#logoTreatment').value,position:{...logoPosition}}:null;}
-function artworkImageLayers(){const active=activeImageLayer();return active?[...imageLayers,active]:imageLayers;}
-function renderImageLayers(){const target=document.querySelector('#imageLayers');if(!target)return;target.replaceChildren();artworkImageLayers().forEach((layer,index)=>{const button=document.createElement('button');button.type='button';button.textContent=`Image ${index+1}`;button.classList.toggle('active',index===imageLayers.length&&uploadedLogo);button.onclick=()=>selectImageLayer(index);target.append(button);});}
-function loadActiveImageLayer(layer){uploadedLogo=layer?.image||null;uploadedLogoCrop=layer?.crop||null;document.querySelector('#logoScale').value=layer?.scale||100;document.querySelector('#logoScaleValue').textContent=`${layer?.scale||100}%`;document.querySelector('#logoOrientation').value=layer?.rotation||0;document.querySelector('#rotationValue').textContent=`${layer?.rotation||0}°`;document.querySelector('#logoTreatment').value=layer?.treatment||'span';logoPosition.x=layer?.position?.x||0;logoPosition.y=layer?.position?.y||0;}
-function selectImageLayer(index){const layers=artworkImageLayers();if(index<0||index>=layers.length||index===layers.length-1&&uploadedLogo)return;const selected=layers.splice(index,1)[0];imageLayers=layers;loadActiveImageLayer(selected);updateImageControls();drawDesignPreview();refreshSelection();}
+function artworkImageLayers(){const active=activeImageLayer();return active?[active]:[];}
 let lastPaintedCell = null;
 let editorArtworkSize = { width: 1, height: 1 };
 const editorView = { zoom: 1, x: 0, y: 0 };
@@ -569,7 +565,7 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   }catch{
     hideLoading();openingEditor=false;
     const toast=document.querySelector('#toast');toast.querySelector('b').textContent='Editor unavailable';
-    toast.querySelector('span').textContent='Please try Create a placement again.';document.querySelector('#placementWebsite').hidden=true;toast.classList.add('show');
+    toast.querySelector('span').textContent='Please try Claim Your Space again.';document.querySelector('#placementWebsite').hidden=true;toast.classList.add('show');
     return;
   }
   selecting = false;
@@ -595,7 +591,7 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   panel.scrollTop = 0;
   for(const id of ['companyName','companyDescription','website'])document.getElementById(id).value='';
   document.querySelector('#artworkQuality').hidden=true;
-  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;imageLayers=[];draftArtwork=null;
+  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;draftArtwork=null;
   document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();
   document.querySelector('#brushColor').value='#ff4d6d';document.querySelector('#logoTreatment').value='span';document.querySelector('#areaBrush').value='0';document.querySelector('#areaBrushValue').textContent='1 cell';showUploadMessage('');document.querySelector('#uploadStatus').hidden=true;
   resetLogoTransform();undoStack.length=0;redoStack.length=0;updateHistory();
@@ -604,7 +600,7 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   amountInput.value=0;
   exactGlobeArea=true;designSurface='globe';document.body.dataset.surface='globe';
   ownerEdit=ownerUpdate;
-  if(!ownerEdit&&Number.isInteger(anchor)){logoCells=topology.cells([{id:preparedAnchor}],preparedAnchor);amountInput.value=1;}
+  if(!ownerEdit&&Number.isInteger(anchor)){logoCells=await topology.run(()=>topology.connected(preparedAnchor,10,1.25));amountInput.value=logoCells.length;}
   if(!ownerEdit&&!Number.isInteger(anchor)&&savedDraft)restoreDraft();
   if(ownerEdit){
     const state=ownerEdit.source.designState||{},transform=state.imageTransform||{},source=ownerEdit.source.originalArtworkDataUrl||ownerEdit.source.currentArtworkDataUrl||ownerEdit.record.artworkDataUrl;
@@ -625,12 +621,12 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   else if(designStartingSpotConfirmed){enterShapeStep();}
   else{showFlowStep('location');setEditorMode('pan',false);cameraDistanceTarget=Math.min(camera.position.length(),radius+1.45);document.querySelector('#startingSpotStatus').textContent='Zoom in to select a starting position.';}
   await nextPaint();hideLoading();openingEditor=false;
-  trackEvent('design_started',{context:{cellCount:1,source:'studio'}});
+  trackEvent('design_started',{context:{cellCount:placementCount(),source:'studio'}});
 
 }
 // Closing the studio used to discard the design outright, so a stray Escape lost the work.
 // The in-progress design is kept in memory instead and restored when the studio is reopened
-// from Create a placement. Opening on a specific cell, or for an owner update, still starts
+// from Claim Your Space. Opening on a specific cell, or for an owner update, still starts
 // clean, and Start over in the design menu discards a restored draft explicitly.
 let savedDraft = null;
 function draftIsMeaningful() {
@@ -646,7 +642,7 @@ function captureDraft() {
     anchor:designAnchor,
     cells:previewCells().map(({id,color,transparent})=>({id,color,transparent})),
     footprintEdited,
-    logo:uploadedLogo,logoCrop:uploadedLogoCrop,imageLayers:[...imageLayers],
+    logo:uploadedLogo,logoCrop:uploadedLogoCrop,
     baseColour:document.querySelector('#brushColor').value,
     treatment:document.querySelector('#logoTreatment').value,
     scale:document.querySelector('#logoScale').value,
@@ -662,7 +658,7 @@ function restoreDraft() {
   logoCells=topology.cells(draft.cells,draft.anchor);
   amountInput.value=logoCells.length;
   footprintEdited=draft.footprintEdited;
-  uploadedLogo=draft.logo;uploadedLogoCrop=draft.logoCrop;imageLayers=[...(draft.imageLayers||[])];
+  uploadedLogo=draft.logo;uploadedLogoCrop=draft.logoCrop;
   document.querySelector('#brushColor').value=draft.baseColour;
   document.querySelector('#logoTreatment').value=draft.treatment;
   document.querySelector('#logoScale').value=draft.scale;
@@ -675,7 +671,7 @@ function restoreDraft() {
 }
 function discardDraft() {
   savedDraft=null;
-  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;imageLayers=[];draftArtwork=null;
+  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;draftArtwork=null;
   document.querySelector('#logoUpload').value='';
   document.querySelector('#logoPreview').replaceChildren();
   document.querySelector('#logoPalette').hidden=true;
@@ -878,7 +874,7 @@ async function resizeDesign() {
     if(version!==designGeometryVersion)return;
     logoCells=cells;footprintEdited=true;selectedCell=cellForId(designAnchor);selectedCells=cells;
   } catch(error) { failed=true; }
-  finally {if(version===designGeometryVersion){designGeometryPending=false;hideLoading();amountInput.value=logoCells?.length||1;if(document.body.dataset.flow==='shape'){clearPlacementPreview();refreshSelection(logoCells);document.querySelector('#shapeStatus').textContent=failed?'Could not resize this footprint. Try again.':'The current shape was preserved while its edge was adjusted.';}else drawDesignPreview();updateTotals();if(failed)updateLogoGuidance('Could not load this area. Try the size again.');}}
+  finally {if(version===designGeometryVersion){designGeometryPending=false;hideLoading();amountInput.value=logoCells?.length||1;if(document.body.dataset.flow==='shape'){clearPlacementPreview();refreshSelection(logoCells);document.querySelector('#shapeStatus').textContent=failed?'Could not resize your selection. Try again.':'Your shape was preserved while its edge was adjusted.';}else drawDesignPreview();updateTotals();if(failed)updateLogoGuidance('Could not load this area. Try the size again.');}}
 }
 function layoutFor(cells) {
   if(layoutCache.has(cells))return layoutCache.get(cells);
@@ -1021,7 +1017,7 @@ function configureCreation() {
   drawDesignPreview();updateTotals();
 }
 function enterShapeStep(){
-  shapeMode='exact';document.querySelector('[name="shapeMode"][value="exact"]').checked=true;document.querySelector('#sizeControls').hidden=false;document.querySelector('#shapeStatus').textContent='Adjust the number to grow or trim this footprint.';
+  shapeMode='exact';document.querySelector('[name="shapeMode"][value="exact"]').checked=true;document.querySelector('#sizeControls').hidden=false;document.querySelector('#shapeStatus').textContent='Adjust the number to grow or trim your selection.';
   showFlowStep('shape');selectionModeUniform.value=1;selectedCell=cellForId(designAnchor);selectedCells=previewCells();clearPlacementPreview();refreshSelection(selectedCells);controls.enableRotate=true;updateTotals();
 }
 function enterDesignStep(){
@@ -1032,7 +1028,7 @@ async function confirmStartingSpot(id){
   const button=document.querySelector('#claimCell');button.disabled=true;button.textContent='Checking…';
   try{
     await prepareLocation(id,.12);
-    const next=logoCells.length?await topology.run(()=>relocateDesign(previewCells(),id)):topology.cells([{id}],id);
+    const next=logoCells.length?await topology.run(()=>relocateDesign(previewCells(),id)):await topology.run(()=>topology.connected(id,10,1.25));
     if(next.some(cell=>occupiedCells[cell.id-1])){document.querySelector('#startingSpotStatus').textContent='The complete design does not fit here. Choose another available spot.';return;}
     if(logoCells.length)rememberPaint();
     designAnchor=id;logoCells=next;amountInput.value=next.length;footprintEdited=true;exactGlobeArea=true;designStartingSpotConfirmed=true;selectedCell=cellForId(id);selectedCells=next;
@@ -1047,9 +1043,8 @@ function updateImageControls() {
   document.querySelectorAll('[name="logoTreatmentChoice"]').forEach(input=>input.checked=input.value===document.querySelector('#logoTreatment').value);
   document.querySelector('#removeImage').hidden=!uploadedLogo;
   document.querySelector('#logoOptions').hidden=!uploadedLogo;
-  document.querySelector('#moveImageMode').disabled=!uploadedLogo;
-  document.querySelector('#addImageLabel').textContent=artworkImageLayers().length?'Add another image':'Add image';renderImageLayers();
-  if(!uploadedLogo && logoEditorMode==='move')logoEditorMode='pan';
+  document.querySelector('#moveImageMode').disabled=false;
+  document.querySelector('#addImageLabel').textContent=uploadedLogo?'Replace image':'Add image';
   setEditorMode(logoEditorMode,false);
 }
 function setEditorMode(mode, zoomToCells=true) {
@@ -1063,8 +1058,10 @@ function setEditorMode(mode, zoomToCells=true) {
     button.setAttribute('aria-pressed',String(active));button.classList.toggle('active',active);
   }
   document.querySelector('#brushControls').hidden=!['paint','remove'].includes(mode);
-  document.querySelector('#logoPositionControls').hidden=mode!=='move'||!uploadedLogo;
-  const hint=mode==='move'?'Move image':mode==='remove'?'Delete hexagons':mode==='relocate'?'Click an available hexagon to move the whole design':mode==='paint'?'Draw over blank hexagons to add them':'Drag to move the globe';
+  document.querySelector('#logoPositionControls').hidden=mode!=='move';
+  document.querySelector('#logoOptions').hidden=!uploadedLogo;
+  document.querySelector('#logoPositionControls').classList.toggle('empty',mode==='move'&&!uploadedLogo);
+  const hint=mode==='move'?(uploadedLogo?'Drag on the globe to position your image':'Add an image to your selection'):mode==='remove'?'Delete hexagons':mode==='relocate'?'Click an available hexagon to move the whole design':mode==='paint'?'Choose a colour, then paint or add hexagons':'Drag to move the globe';
   document.querySelector('#toolHint').textContent=hint;
   document.querySelector('#logoFootprintHelp').textContent=hint;
   document.querySelector('#designCanvas').style.cursor=['move','pan'].includes(mode)?'grab':'crosshair';
@@ -1178,7 +1175,7 @@ document.querySelector('#toPlacement').addEventListener('click', () => {syncGlob
 document.querySelector('#toDesign').addEventListener('click',enterDesignStep);
 document.querySelector('#backToLocation').addEventListener('click',chooseAnotherStartingSpot);
 document.querySelectorAll('[name="shapeMode"]').forEach(input=>input.addEventListener('change',()=>{
-  shapeMode=document.querySelector('[name="shapeMode"]:checked').value;const freehand=shapeMode==='freehand';document.querySelector('#sizeControls').hidden=freehand;document.querySelector('#shapeStatus').textContent=freehand?'Click or drag across neighbouring spaces to add them. Click selected edge spaces to remove them.':'Adjust the number to grow or trim this footprint.';logoEditorMode=freehand?'hex':'pan';controls.enableRotate=!freehand;
+  shapeMode=document.querySelector('[name="shapeMode"]:checked').value;const freehand=shapeMode==='freehand';document.querySelector('#sizeControls').hidden=freehand;document.querySelector('#shapeStatus').textContent=freehand?'Click or drag across neighbouring spaces to add them. Click selected edge spaces to remove them.':'Adjust the number to grow or trim your selection.';logoEditorMode=freehand?'hex':'pan';controls.enableRotate=!freehand;
 }));
 document.querySelector('#backToDesign').addEventListener('click', () => { clearPlacementPreview(); selecting = false; selectionModeUniform.value = 0; document.body.classList.remove('selecting', 'placing-design'); controls.enableRotate = true; showFlowStep('design'); drawDesignPreview(); updateTotals(); });
 document.querySelector('#moveGlobeMode').addEventListener('click', () => setInteractionMode('move'));
@@ -1205,7 +1202,7 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   button.textContent=original;button.disabled=false;
 });
 document.querySelector('#backToPlacement').addEventListener('click', () => { void releaseActiveCheckoutReservation();clearPlacementPreview();selecting=false;selectionModeUniform.value=0;document.body.classList.remove('selecting','placing-design');showFlowStep('design');setDesignSurface('globe');setEditorMode('paint',false);drawDesignPreview();updateTotals(); });
-document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size; button.closest('details').open=false;void resizeDesign(); }));
+document.querySelectorAll('.size-presets button').forEach((button) => button.addEventListener('click', () => { amountInput.value = button.dataset.size;void resizeDesign(); }));
 amountInput.addEventListener('change', () => { amountInput.value = placementCount(); });
 amountInput.addEventListener('input', () => { void resizeDesign(); });
 document.querySelector('#addHexagon').addEventListener('click',()=>{amountInput.value=Math.min(100000,placementCount()+1);void resizeDesign();});
@@ -1220,7 +1217,7 @@ document.querySelector('#backToShape').addEventListener('click',enterShapeStep);
 document.querySelector('#brushColor').addEventListener('input',()=>{document.querySelector('#paintColourChip').style.background=document.querySelector('#brushColor').value;});
 document.querySelector('#fillCells').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;rememberPaint();const colour=document.querySelector('#brushColor').value;logoCells=previewCells().map(c=>({...c,color,transparent:false}));rememberRecentColour(colour);footprintEdited=true;drawDesignPreview();});
 document.querySelector('#removeImage').addEventListener('click',()=>{document.querySelector('.studio-more').open=false;document.querySelector('#artworkQuality').hidden=true;
-  uploadVersion++;const previous=imageLayers.pop();loadActiveImageLayer(previous);document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;if(!previous)resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();refreshSelection();});
+  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();refreshSelection();});
 function resetLogoTransform() {
   document.querySelector('#logoScale').value = 100;
   document.querySelector('#logoScaleValue').textContent = '100%';
@@ -1390,7 +1387,6 @@ let uploadVersion = 0;
 document.querySelector('#logoUpload').addEventListener('change', (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
-  if(artworkImageLayers().length>=5){showUploadMessage('A placement can contain up to five images.');event.target.value='';return;}
   const version=++uploadVersion;
   if (file.size > 4 * 1024 * 1024) {
     showUploadMessage('Logo must be smaller than 4 MB.');
@@ -1413,10 +1409,10 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
     raster.getContext('2d').imageSmoothingQuality='high';
     raster.getContext('2d').drawImage(image,0,0,raster.width,raster.height);
     raster.naturalWidth=raster.width; raster.naturalHeight=raster.height;
-    if(uploadedLogo)imageLayers.push(activeImageLayer());
     uploadedLogo = raster;
     uploadedLogoCrop = findLogoContentBounds(raster);
     resetLogoTransform();
+    document.querySelector('#logoTreatment').value='span';
     updateImageControls();setEditorMode('move');
     const preview = document.querySelector('#logoPreview');
     const previewImage = document.createElement('img');
@@ -1517,33 +1513,29 @@ function renderArtwork(cells) {
   context.setTransform(px,0,0,py,-bounds.left*px,-bounds.top*py);
   context.fillStyle=document.querySelector('#brushColor').value;context.fill(layoutFor(cells).path);
   context.resetTransform();
+  // Cell colours form the artwork background. Images are composited above
+  // them so adding an image never erases the chosen colours or disappears
+  // behind them.
+  const colourOverrides=new Map();
+  for(const cell of cells)if(cell.color){if(!colourOverrides.has(cell.color))colourOverrides.set(cell.color,[]);colourOverrides.get(cell.color).push(cell);}
+  context.setTransform(px,0,0,py,-bounds.left*px,-bounds.top*py);
+  for(const [color,group] of colourOverrides){context.fillStyle=color;context.fill(layoutFor(group).path);}
+  context.resetTransform();
   if (creationType === 'logo' && layers.length) {
     context.save();context.setTransform(px,0,0,py,-bounds.left*px,-bounds.top*py);context.clip(layoutFor(cells).path);context.resetTransform();
     for(const layer of layers){if (layer.treatment === 'repeat') {
       cells.forEach((cell) => { const p = point(cell); context.save(); polygonPath(context,cell,bounds,px,py); context.clip(); drawRotated(p.x-unit*.525,p.y-unit*.525,unit*1.05,unit*1.05,layer); context.restore(); });
     } else {
-      const source = layer.crop || { width: layer.image.naturalWidth, height: layer.image.naturalHeight };
-      const rotation = Math.abs(Number(document.querySelector('#logoOrientation').value) || 0);
-      // Fit once in the editor's local coordinate system. A new destination
-      // clips that same framing; it must not shrink/recentre the source image.
-      const rotated=rotatedImageBox(source.width,source.height,rotation);
-      const aspect=rotated.width/rotated.height;
-      if(sourceLayout.fits.size>12)sourceLayout.fits.clear();
-      if(!sourceLayout.fits.has(aspect))sourceLayout.fits.set(aspect,largestLogoRect(sourceCells,sourceBounds,aspect,sourceBounds.width,sourceBounds.height));
-      const safeRect=sourceLayout.fits.get(aspect);
-      drawRotated((sourceBounds.left + safeRect.x - bounds.left) * px, (sourceBounds.top + safeRect.y - bounds.top) * py, safeRect.width * px, safeRect.height * py,layer);
+      // Fit across the complete selection bounds, then clip to its exact shape.
+      // An inscribed rectangle can collapse to a nearly invisible sliver for
+      // concave or hand-drawn selections.
+      drawRotated((sourceBounds.left-bounds.left)*px,(sourceBounds.top-bounds.top)*py,sourceBounds.width*px,sourceBounds.height*py,layer);
     }}
     context.restore();
   }
-  // Group vector overrides by colour, keeping bulk fills bounded at large counts.
-  const overrides=new Map();
-  for(const cell of cells) {
-    if(!cell.transparent&&!cell.color)continue;
-    const key=cell.transparent?'clear':cell.color;
-    if(!overrides.has(key))overrides.set(key,[]);overrides.get(key).push(cell);
-  }
+  const transparent=cells.filter(cell=>cell.transparent);
   context.setTransform(px,0,0,py,-bounds.left*px,-bounds.top*py);
-  for(const [color,group] of overrides){const path=layoutFor(group).path;context.globalCompositeOperation=color==='clear'?'destination-out':'source-over';context.fillStyle=color==='clear'?'#000':color;context.fill(path);}
+  if(transparent.length){context.globalCompositeOperation='destination-out';context.fillStyle='#000';context.fill(layoutFor(transparent).path);}
   context.resetTransform();context.globalCompositeOperation='source-over';
   artworkCache.set(cells,{signature,layers:layers.map(layer=>layer.image),source:sourceCells,art});
   return art;
@@ -1699,7 +1691,7 @@ async function initializeStaging(){
 if(import.meta.env.VITE_STAGING_SANDBOX){
   await ensureStagingInventory();
   trackEvent('globe_viewed',{context:{source:location.hash.startsWith('#placement=')?'share':'direct'}});
-  try{const {stats}=await stagingClient.getPublicStats();globalMetricExamples=[`${stats.claimedCells.toLocaleString()} / 1,000,000 claimed`,`${stats.remainingCells.toLocaleString()} remaining`,`${stats.placements.toLocaleString()} ${stats.placements===1?'placement':'placements'}`,`${stats.views.toLocaleString()} measured placement views`,`${stats.clicks.toLocaleString()} website visits sent`];document.querySelector('#globalMetricText').textContent=globalMetricExamples[0];}catch{document.querySelector('#globalMetricText').textContent='Live totals temporarily unavailable';}
+  try{const {stats}=await stagingClient.getPublicStats();globalMetricExamples=[`${stats.claimedCells.toLocaleString()} / 1,000,000 claimed`,`${stats.remainingCells.toLocaleString()} remaining`,`${stats.placements.toLocaleString()} ${stats.placements===1?'placement':'placements'}`,`${stats.views.toLocaleString()} measured placement views`,`${stats.clicks.toLocaleString()} website visits sent`];document.querySelector('#globalMetricText').textContent=globalMetricExamples[0];document.querySelector('#globalMetrics').hidden=false;}catch{document.querySelector('#globalMetrics').hidden=true;}
   const access=document.querySelector('#stagingOwnerAccess'),status=document.querySelector('#stagingOwnerStatus'),accountPanel=document.querySelector('#accountPanel'),accountStatus=document.querySelector('#accountStatus'),accountToggle=document.querySelector('#toggleAccount');
   accountToggle.onclick=()=>{const opening=accountPanel.hidden;accountPanel.hidden=!opening;accountToggle.setAttribute('aria-expanded',String(opening));if(opening&&!stagingUser)document.querySelector('#accountEmail').focus();};
   document.addEventListener('pointerdown',event=>{if(!accountPanel.hidden&&!event.target.closest('.account-access')){accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');}});
@@ -2350,9 +2342,9 @@ document.querySelector('#logoOrientation').addEventListener('input',event=>{
 
 // Icons keep the tool rail compact; accessible names and active-mode feedback remain.
 // Studio tools share the icon set; label and title stay beside the drawing.
-for(const [id,name,label] of [['moveImageMode','image','Move image'],['paintCells','paint','Paint'],['editHexMode','add','Add hexagons'],['removeHexMode','remove','Remove hexagons'],['panEditor','pan','Pan']]){
+for(const [id,name,label] of [['moveImageMode','image','Image'],['paintCells','paint','Colour'],['editHexMode','add','Add hexagons'],['removeHexMode','remove','Delete'],['panEditor','pan','Move globe']]){
   const button=document.querySelector(`#${id}`);
-  button.innerHTML=icon(name);
+  button.innerHTML=`${icon(name)}<span>${label}</span>`;
   button.setAttribute('aria-label',label);
   button.title=label;
 }

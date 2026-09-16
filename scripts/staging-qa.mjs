@@ -46,7 +46,7 @@ try {
     assert.equal(await page.locator('#toPlacement').isEnabled(),true,'Confirming the starting hexagon must establish the placement');
     await page.locator('#toDesign').click();await page.locator('#designStep').waitFor({state:'visible'});
     await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');
-    await page.waitForFunction(() => document.querySelector('#addImageLabel').textContent === 'Add another image');
+    await page.waitForFunction(() => document.querySelector('#addImageLabel').textContent === 'Replace image');
     await page.locator('#moveImageMode').click();
     await page.locator('#logoOrientation').fill('37');
     const count = await page.locator('#hexAmount').inputValue();

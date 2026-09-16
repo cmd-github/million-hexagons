@@ -40,7 +40,7 @@
     <header class="topbar">
       <a class="brand" href="#" aria-label="Million Hexagons home"><span class="mark">MH</span><span><b>MILLION</b><strong>HEXAGONS</strong></span></a>
       <div class="inventory"><div><span id="soldCount">…</span> demo cells</div><div class="meter"><i id="soldMeter"></i></div><small><span id="availableCount">…</span> available to preview</small></div>
-      <button class="primary" id="claimButton">Create a placement <span class="ico-slot" data-icon="external"></span></button>
+      <button class="primary" id="claimButton">Claim Your Space <span class="ico-slot" data-icon="external"></span></button>
     </header>
 
     <aside class="intro glass">
@@ -107,31 +107,28 @@
 
       <div class="flow-screen" id="shapeStep" hidden>
         <button class="back-link" type="button" id="backToLocation">&larr; Change starting spot</button>
-        <h2>2. Choose size &amp; shape</h2>
-        <p class="panel-intro">Choose an exact number or build a connected footprint directly on the globe.</p>
-        <div class="shape-mode" role="radiogroup" aria-label="Footprint method"><label><input type="radio" name="shapeMode" value="exact" checked> Exact number</label><label><input type="radio" name="shapeMode" value="freehand"> Freehand</label></div>
-        <label class="studio-count" id="sizeControls"><span>Hexagons</span><span class="hex-count-stepper"><button type="button" id="removeHexagon" aria-label="Remove one hexagon" disabled>&minus;</button><input id="hexAmount" type="number" min="1" max="100000" step="1" value="1" inputmode="numeric" /><button type="button" id="addHexagon" aria-label="Add one hexagon">+</button></span></label>
-        <div class="availability-key" aria-label="Hexagon availability key"><span><i class="available"></i>Available</span><span><i class="purchased"></i>Purchased</span><span><i class="chosen"></i>Your footprint</span></div>
-        <p class="step" id="shapeStatus" role="status" aria-live="polite">Adjust the number to grow or trim this footprint.</p>
+        <h2>2. Choose your shape</h2>
+        <p class="panel-intro">Start with a size, or draw your own connected shape directly on the globe.</p>
+        <div class="shape-mode" role="radiogroup" aria-label="Selection method"><label><input type="radio" name="shapeMode" value="exact" checked><span><b>Choose a size</b><small>Set the number of hexagons</small></span></label><label><input type="radio" name="shapeMode" value="freehand"><span><b>Draw your own</b><small>Add and remove on the globe</small></span></label></div>
+        <div class="shape-size-card" id="sizeControls"><div class="shape-size-heading"><span>Number of hexagons</span><small>$1 per hexagon</small></div><div class="size-presets" aria-label="Quick sizes"><button type="button" data-size="10">10</button><button type="button" data-size="25">25</button><button type="button" data-size="50">50</button><button type="button" data-size="100">100</button></div><label class="studio-count"><span class="visually-hidden">Exact number of hexagons</span><span class="hex-count-stepper"><button type="button" id="removeHexagon" aria-label="Remove one hexagon" disabled>&minus;</button><input id="hexAmount" type="number" min="1" max="100000" step="1" value="10" inputmode="numeric" /><button type="button" id="addHexagon" aria-label="Add one hexagon">+</button></span></label></div>
+        <div class="availability-key" aria-label="Hexagon availability key"><span><i class="available"></i>Available</span><span><i class="purchased"></i>Purchased</span><span><i class="chosen"></i>Your Selection</span></div>
+        <p class="step" id="shapeStatus" role="status" aria-live="polite">Adjust the number to grow or trim your selection.</p>
         <div class="place-summary"><span id="placeCount">1 hexagon</span><b id="placePrice">$1</b></div>
         <button class="primary full" id="toDesign">Design this space &rarr;</button><button id="toReview" hidden disabled>Review placement</button>
         <div hidden><button id="suggestLocation"></button><button id="moveGlobeMode"></button><button id="placeDesignMode"></button><button id="editThisSpace"></button><p id="selectionStatus"></p><button id="backToDesign"></button></div>
       </div>
 
       <div class="flow-screen" id="designStep" hidden>
-        <button class="back-link" type="button" id="backToShape">&larr; Edit size &amp; shape</button>
+        <button class="back-link" type="button" id="backToShape">&larr; Edit your shape</button>
         <header class="studio-heading"><h2 id="designTitle">3. Create your design</h2><span id="designIntro"></span></header>
-        <div class="studio-setup">
-          <div id="logoControls"><label class="add-image" for="logoUpload"><span class="ico-slot" data-icon="plus"></span><span id="addImageLabel">Add image</span></label><input id="logoUpload" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" aria-label="Add image" /><div id="imageLayers" aria-label="Image layers"></div></div>
-        </div>
         <div class="studio-workspace">
           <div class="studio-toolbar" id="customPaintTools" role="toolbar" aria-label="Design tools">
-            <button type="button" id="paintCells" aria-pressed="true">Paint</button><button type="button" id="moveImageMode" aria-pressed="false">Image</button><button type="button" id="panEditor" aria-pressed="false">Move globe</button>
+            <button type="button" id="paintCells" aria-pressed="true">Colour</button><button type="button" id="moveImageMode" aria-pressed="false">Image</button><button type="button" id="panEditor" aria-pressed="false">Move globe</button>
             <span class="toolbar-spacer"></span><button type="button" id="undoPaint" data-icon="undo" disabled aria-label="Undo painting" title="Undo"></button><button type="button" id="redoPaint" data-icon="redo" disabled aria-label="Redo painting" title="Redo"></button>
             <details class="studio-popover studio-more"><summary data-icon="more" aria-label="More design actions"></summary><div class="popover-content"><button type="button" id="fillCells">Paint all cells</button><button type="button" id="clearPaint">Reset cell colours</button><button type="button" id="startOver">Start over</button></div></details>
           </div>
           <div class="studio-context">
-             <div id="logoPositionControls" hidden><div id="logoOptions" class="image-layout-choice" role="radiogroup" aria-label="Image layout"><label><input type="radio" name="logoTreatmentChoice" value="span" checked> Across area</label><label><input type="radio" name="logoTreatmentChoice" value="repeat"> Repeat per hexagon</label><select id="logoTreatment" hidden><option value="span">Across the area</option><option value="repeat">Repeat per cell</option></select></div><label>Image zoom <input id="logoScale" type="range" min="50" max="400" value="100" /><output id="logoScaleValue">100%</output></label><label>Rotate <input id="logoOrientation" type="range" min="-180" max="180" value="0" step="1"><output id="rotationValue">0&deg;</output></label><div class="image-actions"><button type="button" id="resetLogo">Reset image</button><button type="button" id="removeImage" hidden>Remove image</button></div></div>
+             <div id="logoPositionControls" hidden><div id="logoControls"><label class="add-image" for="logoUpload"><span class="ico-slot" data-icon="plus"></span><span id="addImageLabel">Add image</span></label><input id="logoUpload" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" aria-label="Add or replace image" /></div><div id="logoOptions" class="image-layout-choice" role="radiogroup" aria-label="Image layout"><label><input type="radio" name="logoTreatmentChoice" value="span" checked> Across area</label><label><input type="radio" name="logoTreatmentChoice" value="repeat"> Repeat per hexagon</label><select id="logoTreatment" hidden><option value="span">Across the area</option><option value="repeat">Repeat per cell</option></select></div><label>Image zoom <input id="logoScale" type="range" min="50" max="400" value="100" /><output id="logoScaleValue">100%</output></label><label>Rotate <input id="logoOrientation" type="range" min="-180" max="180" value="0" step="1"><output id="rotationValue">0&deg;</output></label><div class="image-actions"><button type="button" id="resetLogo">Reset image</button><button type="button" id="removeImage" hidden>Remove image</button></div></div>
             <div id="brushControls"><label class="brush-swatch"><input id="brushColor" type="color" value="#ff4d6d" /><span id="paintColourChip"></span>Colour</label><button type="button" id="removeHexMode" aria-pressed="false">Delete cells</button><div id="recentColours" hidden aria-label="Recently used colours"><small>Recent</small></div></div>
             <div id="areaBrushControls" aria-label="Hexagon brush size"><span>Brush</span><input id="areaBrush" type="hidden" value="0"><button type="button" class="hex-brush active" data-brush="0" aria-label="Small brush, 1 hexagon" aria-pressed="true"><i></i><small>S</small></button><button type="button" class="hex-brush" data-brush="1" aria-label="Medium brush, 7 hexagons" aria-pressed="false"><i></i><small>M</small></button><button type="button" class="hex-brush" data-brush="2" aria-label="Large brush, 19 hexagons" aria-pressed="false"><i></i><small>L</small></button><button type="button" class="hex-brush" data-brush="3" aria-label="Extra-large brush, 37 hexagons" aria-pressed="false"><i></i><small>XL</small></button><output id="areaBrushValue">1</output></div><small id="toolHint">Draw over blank hexagons to add them.</small>
           </div>

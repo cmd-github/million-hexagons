@@ -43,10 +43,8 @@ try {
       "true",
     );
     assert.equal(await page.locator("#startingSpotPrompt").isVisible(), true);
-    assert.equal(
-      await page.locator("#sizeControls>span").first().textContent(),
-      "Hexagons",
-    );
+    assert.equal(await page.locator("#shapeStep h2").textContent(), "2. Choose your shape");
+    assert.deepEqual(await page.locator(".size-presets button").allTextContents(), ["10", "25", "50", "100"]);
     assert.equal(await page.locator(".hex-brush").count(), 4);
     assert.match(
       await page
@@ -83,15 +81,16 @@ try {
     await page.locator("#claimCell").click();
     await page.locator("#shapeStep").waitFor({ state: "visible" });
     await page.waitForFunction(
-      () => window.geodesicQA.state().design.length === 1,
+      () => window.geodesicQA.state().design.length === 10,
     );
     const startingIds = await page.evaluate(
       () => window.geodesicQA.state().design,
     );
-    await page.locator("#hexAmount").fill("8");
+    assert.equal(await page.locator("#hexAmount").inputValue(), "10");
+    await page.locator('.size-presets [data-size="25"]').click();
     await page.locator("#hexAmount").press("Enter");
     await page.waitForFunction(
-      () => window.geodesicQA.state().design.length === 8,
+      () => window.geodesicQA.state().design.length === 25,
     );
     const grownIds = await page.evaluate(
       () => window.geodesicQA.state().design,
@@ -99,7 +98,7 @@ try {
     assert.ok(startingIds.every((id) => grownIds.includes(id)));
     await page.locator("#removeHexagon").click();
     await page.waitForFunction(
-      () => window.geodesicQA.state().design.length === 7,
+      () => window.geodesicQA.state().design.length === 24,
     );
     const freeCell = await page.evaluate(() => {
       const state = window.geodesicQA.state(),
@@ -113,15 +112,15 @@ try {
     await page.evaluate((id) => window.geodesicQA.focus(id, 0.6), freeCell);
     await clickCell(freeCell);
     await page.waitForFunction(
-      () => window.geodesicQA.state().design.length === 8,
+      () => window.geodesicQA.state().design.length === 25,
     );
     const drawnIds = await page.evaluate(
       () => window.geodesicQA.state().design,
     );
     await page.locator('[name="shapeMode"][value="exact"]').check();
-    await page.locator("#hexAmount").fill("9");
+    await page.locator("#hexAmount").fill("26");
     await page.waitForFunction(
-      () => window.geodesicQA.state().design.length === 9,
+      () => window.geodesicQA.state().design.length === 26,
     );
     const resizedDrawn = await page.evaluate(
       () => window.geodesicQA.state().design,
@@ -188,17 +187,19 @@ try {
       .setInputFiles("scripts/fixtures/test-logo.svg");
     await page.waitForFunction(
       () =>
-        document.querySelector("#addImageLabel").textContent === "Add another image",
+        document.querySelector("#addImageLabel").textContent === "Replace image",
     );
     assert.deepEqual(
       await page.evaluate(() => window.geodesicQA.state().designCells),
       paintedState,
     );
     assert.equal(await page.locator('[name="logoTreatmentChoice"]').count(), 2);
+    assert.equal(await page.locator("#logoTreatment").inputValue(), "span");
+    await page.screenshot({path: `artifacts/globe-design/${mobile}-across.png`});
     await page.locator("#logoUpload").setInputFiles([]);
     await page.locator("#logoUpload").setInputFiles("scripts/fixtures/geodesic-reference.svg");
-    await page.waitForFunction(() => document.querySelectorAll("#imageLayers button").length === 2);
-    assert.deepEqual(await page.locator("#imageLayers button").allTextContents(), ["Image 1", "Image 2"]);
+    await page.waitForFunction(() => document.querySelector("#addImageLabel").textContent === "Replace image");
+    assert.equal(await page.locator("#logoTreatment").inputValue(), "span");
     await page.locator('[name="logoTreatmentChoice"][value="repeat"]').check();
     assert.equal(await page.locator("#logoTreatment").inputValue(), "repeat");
     await page.locator("#moveImageMode").click();
