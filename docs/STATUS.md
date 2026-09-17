@@ -11,7 +11,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 ## Next
 
 - [ ] Gate 1 - resolve the commercial launch decisions with Craig and qualified advice where required: price/currency, VAT or sales-tax treatment, receipts/invoices, refunds/disputes, permanent-use wording, seller identity, governing law and support ownership. Record decisions before finalising checkout and legal copy.
-- [ ] Gate 2 - observe 5-10 first-time users completing Explore -> Design -> Place -> Review -> test Checkout across desktop and phone. Record unaided completion and misunderstandings; redesign Create only in response to repeated evidence.
+- [ ] Gate 2 - observe 5-10 first-time users completing Explore -> Location -> Shape -> Design -> Review -> test Checkout across desktop and phone. Record unaided completion and misunderstandings; redesign Create only in response to repeated evidence.
 - [ ] Gate 3 - complete the 1k/10k/100k/1M varied-image matrix, compiler/publication lifecycle and explicit loading/memory budgets; verify the complete product, background and sparse twinkles on physical iOS and Android.
 - [ ] Gate 4 - accept and implement the durable purchase-to-share experience, permanent placement URL, memento/preview, desktop/mobile destinations, fallbacks and measurement; verify a fresh checkout-to-recipient journey.
 - [ ] Gate 5 - ship the approved headline, indexable routes, metadata, correct 404, sitemap, Open Graph assets, legal/commercial pages, consent controls, accessibility and recoverable customer states.
@@ -26,6 +26,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Revisit globe surface studies, achievements, advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Removed the obsolete pre-Location/Shape browser-QA cluster and made `npm test` the canonical deterministic launch gate rather than an old live-data smoke journey. Repaired persistent checkout around the five-hexagon minimum and coherent 20-minute, five-cell quote data; its desktop, mobile and reduced-motion journeys pass. Breadcrumb jumps no longer depend on fragile history offsets after Review edits, and the retained navigation and 50k/100k scale journeys now wait for actual stage/camera transitions. Active validation, architecture, launch and grid docs use Location -> Shape -> Design -> Review, the 20-minute reservation and current artifacts. `npm test` passes 58 repository tests, 52 backend tests, staging build/release integrity and the Worker dry run; focused Design/navigation and desktop/mobile 50k/100k scale journeys also pass. Historical Done entries remain unchanged as records of what was true when shipped.
 
 - [x] Made the share moment explicit and deployed source `b74f2f94` as staging Worker `6194411a-e56b-412a-b55f-af3f1eb38c57`. The exact generated image now sits inside an unmistakable labelled frame, with all formats and actions outside it. X, Facebook, WhatsApp and LinkedIn open their supported share destinations; More apps uses the native share sheet and includes the image where supported; Instagram and TikTok download the chosen image with clear posting/link guidance; and every action gives visible status feedback. Production/staging builds and the focused desktop/mobile public-placement/share journey passed, with both rendered layouts inspected. All 1,549 runtime objects passed deployment verification. No real recipient-platform post, full checkout regression or physical-device testing was run.
 

@@ -1286,8 +1286,6 @@ document.querySelector('#logoScale').addEventListener('input', () => { document.
 for(const [id,mode] of [['moveImageMode','move'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode==='remove'&&logoEditorMode==='remove'?'paint':mode));
 document.querySelectorAll('[data-flow-target]').forEach(button=>button.addEventListener('click',()=>{
   const target=button.dataset.flowTarget;if(target==='review'||ownerEdit&&target!=='design'||!designStartingSpotConfirmed&&target!=='location')return;
-  const order={location:1,shape:2,design:3,review:4},current=document.body.dataset.flow;
-  if(order[target]<order[current]){history.go(order[target]-order[current]);return;}
   if(target==='location')chooseAnotherStartingSpot();else if(target==='shape')enterShapeStep();else if(target==='design')enterDesignStep();
 }));
 document.querySelector('#fillCells').addEventListener('click',()=>{rememberPaint();const colour=document.querySelector('#brushColor').value;logoCells=previewCells().map(c=>({...c,color:colour,transparent:false}));rememberRecentColour(colour);footprintEdited=true;drawDesignPreview();});

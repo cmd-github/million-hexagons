@@ -18,7 +18,7 @@ Exit: the decision record and customer terms agree with checkout, receipts, refu
 
 ## Gate 2 - first-time-user usability
 
-- Observe 5-10 people who have not seen the product attempt Explore -> Design -> Place -> Review -> test Checkout on a mix of desktop and phone.
+- Observe 5-10 people who have not seen the product attempt Explore -> Location -> Shape -> Design -> Review -> test Checkout on a mix of desktop and phone.
 - Record whether each person understands the million-cell scarcity, price, permanence/editability, selected quantity, final artwork and what happens after payment.
 - Record unaided completion, time to Review, abandonment point and facilitator intervention without coaching participants through the interface.
 - Fix repeated blockers and high-risk misunderstandings; redesign Create a placement only where evidence shows the current interface is failing.

@@ -38,7 +38,7 @@ Placements
 - [x] make the 160-character description field tall enough to show a full entry
 - [x] expand and shuffle the hero's changing words, type and delete the full stop with each word, and hold completed words for one extra second
 - [x] rename the main action to Claim Your Space and remove the unavailable live-total message
-- [x] simplify Choose your shape with a 10-hexagon default, clear exact/freehand choice and 10/25/50/100 shortcuts
+- [x] simplify Choose your shape with a 10-hexagon default, clear exact/freehand choice and +10/+25/+100 shortcuts
 - [x] rename Your footprint to Your Selection and organise Design around Colour, Image and Move globe
 - [x] make Across area the default for every image and prevent it disappearing on irregular selections
 - [x] always accept an available starting hexagon, shrinking the initial ten only when it is completely enclosed

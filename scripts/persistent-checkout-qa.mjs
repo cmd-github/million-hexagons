@@ -27,7 +27,7 @@ try {
         await new Promise(resolve=>setTimeout(resolve,80));
         if(failList){await route.fulfill({status:503,json:{error:'temporarily-unavailable'}});return;}
         result={placements:records};
-      } else if(body.action==='quote-reserve') result={quote:{displayTotal:'$1',currency:'usd',totalAmountMinor:100,cellCount:1},reservation:{reservationId:'qa-reservation',expiresAtMs:Date.now()+900000},checkoutToken:'test-token'};
+      } else if(body.action==='quote-reserve'){const count=body.reservation.cells.length;result={quote:{displayTotal:`$${count}`,currency:'usd',totalAmountMinor:count*100,cellCount:count},reservation:{reservationId:'qa-reservation',expiresAtMs:Date.now()+1_200_000},checkoutToken:'test-token'};}
       else if(body.action==='release-checkout-reservation'){releaseSeen=true;result={reservation:{reservationId:body.reservationId,status:'released'}};}
       else if(body.action==='record-event')result={metrics:{views:1,clicks:0}};
       else if(body.action==='public-stats')result={stats:{claimedCells:records.reduce((sum,record)=>sum+record.cellCount,0),remainingCells:1000000-records.reduce((sum,record)=>sum+record.cellCount,0),placements:records.length,views:1,clicks:0},latest:records};
@@ -37,7 +37,8 @@ try {
       await route.fulfill({json:result});
     });
     await page.route('**/__qa/checkout',async route=>{
-      checkoutPlacement={...route.request().postDataJSON().placement,placementId:'fresh-paid-placement',cellCount:1,createdAt:Date.now(),publicationStatus:'published',status:'active'};
+      checkoutPlacement={...route.request().postDataJSON().placement,placementId:'fresh-paid-placement',createdAt:Date.now(),publicationStatus:'published',status:'active'};
+      checkoutPlacement.cellCount=checkoutPlacement.cells.length;
       await new Promise(resolve=>setTimeout(resolve,500));
       await route.fulfill({json:{checkout:{clientSecret:'test-secret',placementId:checkoutPlacement.placementId}}});
     });
@@ -57,7 +58,7 @@ try {
     await page.locator('#placementInspector').waitFor({state:'visible'});await page.waitForTimeout(1500);await page.screenshot({path:`artifacts/persistent-checkout/${mobile?'mobile':'desktop'}-restored.png`});
     const existingAnchor=966630,adjacentAnchor=await page.evaluate(anchor=>window.geodesicQA.neighbours(anchor).find(id=>!window.geodesicQA.state().committed.includes(id)),existingAnchor);assert.ok(adjacentAnchor);
     await page.evaluate(id=>window.geodesicQA.focus(id),adjacentAnchor);
-    await page.locator('#claimButton').click();await page.locator('#locationStep').waitFor({state:'visible'});await page.evaluate(id=>window.geodesicQA.start(id),adjacentAnchor);await page.locator('#shapeStep').waitFor({state:'visible'});await page.locator('#hexAmount').fill('1');await page.locator('#toDesign').click();await page.locator('#toPlacement').click();await page.waitForFunction(()=>!document.querySelector('#previewPurchase').disabled);
+    await page.locator('#claimButton').click();await page.locator('#locationStep').waitFor({state:'visible'});await page.evaluate(id=>window.geodesicQA.start(id),adjacentAnchor);await page.locator('#shapeStep').waitFor({state:'visible'});await page.locator('#hexAmount').fill('5');await page.locator('#toDesign').click();await page.locator('#toPlacement').click();await page.waitForFunction(()=>!document.querySelector('#previewPurchase').disabled);
     await page.locator('#companyName').fill('Fresh saved placement');await page.locator('#previewPurchase').click();await page.locator('.checkout-loading').waitFor({state:'visible'});
     await page.waitForFunction(()=>!!window.__completeTestCheckout);records.push(checkoutPlacement);
     await page.evaluate(()=>window.__completeTestCheckout());await page.locator('.purchase-confirmation').waitFor({state:'visible'});await page.locator('.purchase-confirmation button').click();await page.waitForFunction(()=>document.querySelector('#embeddedCheckoutPanel').hidden&&!document.body.classList.contains('creating'));

@@ -34,14 +34,12 @@ npm run build
 npm run dev -- --port 4180
 # In another terminal
 $env:SMOKE_URL = 'http://127.0.0.1:4180'
-npm test
 npm run test:geometry
-node scripts/globe-design-qa.mjs
-node scripts/globe-navigation-qa.mjs
+npm run test:visual
 npm run test:studio-scale
 ```
 
-For purchase-flow changes, exercise image, solid colour, and mixed per-cell paint/transparency in the unified editor at desktop and mobile sizes. Confirm repeated Design -> Review -> Edit round trips preserve the exact draft pixels, undo/redo and restore recover source artwork, and transparent cells retain count/price. Cover 1/50/150/400/500-cell logo footprints as relevant, valid and occupied locations, URL validation, editing routes, and exact selected/reviewed/committed count and price parity. Inspect generated screenshots under `artifacts/visual-qa/`. Confirm no pane scrolling at 320x568, 390x844, 1024x768 and 1440x900, including open contextual tools.
+For purchase-flow changes, exercise image, solid colour, and mixed per-cell paint/transparency in the unified editor at desktop and mobile sizes. Confirm repeated Design -> Review -> Edit round trips preserve the exact draft pixels, undo/redo and restore recover source artwork, and transparent cells retain count/price. Cover 5/50/150/400/500-cell purchase footprints as relevant, plus any explicit one-cell legacy-owner fixture, valid and occupied locations, URL validation, editing routes, and exact selected/reviewed/committed count and price parity. Inspect the task-specific artifact directory. Confirm no pane scrolling at 320x568, 390x844, 1024x768 and 1440x900, including open contextual tools.
 
 `test:studio-scale` uses a test-only empty occupancy response to exercise 50,000/100,000-cell editing, undo/redo, image framing, canvas pan/zoom, relocation and a 100,000-cell publication. It leaves real sample inventory unchanged. Inspect `artifacts/studio-scale/`; report timing as local/emulated results and distinguish capacity from available contiguous space. Run this check against the development server because it uses the existing `geodesicQA` hooks.
 
@@ -49,16 +47,7 @@ For purchase-flow changes, exercise image, solid colour, and mixed per-cell pain
 
 ## Geodesic and gesture checks
 
-Focused controls are available on the development server:
-
-```powershell
-npm run dev -- --port 4180
-# In another terminal
-$env:SMOKE_URL = 'http://127.0.0.1:4180'
-npm run test:geodesic-visual
-npm run test:geodesic-gestures
-node scripts/geodesic-studio-qa.mjs
-```
+With the development server running, set `SMOKE_URL` and run `npm run test:visual`. It covers the current Location -> Shape -> Design -> Review flow on desktop and emulated touch viewports.
 
 For topology, picking, artwork mapping, or globe-control changes, inspect equator, poles, pentagons, cube seams, and both desktop and mobile gestures. Confirm artwork remains complete, correctly oriented, colour-accurate, and crisp. Emulated touch is not physical-device certification.
 
@@ -93,14 +82,14 @@ For changes under `coming-soon/`, run `npm run build:coming-soon`, `npm --prefix
 Globe editing: run `node scripts/globe-design-qa.mjs` against localhost:4180. It checks desktop/mobile Location, Shape, Design and Review with exact cell IDs, plus discovery HUD actions. Inspect artifacts/globe-design. Also manually check connected add/remove and occupied-cell rejection around an existing placement.
 
 
-Current globe-only UI checks replace the earlier canvas interaction journeys: scripts/globe-design-qa.mjs covers desktop/mobile brush growth, separate removal, undo, continuous rotation, clean restart, source preservation and review IDs; scripts/globe-navigation-qa.mjs covers viewport fit, claim camera preservation, detail gating, double-click zoom and shared-link arrival. The older canvas-specific visual/scale scripts need migration before being used as release evidence for this UI. Do not interpret earlier canvas results as a current pass.
+Current globe-only UI checks replace the removed pre-Location/Shape canvas journeys: `scripts/globe-design-qa.mjs` covers desktop/mobile brush growth, separate removal, undo, continuous rotation, clean restart, source preservation and review IDs; `scripts/globe-navigation-qa.mjs` covers viewport fit, claim camera preservation, detail gating, double-click zoom and shared-link arrival.
 
 
 8 September globe-only TODO pass: production build and four geometry tests passed. The updated test:visual command runs the two globe suites; desktop/mobile publication and exact committed cell IDs, source reset, brush growth/removal/undo, image rotation and review round trips passed. Navigation checks cover 320x568, 390x844, 1024x768 and 1440x900 without pane overflow, claim zoom preservation, detail gating, double-click zoom and link arrival. Desktop/mobile screenshots were inspected. The current pass does not rerun the earlier 100,000-cell publication benchmark.
 
 Loading transitions: run `node scripts/loading-qa.mjs`. It delays bootstrap/editor topology requests and checks desktop/mobile loading visibility, hidden startup HTML, ready-editor reveal and startup failure retry. Inspect artifacts/loading. Loader CSS is inline in index.html to cover the period before the app stylesheet arrives.
 
-`scripts/exploration-qa.mjs` and its sample/session assertions are legacy prototype coverage, not release evidence for current authoritative activity or analytics. Use the current public-placement, discovery, activity/HUD and durable staging journeys below. Migrate any still-useful interaction assertion before relying on the legacy script.
+Use the current public-placement, discovery, activity/HUD and durable staging journeys below for exploration behavior; the legacy sample/session script has been removed.
 
 Artwork and camera polish: run `node --test scripts/artwork-camera.test.mjs` and `node scripts/artwork-camera-qa.mjs`. They cover arbitrary-angle containment, all four artwork corner markers through Review, low-resolution warnings, narrow-screen placement containment, flight cancellation and reduced motion. Inspect `artifacts/artwork-camera/`. Existing globe design/navigation/exploration and streaming checks remain applicable.
 
@@ -125,4 +114,4 @@ Founder controls: run `npm.cmd run test:admin-workspace` against live staging an
 
 Payment lifecycle: run `npm.cmd --prefix functions test` for Checkout-state, refund-state and buyer-safe failure normalization. Run `node scripts/stripe-checkout-live-qa.mjs` against staging to create an unpaid Stripe test session, verify idempotent retry, and prove cancellation expires the session before releasing its reserved cell. With `STRIPE_SECRET_KEY` set to the test secret, `npm.cmd run test:payment-lifecycle` creates disposable declined and successful test PaymentIntents, verifies signed failure/refund webhook processing and the retained ownership outcome, and forces reconciliation over an externally expired Checkout session. The 10 September run passed with one reconciled closure and zero failures. These tests use Stripe test mode and do not certify live keys or final refund policy.
 
-Checkout reservations: run `npm.cmd run test:checkout-reservation` against a sandbox-enabled staging build. It intercepts the backend boundary to verify that Review submits the exact selected cells, displays the server price and 15-minute countdown, keeps the final action visible at 1440x900 and 390x844, and releases the reservation when returning to Design. Inspect `artifacts/checkout-reservation/`. Run `npm.cmd run test:staging-publication` after backend deployment to prove live anonymous quoting, overlap rejection, atomic reservation-to-placement conversion and expiry.
+Checkout reservations: run `npm.cmd run test:checkout-reservation` against a sandbox-enabled staging build. It intercepts the backend boundary to verify that Review submits the exact selected cells, displays the server price and 20-minute countdown, keeps the final action visible at 1440x900 and 390x844, and releases the reservation when returning to Design. Inspect `artifacts/checkout-reservation/`. Run `npm.cmd run test:staging-publication` after backend deployment to prove live anonymous quoting, overlap rejection, atomic reservation-to-placement conversion and expiry.
