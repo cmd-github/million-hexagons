@@ -58,10 +58,10 @@ h1 em{color:var(--lime);font-style:normal}
 h2{margin:0 0 6px;font-size:30px;letter-spacing:-.045em}
 .panel-intro{margin:0 38px 18px 0;color:#8da2a7;font-size:12px;line-height:1.55}
 .availability-key span{display:flex;align-items:center;gap:5px}
-.availability-key i{width:9px;height:9px;border-radius:3px;border:1px solid rgba(255,255,255,.3)}
-.availability-key .available{background:#2d8f82;border-color:#72d8c3}
-.availability-key .purchased{background:#192127;border-color:#4b5a60}
-.availability-key .chosen{background:transparent;border-color:var(--lime)}
+.availability-key i{width:11px;height:11px;border-radius:3px;border:1px solid rgba(255,255,255,.3);box-sizing:border-box}
+.availability-key .available{background:transparent;border-color:#90d3dc}
+.availability-key .purchased{background:#192127;border-color:#48636a}
+.availability-key .chosen{background:#d7ff5521;border:2px solid var(--lime)}
 .step.error{border-color:rgba(255,105,105,.45);background:rgba(255,80,80,.08);color:#ffc2c2}
 .step b{color:var(--lime);margin-right:5px}
 label{display:block;color:#91a6aa;font-size:10px;letter-spacing:.035em;margin-top:12px}

@@ -61,11 +61,11 @@ export function createCellDetail(topology, globe, radius, textures, selectionMod
         vec4 selected=texture2D(selectionMap,uv);float occupied=texture2D(occupancyMap,uv).r;
         float border=1.0-smoothstep(0.0,max(fwidth(vEdge)*1.1,.0001),vEdge);
         vec3 line=mix(vec3(.07,.23,.29),vec3(.28,.65,.72),selectionMode);
-        if(abs(id-hover)<.25)line=vec3(.8,1.,.3);
-        if(selected.a>.5)line=mix(vec3(.45,.8,1.),vec3(.82,1.,.25),selectionMode);
+        if(abs(id-hover)<.25)line=vec3(.68,1.,.09);
+        if(selected.a>.5)line=mix(vec3(.45,.8,1.),vec3(.68,1.,.09),selectionMode);
         float artwork=max(occupied,step(.5,selected.a));
         float alpha=visibility*border*mix(.48,.035,artwork);
-        if(selected.a>.5)alpha=visibility*border*mix(.035,.8,selectionMode);
+        if(selected.a>.5)alpha=visibility*mix(border*.035,max(border*.9,.13),selectionMode);
         gl_FragColor=vec4(line,alpha);
         #include <colorspace_fragment>
       }`,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,

@@ -280,8 +280,8 @@ canvas.addEventListener('pointerup', async event => {
   const interactionVersion=flightVersion;
   if (camera.position.length() < globeFitDistance() * .82) controls.autoRotate = false;
   const hit=await intersectReady(event);if(interactionVersion!==flightVersion)return;if(!hit?.uv){closeInspector();return;}
-  if (!hit.cell.occupied) { closeInspector();if(!individualHexagonsVisible()){if(choosingStart)document.querySelector('#startingSpotStatus').textContent='Zoom in until the individual hexagons appear.';return;} pinnedCell=hit.cell; updateTooltip(event,hit.cell,true);if(choosingStart){document.querySelector('#claimCell').textContent='Start here';document.querySelector('#startingSpotStatus').textContent=`Hexagon ${hit.cell.id.toLocaleString()} selected. Confirm it in the popup.`;}return; }
-  if(choosingStart){document.querySelector('#startingSpotStatus').textContent='That hexagon is already purchased. Choose an available one.';return;}
+  if (!hit.cell.occupied) { closeInspector();if(!individualHexagonsVisible()){if(choosingStart)document.querySelector('#startingSpotStatus').textContent='Zoom in until the individual hexagons appear.';return;} pinnedCell=hit.cell; updateTooltip(event,hit.cell,true);if(choosingStart){renderProposedStartingCell(hit.cell);document.querySelector('#claimCell').textContent='Start here';document.querySelector('#startingSpotStatus').textContent=`Hexagon ${hit.cell.id.toLocaleString()} selected. Confirm it in the popup.`;}return; }
+  if(choosingStart){clearSelectionColours();selectionModeUniform.value=1;document.querySelector('#startingSpotStatus').textContent='That hexagon is already purchased. Choose an available one.';return;}
   inspectPlacement(hit.cell.id);
 
 });
@@ -304,6 +304,13 @@ function clearSelectionColours() {
   selectedCellColours.clear();
   selectionColourData.fill(0);
   selectionColourTexture.needsUpdate = true;
+}
+
+function renderProposedStartingCell(cell) {
+  selectionColourData.fill(0);
+  writeCellColour(selectionColourData,cell,'#d7ff55');
+  selectionColourTexture.needsUpdate=true;
+  selectionModeUniform.value=1;
 }
 
 function clearHover() {
@@ -411,7 +418,7 @@ function refreshSelection(preparedCells = null) {
 
 function renderSelectionPreview() {
   selectionColourData.fill(0);
-  selectedCells.forEach((cell) => {if(cell.color)writeCellColour(selectionColourData,cell,cell.color);});
+  selectedCells.forEach((cell) => writeCellColour(selectionColourData,cell,'#d7ff55'));
   selectionColourTexture.needsUpdate = true;
 }
 
@@ -856,7 +863,8 @@ function updateTotals() {
   document.querySelector('#reviewCount').textContent = countText;
   document.querySelector('#reviewPrice').textContent = priceText;
   document.querySelector('#toPlacement').disabled = count<5;
-  document.querySelector('#toDesign').disabled = count<5;
+  document.querySelector('#toDesign').disabled = false;
+  if(count>=5)document.querySelector('#shapeCountError').hidden=true;
   updateLogoGuidance();
 }
 
@@ -891,7 +899,7 @@ async function resizeDesign() {
     if(version!==designGeometryVersion)return;
     logoCells=cells;footprintEdited=true;selectedCell=cellForId(designAnchor);selectedCells=cells;
   } catch(error) { failed=true; }
-  finally {if(version===designGeometryVersion){designGeometryPending=false;hideLoading();const requested=count;amountInput.value=logoCells?.length||1;if(document.body.dataset.flow==='shape'){clearPlacementPreview();refreshSelection(logoCells);document.querySelector('#shapeStatus').textContent=failed?'Could not resize your selection. Try again.':logoCells.length<requested?`Only ${logoCells.length.toLocaleString()} connected available hexagon${logoCells.length===1?' is':'s are'} reachable from this spot.`:'Your shape was preserved while its edge was adjusted.';}else drawDesignPreview();updateTotals();if(failed)updateLogoGuidance('Could not load this area. Try the size again.');}}
+  finally {if(version===designGeometryVersion){designGeometryPending=false;hideLoading();const requested=count;amountInput.value=logoCells?.length||1;if(document.body.dataset.flow==='shape'){clearPlacementPreview();refreshSelection(logoCells);const status=document.querySelector('#shapeStatus'),message=failed?'Could not resize your selection. Try again.':logoCells.length<requested?`Only ${logoCells.length.toLocaleString()} connected available hexagon${logoCells.length===1?' is':'s are'} reachable from this spot.`:'';status.textContent=message;status.hidden=!message;}else drawDesignPreview();updateTotals();if(failed)updateLogoGuidance('Could not load this area. Try the size again.');}}
 }
 function layoutFor(cells) {
   if(layoutCache.has(cells))return layoutCache.get(cells);
@@ -1034,11 +1042,12 @@ function configureCreation() {
   drawDesignPreview();updateTotals();
 }
 function enterShapeStep(){
-  shapeMode='exact';document.querySelector('[name="shapeMode"][value="exact"]').checked=true;document.querySelector('#sizeControls').hidden=false;document.querySelector('#shapeBrushControls').hidden=true;document.querySelector('#shapeStatus').textContent='Type a total or add 1, 10 or 100 hexagons. Minimum 5.';
+  shapeMode='exact';document.querySelector('[name="shapeMode"][value="exact"]').checked=true;document.querySelector('#sizeControls').hidden=false;document.querySelector('#shapeBrushControls').hidden=true;document.querySelector('#shapeStatus').hidden=true;document.querySelector('#shapeStatus').textContent='';document.querySelector('#shapeCountError').hidden=true;
   showFlowStep('shape');selectionModeUniform.value=1;selectedCell=cellForId(designAnchor);selectedCells=previewCells();clearPlacementPreview();refreshSelection(selectedCells);controls.enableRotate=true;updateTotals();
 }
 function enterDesignStep(){
-  if(placementCount()<5){document.querySelector('#shapeStatus').textContent='Choose at least 5 hexagons before continuing.';return;}
+  if(placementCount()<5){document.querySelector('#shapeCountError').hidden=false;document.querySelector('#hexAmount').focus();return;}
+  document.querySelector('#shapeCountError').hidden=true;
   document.body.classList.remove('choosing-start');selectionModeUniform.value=0;clearSelectionColours();showFlowStep('design');setDesignSurface('globe');setEditorMode('move',false);drawDesignPreview();updateTotals();
   if(innerWidth<=700){const normal=new THREE.Vector3(...topology.centre(designAnchor));const angle=Math.acos(Math.max(-1,previewCells().reduce((dot,cell)=>Math.min(dot,normal.dot(new THREE.Vector3(...topology.centre(cell.id)))),1)))+.004;flyToCell(designAnchor,angle,600);}
 }
@@ -1056,7 +1065,7 @@ async function confirmStartingSpot(id){
   finally{button.disabled=false;button.textContent='Start here';}
 }
 function chooseAnotherStartingSpot(){
-  designStartingSpotConfirmed=false;document.body.classList.add('choosing-start');showFlowStep('location');document.querySelector('#startingSpotStatus').textContent=logoCells.length?'Choose and confirm a new spot to move your complete design.':'Zoom in to select a starting position.';pinnedCell=null;tooltip.classList.remove('show','pinned');setEditorMode('pan',false);
+  designStartingSpotConfirmed=false;document.body.classList.add('choosing-start');clearSelectionColours();selectionModeUniform.value=1;showFlowStep('location');document.querySelector('#startingSpotStatus').textContent=logoCells.length?'Choose and confirm a new spot to move your complete design.':'Zoom in to select a starting position.';pinnedCell=null;tooltip.classList.remove('show','pinned');setEditorMode('pan',false);
 }
 function updateImageControls() {
   document.querySelectorAll('[name="logoTreatmentChoice"]').forEach(input=>input.checked=input.value===document.querySelector('#logoTreatment').value);
@@ -1194,7 +1203,7 @@ document.querySelector('#toPlacement').addEventListener('click', () => {syncGlob
 document.querySelector('#toDesign').addEventListener('click',enterDesignStep);
 document.querySelector('#backToLocation').addEventListener('click',chooseAnotherStartingSpot);
 document.querySelectorAll('[name="shapeMode"]').forEach(input=>input.addEventListener('change',()=>{
-  shapeMode=document.querySelector('[name="shapeMode"]:checked').value;const freehand=shapeMode==='freehand';document.querySelector('#sizeControls').hidden=freehand;document.querySelector('#shapeBrushControls').hidden=!freehand;document.querySelector('#shapeStatus').textContent=freehand?'Choose a brush, then add or remove connected hexagons on the globe. Minimum 5.':'Type a total or add 1, 10 or 100 hexagons. Minimum 5.';logoEditorMode=freehand?'hex':'pan';controls.enableRotate=!freehand;
+  shapeMode=document.querySelector('[name="shapeMode"]:checked').value;const freehand=shapeMode==='freehand',status=document.querySelector('#shapeStatus');document.querySelector('#sizeControls').hidden=freehand;document.querySelector('#shapeBrushControls').hidden=!freehand;status.textContent=freehand?'Choose a brush, then add or remove connected hexagons on the globe.':'';status.hidden=!status.textContent;document.querySelector('#shapeCountError').hidden=true;logoEditorMode=freehand?'hex':'pan';controls.enableRotate=!freehand;
 }));
 document.querySelector('#backToDesign').addEventListener('click', () => { clearPlacementPreview(); selecting = false; selectionModeUniform.value = 0; document.body.classList.remove('selecting', 'placing-design'); controls.enableRotate = true; showFlowStep('design'); drawDesignPreview(); updateTotals(); });
 document.querySelector('#moveGlobeMode').addEventListener('click', () => setInteractionMode('move'));
@@ -1221,8 +1230,8 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   button.textContent=original;button.disabled=false;
 });
 document.querySelector('#backToPlacement').addEventListener('click', () => { void releaseActiveCheckoutReservation();clearPlacementPreview();selecting=false;selectionModeUniform.value=0;document.body.classList.remove('selecting','placing-design');showFlowStep('design');setDesignSurface('globe');setEditorMode('paint',false);drawDesignPreview();updateTotals(); });
-document.querySelectorAll('[data-add-size]').forEach(button=>button.addEventListener('click',()=>{amountInput.value=Math.min(100000,Math.max(5,placementCount())+Number(button.dataset.addSize));void resizeDesign();}));
-amountInput.addEventListener('change',()=>{amountInput.value=Math.max(5,placementCount());void resizeDesign();});
+document.querySelectorAll('[data-add-size]').forEach(button=>button.addEventListener('click',()=>{amountInput.value=Math.min(100000,Math.max(1,placementCount())+Number(button.dataset.addSize));if(placementCount()>=5)void resizeDesign();else updateTotals();}));
+amountInput.addEventListener('change',()=>{amountInput.value=Math.max(1,placementCount());if(placementCount()>=5)void resizeDesign();else updateTotals();});
 amountInput.addEventListener('input',()=>{if(placementCount()>=5)void resizeDesign();else updateTotals();});
 document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
 document.querySelectorAll('[name="logoTreatmentChoice"]').forEach(input=>input.addEventListener('change',()=>{document.querySelector('#logoTreatment').value=input.value;drawDesignPreview();}));

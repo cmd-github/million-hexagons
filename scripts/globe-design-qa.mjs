@@ -85,6 +85,7 @@ try {
     await clickCell(first);
     await page.locator("#claimCell").waitFor({ state: "visible" });
     assert.equal(await page.locator("#claimCell").textContent(), "Start here");
+    await page.screenshot({path: `artifacts/globe-design/${mobile}-starting-spot.png`});
     assert.deepEqual(
       await page.evaluate(() => window.geodesicQA.state().design),
       [],
@@ -98,6 +99,14 @@ try {
       () => window.geodesicQA.state().design,
     );
     assert.equal(await page.locator("#hexAmount").inputValue(), "10");
+    await page.locator("#hexAmount").fill("4");
+    await page.locator("#toDesign").click();
+    assert.equal(await page.locator("#shapeCountError").isVisible(), true);
+    assert.equal(await page.locator("#designStep").isHidden(), true);
+    await page.locator("#hexAmount").fill("10");
+    await page.locator("#hexAmount").press("Enter");
+    await page.waitForFunction(() => window.geodesicQA.state().design.length === 10);
+    assert.equal(await page.locator("#shapeCountError").isHidden(), true);
     await page.locator('.size-presets [data-add-size="10"]').click();
     await page.waitForFunction(
       () => window.geodesicQA.state().design.length === 20,
@@ -225,8 +234,8 @@ try {
           next = window.geodesicQA.neighbours(next)[0];
         return next;
       }, first);
-    await page.locator("#backToShape").click();
-    await page.locator("#backToLocation").click();
+    await page.locator('[data-flow-target="shape"]').click();
+    await page.locator('[data-flow-target="location"]').click();
     assert.equal(await page.locator("#startingSpotPrompt").isVisible(), true);
     assert.deepEqual(
       await page.evaluate(() => window.geodesicQA.state().design),

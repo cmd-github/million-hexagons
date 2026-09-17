@@ -45,16 +45,16 @@ Placements
 - [x] grow typed and preset sizes around purchased cells so the displayed and charged count contains only unique available hexagons
 - [x] restore only unfinished work; clear the completed draft before the next Claim Your Space journey
 - [ ] when Claim Your Space is clicked, immediately cover the whole page with the branded loading screen while the globe eases in slightly; do not leave the landing page visible behind the transition, and if the studio menu still needs time to become ready, continue the loading animation within the menu until it can be used
-- [ ] in Choose your shape, restore the brand-green outline around every selected hexagon and add a faint fill in the same green so the complete current selection is unmistakable against available and purchased cells
-- [ ] in Choose your starting spot, give the clicked candidate cell that same green outline and faint green fill while the Start here popup is open; do not present it as confirmed until Start here is clicked
+- [x] in Choose your shape, restore the brand-green outline around every selected hexagon and add a faint fill in the same green so the complete current selection is unmistakable against available and purchased cells
+- [x] in Choose your starting spot, give the clicked candidate cell that same green outline and faint green fill while the Start here popup is open; do not present it as confirmed until Start here is clicked
 - [ ] improve the Colour tool beyond the current 12 swatches without returning to an overwhelming all-colours interface; explore a polished middle ground such as a carefully chosen 24-colour palette plus an optional custom colour picker, then agree the interaction before implementation
 - [ ] remove Move globe from the Design mode tabs and make it an icon-led control at the top of the vertical globe-control menu; keep its active state and accessible label clear
-- [ ] improve the alignment, sizing and visual rhythm of buttons, text, field labels and spacing throughout the Shape and Design menus on desktop and mobile
+- [x] improve the alignment, sizing and visual rhythm of buttons, text, field labels and spacing throughout the Shape and Design menus on desktop and mobile
 - [ ] while Shape or Design is open, make the centre/Home globe control return the camera to the user's complete current selection rather than the global globe view
 - [ ] remove redundant Edit your shape/back hyperlinks now that the progress breadcrumb provides in-flow navigation
 - [ ] on mobile, make the browser/device Back action move through the creation history one stage at a time (Design -> Shape -> starting spot), then close the editor back to the normal globe view; it must not unexpectedly leave the site or discard the draft
-- [ ] make the Available, Purchased and Your Selection key use the exact same colours and visual treatment as the corresponding rendered globe cells and grid, especially the Available state
-- [ ] remove the default “Type a total or add 1, 10 or 100 hexagons. Minimum 5.” helper text from Shape
-- [ ] if Design this space is pressed with fewer than five hexagons selected, show a small red validation message directly below the hexagon-count field; clear it once the selection is valid
+- [x] make the Available, Purchased and Your Selection key use the exact same colours and visual treatment as the corresponding rendered globe cells and grid, especially the Available state
+- [x] remove the default “Type a total or add 1, 10 or 100 hexagons. Minimum 5.” helper text from Shape
+- [x] if Design this space is pressed with fewer than five hexagons selected, show a small red validation message directly below the hexagon-count field; clear it once the selection is valid
 - [ ] when the designer close X is pressed with work in progress, show a branded choice to Continue editing, Save for later and exit, or Discard changes and quit the purchase; make the destructive choice explicit and never silently lose the draft
-- [ ] remove the “Your shape was preserved while its edge was adjusted.” success text; retain only useful error or constraint feedback when resizing cannot fully satisfy the requested shape
+- [x] remove the “Your shape was preserved while its edge was adjusted.” success text; retain only useful error or constraint feedback when resizing cannot fully satisfy the requested shape
