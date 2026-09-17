@@ -1,6 +1,6 @@
 # Million Hexagons — Status
 
-Updated: 17 September 2026
+Updated: 18 September 2026
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
@@ -26,6 +26,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Revisit globe surface studies, achievements, advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Expanded the Design colour tool and deployed source `2f7abd70` as staging Worker `dfa2ecaa-28fe-4b3b-acba-33da0f222e6c`. It now offers 24 curated swatches plus a compact custom picker without colouring cells until the user deliberately paints or chooses Fill; the active custom colour also survives Save for later. Production/staging builds, repository hygiene and focused desktop/mobile Design journeys passed, including custom-colour no-auto-fill and draft recovery checks; both Colour layouts were inspected. All 1,549 runtime objects and live HTTPS/CDN health passed with cache hits. No full regression, live checkout journey or physical-device testing was run.
 
 - [x] Removed the obsolete pre-Location/Shape browser-QA cluster and deployed source `b5b72a09` as staging Worker `b005fb8e-7041-46d7-997a-8a3837f1991e`. `npm test` is now the canonical deterministic launch gate rather than an old live-data smoke journey. Persistent checkout uses the five-hexagon minimum and coherent 20-minute, five-cell quote data; its desktop, mobile and reduced-motion journeys pass. Breadcrumb jumps no longer depend on fragile history offsets after Review edits, and retained navigation and 50k/100k scale journeys wait for actual stage/camera transitions. Active docs use Location -> Shape -> Design -> Review, the 20-minute reservation and current artifacts. `npm test` passes 58 repository tests, 52 backend tests, staging build/release integrity and the Worker dry run; focused Design/navigation and desktop/mobile 50k/100k scale journeys also pass. Historical Done entries remain unchanged as records of what was true when shipped.
 
