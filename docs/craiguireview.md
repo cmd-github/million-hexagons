@@ -45,3 +45,6 @@ Placements
 - [x] grow typed and preset sizes around purchased cells so the displayed and charged count contains only unique available hexagons
 - [x] restore only unfinished work; clear the completed draft before the next Claim Your Space journey
 - [ ] when Claim Your Space is clicked, immediately cover the whole page with the branded loading screen while the globe eases in slightly; do not leave the landing page visible behind the transition, and if the studio menu still needs time to become ready, continue the loading animation within the menu until it can be used
+- [ ] in Choose your shape, restore the brand-green outline around every selected hexagon and add a faint fill in the same green so the complete current selection is unmistakable against available and purchased cells
+- [ ] in Choose your starting spot, give the clicked candidate cell that same green outline and faint green fill while the Start here popup is open; do not present it as confirmed until Start here is clicked
+- [ ] improve the Colour tool beyond the current 12 swatches without returning to an overwhelming all-colours interface; explore a polished middle ground such as a carefully chosen 24-colour palette plus an optional custom colour picker, then agree the interaction before implementation
