@@ -510,6 +510,11 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
 #designStep #brushControls{flex-wrap:wrap;width:100%}
 #designStep .colour-palette{width:100%;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;padding:3px}
 #designStep .colour-palette button{width:100%;height:36px;border-radius:8px}
+#designStep .custom-colour{display:flex;align-items:center;gap:7px;min-height:40px;padding:4px 9px;border:1px solid #ffffff20;border-radius:9px;color:#a9bdc2;font-size:10px;cursor:pointer}
+#designStep .custom-colour:focus-within{border-color:var(--lime);box-shadow:0 0 0 1px #d7ff5544}
+#designStep #customColour{width:28px;height:28px;min-height:28px;padding:0;border:0;border-radius:7px;background:transparent;cursor:pointer}
+#designStep #customColour::-webkit-color-swatch-wrapper{padding:0}
+#designStep #customColour::-webkit-color-swatch{border:1px solid #ffffff55;border-radius:6px}
 #reviewStep>.panel-intro:empty{display:none}
 #reviewStep #websiteError,#purchaseError{color:#ffbdc5;font-size:12px;line-height:1.5;padding:12px;border:1px solid #ff879540;border-radius:10px;background:#ff879509}
 .draft-notice{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 44px 14px 0;padding:10px 12px;border:1px solid #d7ff5533;border-radius:10px;background:#d7ff5508;font-size:11px;color:#c7d7ce}
@@ -560,8 +565,8 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
  #designStep button,#designStep .add-image,#brushControls button,#areaBrushControls button.hex-brush{min-height:44px}
  #customPaintTools .toolbar-spacer{display:none}#designStep .studio-toolbar>button{display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;padding:8px;min-width:0}
  #designStep .studio-toolbar #undoPaint,#designStep .studio-toolbar #redoPaint{flex:0 0 44px}
- #designStep .studio-context{gap:12px}#brushControls{flex-wrap:wrap}#designStep .colour-palette{display:grid;grid-template-columns:repeat(6,1fr);width:100%;gap:5px}
- #designStep .colour-palette button{width:100%;height:40px;min-height:40px;border-radius:9px}
+ #designStep .studio-context{gap:9px}#brushControls{flex-wrap:wrap}#designStep .colour-palette{display:grid;grid-template-columns:repeat(8,1fr);width:100%;gap:4px}
+ #designStep .colour-palette button{width:100%;height:34px;min-height:34px;border-radius:8px}
  #designStep #logoPositionControls label{font-size:12px;min-height:40px}
  #logoPositionControls input[type=range]{flex:1;min-width:0;min-height:36px}
  #logoOptions.image-layout-choice{min-width:0}#logoOptions.image-layout-choice label{padding:8px;font-size:11px}

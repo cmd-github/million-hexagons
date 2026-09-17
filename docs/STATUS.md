@@ -88,7 +88,6 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Blocked / Needs Craig
 
-- [ ] Grant the Firebase deploy identity `craigmichaelduffy@gmail.com` Service Usage Consumer access and Service Account User access to `million-hexagons@appspot.gserviceaccount.com`, or provide an authorised deployment identity. Backend and frontend rollout `730ea945` is waiting on this.
 - [ ] Configure/confirm the $10 Cloudflare budget alert.
 - [ ] Review and complete [draft commercial terms](DRAFT-COMMERCIAL-TERMS.md), including final pricing, refunds, permanent-use wording and governing law.
 - [ ] Confirm seller identity, launch-country VAT/tax and receipt/invoice treatment with qualified advice where required.

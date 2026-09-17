@@ -823,7 +823,9 @@ function updateLogoGuidance(message) {
 }
 
 function updatePaintColour() {
-  document.querySelectorAll('[data-colour]').forEach(button=>button.classList.toggle('active',button.dataset.colour.toLowerCase()===document.querySelector('#brushColor').value.toLowerCase()));
+  const colour=document.querySelector('#brushColor').value.toLowerCase();
+  document.querySelectorAll('[data-colour]').forEach(button=>button.classList.toggle('active',button.dataset.colour.toLowerCase()===colour));
+  document.querySelector('#customColour').value=colour;
 }
 function rememberRecentColour(colour){
   const value=String(colour||'').toLowerCase();if(!/^#[0-9a-f]{6}$/.test(value))return;
@@ -833,6 +835,7 @@ function rememberRecentColour(colour){
 }
 function activatePaintColour(colour){document.querySelector('#brushColor').value=colour;updatePaintColour();if(document.body.dataset.flow==='design')setEditorMode('paint',false);}
 document.querySelector('#brushColor').addEventListener('input', updatePaintColour);
+document.querySelector('#customColour').addEventListener('input',event=>activatePaintColour(event.target.value));
 document.querySelectorAll('[data-colour]').forEach(button=>button.addEventListener('click',()=>activatePaintColour(button.dataset.colour)));
 
 function updateLogoPreviewOrientation() {

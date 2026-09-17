@@ -168,7 +168,7 @@ try {
     );
     assert.equal(
       await page.locator('#designStep [data-colour]').count(),
-      12,
+      24,
     );
     assert.deepEqual(await page.locator("#customPaintTools>button").evaluateAll((elements) => elements.slice(0, 2).map((element) => element.id)),["moveImageMode", "paintCells"]);
     assert.equal(await page.locator(".globe-controls>button").first().getAttribute("id"),"panEditor");
@@ -177,6 +177,12 @@ try {
       path: "artifacts/globe-design/" + mobile + "-draw.png",
     });
     await page.locator("#paintCells").click();
+    const beforeCustomColour=await page.evaluate(() => window.geodesicQA.state().designCells);
+    await page.locator('#customColour').fill('#123456');
+    assert.equal(await page.locator('#brushColor').inputValue(),'#123456');
+    assert.equal(await page.locator('#paintCells').getAttribute('aria-pressed'),'true');
+    assert.deepEqual(await page.evaluate(() => window.geodesicQA.state().designCells),beforeCustomColour);
+    await page.screenshot({path:`artifacts/globe-design/${mobile}-colour.png`});
     await page.locator('[data-brush="2"]').click();
     const neighbour = await page.evaluate(
       (id) => window.geodesicQA.neighbours(id)[0],
@@ -237,6 +243,8 @@ try {
     await page.locator("#moveImageMode").click();
     await page.locator("#logoOrientation").fill("37");
     await page.locator("#logoScale").fill("140");
+    await page.locator("#paintCells").click();
+    await page.locator('#customColour').fill('#123456');
     const unfinishedDraft=await page.evaluate(() => window.geodesicQA.state().design);
     await page.locator("#closeBuy").click();
     await page.locator('#studioExit').waitFor({state:'visible'});
@@ -249,6 +257,7 @@ try {
     await page.locator("#designStep").waitFor({state:"visible"});
     assert.deepEqual(await page.evaluate(() => window.geodesicQA.state().design),unfinishedDraft);
     assert.equal(await page.locator("#addImageLabel").textContent(),"Replace image");
+    assert.equal(await page.locator('#brushColor').inputValue(),'#123456');
     const originalIds = [...ids],
       relocation = await page.evaluate((id) => {
         let next = id;
