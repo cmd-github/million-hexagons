@@ -54,7 +54,7 @@ try {
       assert.deepEqual(await page.evaluate(() => geodesicQA.state().design), selectedBefore);
       reports.push({ mobile, count, shapeMs, imageMs, reviewParity: true, connected: true });
       console.log(reports.at(-1));
-      if (count === 50000) await page.locator('#backToShape').click();
+      if (count === 50000) await page.locator('[data-flow-target="shape"]').click();
     }
     await page.close();
   }

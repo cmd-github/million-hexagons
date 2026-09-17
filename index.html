@@ -17,7 +17,7 @@
       body.booting>:not(#appLoading):not(script){visibility:hidden}
       #appLoading{position:fixed;inset:0;z-index:1000;display:grid;place-content:center;justify-items:center;gap:18px;background:#050b14;color:#d4ff58;font:13px system-ui,sans-serif}
       #appLoading[hidden]{display:none}
-      #appLoading[data-context=editor]{background:#050b14dd;backdrop-filter:blur(8px)}
+      #appLoading[data-context=editor]{background:#050b14}
       .loading-hex{width:60px;height:60px;overflow:visible;filter:drop-shadow(0 0 12px #d4ff5833)}
       .loading-hex polygon{fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}
       .loading-hex .hex-trail{stroke-dasharray:38 130;animation:hex-trace 1.6s linear infinite}
@@ -52,6 +52,7 @@
 
     <div id="hint" hidden></div><div id="globalMetrics" aria-label="Live global metrics"><span id="globalMetricText">Loading live totals…</span></div>
     <nav class="globe-controls glass" aria-label="Globe controls">
+      <button type="button" id="panEditor" data-icon="pan" aria-pressed="false" aria-label="Move globe" title="Move globe"></button>
       <button type="button" id="rotationToggle" data-icon="rotate-pause" aria-pressed="true" aria-label="Pause globe rotation" title="Pause globe rotation"></button>
       <button type="button" id="demoTour" data-icon="tour-start" aria-pressed="false" aria-label="Start globe tour" title="Start globe tour"></button>
       <div class="account-access">
@@ -111,7 +112,6 @@
       </div>
 
       <div class="flow-screen" id="shapeStep" hidden>
-        <button class="back-link" type="button" id="backToLocation">&larr; Change starting spot</button>
         <h2>2. Choose your shape</h2>
         <p class="panel-intro">Start with a size, or draw your own connected shape directly on the globe.</p>
         <div class="shape-mode" role="radiogroup" aria-label="Selection method"><label><input type="radio" name="shapeMode" value="exact" checked><span><b>Choose a size</b><small>Set the number of hexagons</small></span></label><label><input type="radio" name="shapeMode" value="freehand"><span><b>Draw your own</b><small>Add and remove on the globe</small></span></label></div>
@@ -125,11 +125,10 @@
       </div>
 
       <div class="flow-screen" id="designStep" hidden>
-        <button class="back-link" type="button" id="backToShape">&larr; Edit your shape</button>
         <header class="studio-heading"><h2 id="designTitle">3. Create your design</h2><span id="designIntro"></span></header>
         <div class="studio-workspace">
           <div class="studio-toolbar" id="customPaintTools" role="toolbar" aria-label="Design tools">
-            <button type="button" id="moveImageMode" aria-pressed="true">Image</button><button type="button" id="paintCells" aria-pressed="false">Colour</button><button type="button" id="panEditor" aria-pressed="false">Move globe</button>
+            <button type="button" id="moveImageMode" aria-pressed="true">Image</button><button type="button" id="paintCells" aria-pressed="false">Colour</button>
             <span class="toolbar-spacer"></span><button type="button" id="undoPaint" data-icon="undo" disabled aria-label="Undo painting" title="Undo"></button><button type="button" id="redoPaint" data-icon="redo" disabled aria-label="Redo painting" title="Redo"></button>
             <button type="button" id="clearAllDesign">Clear all</button>
           </div>
@@ -162,6 +161,7 @@
     </section>
 
     <dialog id="designConfirm" class="studio-dialog" aria-labelledby="designConfirmTitle"><form method="dialog"><p class="eyebrow">YOUR DESIGN</p><h2 id="designConfirmTitle">Clear this design?</h2><p id="designConfirmCopy">Remove the image and all colours. Your selected hexagons stay in place.</p><div class="dialog-actions"><button value="cancel" autofocus>Keep editing</button><button value="confirm" class="primary">Clear design</button></div></form></dialog>
+    <dialog id="studioExit" class="studio-dialog studio-exit" aria-labelledby="studioExitTitle"><form method="dialog"><p class="eyebrow">YOUR DESIGN</p><h2 id="studioExitTitle">Leave the studio?</h2><p>Your unfinished placement can stay here for later, or you can discard it and start fresh next time.</p><div class="dialog-actions exit-actions"><button value="continue" autofocus>Continue editing</button><button value="save" class="primary">Save for later</button><button value="discard" class="danger">Discard &amp; quit</button></div></form></dialog>
     <div class="toast glass" id="toast" role="status"><b>Welcome to the world.</b><span>Your preview is on the globe for this session.</span><a id="placementWebsite" hidden target="_blank" rel="noopener noreferrer">Visit website</a><button id="dismissToast" data-icon="close" aria-label="Dismiss confirmation"></button></div>
     <script type="module">
       const slowBoot=setTimeout(()=>{document.querySelector('#loadingMessage').textContent='Still loading the globe. This is taking longer than usual.';},8000);

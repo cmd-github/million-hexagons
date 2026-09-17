@@ -38,10 +38,7 @@ try {
     );
     assert.equal(await page.locator("#canvasSurface").count(), 0);
     assert.equal(await page.locator(".size-menu").count(), 0);
-    assert.equal(
-      await page.locator("#panEditor").getAttribute("aria-pressed"),
-      "true",
-    );
+    assert.equal(await page.locator("#panEditor").isHidden(), true);
     assert.equal(await page.locator("#startingSpotPrompt").isVisible(), true);
     assert.equal(await page.locator("#shapeStep h2").textContent(), "2. Choose your shape");
     assert.deepEqual(await page.locator(".size-presets button").allTextContents(), ["+10", "+25", "+100"]);
@@ -150,6 +147,14 @@ try {
     });
     await page.locator("#toDesign").click();
     await page.locator("#designStep").waitFor({ state: "visible" });
+    await page.evaluate(() => history.back());
+    await page.waitForFunction(() => document.body.dataset.flow === "shape");
+    await page.evaluate(() => history.back());
+    await page.waitForFunction(() => document.body.dataset.flow === "location");
+    await page.evaluate(() => history.forward());
+    await page.waitForFunction(() => document.body.dataset.flow === "shape");
+    await page.evaluate(() => history.forward());
+    await page.waitForFunction(() => document.body.dataset.flow === "design");
     const away=await page.evaluate(anchor=>Object.values(window.geodesicQA.locations).find(id=>id!==anchor),first);
     await page.evaluate(id=>window.geodesicQA.focus(id,.6),away);
     await page.locator("#homeView").click();
@@ -165,14 +170,9 @@ try {
       await page.locator('#designStep [data-colour]').count(),
       12,
     );
-    assert.deepEqual(
-      await page
-        .locator("#customPaintTools>button")
-        .evaluateAll((elements) =>
-          elements.slice(0, 3).map((element) => element.id),
-        ),
-      ["moveImageMode", "paintCells", "panEditor"],
-    );
+    assert.deepEqual(await page.locator("#customPaintTools>button").evaluateAll((elements) => elements.slice(0, 2).map((element) => element.id)),["moveImageMode", "paintCells"]);
+    assert.equal(await page.locator(".globe-controls>button").first().getAttribute("id"),"panEditor");
+    assert.equal(await page.locator("#panEditor").isVisible(),true);
     await page.screenshot({
       path: "artifacts/globe-design/" + mobile + "-draw.png",
     });
@@ -239,6 +239,12 @@ try {
     await page.locator("#logoScale").fill("140");
     const unfinishedDraft=await page.evaluate(() => window.geodesicQA.state().design);
     await page.locator("#closeBuy").click();
+    await page.locator('#studioExit').waitFor({state:'visible'});
+    await page.locator('#studioExit [value="continue"]').click();
+    assert.equal(await page.locator('#designStep').isVisible(),true);
+    await page.locator("#closeBuy").click();
+    await page.locator('#studioExit [value="save"]').click();
+    await page.waitForFunction(() => document.querySelector('#buyPanel').getAttribute('aria-hidden') === 'true');
     await page.locator("#claimButton").click();
     await page.locator("#designStep").waitFor({state:"visible"});
     assert.deepEqual(await page.evaluate(() => window.geodesicQA.state().design),unfinishedDraft);

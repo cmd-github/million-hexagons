@@ -33,7 +33,7 @@ let stagingInventoryLoaded=!import.meta.env.VITE_STAGING_SANDBOX;
 let ownedPlacementIds=new Set();
 document.querySelector('#claimButton').disabled = true;
 const loading = document.querySelector('#appLoading');
-let openingEditor=false;
+let openingEditor=false,studioHistoryActive=false,studioHistoryPosition=0,handlingStudioHistory=false;
 function showLoading(){
   loading.dataset.context='editor';loading.hidden=false;
   loading.setAttribute('aria-label','Preparing your editor');
@@ -555,7 +555,7 @@ async function studioImage(source) {
 }
 async function openBuy(anchor = null, ownerUpdate = null) {
   if(publishing||openingEditor)return;
-  openingEditor=true;showLoading();await nextPaint();
+  openingEditor=true;cameraDistanceTarget=Math.min(camera.position.length(),radius+2.2);showLoading();await nextPaint();
   document.body.classList.remove('inspecting');document.querySelector('#placementInspector').hidden=true;
   document.querySelector('#toast').classList.remove('show');
   inspectorVersion++;
@@ -596,6 +596,7 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   clearPlacementPreview();
   clearSelectionColours();
   document.body.classList.add('creating');
+  studioHistoryActive=true;studioHistoryPosition=1;history.pushState({mhStudio:true,step:'location',position:1},'');
   controls.enableRotate = true;
   const panel = document.querySelector('#buyPanel');
   panel.inert = false;
@@ -627,7 +628,7 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   designStartingSpotConfirmed=Boolean(ownerEdit||logoCells.length||Number.isInteger(anchor));configureCreation();setDesignSurface('globe');
   document.body.classList.toggle('choosing-start',!designStartingSpotConfirmed);
   document.body.classList.toggle('owner-editing',Boolean(ownerEdit));
-  document.querySelector('#sizeControls').hidden=Boolean(ownerEdit);document.querySelector('#removeHexMode').hidden=Boolean(ownerEdit);document.querySelector('#backToShape').hidden=Boolean(ownerEdit);
+  document.querySelector('#sizeControls').hidden=Boolean(ownerEdit);document.querySelector('#removeHexMode').hidden=Boolean(ownerEdit);
   document.querySelector('#designTitle').textContent=ownerEdit?'Update your placement.':'3. Create your design';document.querySelector('#designIntro').textContent=ownerEdit?'Your purchased space is locked. Update what appears inside it.':'Your space. Your design.';
   document.querySelector('#toPlacement').textContent=ownerEdit?'Review changes →':'Review placement →';document.querySelector('#previewPurchase').textContent=ownerEdit?'Save changes':'Continue to secure checkout';
   if(ownerEdit)for(const id of ['price','placePrice','reviewPrice'])document.getElementById(id).textContent='Owned';
@@ -699,9 +700,12 @@ function discardDraft() {
   previewCache=null;
   drawDesignPreview();updateTotals();
 }
-function closeBuy() {
+function closeBuy({saveDraft=true,unwindHistory=true}={}) {
   if(publishing)return;
-  captureDraft();
+  if(saveDraft)captureDraft();
+  else discardDraft();
+  const historySteps=studioHistoryActive&&unwindHistory?studioHistoryPosition:0;
+  studioHistoryActive=false;studioHistoryPosition=0;
   placementPreparationVersion++;
   designGeometryVersion++;designGeometryPending=false;
   void releaseActiveCheckoutReservation();
@@ -725,9 +729,27 @@ function closeBuy() {
   proposedCellId=null;
   clearPlacementPreview();
   requestedAnchor = null;
-  ownerEdit=null;designStartingSpotConfirmed=false;document.body.classList.remove('owner-editing','choosing-start');document.querySelector('#removeHexMode').hidden=false;document.querySelector('#backToShape').hidden=false;document.querySelector('#previewPurchase').textContent='Continue to secure checkout';
+  ownerEdit=null;designStartingSpotConfirmed=false;document.body.classList.remove('owner-editing','choosing-start');document.querySelector('#removeHexMode').hidden=false;document.querySelector('#previewPurchase').textContent='Continue to secure checkout';
   pinnedCell = null;
   document.querySelector('#hint').innerHTML = '<span title="Drag to rotate" role="img" aria-label="Drag to rotate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18m-5-4 4 4-4 4M8 8l-4 4 4 4"/></svg></span><i></i><span title="Scroll to zoom" role="img" aria-label="Scroll to zoom"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14m5 12 6 6M7 10h6m-3-3v6"/></svg></span><i></i><span title="Click a tile" role="img" aria-label="Click a tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3 14 10-7 1-3 7z"/></svg></span>';
+  if(historySteps)history.go(-historySteps);
+}
+function chooseStudioExit(){
+  const dialog=document.querySelector('#studioExit');
+  return new Promise(resolve=>{dialog.addEventListener('close',()=>resolve(dialog.returnValue),{once:true});dialog.returnValue='';dialog.showModal();});
+}
+async function requestStudioExit({historyAlreadyMoved=false}={}){
+  if(publishing)return false;
+  if(!draftIsMeaningful()){closeBuy({saveDraft:false,unwindHistory:!historyAlreadyMoved});return true;}
+  const choice=await chooseStudioExit();
+  if(choice==='continue'){
+    if(historyAlreadyMoved){studioHistoryActive=true;studioHistoryPosition=1;history.pushState({mhStudio:true,step:document.body.dataset.flow||'location',position:1},'');}
+    document.querySelector('#closeBuy').focus();return false;
+  }
+  if(choice==='save'){closeBuy({saveDraft:true,unwindHistory:!historyAlreadyMoved});return true;}
+  if(choice==='discard'){closeBuy({saveDraft:false,unwindHistory:!historyAlreadyMoved});return true;}
+  if(historyAlreadyMoved){studioHistoryActive=true;studioHistoryPosition=1;history.pushState({mhStudio:true,step:document.body.dataset.flow||'location',position:1},'');}
+  return false;
 }
 document.querySelector('#claimButton').addEventListener('click', () => openBuy());
 document.querySelector('#claimCell').addEventListener('click', (event) => {
@@ -736,7 +758,7 @@ document.querySelector('#claimCell').addEventListener('click', (event) => {
   if(document.body.classList.contains('choosing-start')&&anchor){void confirmStartingSpot(anchor);return;}
   if(anchor){clearProposedCell();openBuy(anchor);}
 });
-document.querySelector('#closeBuy').addEventListener('click', closeBuy);
+document.querySelector('#closeBuy').addEventListener('click',()=>void requestStudioExit());
 // Rotation is a plain on/off toggle. It used to cycle through both directions, which needed
 // three icons to express and gave the button a state most visitors never looked for.
 document.querySelector('#rotationToggle').addEventListener('click',()=>{
@@ -823,6 +845,7 @@ const flowScreens = {location:document.querySelector('#locationStep'),shape:docu
 function showFlowStep(step) {
   for(const id of ['websiteError','purchaseError']){const error=document.getElementById(id);error.hidden=true;error.textContent='';}
   document.body.dataset.flow = step;
+  if(studioHistoryActive&&!handlingStudioHistory&&history.state?.step!==step){studioHistoryPosition++;history.pushState({mhStudio:true,step,position:studioHistoryPosition},'');}
   resize();
   Object.entries(flowScreens).forEach(([name, screen]) => { screen.hidden = name !== step; screen.classList.toggle('active', name === step); });
   const progress = [...document.querySelectorAll('.flow-progress button')];
@@ -1191,12 +1214,23 @@ document.querySelector('#dismissToast').addEventListener('click', () => document
 // Escape unwinds the studio one layer at a time: an open menu, then checkout, then the
 // panel itself. It used to close the whole flow from any of those states.
 document.addEventListener('keydown', (event) => {
-  if(event.key !== 'Escape' || document.querySelector('#buyPanel').inert||document.querySelector('#designConfirm').open)return;
+  if(event.key !== 'Escape' || document.querySelector('#buyPanel').inert||document.querySelector('#designConfirm').open||document.querySelector('#studioExit').open)return;
   const openMenu=document.querySelector('#buyPanel details[open]');
   if(openMenu){openMenu.open=false;openMenu.querySelector('summary').focus();return;}
   const checkout=document.querySelector('#embeddedCheckoutPanel');
   if(!checkout.hidden){document.querySelector('#closeEmbeddedCheckout').click();return;}
-  closeBuy();
+  void requestStudioExit();
+});
+window.addEventListener('popstate',event=>{
+  if(!document.body.classList.contains('creating'))return;
+  if(!event.state?.mhStudio){studioHistoryActive=false;studioHistoryPosition=0;void requestStudioExit({historyAlreadyMoved:true});return;}
+  studioHistoryPosition=Number(event.state.position)||1;handlingStudioHistory=true;
+  const step=event.state.step;
+  if(step==='location')chooseAnotherStartingSpot();
+  else if(step==='shape')enterShapeStep();
+  else if(step==='design')enterDesignStep();
+  else if(step==='review')document.querySelector('#toReview').click();
+  handlingStudioHistory=false;
 });
 const undoStack = [], redoStack = [];
 function rememberPaint() { undoStack.push({cells:previewCells().map(({id,color,transparent})=>({id,color,transparent})),edited:footprintEdited}); while(undoStack.length>1&&(undoStack.length>50||undoStack.reduce((n,s)=>n+s.cells.length,0)>250000))undoStack.shift();redoStack.length=0;updateHistory(); }
@@ -1212,7 +1246,6 @@ document.querySelector('#redoPaint').addEventListener('click',()=>restorePaint(r
 
 document.querySelector('#toPlacement').addEventListener('click', () => {syncGlobeDesign();if(document.querySelector('#toPlacement').disabled)return;draftArtwork=renderArtwork(previewCells());selectedCell=cellForId(designAnchor);selectedCells=previewCells();document.querySelector('#toReview').disabled=false;document.querySelector('#toReview').click();});
 document.querySelector('#toDesign').addEventListener('click',enterDesignStep);
-document.querySelector('#backToLocation').addEventListener('click',chooseAnotherStartingSpot);
 document.querySelectorAll('[name="shapeMode"]').forEach(input=>input.addEventListener('change',()=>{
   shapeMode=document.querySelector('[name="shapeMode"]:checked').value;const freehand=shapeMode==='freehand',status=document.querySelector('#shapeStatus');document.querySelector('#sizeControls').hidden=freehand;document.querySelector('#shapeBrushControls').hidden=!freehand;status.textContent=freehand?'Choose a brush, then add or remove connected hexagons on the globe.':'';status.hidden=!status.textContent;document.querySelector('#shapeCountError').hidden=true;logoEditorMode=freehand?'hex':'pan';controls.enableRotate=!freehand;
 }));
@@ -1251,9 +1284,10 @@ document.querySelectorAll('[data-treatment]').forEach((button) => button.addEven
 document.querySelectorAll('[data-treatment]').forEach((item) => item.classList.toggle('active', item === button)); drawDesignPreview(); updateLogoGuidance(); }));
 document.querySelector('#logoScale').addEventListener('input', () => { document.querySelector('#logoScaleValue').textContent = `${document.querySelector('#logoScale').value}%`; drawDesignPreview(); });
 for(const [id,mode] of [['moveImageMode','move'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode==='remove'&&logoEditorMode==='remove'?'paint':mode));
-document.querySelector('#backToShape').addEventListener('click',enterShapeStep);
 document.querySelectorAll('[data-flow-target]').forEach(button=>button.addEventListener('click',()=>{
   const target=button.dataset.flowTarget;if(target==='review'||ownerEdit&&target!=='design'||!designStartingSpotConfirmed&&target!=='location')return;
+  const order={location:1,shape:2,design:3,review:4},current=document.body.dataset.flow;
+  if(order[target]<order[current]){history.go(order[target]-order[current]);return;}
   if(target==='location')chooseAnotherStartingSpot();else if(target==='shape')enterShapeStep();else if(target==='design')enterDesignStep();
 }));
 document.querySelector('#fillCells').addEventListener('click',()=>{rememberPaint();const colour=document.querySelector('#brushColor').value;logoCells=previewCells().map(c=>({...c,color:colour,transparent:false}));rememberRecentColour(colour);footprintEdited=true;drawDesignPreview();});

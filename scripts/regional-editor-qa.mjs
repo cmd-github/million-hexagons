@@ -24,7 +24,7 @@ try {
       await page.screenshot({path:`artifacts/regions/${mobile?'mobile':'desktop'}-${count}-review.png`});
       await page.locator('#reviewEditDesign').click();assert.deepEqual(await page.evaluate(()=>geodesicQA.state().design),ids);
       reports.push({mobile,count,designMs,parity:true,regions:await page.evaluate(()=>performanceQA.state().regions)});console.log(JSON.stringify(reports.at(-1)));
-      if(count===1500)await page.locator('#backToShape').click();
+      if(count===1500)await page.locator('[data-flow-target="shape"]').click();
     }
     assert.equal(requests.some(url=>/geodesic-v1\.(packed|bin)/.test(url)),false);assert.deepEqual(errors,[]);await page.close();
   }
