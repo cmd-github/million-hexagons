@@ -2,9 +2,11 @@
 
 This is a separately deployable staging product with Stripe test checkout. Test-owner claims persist in Firestore and publish immutable derived artwork through private Firebase Storage and R2. The baked sample catalogue has been replaced by owner-editable test placements; see [editable test brands](EDITABLE-TEST-BRANDS.md) for rollout evidence and retry instructions. It does not alter Firebase Hosting or the coming-soon site.
 
-Latest frontend deployment (17 September 2026): `b4249875-66c4-4ee3-a4ca-e856c557fae3` from source commit `3dd4e4c8`, retaining immutable runtime release `6121418c93f84b0a7fd8b572f3f386de309edec9ba6bc2aefcc2d44e084374b2`. Shape now renders blank selected cells with a brand-green outline and faint fill, the unconfirmed starting cell uses the same treatment beside Start here, the availability key matches those globe states, and under-five Shape validation is visible at the count field. The focused local desktop/mobile globe-design journey and production build passed with inspected Shape/starting-spot screenshots. All 1,549 runtime objects passed pre-deployment verification and the live HTTPS/CDN health check passed with cache hits. No full regression, live checkout journey or physical-device testing was run.
+Latest frontend deployment (17 September 2026): `0230aea5-b48b-45b3-9bf4-89b59ac60905` from source commit `12b58936`, retaining immutable runtime release `6121418c93f84b0a7fd8b572f3f386de309edec9ba6bc2aefcc2d44e084374b2`. Available cells now keep the green proposed-state treatment with a proud ungrouped hex ID while Claim this space is open; purchased-placement inspection no longer paints selection outlines. Shape has adjacent minus/plus-one controls, +10/+25/+100 shortcuts and a compact key. Fill uses an accessible icon, Delete toggles off and colour selection restores paint mode, and Home returns a lost editor to its design. Production build, deployment integrity and the focused desktop/mobile globe-design journey passed; exact Shape and normal-globe Claim screenshots were inspected. All 1,549 runtime objects and the live HTTPS/CDN health check passed with cache hits. No full regression, live checkout journey or physical-device testing was run.
 
-Previous frontend deployment: `00860ef7-9fb4-4909-bca1-8f513c4cd466` from source commit `e8c8b74e`.
+Previous frontend deployment: `b4249875-66c4-4ee3-a4ca-e856c557fae3` from source commit `3dd4e4c8`.
+
+Earlier frontend deployment: `00860ef7-9fb4-4909-bca1-8f513c4cd466` from source commit `e8c8b74e`.
 
 Earlier frontend deployment: `4c6e0024-882f-4bd6-884b-16a484b863a8` from source commit `e7b596d6`.
 
