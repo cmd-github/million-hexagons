@@ -1,6 +1,6 @@
 # Million Hexagons — Status
 
-Updated: 16 September 2026
+Updated: 17 September 2026
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
@@ -26,6 +26,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Revisit globe surface studies, achievements, advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Clarified Shape selection states and deployed source `3dd4e4c8` as staging Worker `b4249875-66c4-4ee3-a4ca-e856c557fae3`. Blank selected cells and the proposed starting cell now have a brand-green outline and faint fill; the key matches the rendered globe; redundant success/helper copy is gone; under-five continuation shows a small count-field error; and Shape/Design control rhythm is more consistent. Production build, deployment integrity and the focused desktop/mobile globe-design journey passed; Shape and starting-spot screenshots were inspected. All 1,549 runtime objects and the live HTTPS/CDN health check passed with cache hits. No full regression, live checkout journey or physical-device testing was run.
 
 - [x] Deployed the responsive purchase-studio polish and its documented follow-up from source `e8c8b74e` as staging Worker `00860ef7-9fb4-4909-bca1-8f513c4cd466`, retaining runtime release `6121418c93f84b0a7fd8b572f3f386de309edec9ba6bc2aefcc2d44e084374b2`. Deployment integrity, all 1,549 public runtime objects and the live HTTPS/CDN health check passed. The live desktop 10-hexagon journey reached Stripe mount and warm reload with no payment, browser errors or direct Firestore requests. The mobile journey opened the studio but twice timed out while its automated viewport search attempted to confirm a starting cell, so mobile purchase acceptance remains open.
 

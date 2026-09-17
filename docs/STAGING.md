@@ -2,9 +2,11 @@
 
 This is a separately deployable staging product with Stripe test checkout. Test-owner claims persist in Firestore and publish immutable derived artwork through private Firebase Storage and R2. The baked sample catalogue has been replaced by owner-editable test placements; see [editable test brands](EDITABLE-TEST-BRANDS.md) for rollout evidence and retry instructions. It does not alter Firebase Hosting or the coming-soon site.
 
-Latest frontend deployment (17 September 2026): `00860ef7-9fb4-4909-bca1-8f513c4cd466` from source commit `e8c8b74e`, retaining immutable runtime release `6121418c93f84b0a7fd8b572f3f386de309edec9ba6bc2aefcc2d44e084374b2`. All 1,549 runtime objects passed pre-deployment verification and the live HTTPS/CDN health check passed with cache hits. The live desktop journey passed through 10-hexagon Design -> Review -> Stripe mount and warm reload with no payment submitted, browser errors or direct Firestore requests. The mobile journey opened the studio but twice timed out while its automated viewport search attempted to confirm a starting cell, so mobile purchase acceptance remains unverified for this deployment.
+Latest frontend deployment (17 September 2026): `b4249875-66c4-4ee3-a4ca-e856c557fae3` from source commit `3dd4e4c8`, retaining immutable runtime release `6121418c93f84b0a7fd8b572f3f386de309edec9ba6bc2aefcc2d44e084374b2`. Shape now renders blank selected cells with a brand-green outline and faint fill, the unconfirmed starting cell uses the same treatment beside Start here, the availability key matches those globe states, and under-five Shape validation is visible at the count field. The focused local desktop/mobile globe-design journey and production build passed with inspected Shape/starting-spot screenshots. All 1,549 runtime objects passed pre-deployment verification and the live HTTPS/CDN health check passed with cache hits. No full regression, live checkout journey or physical-device testing was run.
 
-Previous frontend deployment: `4c6e0024-882f-4bd6-884b-16a484b863a8` from source commit `e7b596d6`.
+Previous frontend deployment: `00860ef7-9fb4-4909-bca1-8f513c4cd466` from source commit `e8c8b74e`.
+
+Earlier frontend deployment: `4c6e0024-882f-4bd6-884b-16a484b863a8` from source commit `e7b596d6`.
 
 Previous studio-polish deployment: `41ff3abf-e3d9-48e4-b21b-f7afa253f720` from source commit `9fdfbc5d`.
 
