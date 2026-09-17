@@ -120,6 +120,9 @@ body[data-flow=location] .globe-controls,body[data-flow=shape] .globe-controls{r
 #shapeStep .shape-size-heading small{font-size:9px;color:#8199a2}
 #shapeStep .studio-count{display:flex;align-items:center;color:#b7c9cf;font-size:12px}
 #shapeStep .studio-count input{width:100%;height:48px;padding:0 12px;border:1px solid #29414b;border-radius:9px;background:#091720;color:white;text-align:center;font:700 18px 'DM Mono';appearance:textfield}
+#shapeStep .shape-count-stepper{display:grid;grid-template-columns:48px minmax(0,1fr) 48px;align-items:stretch;gap:7px}
+#shapeStep .shape-count-stepper>button{min-width:48px;height:48px;padding:0;border:1px solid #29414b;border-radius:9px;background:#132832;color:var(--lime);font:700 22px Manrope}
+#shapeStep .shape-count-stepper>button:hover{border-color:#d4ff5870;background:#d4ff5810}
 #shapeStep #shapeCountError{display:block;margin:-3px 2px 0;color:#ff7385;font-size:10px;line-height:1.4}
 #shapeStep #shapeCountError[hidden]{display:none}
 #shapeStep .studio-count input::-webkit-inner-spin-button,#shapeStep .studio-count input::-webkit-outer-spin-button{appearance:none;margin:0}
@@ -128,7 +131,7 @@ body[data-flow=location] .globe-controls,body[data-flow=shape] .globe-controls{r
 #shapeStep .size-presets button:hover{border-color:#d4ff5870;background:#d4ff5810;color:var(--lime)}
 #shapeStep .shape-brushes{display:flex;align-items:center;gap:7px;padding:10px 12px;border:1px solid #29414b;border-radius:11px;background:#09172080;color:#a4bac5;font-size:11px}
 #shapeStep .shape-brushes[hidden]{display:none}
-#shapeStep .availability-key{margin-top:4px;align-items:center;justify-content:space-between;gap:8px;padding:0 2px}
+#shapeStep .availability-key{width:max-content;max-width:100%;margin-top:4px;align-items:center;justify-content:flex-start;gap:12px;padding:8px 10px;border:1px solid #29414b;border-radius:9px;background:#09172080}
 #shapeStep .availability-key span{gap:6px;white-space:nowrap}
 #shapeStep .step{color:#9eb2b8;font-size:11px;line-height:1.5}
 #shapeStep .place-summary{margin-top:auto}
@@ -187,6 +190,8 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 #designStep #areaBrushControls{width:100%}
 #designStep #areaBrushControls{display:flex;align-items:center;gap:5px}
 #designStep #toolHint{margin:0;width:100%}
+#designStep #fillCells{width:40px;min-width:40px;padding:0;color:var(--lime);border-color:#d4ff5844;background:#d4ff5510}
+#designStep #fillCells .ico{--ico:21px}
 .checkout-complete{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 .checkout-complete p{margin:20px 0 4px;font-size:24px;font-weight:700;color:#f4faf7}
 .checkout-complete small{font-size:13px;color:#a9bdc2}

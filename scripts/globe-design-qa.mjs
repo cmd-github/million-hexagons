@@ -44,7 +44,8 @@ try {
     );
     assert.equal(await page.locator("#startingSpotPrompt").isVisible(), true);
     assert.equal(await page.locator("#shapeStep h2").textContent(), "2. Choose your shape");
-    assert.deepEqual(await page.locator(".size-presets button").allTextContents(), ["+1", "+10", "+100"]);
+    assert.deepEqual(await page.locator(".size-presets button").allTextContents(), ["+10", "+25", "+100"]);
+    assert.deepEqual(await page.locator(".shape-count-stepper button").allTextContents(), ["−", "+"]);
     assert.equal(await page.locator("#shapeStep .hex-brush").count(), 3);
     assert.match(
       await page
@@ -111,6 +112,7 @@ try {
     await page.waitForFunction(
       () => window.geodesicQA.state().design.length === 20,
     );
+    await page.screenshot({path:`artifacts/globe-design/${mobile}-shape-exact.png`});
     const grownIds = await page.evaluate(
       () => window.geodesicQA.state().design,
     );
@@ -148,6 +150,13 @@ try {
     });
     await page.locator("#toDesign").click();
     await page.locator("#designStep").waitFor({ state: "visible" });
+    const away=await page.evaluate(anchor=>Object.values(window.geodesicQA.locations).find(id=>id!==anchor),first);
+    await page.evaluate(id=>window.geodesicQA.focus(id,.6),away);
+    await page.locator("#homeView").click();
+    await page.waitForTimeout(2400);
+    const anchorPoint=await page.evaluate(id=>window.geodesicQA.screen(id),first),worldBox=await page.locator("#world").boundingBox(),panelBox=await page.locator("#buyPanel").boundingBox();
+    assert.ok(anchorPoint.x>=worldBox.x&&anchorPoint.x<=worldBox.x+worldBox.width);
+    assert.ok(anchorPoint.y>=worldBox.y&&anchorPoint.y<=(mobile?panelBox.y:worldBox.y+worldBox.height));
     assert.equal(
       await page.locator("#designTitle").textContent(),
       "3. Create your design",
@@ -188,6 +197,10 @@ try {
     await clickCell(first);
     await page.locator("#undoPaint").click();
     await page.locator("#removeHexMode").click();
+    assert.equal(await page.locator("#removeHexMode").getAttribute("aria-pressed"),"true");
+    await page.locator("#removeHexMode").click();
+    assert.equal(await page.locator("#removeHexMode").getAttribute("aria-pressed"),"false");
+    await page.locator("#removeHexMode").click();
     await page.locator('[data-brush="0"]').click();
     await clickCell(ids.at(-1));
     await page.waitForFunction(
@@ -195,6 +208,9 @@ try {
       ids.length,
     );
     await page.locator("#undoPaint").click();
+    await page.locator('[data-colour="#ff9f43"]').click();
+    assert.equal(await page.locator("#removeHexMode").getAttribute("aria-pressed"),"false");
+    assert.equal(await page.locator("#paintCells").getAttribute("aria-pressed"),"true");
     const paintedState = await page.evaluate(
       () => window.geodesicQA.state().designCells,
     );
@@ -319,6 +335,7 @@ try {
     await page.locator("#hexSearchInput").fill("Orbit");
     await page.locator("#companyResults button").first().click();
     await page.locator("#placementInspector").waitFor({ state: "visible" });
+    assert.equal(await page.evaluate(id=>window.geodesicQA.selectionAlpha(id),ids[0]),0);
     assert.equal(await page.locator("#inspectorNearby").count(), 0);
     assert.equal(
       await page.locator("#inspectorName").textContent(),
@@ -353,6 +370,16 @@ try {
     await page.locator("#pinInspector").click();
     await page.mouse.click(8, 100);
     assert.equal(await page.locator("#placementInspector").isVisible(), false);
+    const available=await page.evaluate(id=>{const queue=[id],seen=new Set(queue);for(let cursor=0;cursor<queue.length;cursor++)for(const next of window.geodesicQA.neighbours(queue[cursor])){if(seen.has(next))continue;if(!window.geodesicQA.isOccupied(next))return next;seen.add(next);queue.push(next);}},ids[0]);
+    await page.evaluate(id=>window.geodesicQA.focus(id,.6),available);
+    await page.waitForTimeout(250);
+    await clickCell(available);
+    await page.locator("#claimCell").waitFor({state:"visible"});
+    assert.equal(await page.locator("#cellNumber").textContent(),`Hexagon #${available}`);
+    assert.equal(await page.evaluate(id=>window.geodesicQA.selectionAlpha(id),available),255);
+    await page.screenshot({path:`artifacts/globe-design/${mobile}-available-claim.png`});
+    await page.keyboard.press("Escape");
+    assert.equal(await page.evaluate(id=>window.geodesicQA.selectionAlpha(id),available),0);
     await page.locator("#toggleHexSearch").click();
     await page.locator("#hexSearchInput").fill("Orbit");
     await page.locator("#companyResults button").first().click();

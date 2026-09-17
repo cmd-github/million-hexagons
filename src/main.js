@@ -261,7 +261,7 @@ const selectedCellColours = new Map();
 const sessionPlacements = new Map();
 const publicPlacementRecords = new Map();
 let explorationStart = null;
-let requestedAnchor = null;
+let requestedAnchor = null, proposedCellId = null;
 let pinnedCell = null;
 let designSurface = "canvas", exactGlobeArea = false;
 let designStartingSpotConfirmed = false,shapeMode='exact';
@@ -274,13 +274,14 @@ canvas.addEventListener('pointerdown', event => { explorationStart = {x:event.cl
 canvas.addEventListener('pointerup', async event => {
   const start=explorationStart;explorationStart=null;
   if(!start)return;
-  if(Math.hypot(event.clientX-start.x,event.clientY-start.y)>6){closeInspector();return;}
+  if(Math.hypot(event.clientX-start.x,event.clientY-start.y)>6){closeInspector();clearProposedCell();return;}
   const choosingStart=document.body.classList.contains('choosing-start');
   if(document.body.classList.contains('creating')&&!choosingStart)return;
   const interactionVersion=flightVersion;
   if (camera.position.length() < globeFitDistance() * .82) controls.autoRotate = false;
-  const hit=await intersectReady(event);if(interactionVersion!==flightVersion)return;if(!hit?.uv){closeInspector();return;}
-  if (!hit.cell.occupied) { closeInspector();if(!individualHexagonsVisible()){if(choosingStart)document.querySelector('#startingSpotStatus').textContent='Zoom in until the individual hexagons appear.';return;} pinnedCell=hit.cell; updateTooltip(event,hit.cell,true);if(choosingStart){renderProposedStartingCell(hit.cell);document.querySelector('#claimCell').textContent='Start here';document.querySelector('#startingSpotStatus').textContent=`Hexagon ${hit.cell.id.toLocaleString()} selected. Confirm it in the popup.`;}return; }
+  const hit=await intersectReady(event);if(interactionVersion!==flightVersion)return;if(!hit?.uv){closeInspector();clearProposedCell();pinnedCell=null;tooltip.classList.remove('show','pinned');return;}
+  if (!hit.cell.occupied) { closeInspector();if(!individualHexagonsVisible()){if(choosingStart)document.querySelector('#startingSpotStatus').textContent='Zoom in until the individual hexagons appear.';return;} pinnedCell=hit.cell; updateTooltip(event,hit.cell,true);renderProposedCell(hit.cell);if(choosingStart){document.querySelector('#claimCell').textContent='Start here';document.querySelector('#startingSpotStatus').textContent=`Hexagon #${hit.cell.id} · Your unique spot. Confirm it in the popup.`;}return; }
+  clearProposedCell();
   if(choosingStart){clearSelectionColours();selectionModeUniform.value=1;document.querySelector('#startingSpotStatus').textContent='That hexagon is already purchased. Choose an available one.';return;}
   inspectPlacement(hit.cell.id);
 
@@ -306,11 +307,19 @@ function clearSelectionColours() {
   selectionColourTexture.needsUpdate = true;
 }
 
-function renderProposedStartingCell(cell) {
+function renderProposedCell(cell) {
   selectionColourData.fill(0);
   writeCellColour(selectionColourData,cell,'#d7ff55');
   selectionColourTexture.needsUpdate=true;
   selectionModeUniform.value=1;
+  proposedCellId=cell.id;
+}
+
+function clearProposedCell() {
+  if(!proposedCellId)return;
+  proposedCellId=null;
+  clearSelectionColours();
+  if(!document.body.classList.contains('creating'))selectionModeUniform.value=0;
 }
 
 function clearHover() {
@@ -359,7 +368,7 @@ async function intersectReady(event) {
 
 function updateTooltip(event, cell, pinned = false) {
   document.querySelector('#cellOwner').textContent = cell.owner;document.querySelector('#cellOwner').hidden=!cell.occupied;
-  document.querySelector('#cellNumber').textContent = 'Hexagon #'+cell.id.toLocaleString();
+  document.querySelector('#cellNumber').textContent = 'Hexagon #'+cell.id;
   const destination=document.querySelector('#cellDestination');
   destination.hidden=!cell.destination;
   destination.textContent=cell.destination?new URL(cell.destination).hostname.replace(/^www\./,''):'';
@@ -713,6 +722,7 @@ function closeBuy() {
   document.querySelector('#claimButton').focus();
   document.querySelector('#buyPanel').setAttribute('aria-hidden', 'true');
   clearSelectionColours();
+  proposedCellId=null;
   clearPlacementPreview();
   requestedAnchor = null;
   ownerEdit=null;designStartingSpotConfirmed=false;document.body.classList.remove('owner-editing','choosing-start');document.querySelector('#removeHexMode').hidden=false;document.querySelector('#backToShape').hidden=false;document.querySelector('#previewPurchase').textContent='Continue to secure checkout';
@@ -724,7 +734,7 @@ document.querySelector('#claimCell').addEventListener('click', (event) => {
   event.stopPropagation();
   const anchor=Number(event.currentTarget.dataset.anchor);
   if(document.body.classList.contains('choosing-start')&&anchor){void confirmStartingSpot(anchor);return;}
-  if(anchor)openBuy(anchor);
+  if(anchor){clearProposedCell();openBuy(anchor);}
 });
 document.querySelector('#closeBuy').addEventListener('click', closeBuy);
 // Rotation is a plain on/off toggle. It used to cycle through both directions, which needed
@@ -797,10 +807,11 @@ function rememberRecentColour(colour){
   const value=String(colour||'').toLowerCase();if(!/^#[0-9a-f]{6}$/.test(value))return;
   const existing=recentColours.indexOf(value);if(existing>=0)recentColours.splice(existing,1);recentColours.unshift(value);recentColours.splice(8);
   const pane=document.querySelector('#recentColours');pane.hidden=!recentColours.length;pane.querySelectorAll('button').forEach(button=>button.remove());
-  for(const item of recentColours){const button=document.createElement('button');button.type='button';button.className='recent-colour';button.style.background=item;button.title=item.toUpperCase();button.setAttribute('aria-label',`Use recent colour ${item}`);button.onclick=()=>{document.querySelector('#brushColor').value=item;updatePaintColour();};pane.append(button);}
+  for(const item of recentColours){const button=document.createElement('button');button.type='button';button.className='recent-colour';button.style.background=item;button.title=item.toUpperCase();button.setAttribute('aria-label',`Use recent colour ${item}`);button.onclick=()=>activatePaintColour(item);pane.append(button);}
 }
+function activatePaintColour(colour){document.querySelector('#brushColor').value=colour;updatePaintColour();if(document.body.dataset.flow==='design')setEditorMode('paint',false);}
 document.querySelector('#brushColor').addEventListener('input', updatePaintColour);
-document.querySelectorAll('[data-colour]').forEach(button=>button.addEventListener('click',()=>{document.querySelector('#brushColor').value=button.dataset.colour;updatePaintColour();}));
+document.querySelectorAll('[data-colour]').forEach(button=>button.addEventListener('click',()=>activatePaintColour(button.dataset.colour)));
 
 function updateLogoPreviewOrientation() {
   const degrees = Number(document.querySelector('#logoOrientation').value) || 0;
@@ -1231,6 +1242,7 @@ document.querySelector('#toReview').addEventListener('click', async event => {
 });
 document.querySelector('#backToPlacement').addEventListener('click', () => { void releaseActiveCheckoutReservation();clearPlacementPreview();selecting=false;selectionModeUniform.value=0;document.body.classList.remove('selecting','placing-design');showFlowStep('design');setDesignSurface('globe');setEditorMode('paint',false);drawDesignPreview();updateTotals(); });
 document.querySelectorAll('[data-add-size]').forEach(button=>button.addEventListener('click',()=>{amountInput.value=Math.min(100000,Math.max(1,placementCount())+Number(button.dataset.addSize));if(placementCount()>=5)void resizeDesign();else updateTotals();}));
+document.querySelectorAll('[data-step-size]').forEach(button=>button.addEventListener('click',()=>{amountInput.value=Math.max(1,Math.min(100000,placementCount()+Number(button.dataset.stepSize)));if(placementCount()>=5)void resizeDesign();else updateTotals();}));
 amountInput.addEventListener('change',()=>{amountInput.value=Math.max(1,placementCount());if(placementCount()>=5)void resizeDesign();else updateTotals();});
 amountInput.addEventListener('input',()=>{if(placementCount()>=5)void resizeDesign();else updateTotals();});
 document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
@@ -1238,7 +1250,7 @@ document.querySelectorAll('[name="logoTreatmentChoice"]').forEach(input=>input.a
 document.querySelectorAll('[data-treatment]').forEach((button) => button.addEventListener('click', () => { document.querySelector('#logoTreatment').value = button.dataset.treatment; document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
 document.querySelectorAll('[data-treatment]').forEach((item) => item.classList.toggle('active', item === button)); drawDesignPreview(); updateLogoGuidance(); }));
 document.querySelector('#logoScale').addEventListener('input', () => { document.querySelector('#logoScaleValue').textContent = `${document.querySelector('#logoScale').value}%`; drawDesignPreview(); });
-for(const [id,mode] of [['moveImageMode','move'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode));
+for(const [id,mode] of [['moveImageMode','move'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan']]) document.querySelector(`#${id}`).addEventListener('click',()=>setEditorMode(mode==='remove'&&logoEditorMode==='remove'?'paint':mode));
 document.querySelector('#backToShape').addEventListener('click',enterShapeStep);
 document.querySelectorAll('[data-flow-target]').forEach(button=>button.addEventListener('click',()=>{
   const target=button.dataset.flowTarget;if(target==='review'||ownerEdit&&target!=='design'||!designStartingSpotConfirmed&&target!=='location')return;
@@ -2045,6 +2057,8 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('geodesicQA'
     async place(id) { await prepareLocation(id);await choosePatternOrigin({uv:new THREE.Vector2(),point:pointForCell({id})},cellForId(id));focusSelection(); },
     async start(id){await prepareLocation(id,.2);await confirmStartingSpot(id);},
     neighbours(id) { return topology.neighboursOf(id); },
+    isOccupied(id){return Boolean(occupiedCells[id-1]);},
+    selectionAlpha(id){return selectionColourData[(id-1)*4+3];},
     setOccupied(ids,value=true){for(const id of ids)occupiedCells[id-1]=value?255:0;occupancyTexture.needsUpdate=true;},
     async availableSelection(id,count){await prepareLocation(id,.2);return topology.run(()=>availableConnectedSelection(id,count)).then(cells=>cells.map(cell=>cell.id));},
     missNextIntersection() { forceIntersectionMiss=true; },
@@ -2248,8 +2262,7 @@ async function prepareInspector(id,version){
   const context=document.querySelector('#inspectorContext');context.textContent=record?'New arrival':'';context.hidden=!record;context.title=record?'Claimed in this session':'';
   const deleteButton=document.querySelector('#deleteTestPlacement');deleteButton.hidden=!record?.placementId||!stagingClient;deleteButton.dataset.placementId=record?.placementId||'';
   updateInspectorShareControl();
-  clearSelectionColours();for(const cellId of queue)writeCellColour(selectionColourData,{id:cellId},'#d7ff55');
-  selectionColourTexture.needsUpdate=true;selectionModeUniform.value=1;
+  clearSelectionColours();selectionModeUniform.value=0;
   document.querySelector('#inspectorStatus').textContent='';panel.hidden=false;controls.autoRotate=false;
   void renderNearbyPlacements();
   await topology.ensureCells(prepared);
@@ -2286,7 +2299,7 @@ document.addEventListener('pointerdown',event=>{
   if(!event.target.closest('#placementInspector,#hexSearch,#claimFeed')&&event.target!==canvas)closeInspector();
   if(!tooltip.contains(event.target)){pinnedCell=null;tooltip.classList.remove('show','pinned');}
 });
-document.addEventListener('keydown',event=>{if(event.key==='Escape'){if(document.querySelector('#placementInspector.show-nearby:not([hidden])')){showNearby(false,true);return;}closeInspector(true);showHexSearch(false);tooltip.classList.remove('show','pinned');}});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'){if(document.querySelector('#placementInspector.show-nearby:not([hidden])')){showNearby(false,true);return;}closeInspector(true);clearProposedCell();pinnedCell=null;showHexSearch(false);tooltip.classList.remove('show','pinned');}});
 function renderLinkClicks(){const value=linkClicks[cellForId(inspectedId).destination],sample=!sessionPlacements.has(inspectedId),visits=(Number.isSafeInteger(value)&&value>=0?value:0)+(sample?328:0);const metric=document.querySelector('#inspectorClicks');metric.textContent=visits.toLocaleString();metric.title=sample?'Illustrative visits plus your browser total':'Website visits from this browser';}
 for(const id of ['inspectorVisit','placementWebsite'])for(const type of ['click','auxclick'])document.getElementById(id).addEventListener(type,event=>{
   if(type==='auxclick'&&event.button!==1)return;

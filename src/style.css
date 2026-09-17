@@ -49,6 +49,7 @@ h1 em{color:var(--lime);font-style:normal}
 .cell-tooltip.show{display:block}
 .cell-tooltip.pinned{pointer-events:auto}
 .cell-tooltip b, .cell-tooltip small{display:block}
+.cell-tooltip #cellNumber{display:block;margin:0 0 6px;color:var(--lime);font:700 12px 'DM Mono';letter-spacing:.02em}
 .cell-tooltip b{font-size:12px;margin:0}
 .cell-tooltip small{margin-top:5px;font-size:9px;color:#86a0a6}
 .cell-tooltip button{width:100%;margin-top:10px;padding:9px 12px;border:0;border-radius:8px;background:var(--lime);color:#07141b;font-size:10px;font-weight:800}

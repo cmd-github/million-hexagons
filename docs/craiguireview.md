@@ -50,7 +50,7 @@ Placements
 - [ ] improve the Colour tool beyond the current 12 swatches without returning to an overwhelming all-colours interface; explore a polished middle ground such as a carefully chosen 24-colour palette plus an optional custom colour picker, then agree the interaction before implementation
 - [ ] remove Move globe from the Design mode tabs and make it an icon-led control at the top of the vertical globe-control menu; keep its active state and accessible label clear
 - [x] improve the alignment, sizing and visual rhythm of buttons, text, field labels and spacing throughout the Shape and Design menus on desktop and mobile
-- [ ] while Shape or Design is open, make the centre/Home globe control return the camera to the user's complete current selection rather than the global globe view
+- [x] while Shape or Design is open, make the centre/Home globe control return the camera to the user's complete current selection rather than the global globe view
 - [ ] remove redundant Edit your shape/back hyperlinks now that the progress breadcrumb provides in-flow navigation
 - [ ] on mobile, make the browser/device Back action move through the creation history one stage at a time (Design -> Shape -> starting spot), then close the editor back to the normal globe view; it must not unexpectedly leave the site or discard the draft
 - [x] make the Available, Purchased and Your Selection key use the exact same colours and visual treatment as the corresponding rendered globe cells and grid, especially the Available state
@@ -58,12 +58,12 @@ Placements
 - [x] if Design this space is pressed with fewer than five hexagons selected, show a small red validation message directly below the hexagon-count field; clear it once the selection is valid
 - [ ] when the designer close X is pressed with work in progress, show a branded choice to Continue editing, Save for later and exit, or Discard changes and quit the purchase; make the destructive choice explicit and never silently lose the draft
 - [x] remove the “Your shape was preserved while its edge was adjusted.” success text; retain only useful error or constraint feedback when resizing cannot fully satisfy the requested shape
-- [ ] in normal globe browsing, give an available clicked hexagon the same brand-green outline and faint fill while its Claim this space popup is open; clear the highlight when the popup closes
-- [ ] present a clicked location proudly as a unique numbered space: use “Hexagon #684429” with no thousands separator in the popup and confirmation message, and give the identifier stronger visual emphasis than ordinary helper copy
-- [ ] when an existing purchased placement is opened in normal globe view, do not draw green outlines around every hexagon in its complete footprint; reserve the green selection treatment for available/proposed cells and active creation
+- [x] in normal globe browsing, give an available clicked hexagon the same brand-green outline and faint fill while its Claim this space popup is open; clear the highlight when the popup closes
+- [x] present a clicked location proudly as a unique numbered space: use “Hexagon #684429” with no thousands separator in the popup and confirmation message, and give the identifier stronger visual emphasis than ordinary helper copy
+- [x] when an existing purchased placement is opened in normal globe view, do not draw green outlines around every hexagon in its complete footprint; reserve the green selection treatment for available/proposed cells and active creation
 - [ ] redesign the share modal so the exact shareable image has an unmistakable boundary and contains everything that recipients will see; keep modal instructions, format controls and actions visually outside that image rather than making the whole modal look shareable
 - [ ] make Share visibly respond and offer the destinations the platform supports: direct options such as X/Facebook/WhatsApp where possible, the native device share sheet for installed apps, and clear download/copy guidance for Instagram, TikTok and other destinations that do not support direct web posting
-- [ ] give the Shape count field adjacent −1 and +1 controls; change the larger shortcuts beneath it to +10, +25 and +100
-- [ ] group Available, Purchased and Your Selection tightly as one compact legend/key rather than spreading the three states across the panel
-- [ ] replace the Fill selection text button with a recognisable fill icon while retaining an accessible name, tooltip and clear feedback that it applies the active colour to the complete selection
-- [ ] make Delete cells a toggleable mode that can be turned off; choosing Colour, Add cells or another editing tool must visibly leave Delete mode so the user can add and colour cells again
+- [x] give the Shape count field adjacent −1 and +1 controls; change the larger shortcuts beneath it to +10, +25 and +100
+- [x] group Available, Purchased and Your Selection tightly as one compact legend/key rather than spreading the three states across the panel
+- [x] replace the Fill selection text button with a recognisable fill icon while retaining an accessible name, tooltip and clear feedback that it applies the active colour to the complete selection
+- [x] make Delete cells a toggleable mode that can be turned off; choosing Colour, Add cells or another editing tool must visibly leave Delete mode so the user can add and colour cells again
