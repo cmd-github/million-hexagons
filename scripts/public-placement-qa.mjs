@@ -86,6 +86,9 @@ try {
       releaseCatalogue = resolve;
     });
     await page.addInitScript(() => {
+      window.open=(url)=>{window.__shareDestination=url;return null;};
+      Object.defineProperty(navigator,"share",{value:async data=>{window.__nativeShare=data;}});
+      Object.defineProperty(navigator,"canShare",{value:()=>false});
       Object.defineProperty(navigator, "clipboard", {
         value: {
           writeText: async (value) => {
@@ -198,15 +201,9 @@ try {
     await page.locator("#inspectorShare").click();
     const card = page.locator("#shareCard");
     await card.waitFor({ state: "visible" });
-    assert.equal(
-      await page.locator("#shareCardName").textContent(),
-      `${record.title} is on the globe.`,
-    );
-    assert.match(
-      await page.locator("#shareCardUrl").textContent(),
-      new RegExp(`#placement=${placementId}$`),
-    );
-    assert.equal(await page.locator("#shareCardCells").textContent(), "1");
+    assert.equal(await page.locator(".share-image>span").textContent(),"Everything inside this frame will be shared");
+    assert.equal(await page.locator(".share-destinations button").count(),4);
+    assert.equal(await page.locator("[data-share-download]").count(),2);
     assert.equal(await page.locator("#shareCardPreview").getAttribute("width"), "1080");
     assert.equal(await page.locator("#downloadSharePlacement").isVisible(), true);
     const box = await card.boundingBox(),
@@ -224,6 +221,13 @@ try {
       await page.evaluate(() => window.__copied),
       new RegExp(`#placement=${placementId}$`),
     );
+    await page.locator('[data-share-destination="x"]').click();
+    assert.match(await page.evaluate(() => window.__shareDestination),/twitter\.com\/intent\/tweet/);
+    assert.match(await page.locator('#shareCardStatus').textContent(),/Opening X/);
+    await page.locator('#nativeSharePlacement').click();
+    await page.waitForFunction(() => window.__nativeShare);
+    assert.match(await page.evaluate(() => window.__nativeShare.url),new RegExp(`#placement=${placementId}$`));
+    assert.match(await page.locator('#shareCardStatus').textContent(),/Shared/);
     await page.screenshot({
       path: `artifacts/public-placement/${mobile ? "mobile" : "desktop"}.png`,
       animations: "disabled",
