@@ -56,3 +56,5 @@ Placements
 - [ ] make the Available, Purchased and Your Selection key use the exact same colours and visual treatment as the corresponding rendered globe cells and grid, especially the Available state
 - [ ] remove the default “Type a total or add 1, 10 or 100 hexagons. Minimum 5.” helper text from Shape
 - [ ] if Design this space is pressed with fewer than five hexagons selected, show a small red validation message directly below the hexagon-count field; clear it once the selection is valid
+- [ ] when the designer close X is pressed with work in progress, show a branded choice to Continue editing, Save for later and exit, or Discard changes and quit the purchase; make the destructive choice explicit and never silently lose the draft
+- [ ] remove the “Your shape was preserved while its edge was adjusted.” success text; retain only useful error or constraint feedback when resizing cannot fully satisfy the requested shape
