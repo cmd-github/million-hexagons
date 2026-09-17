@@ -48,3 +48,11 @@ Placements
 - [ ] in Choose your shape, restore the brand-green outline around every selected hexagon and add a faint fill in the same green so the complete current selection is unmistakable against available and purchased cells
 - [ ] in Choose your starting spot, give the clicked candidate cell that same green outline and faint green fill while the Start here popup is open; do not present it as confirmed until Start here is clicked
 - [ ] improve the Colour tool beyond the current 12 swatches without returning to an overwhelming all-colours interface; explore a polished middle ground such as a carefully chosen 24-colour palette plus an optional custom colour picker, then agree the interaction before implementation
+- [ ] remove Move globe from the Design mode tabs and make it an icon-led control at the top of the vertical globe-control menu; keep its active state and accessible label clear
+- [ ] improve the alignment, sizing and visual rhythm of buttons, text, field labels and spacing throughout the Shape and Design menus on desktop and mobile
+- [ ] while Shape or Design is open, make the centre/Home globe control return the camera to the user's complete current selection rather than the global globe view
+- [ ] remove redundant Edit your shape/back hyperlinks now that the progress breadcrumb provides in-flow navigation
+- [ ] on mobile, make the browser/device Back action move through the creation history one stage at a time (Design -> Shape -> starting spot), then close the editor back to the normal globe view; it must not unexpectedly leave the site or discard the draft
+- [ ] make the Available, Purchased and Your Selection key use the exact same colours and visual treatment as the corresponding rendered globe cells and grid, especially the Available state
+- [ ] remove the default “Type a total or add 1, 10 or 100 hexagons. Minimum 5.” helper text from Shape
+- [ ] if Design this space is pressed with fewer than five hexagons selected, show a small red validation message directly below the hexagon-count field; clear it once the selection is valid
