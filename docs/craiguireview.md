@@ -44,3 +44,4 @@ Placements
 - [x] always accept an available starting hexagon, shrinking the initial ten only when it is completely enclosed
 - [x] grow typed and preset sizes around purchased cells so the displayed and charged count contains only unique available hexagons
 - [x] restore only unfinished work; clear the completed draft before the next Claim Your Space journey
+- [ ] when Claim Your Space is clicked, immediately cover the whole page with the branded loading screen while the globe eases in slightly; do not leave the landing page visible behind the transition, and if the studio menu still needs time to become ready, continue the loading animation within the menu until it can be used
