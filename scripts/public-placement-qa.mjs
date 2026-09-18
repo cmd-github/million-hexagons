@@ -132,7 +132,7 @@ try {
       throw Error(`Unexpected ${body.action}`);
     });
     await page.route("https://example.com/**", (route) => route.abort());
-    await page.goto(`${origin}/#placement=${placementId}`, { waitUntil: "domcontentloaded", timeout: 90000 });
+    await page.goto(`${origin}/placement/${placementId}`, { waitUntil: "domcontentloaded", timeout: 90000 });
     await page.waitForSelector("#placementInspector:not([hidden])", {
       timeout: 90000,
     });
@@ -219,14 +219,14 @@ try {
     await page.locator("#copySharePlacement").click();
     assert.match(
       await page.evaluate(() => window.__copied),
-      new RegExp(`#placement=${placementId}$`),
+      new RegExp(`/placement/${placementId}$`),
     );
     await page.locator('[data-share-destination="x"]').click();
     assert.match(await page.evaluate(() => window.__shareDestination),/twitter\.com\/intent\/tweet/);
     assert.match(await page.locator('#shareCardStatus').textContent(),/Opening X/);
     await page.locator('#nativeSharePlacement').click();
     await page.waitForFunction(() => window.__nativeShare);
-    assert.match(await page.evaluate(() => window.__nativeShare.url),new RegExp(`#placement=${placementId}$`));
+    assert.match(await page.evaluate(() => window.__nativeShare.url),new RegExp(`/placement/${placementId}$`));
     assert.match(await page.locator('#shareCardStatus').textContent(),/Shared/);
     await page.screenshot({
       path: `artifacts/public-placement/${mobile ? "mobile" : "desktop"}.png`,

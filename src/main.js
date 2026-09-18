@@ -908,7 +908,7 @@ function updateTotals() {
   document.querySelector('#placePrice').textContent = priceText;
   document.querySelector('#reviewCount').textContent = countText;
   document.querySelector('#reviewPrice').textContent = priceText;
-  document.querySelector('#toPlacement').disabled = count<5;
+  document.querySelector('#toPlacement').disabled = !ownerEdit&&count<5;
   document.querySelector('#toDesign').disabled = false;
   if(count>=5)document.querySelector('#shapeCountError').hidden=true;
   updateLogoGuidance();
@@ -1092,7 +1092,7 @@ function enterShapeStep(){
   showFlowStep('shape');selectionModeUniform.value=1;selectedCell=cellForId(designAnchor);selectedCells=previewCells();clearPlacementPreview();logoEditorMode='hex';refreshSelection(selectedCells);controls.enableRotate=false;updateTotals();
 }
 function enterDesignStep(){
-  if(placementCount()<5){document.querySelector('#shapeCountError').hidden=false;document.querySelector('#hexAmount').focus();return;}
+  if(!ownerEdit&&placementCount()<5){document.querySelector('#shapeCountError').hidden=false;document.querySelector('#hexAmount').focus();return;}
   document.querySelector('#shapeCountError').hidden=true;
   document.body.classList.remove('choosing-start');selectionModeUniform.value=0;clearSelectionColours();showFlowStep('design');setDesignSurface('globe');setEditorMode('move',false);drawDesignPreview();updateTotals();
   if(innerWidth<=700){const normal=new THREE.Vector3(...topology.centre(designAnchor));const angle=Math.acos(Math.max(-1,previewCells().reduce((dot,cell)=>Math.min(dot,normal.dot(new THREE.Vector3(...topology.centre(cell.id)))),1)))+.004;flyToCell(designAnchor,angle,600);}
@@ -1804,7 +1804,7 @@ document.querySelector('#closeEmbeddedCheckout').onclick=hideEmbeddedCheckout;
 async function initializeStaging(){
 if(import.meta.env.VITE_STAGING_SANDBOX){
   await ensureStagingInventory();
-  trackEvent('globe_viewed',{context:{source:location.hash.startsWith('#placement=')?'share':'direct'}});
+  trackEvent('globe_viewed',{context:{source:placementIdFromLocation()?'share':'direct'}});
   try{const {stats}=await stagingClient.getPublicStats();globalMetricExamples=[`${stats.claimedCells.toLocaleString()} / 1,000,000 claimed`,`${stats.remainingCells.toLocaleString()} remaining`,`${stats.placements.toLocaleString()} ${stats.placements===1?'placement':'placements'}`,`${stats.views.toLocaleString()} measured placement views`,`${stats.clicks.toLocaleString()} website visits sent`];document.querySelector('#globalMetricText').textContent=globalMetricExamples[0];document.querySelector('#globalMetrics').hidden=false;}catch{document.querySelector('#globalMetrics').hidden=true;}
   const access=document.querySelector('#stagingOwnerAccess'),status=document.querySelector('#stagingOwnerStatus'),accountPanel=document.querySelector('#accountPanel'),accountStatus=document.querySelector('#accountStatus'),accountToggle=document.querySelector('#toggleAccount');
   accountToggle.onclick=()=>{const opening=accountPanel.hidden;accountPanel.hidden=!opening;accountToggle.setAttribute('aria-expanded',String(opening));if(opening&&!stagingUser)document.querySelector('#accountEmail').focus();};
@@ -1936,7 +1936,7 @@ async function paintPlacement() {
   if(stagingClient){
     if(ownerEdit){
       publishing=true;document.querySelector('#buyPanel').inert=true;const button=document.querySelector('#previewPurchase'),label=button.textContent;button.disabled=true;button.textContent='Saving changes…';
-      try{const sourceCanvas=renderArtwork(previewCells()),placementId=ownerEdit.record.placementId,content={title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:publicationArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas),originalArtworkDataUrl:uploadedLogo?uploadedLogo.toDataURL('image/png'):ownerEdit.source.originalArtworkDataUrl,designState:{schemaVersion:1,topologyVersion:'geodesic-v1',anchor:ownerEdit.record.anchor,cells:previewCells().map(({id,color,transparent})=>({id,...(color?{color}:{}),...(transparent?{transparent:true}:{})})),baseColour:color,imageTransform:{scale:Number(document.querySelector('#logoScale').value),x:logoPosition.x,y:logoPosition.y,rotation:Number(document.querySelector('#logoOrientation').value),treatment}}},saved=await stagingClient.updatePlacementContent(placementId,content);button.textContent='Updating globe…';let published=null;for(let attempt=0;attempt<60;attempt++){published=await stagingClient.getPublicPlacement(placementId).catch(()=>null);if(Number(published?.version)>=Number(saved.version))break;await new Promise(resolve=>setTimeout(resolve,1000));}if(Number(published?.version)<Number(saved.version))throw new Error('Your changes were saved, but the globe is taking longer than expected to update. Refresh in a moment.');sessionStorage.setItem('mh-owner-update-complete',placementId);location.hash=`placement=${placementId}`;location.reload();}
+      try{const sourceCanvas=renderArtwork(previewCells()),placementId=ownerEdit.record.placementId,content={title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:publicationArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas),originalArtworkDataUrl:uploadedLogo?uploadedLogo.toDataURL('image/png'):ownerEdit.source.originalArtworkDataUrl,designState:{schemaVersion:1,topologyVersion:'geodesic-v1',anchor:ownerEdit.record.anchor,cells:previewCells().map(({id,color,transparent})=>({id,...(color?{color}:{}),...(transparent?{transparent:true}:{})})),baseColour:color,imageTransform:{scale:Number(document.querySelector('#logoScale').value),x:logoPosition.x,y:logoPosition.y,rotation:Number(document.querySelector('#logoOrientation').value),treatment}}},saved=await stagingClient.updatePlacementContent(placementId,content);button.textContent='Updating globe…';let published=null;for(let attempt=0;attempt<60;attempt++){published=await stagingClient.getPublicPlacement(placementId).catch(()=>null);if(Number(published?.version)>=Number(saved.version))break;await new Promise(resolve=>setTimeout(resolve,1000));}if(Number(published?.version)<Number(saved.version))throw new Error('Your changes were saved, but the globe is taking longer than expected to update. Refresh in a moment.');sessionStorage.setItem('mh-owner-update-complete',placementId);location.assign(`/placement/${placementId}${location.search}`);}
       catch(error){document.querySelector('#purchaseError').hidden=false;document.querySelector('#purchaseError').textContent=error.message.startsWith('Your changes were saved')?error.message:`Could not save your changes: ${error.message}`;}
       finally{publishing=false;document.querySelector('#buyPanel').inert=false;button.disabled=false;button.textContent=label;}return;
     }
@@ -2366,7 +2366,7 @@ function companyEntries(){return [...bootstrap.sampleAreas.map(area=>({id:area.a
 function renderCompanyResults(){
   const target=document.querySelector('#companyResults'),query=hexSearchInput.value.trim().toLowerCase();target.replaceChildren();
   if(!query||/^#?\d+$/.test(query))return;
-  if(snapshotEnabled){void import('./staging-client.js').then(client=>client.searchPublicPlacements(query)).then(records=>{if(hexSearchInput.value.trim().toLowerCase()!==query)return;for(const record of records){const button=document.createElement('button');button.type='button';button.textContent=record.title;button.onclick=()=>{location.hash=`placement=${record.placementId}`;showHexSearch(false);};target.append(button);}}).catch(()=>{hexSearchStatus.textContent='Search is temporarily unavailable.';});return;}
+  if(snapshotEnabled){void import('./staging-client.js').then(client=>client.searchPublicPlacements(query)).then(records=>{if(hexSearchInput.value.trim().toLowerCase()!==query)return;for(const record of records){const button=document.createElement('button');button.type='button';button.textContent=record.title;button.onclick=()=>location.assign(`/placement/${record.placementId}`);target.append(button);}}).catch(()=>{hexSearchStatus.textContent='Search is temporarily unavailable.';});return;}
   for(const entry of companyEntries().filter((entry,index,all)=>all.findIndex(other=>other.name===entry.name)===index&&entry.name.toLowerCase().includes(query)).slice(0,8)){
     const button=document.createElement('button');button.type='button';button.textContent=entry.name;
     button.onclick=async()=>{if(await inspectPlacement(entry.id))viewInspectedPlacement();showHexSearch(false);};target.append(button);
@@ -2414,7 +2414,8 @@ function viewInspectedPlacement(onComplete=()=>{}){
 }
 
 let activeShare=null;
-function placementShareUrl(record,id){const url=new URL(location.href);url.hash=record?.placementId?`placement=${record.placementId}`:`cell=${id}`;return url.href;}
+function placementIdFromLocation(){return location.pathname.match(/^\/placement\/([0-9a-f-]{36})\/?$/i)?.[1]||location.hash.match(/^#placement=([0-9a-f-]{36})$/i)?.[1]||'';}
+function placementShareUrl(record,id){const url=new URL(location.href);if(record?.placementId){url.pathname=`/placement/${record.placementId}`;url.search='';url.hash='';}else{url.pathname='/';url.hash=`cell=${id}`;}return url.href;}
 function updateInspectorShareControl(){const button=document.querySelector('#inspectorShare'),record=sessionPlacements.get(inspectedId),owner=record?.placementId&&ownedPlacementIds.has(record.placementId);button.classList.toggle('owner-share',Boolean(owner));button.setAttribute('aria-label',owner?'Share your placement':'Share placement');button.title=owner?'Share your placement':'Share placement';}
 function closeShareCard(){document.querySelector('#shareCard').hidden=true;document.body.classList.remove('sharing-placement');activeShare=null;document.querySelector('#inspectorShare').focus();}
 async function refreshSharePreview(){if(!activeShare)return;const canvas=await renderShareCard(activeShare.record,document.querySelector('#shareCardFormat').value),preview=document.querySelector('#shareCardPreview');preview.width=canvas.width;preview.height=canvas.height;preview.getContext('2d').drawImage(canvas,0,0);}
@@ -2430,18 +2431,18 @@ document.querySelector('.share-destinations').onclick=event=>{const button=event
 document.querySelector('.share-no-link').onclick=event=>{const button=event.target.closest('[data-share-download]');if(button)void downloadActiveShare(button,`${button.textContent} image downloaded ✓ Add it to your post; use Copy link for your bio, caption or link sticker.`);};
 document.querySelector('#deleteTestPlacement').onclick=async event=>{const placementId=event.currentTarget.dataset.placementId;if(!placementId||!stagingClient)return;event.currentTarget.disabled=true;try{await stagingClient.deleteTestClaim(placementId);location.reload();}catch(error){document.querySelector('#inspectorStatus').textContent='Could not delete this test placement.';event.currentTarget.disabled=false;}};
 async function openLocationLink(){
-  const placementMatch=location.hash.match(/^#placement=([0-9a-f-]{36})$/),cellMatch=location.hash.match(/^#cell=(\d+)$/);if(!placementMatch&&!cellMatch)return;
+  const placementId=placementIdFromLocation(),cellMatch=location.hash.match(/^#cell=(\d+)$/);if(!placementId&&!cellMatch)return;
   const request=++flightVersion;
-  if(placementMatch&&import.meta.env.VITE_STAGING_SANDBOX){
+  if(placementId&&import.meta.env.VITE_STAGING_SANDBOX){
     // A shared/owner-update link needs one record, not the entire catalogue.
-    const client=await import('./staging-client.js'),record=await client.getPublicPlacement(placementMatch[1]);
+    const client=await import('./staging-client.js'),record=await client.getPublicPlacement(placementId);
     if(request!==flightVersion||!record)return;
     await applyPersistentPlacements([record]);await prepareLocation(record.anchor);
     if(request!==flightVersion)return;
     if(await inspectPlacement(record.anchor))viewInspectedPlacement();return;
   }
   await Promise.all([ensureTopology(),ensureStagingInventory()]);if(request!==flightVersion)return;
-  if(placementMatch){const record=[...new Set(sessionPlacements.values())].find(item=>item.placementId===placementMatch[1]);if(!record)return;if(await inspectPlacement(record.anchor))viewInspectedPlacement();return;}
+  if(placementId){const record=[...new Set(sessionPlacements.values())].find(item=>item.placementId===placementId);if(!record)return;if(await inspectPlacement(record.anchor))viewInspectedPlacement();return;}
   const id=Number(cellMatch[1]);if(id<1||id>CELL_COUNT)return;
   await prepareLocation(id);if(request!==flightVersion)return;
   if(occupiedCells[id-1]){if(await inspectPlacement(id))viewInspectedPlacement();}else flyToCell(id,.004,1800);
@@ -2456,7 +2457,7 @@ async function loadLocationArtwork(){
   finally{if(version===locationLoadVersion)locationLoading=false;}
 }
 addEventListener('hashchange',loadLocationArtwork);
-if(/^#(?:cell=\d+|placement=[0-9a-f-]{36})$/.test(location.hash))void loadLocationArtwork();
+if(placementIdFromLocation()||/^#cell=\d+$/.test(location.hash))void loadLocationArtwork();
 else if(pendingPersistentFocus)void focusPersistentPlacement(pendingPersistentFocus).catch(error=>console.error('Could not focus saved placement',error));
 pendingPersistentFocus=null;
 void initializeStaging().then(()=>{
@@ -2467,7 +2468,7 @@ startArtworkLoading(()=>{
   if(locationLoading||cameraFlight.active)return{message:'Preparing your location…'};
   if(snapshotEnabled)return{ready:hasArtworkPreview(snapshotRuntime?.current?.tiles),error:startupArtworkError,message:'Loading artwork…'};
   if(startupArtworkError)return{error:startupArtworkError};
-  const placementId=location.hash.match(/^#placement=([0-9a-f-]{36})$/)?.[1];
+  const placementId=placementIdFromLocation();
   if(!stagingInventoryLoaded&&!placementId)return{message:'Loading the globe…'};
   let states=[...persistentArtworkState.values()];
   if(placementId)states=states.filter(state=>state.record.placementId===placementId);

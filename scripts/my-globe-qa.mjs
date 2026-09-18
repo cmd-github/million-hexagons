@@ -201,7 +201,7 @@ try {
     await page.locator("#logoScale").fill("135");
     await page.locator("#logoOrientation").fill("15");
     await page.locator("#paintCells").click();
-    await page.locator("#brushColor").fill("#ff4d6d");
+    await page.locator("#customColour").fill("#ff4d6d");
     const editPoint = await page.evaluate((id) => window.geodesicQA.screen(id), records[0].anchor);
     await page.mouse.click(editPoint.x, editPoint.y);
     await page.screenshot({
@@ -241,7 +241,7 @@ try {
       update.content.originalArtworkDataUrl,
       /^data:image\/(?:png|webp);base64,/,
     );
-    assert.equal(new URL(page.url()).hash, "#placement=12345678-1234-1234-1234-123456789abc");
+    assert.equal(new URL(page.url()).pathname, "/placement/12345678-1234-1234-1234-123456789abc");
     await page.locator("#placementInspector").waitFor({ state: "visible" });
     assert.equal(
       await page.locator("#inspectorName").textContent(),

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import {artworkDerivatives,validateArtworkImage} from './artwork-derivatives.js';
+import {artworkDerivatives,openGraphCard,validateArtworkImage} from './artwork-derivatives.js';
 test('publication decodes input and keeps full source resolution with bounded derivatives',async()=>{
   const source=await sharp({create:{width:1600,height:800,channels:4,background:'#12345680'}}).png().toBuffer(),result=await artworkDerivatives(source);
   assert.equal((await sharp(result.canonical).metadata()).width,1600);
@@ -11,4 +11,6 @@ test('publication decodes input and keeps full source resolution with bounded de
   await assert.rejects(artworkDerivatives(Buffer.from('not a PNG')));
   await assert.rejects(validateArtworkImage(source,'image/webp'),/format-mismatch/);
   await validateArtworkImage(source,'image/png');
+  const card=await openGraphCard(source,{title:'North & South',cellCount:48,anchor:847231}),cardMetadata=await sharp(card).metadata();
+  assert.equal(cardMetadata.width,1200);assert.equal(cardMetadata.height,630);assert.equal(cardMetadata.format,'webp');
 });
