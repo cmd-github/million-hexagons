@@ -5,8 +5,8 @@ export default{
     const url=new URL(request.url);
     const placementId=placementIdFromPath(url.pathname);
     if(placementId&&request.method==='GET'){
-      const cache=caches.default,key=new Request(url.href,{headers:{accept:'text/html'}}),hit=await cache.match(key);if(hit)return hit;
-      const shell=await env.ASSETS.fetch(new Request(`${url.origin}/index.html`,request));
+      const cache=caches.default,key=new Request(`${url.href}${url.search?'&':'?'}mh-meta=2`,{headers:{accept:'text/html'}}),hit=await cache.match(key);if(hit)return hit;
+      const shell=await env.ASSETS.fetch(new Request(`${url.origin}/`,request));
       try{
         const upstream=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'public-placement',placementId}),signal:AbortSignal.timeout(8000)});
         if(!upstream.ok){const headers=new Headers(shell.headers);headers.set('content-type','text/html;charset=UTF-8');headers.set('cache-control','no-store');headers.set('x-robots-tag','noindex');return new Response(await shell.text(),{status:upstream.status===404?404:503,headers});}
