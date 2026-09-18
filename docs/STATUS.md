@@ -27,7 +27,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Recently done
 
-- [x] Shipped placement-specific social-link routing from source `fa3c28ac` plus shell/fallback fixes `59e7fa91` and `057877fe` as staging Worker `dc88a64d-c9f3-4e86-913c-956932acb605`. New shares use permanent `/placement/<placementId>` URLs while old fragment links still open. The Worker returns crawler-readable unique title, description, canonical, Open Graph and Twitter metadata from the public placement projection, with a reachable moderated/legacy fallback image. The 1200x630 immutable WebP generator and public projection are implemented and backend-tested but not yet deployed because the Firebase CLI user credential expired and the configured application-default identity lacks deployment IAM. The full launch gate passes 60 repository and 52 backend tests; focused desktop/mobile public-placement and owner-edit journeys, all 1,549 runtime objects, live metadata HTML/image fetches and CDN health pass.
+- [x] Shipped placement-specific social-link routing from source `fa3c28ac` plus shell/fallback fixes `59e7fa91` and `057877fe` as staging Worker `dc88a64d-c9f3-4e86-913c-956932acb605`, then deployed the matching `stagingPlacements` and `publishStagingPlacement` Firebase functions (`stagingplacements-00028-lig` confirmed). New shares use permanent `/placement/<placementId>` URLs while old fragment links still open. The Worker returns crawler-readable unique title, description, canonical, Open Graph and Twitter metadata from the public placement projection, with a reachable moderated/legacy fallback image. A disposable live publication verified the generated immutable 1200x630 `og.webp`, its public projection and the exact image URL returned by the permanent placement page to a Facebook-style crawler; moderation, rollback and cleanup also passed. The full launch gate passes 60 repository and 52 backend tests; focused desktop/mobile public-placement and owner-edit journeys, all 1,549 runtime objects, live metadata HTML/image fetches and CDN health pass. The unrelated 100,000-cell reservation, conflict and expiry checks were skipped because staging has no completely free fixed 100,000-cell test range. A real recipient-platform preview remains open.
 
 - [x] Unified Shape sizing and direct globe editing and deployed source `a45273a5` as staging Worker `eecff2f2-be9a-4b1d-945c-0e70ff04f400`. The separate Choose a size / Draw your own switch is gone: the aligned count stepper, +10/+25/+100 presets and brush sizes remain together while clicking or dragging adds available cells and removes selected cells. Deleted cells briefly flash pale red, purchased cells stay blocked, connectedness is preserved and double-click zoom does not mutate the selection. Production/staging builds and focused desktop/mobile Shape/Design journeys pass with both mobile layouts inspected. All 1,549 runtime objects and live HTTPS/CDN health passed.
 
@@ -94,7 +94,6 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Blocked / Needs Craig
 
-- [ ] Run `firebase login --reauth` for the Firebase CLI deployment account so the staged 1200x630 per-placement WebP publication update can be deployed and verified end to end.
 - [ ] Configure/confirm the $10 Cloudflare budget alert.
 - [ ] Review and complete [draft commercial terms](DRAFT-COMMERCIAL-TERMS.md), including final pricing, refunds, permanent-use wording and governing law.
 - [ ] Confirm seller identity, launch-country VAT/tax and receipt/invoice treatment with qualified advice where required.
@@ -108,7 +107,7 @@ Do not infer readiness from an aggregate percentage. Track the seven evidence ga
 - Gate 1 commercial/regulatory decisions: OPEN
 - Gate 2 first-time-user usability: OPEN
 - Gate 3 artwork scale and physical devices: OPEN
-- Gate 4 purchase-to-share: IN PROGRESS (durable in-product journey and downloadable cards implemented; per-placement Open Graph delivery and recipient-platform acceptance remain open)
+- Gate 4 purchase-to-share: IN PROGRESS (durable in-product journey, downloadable cards and per-placement Open Graph delivery implemented; real recipient-platform acceptance remains open)
 - Gate 5 public website/legal/customer acceptance: OPEN
 - Gate 6 production cutover rehearsal: OPEN (staging is verified; production configuration is absent)
 - Gate 7 operational safety: OPEN (staging GitHub failure email was confirmed; production backup/restore, recipients and alert delivery are not)
