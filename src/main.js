@@ -264,9 +264,10 @@ let explorationStart = null;
 let requestedAnchor = null, proposedCellId = null;
 let pinnedCell = null;
 let designSurface = "canvas", exactGlobeArea = false;
-let designStartingSpotConfirmed = false,shapeMode='exact';
+let designStartingSpotConfirmed = false;
 const recentColours=[];
-let hoverTimer, globeStroke = null, flightVersion=0;
+let hoverTimer, globeStroke = null, shapeClickTimer = null, flightVersion=0;
+const deletedCellFlashes=new Map();
 function individualHexagonsVisible(){return Boolean(cellDetail&&cellDetail.stats.ready>0&&cellDetail.material.uniforms.visibility.value>.12);}
 let forceIntersectionMiss=false;
 for(const type of ['pointerdown','wheel','keydown'])document.addEventListener(type,()=>flightVersion++,{capture:true,passive:true});
@@ -428,7 +429,15 @@ function refreshSelection(preparedCells = null) {
 function renderSelectionPreview() {
   selectionColourData.fill(0);
   selectedCells.forEach((cell) => writeCellColour(selectionColourData,cell,'#d7ff55'));
+  for(const id of deletedCellFlashes.keys())writeCellColour(selectionColourData,{id},'#ff9aa8');
   selectionColourTexture.needsUpdate = true;
+}
+
+function flashDeletedCells(ids){
+  for(const id of ids){
+    clearTimeout(deletedCellFlashes.get(id));
+    deletedCellFlashes.set(id,setTimeout(()=>{deletedCellFlashes.delete(id);renderSelectionPreview();},280));
+  }
 }
 
 function updateHover(hit, cell) {
@@ -1079,8 +1088,8 @@ function configureCreation() {
   drawDesignPreview();updateTotals();
 }
 function enterShapeStep(){
-  shapeMode='exact';document.querySelector('[name="shapeMode"][value="exact"]').checked=true;document.querySelector('#sizeControls').hidden=false;document.querySelector('#shapeBrushControls').hidden=true;document.querySelector('#shapeStatus').hidden=true;document.querySelector('#shapeStatus').textContent='';document.querySelector('#shapeCountError').hidden=true;
-  showFlowStep('shape');selectionModeUniform.value=1;selectedCell=cellForId(designAnchor);selectedCells=previewCells();clearPlacementPreview();refreshSelection(selectedCells);controls.enableRotate=true;updateTotals();
+  document.querySelector('#sizeControls').hidden=false;document.querySelector('#shapeBrushControls').hidden=false;document.querySelector('#shapeStatus').hidden=true;document.querySelector('#shapeStatus').textContent='';document.querySelector('#shapeCountError').hidden=true;
+  showFlowStep('shape');selectionModeUniform.value=1;selectedCell=cellForId(designAnchor);selectedCells=previewCells();clearPlacementPreview();logoEditorMode='hex';refreshSelection(selectedCells);controls.enableRotate=false;updateTotals();
 }
 function enterDesignStep(){
   if(placementCount()<5){document.querySelector('#shapeCountError').hidden=false;document.querySelector('#hexAmount').focus();return;}
@@ -1249,9 +1258,6 @@ document.querySelector('#redoPaint').addEventListener('click',()=>restorePaint(r
 
 document.querySelector('#toPlacement').addEventListener('click', () => {syncGlobeDesign();if(document.querySelector('#toPlacement').disabled)return;draftArtwork=renderArtwork(previewCells());selectedCell=cellForId(designAnchor);selectedCells=previewCells();document.querySelector('#toReview').disabled=false;document.querySelector('#toReview').click();});
 document.querySelector('#toDesign').addEventListener('click',enterDesignStep);
-document.querySelectorAll('[name="shapeMode"]').forEach(input=>input.addEventListener('change',()=>{
-  shapeMode=document.querySelector('[name="shapeMode"]:checked').value;const freehand=shapeMode==='freehand',status=document.querySelector('#shapeStatus');document.querySelector('#sizeControls').hidden=freehand;document.querySelector('#shapeBrushControls').hidden=!freehand;status.textContent=freehand?'Choose a brush, then add or remove connected hexagons on the globe.':'';status.hidden=!status.textContent;document.querySelector('#shapeCountError').hidden=true;logoEditorMode=freehand?'hex':'pan';controls.enableRotate=!freehand;
-}));
 document.querySelector('#backToDesign').addEventListener('click', () => { clearPlacementPreview(); selecting = false; selectionModeUniform.value = 0; document.body.classList.remove('selecting', 'placing-design'); controls.enableRotate = true; showFlowStep('design'); drawDesignPreview(); updateTotals(); });
 document.querySelector('#moveGlobeMode').addEventListener('click', () => setInteractionMode('move'));
 document.querySelector('#placeDesignMode').addEventListener('click', () => setInteractionMode('place'));
@@ -2094,6 +2100,7 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('geodesicQA'
     neighbours(id) { return topology.neighboursOf(id); },
     isOccupied(id){return Boolean(occupiedCells[id-1]);},
     selectionAlpha(id){return selectionColourData[(id-1)*4+3];},
+    selectionColour(id){return [...selectionColourData.slice((id-1)*4,(id-1)*4+4)];},
     setOccupied(ids,value=true){for(const id of ids)occupiedCells[id-1]=value?255:0;occupancyTexture.needsUpdate=true;},
     async availableSelection(id,count){await prepareLocation(id,.2);return topology.run(()=>availableConnectedSelection(id,count)).then(cells=>cells.map(cell=>cell.id));},
     missNextIntersection() { forceIntersectionMiss=true; },
@@ -2136,8 +2143,8 @@ document.querySelectorAll('[data-shape-brush]').forEach(button=>button.addEventL
   document.querySelector('#areaBrush').value=button.dataset.shapeBrush;
   document.querySelectorAll('[data-shape-brush]').forEach(item=>{const active=item===button;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));});
 }));
-async function editGlobeCell(id){
-  const stroke=globeStroke,mode=logoEditorMode;
+async function editGlobeCell(id,stroke=globeStroke){
+  const mode=logoEditorMode;
   if(!stroke||stroke.last===id)return;
   const reach=Number(document.querySelector('#areaBrush').value);
   try {
@@ -2159,8 +2166,12 @@ function applyGlobeCell(id,stroke){
   for(let ring=0;ring<reach;ring++){for(let i=start;i<end;i++)for(const n of topology.neighboursOf(brush[i]))if(!seen.has(n)){seen.add(n);brush.push(n);}start=end;end=brush.length;}
   if(logoEditorMode==='hex'){
     if(document.body.dataset.flow==='shape'&&next.has(id)){
-      const candidate=new Map(next);for(const n of brush)if(n!==designAnchor)candidate.delete(n);
-      if(candidate.size>=5&&topology.isConnected([...candidate.values()])){next.clear();for(const [key,value] of candidate)next.set(key,value);}
+      const candidate=new Map(next),removed=[];for(const n of brush)if(candidate.delete(n))removed.push(n);
+      if(candidate.size&&topology.isConnected([...candidate.values()])){
+        next.clear();for(const [key,value] of candidate)next.set(key,value);
+        if(!next.has(designAnchor))designAnchor=next.keys().next().value;
+        flashDeletedCells(removed);
+      }
     }else{
       let pending=brush.filter(n=>!occupiedCells[n-1]&&!next.has(n));
       for(let pass=0;pending.length&&pass<=reach+1;pass++){
@@ -2182,11 +2193,11 @@ function applyGlobeCell(id,stroke){
 }
 canvas.addEventListener('pointerdown',event=>{
   clearTimeout(hoverTimer);
-  const flow=document.body.dataset.flow;if(!['design','shape'].includes(flow)||flow==='shape'&&shapeMode!=='freehand'||designSurface!=='globe'||logoEditorMode==='pan'||event.button!==0)return;
+  const flow=document.body.dataset.flow;if(!['design','shape'].includes(flow)||designSurface!=='globe'||logoEditorMode==='pan'||event.button!==0)return;
   const hit=intersect(event);if(!hit)return;
-  globeStroke={last:null,x:event.clientX,y:event.clientY,position:{...logoPosition}};
+  globeStroke={last:null,x:event.clientX,y:event.clientY,startId:hit.cell.id,dragged:false,position:{...logoPosition}};
   rememberPaint();canvas.setPointerCapture(event.pointerId);
-  if(logoEditorMode!=='move')editGlobeCell(hit.cell.id);
+  if(logoEditorMode!=='move'&&flow!=='shape')editGlobeCell(hit.cell.id);
 });
 canvas.addEventListener('pointermove',event=>{
   if(!globeStroke)return;
@@ -2194,9 +2205,19 @@ canvas.addEventListener('pointermove',event=>{
     logoPosition.x=Math.max(-100,Math.min(100,globeStroke.position.x+(event.clientX-globeStroke.x)/2));
     logoPosition.y=Math.max(-100,Math.min(100,globeStroke.position.y+(event.clientY-globeStroke.y)/2));
     queueDesignPreview();
-  }else{const hit=intersect(event);if(hit)editGlobeCell(hit.cell.id);}
+  }else{
+    const hit=intersect(event);if(!hit)return;
+    if(document.body.dataset.flow==='shape'&&!globeStroke.dragged&&Math.hypot(event.clientX-globeStroke.x,event.clientY-globeStroke.y)>4){globeStroke.dragged=true;editGlobeCell(globeStroke.startId);}
+    if(document.body.dataset.flow!=='shape'||globeStroke.dragged)editGlobeCell(hit.cell.id);
+  }
 });
-for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>globeStroke=null);
+canvas.addEventListener('pointerup',()=>{
+  const stroke=globeStroke;globeStroke=null;
+  if(document.body.dataset.flow==='shape'&&stroke&&!stroke.dragged&&logoEditorMode==='hex'){
+    clearTimeout(shapeClickTimer);shapeClickTimer=setTimeout(()=>editGlobeCell(stroke.startId,stroke),220);
+  }
+});
+for(const event of ['pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>globeStroke=null);
 let inspectorVersion=0;
 let inspectedId=null, inspectedCells=[], hudPinned=false, inspectedOwner=null;
 const analyticsSession=(()=>{try{let value=sessionStorage.getItem('mh-analytics-session');if(!value){value=crypto.randomUUID();sessionStorage.setItem('mh-analytics-session',value);}return value;}catch{return crypto.randomUUID();}})();
@@ -2464,7 +2485,7 @@ try{if(sessionStorage.getItem('mh-owner-update-complete')){sessionStorage.remove
 
 canvas.addEventListener('dblclick',event=>{
   if(document.body.dataset.flow==='design'&&logoEditorMode!=='pan')return;
-  event.preventDefault();controls.autoRotate=false;zoom.change(.5);
+  event.preventDefault();clearTimeout(shapeClickTimer);shapeClickTimer=null;controls.autoRotate=false;zoom.change(.5);
 });
 document.querySelector('#logoOrientation').addEventListener('input',event=>{
  document.querySelector('#rotationValue').textContent=event.target.value+'\u00b0';queueDesignPreview();

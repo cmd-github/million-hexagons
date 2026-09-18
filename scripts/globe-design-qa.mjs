@@ -121,8 +121,9 @@ try {
         .flatMap((id) => window.geodesicQA.neighbours(id))
         .find((id) => !owned.has(id));
     });
-    await page.locator('[name="shapeMode"][value="freehand"]').check();
-    assert.equal(await page.locator("#sizeControls").isHidden(), true);
+    assert.equal(await page.locator('[name="shapeMode"]').count(),0);
+    assert.equal(await page.locator("#sizeControls").isVisible(), true);
+    assert.equal(await page.locator("#shapeBrushControls").isVisible(), true);
     await page.evaluate((id) => window.geodesicQA.focus(id, 0.6), freeCell);
     await clickCell(freeCell);
     await page.waitForFunction(
@@ -131,7 +132,23 @@ try {
     const drawnIds = await page.evaluate(
       () => window.geodesicQA.state().design,
     );
-    await page.locator('[name="shapeMode"][value="exact"]').check();
+    await page.waitForTimeout(550);
+    await clickCell(freeCell);
+    await page.waitForFunction(
+      () => window.geodesicQA.state().design.length === 20,
+    );
+    const deletionFlash=await page.evaluate(id=>window.geodesicQA.selectionColour(id),freeCell);
+    assert.equal(deletionFlash[3],255);
+    assert.ok(deletionFlash[0]>deletionFlash[1]&&deletionFlash[1]>0);
+    await page.waitForTimeout(300);
+    assert.equal(await page.evaluate(id=>window.geodesicQA.selectionAlpha(id),freeCell),0);
+    const beforeDoubleClick=await page.evaluate(()=>({count:window.geodesicQA.state().design.length,camera:Math.hypot(...window.geodesicQA.state().camera)}));
+    const freePoint=await page.evaluate(id=>window.geodesicQA.screen(id),freeCell);
+    await page.mouse.dblclick(freePoint.x,freePoint.y,{delay:60});
+    await page.waitForTimeout(300);
+    const afterDoubleClick=await page.evaluate(()=>({count:window.geodesicQA.state().design.length,camera:Math.hypot(...window.geodesicQA.state().camera)}));
+    assert.equal(afterDoubleClick.count,beforeDoubleClick.count);
+    assert.ok(afterDoubleClick.camera<beforeDoubleClick.camera);
     await page.locator("#hexAmount").fill("22");
     await page.waitForFunction(
       () => window.geodesicQA.state().design.length === 22,
@@ -139,8 +156,7 @@ try {
     const resizedDrawn = await page.evaluate(
       () => window.geodesicQA.state().design,
     );
-    assert.ok(drawnIds.every((id) => resizedDrawn.includes(id)));
-    await page.locator('[name="shapeMode"][value="freehand"]').check();
+    assert.ok(drawnIds.filter(id=>id!==freeCell).every((id) => resizedDrawn.includes(id)));
     await page.locator("#appLoading").waitFor({ state: "hidden" });
     await page.screenshot({
       path: "artifacts/globe-design/" + mobile + "-shape.png",
