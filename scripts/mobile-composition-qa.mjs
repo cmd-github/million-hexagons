@@ -123,6 +123,43 @@ for (const [name, vw, vh] of [["390x844", 390, 844], ["320x568", 320, 568]]) {
   await page.close();
 }
 
+// Shape and Design must fit their panel without vertical scrolling on a phone.
+for (const [name, vw, vh] of [["390x844", 390, 844], ["320x568", 320, 568]]) {
+  const page = await browser.newPage({ viewport: { width: vw, height: vh }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  page.setDefaultTimeout(40000);
+  await page.goto(base + "/?geodesicQA");
+  await page.waitForSelector("#world[data-ready=true]", { timeout: 90000 });
+  await page.waitForTimeout(2500);
+  await page.locator("#claimButton").click();
+  await page.locator("#locationStep").waitFor();
+  const anchor = await page.evaluate(() => window.geodesicQA.state().designAnchor);
+  await page.evaluate(id => window.geodesicQA.focus(id, .6), anchor);
+  await page.waitForFunction(() => window.geodesicQA.state().detailVertices > 0);
+  await page.waitForTimeout(300);
+  const pt = await page.evaluate(id => window.geodesicQA.screen(id), anchor);
+  await page.touchscreen.tap(pt.x, pt.y);
+  await page.locator("#claimCell").waitFor({ state: "visible" });
+  await page.locator("#claimCell").click();
+  await page.locator("#shapeStep").waitFor({ state: "visible" });
+  await page.waitForTimeout(600);
+  const overflow = () => page.evaluate(() => {
+    const s = document.querySelector(".flow-screen:not([hidden])");
+    return { flow: document.body.dataset.flow, over: s ? s.scrollHeight - s.clientHeight : 0 };
+  });
+  for (const step of ["shape", "design"]) {
+    if (step === "design") {
+      await page.locator("#toDesign").click();
+      await page.locator("#designStep").waitFor({ state: "visible" });
+      await page.waitForTimeout(900);
+    }
+    const o = await overflow();
+    await page.screenshot({ path: `${out}/${name}-${step}.png` });
+    if (o.over > 0) throw Error(`${name}: ${o.flow} must fit without scrolling, overflows by ${o.over}px`);
+    console.log(`${name} | ${o.flow} fits its panel with no scrolling`);
+  }
+  await page.close();
+}
+
 fs.writeFileSync(`${out}/occlusion-measured.json`, JSON.stringify(results, null, 2));
 for (const k in results) { const v = results[k];
   console.log(`${k} | globe on screen ${v.globe.onScreenPctOfScreen}% | covered ${v.occlusion.pctGlobeCoveredByUI}% | unobstructed ${v.occlusion.unobstructedGlobePctOfScreen}% | chrome ${v.chromePctOfScreen}% | clipped ${v.globe.clippedByViewport}`);

@@ -645,11 +645,15 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
   bottom:calc(var(--phone-sheet, 150px) + max(10px,env(safe-area-inset-bottom)));
   display:grid;gap:10px;background:none;border:0;box-shadow:none;backdrop-filter:none;border-radius:0;
  }
- /* Smaller circle, but the pseudo-element keeps a 44px touch target. */
+ /* Smaller circle, but the pseudo-element keeps a 44px touch target. The base
+    rule leaves the glyph sitting off-centre, so centre it explicitly and drop
+    the inherited padding and line box. */
  body:not(.creating) .globe-controls button{
   position:relative;width:36px;height:36px;border:1px solid var(--line);border-radius:50%;
   background:rgba(8,22,34,.72);backdrop-filter:blur(14px);
+  display:grid;place-items:center;padding:0;line-height:0;font-size:0;
  }
+ body:not(.creating) .globe-controls button>*{grid-area:1/1;place-self:center}
  body:not(.creating) .globe-controls button:after{content:'';position:absolute;inset:-4px;border-radius:50%}
  body:not(.creating) .globe-controls .ico{--ico:19px}
  body:not(.creating) #rotationToggle{display:none}
@@ -681,15 +685,79 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
  body:not(.creating) #claimFeed[open]{width:min(280px,calc(100vw - 84px))}
  body:not(.creating) #claimFeed[open] #claimFeedItems{height:96px;max-height:96px}
 
+ /* Studio: each stage fits without scrolling, and spends far less height on
+    chrome. The progress row, step headings and explanatory copy were costing
+    more than the controls they introduce. */
+ body.creating .flow-progress{min-height:0;margin:0 42px 8px 0;padding-bottom:6px;gap:3px}
+ body.creating .flow-progress button{min-height:0;gap:2px}
+ body.creating .flow-progress i{width:18px;height:18px;font-size:8px}
+ body.creating .flow-progress small{font-size:8px;margin-top:0}
+ body.creating .flow-screen{gap:6px}
+ body.creating .flow-screen h2,#designStep .studio-heading h2{font-size:19px;letter-spacing:-.5px}
+ body.creating .flow-screen .panel-intro{display:none}
+ body.creating .buy-panel>.close{width:38px;height:38px;right:10px;top:10px}
+
+ /* Shape: the size card and brushes carry most of the height. */
+ #shapeStep .availability-key{display:none}
+ #shapeStep .shape-size-card{padding:9px;gap:6px}
+ #shapeStep .shape-size-heading{font-size:10px}
+ #shapeStep .shape-count-stepper{gap:6px}
+ #shapeStep .shape-count-stepper button{min-height:38px;padding:4px}
+ #shapeStep .studio-count input{padding:8px;font-size:16px}
+ #shapeStep .size-presets{gap:5px}
+ #shapeStep .size-presets button{min-height:34px;padding:5px;font-size:11px}
+ #shapeStep .shape-brushes{gap:5px;font-size:10px}
+ #shapeStep .shape-brushes .hex-brush{min-height:38px}
+ #shapeStep .place-summary{margin:2px 0;padding:8px 0;font-size:12px}
+ #shapeStep .place-summary b{font-size:18px}
+ #shapeStep #toDesign{min-height:46px;padding:12px;font-size:12px}
+
+ /* Shape: stepper, presets and brushes sit on tighter rows. */
+ #shapeStep .shape-count-stepper button{min-height:40px;height:40px}
+ #shapeStep .studio-count input{padding:7px;height:40px;margin-top:0}
+ #shapeStep .size-presets button{min-height:36px;height:36px}
+ /* Put the brush label on the same row as the brushes. */
+ #shapeStep .shape-brushes{display:flex;align-items:center;flex-wrap:nowrap}
+ #shapeStep .shape-brushes>span{flex:1;margin:0}
+ #shapeStep .shape-brushes .hex-brush{min-height:38px;height:38px;flex:0 0 56px}
+
+ /* Design: the image controls carry the height, so tighten their rows. */
+ #designStep #logoPositionControls{margin-top:6px}
+ #designStep #logoPositionControls label{font-size:11px;min-height:32px;margin-top:4px}
+ #designStep #logoPositionControls input[type=range]{min-height:26px;margin:2px 0 4px}
+ #designStep #logoOptions.image-layout-choice label{padding:6px;font-size:10px;min-height:34px}
+ #designStep .add-image{min-height:38px;padding:6px}
+ #designStep .image-actions{gap:5px}
+ #designStep .image-actions button{min-height:34px;padding:6px;font-size:10px}
+
+ /* Design: trim the surround so the canvas keeps its size. */
+ #designStep .studio-toolbar{gap:3px}
+ #designStep .studio-toolbar>button{padding:6px;font-size:11px;min-height:40px}
+ #designStep .hex-editor{margin:6px 0;aspect-ratio:2.1}
+ #designStep .canvas-caption{font-size:9px}
+ #designStep .studio-context{gap:6px}
+ #designStep .design-footer{padding:8px 0 2px}
+ #designStep .mini-price b{font-size:19px}
+ #designStep .design-footer .primary{min-height:44px}
+
  /* Studio height budget: the design surfaces stop owning the screen.
     Review is a deliberate, stated exception because the user is reading a
     summary there rather than working on the globe. */
- body.creating .buy-panel{top:50dvh}
+ body.creating .buy-panel{top:47dvh;padding:12px 14px max(12px,env(safe-area-inset-bottom))}
  body[data-flow=location] .buy-panel{top:62dvh}
  body[data-flow=review] .buy-panel{top:28dvh}
 }
 @media(max-width:700px) and (max-height:650px){
- body[data-flow=design] .buy-panel,body[data-flow=shape] .buy-panel{top:42dvh}
+ /* A short screen cannot fit these stages in 42dvh, and scrolling them is
+    worse than a smaller globe band while the user is actually working. */
+ body[data-flow=design] .buy-panel,body[data-flow=shape] .buy-panel{top:24dvh}
+ body.creating .flow-screen{gap:5px}
+ body.creating .flow-progress{margin-bottom:6px;padding-bottom:4px}
+ body.creating .flow-progress i{width:16px;height:16px}
+ #shapeStep .shape-size-card{padding:7px;gap:5px}
+ #shapeStep .shape-size-heading{font-size:9px}
+ #designStep #logoPositionControls label{min-height:30px;margin-top:2px}
+ #designStep .studio-toolbar>button{min-height:38px}
  body:not(.creating) .intro{padding-bottom:max(10px,env(safe-area-inset-bottom))}
  body:not(.creating) .intro h1{font-size:clamp(21px,6vw,26px)}
 }

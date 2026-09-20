@@ -1997,8 +1997,9 @@ document.querySelector('#previewPurchase').addEventListener('click', paintPlacem
 let phoneSheet=null;
 function updatePhoneSheet() {
   const sheet=document.querySelector('.intro');
-  const hidden=innerWidth>700||document.body.classList.contains('creating')||
-    (document.body.classList.contains('detail-view')&&!document.body.classList.contains('selecting'));
+  // Deliberately not cleared for detail-view: the controls keep one position
+  // whether the pitch or the activity ticker is the bottom surface.
+  const hidden=innerWidth>700||document.body.classList.contains('creating');
   const next=hidden||!sheet?0:Math.round(sheet.getBoundingClientRect().height);
   if(next===phoneSheet)return;
   phoneSheet=next;
