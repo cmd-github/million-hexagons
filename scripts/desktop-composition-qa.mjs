@@ -27,12 +27,21 @@ try {
     await page.waitForTimeout(400);
     const browse=await page.evaluate(()=>{
       const rect=selector=>{const box=document.querySelector(selector).getBoundingClientRect();return {top:box.top,right:box.right,bottom:box.bottom,left:box.left,width:box.width,height:box.height};};
-      return {innerWidth,innerHeight,mobileDock:!!document.querySelector('#mobileDock'),topbar:rect('.topbar'),intro:rect('.intro'),headline:rect('.intro h1'),controls:rect('.globe-controls'),controlDisplay:getComputedStyle(document.querySelector('.globe-controls')).display};
+      return {innerWidth,innerHeight,mobileDock:!!document.querySelector('#mobileDock'),topbar:rect('.topbar'),intro:rect('.intro'),headline:rect('.intro h1'),controls:rect('.globe-controls'),claim:rect('#claimButton'),controlDisplay:getComputedStyle(document.querySelector('.globe-controls')).display};
     });
     assert.equal(browse.innerWidth,item.layoutWidth,`${item.name}: must use its device layout viewport`);
     assert.equal(browse.mobileDock,false,`${item.name}: mobile dock must not exist`);
-    assert.equal(Math.round(browse.topbar.height),item.mobile?76:88,`${item.name}: desktop topbar must remain 88px`);
-    assert.equal(Math.round(browse.intro.width),item.mobile?item.viewport.width-80:340,`${item.name}: desktop hero width must remain 340px`);
+    assert.equal(Math.round(browse.topbar.height),item.mobile?58:88,`${item.name}: desktop topbar must remain 88px, phones use the compact brand-only bar`);
+    assert.equal(Math.round(browse.intro.width),item.mobile?item.viewport.width:340,`${item.name}: desktop hero width must remain 340px, phones use a full-bleed bottom sheet`);
+    if(item.mobile){
+      // The phone pitch is a bottom sheet that leaves the globe centre clear, and
+      // Claim sits in the thumb zone rather than a top corner.
+      assert.ok(Math.abs(browse.intro.bottom-browse.innerHeight)<=1,`${item.name}: pitch must be anchored to the bottom`);
+      assert.ok(browse.intro.height<=browse.innerHeight*.34,`${item.name}: pitch must stay within a third of the screen`);
+      assert.ok(browse.intro.top>browse.innerHeight*.5,`${item.name}: pitch must not cross the globe centre`);
+      const claimCentre=browse.claim.top+browse.claim.height/2;
+      assert.ok(claimCentre>browse.innerHeight*.65,`${item.name}: Claim must sit in the lower thumb zone`);
+    }
     assert.equal(browse.controlDisplay,'grid',`${item.name}: controls must keep the desktop vertical rail`);
     await page.waitForFunction(()=>document.querySelector('#heroChangingWord')?.textContent.endsWith('.')&&document.querySelector('#heroChangingWord').textContent!=='brand.',null,{timeout:7000});
     const changedHeadline=await page.locator('.intro h1').boundingBox();
