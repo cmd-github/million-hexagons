@@ -124,7 +124,19 @@ for (const [name, vw, vh] of [["390x844", 390, 844], ["320x568", 320, 568]]) {
 }
 
 // Shape and Design must fit their panel without vertical scrolling on a phone.
-for (const [name, vw, vh] of [["390x844", 390, 844], ["320x568", 320, 568]]) {
+// Walking that journey needs the geodesicQA hook, which only a dev build exposes,
+// so against a deployed origin this reports as skipped rather than failing. Run it
+// against `npm run dev` to exercise it, as the other studio journeys are run.
+const studioHook = await (async () => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await page.goto(base + "/?geodesicQA");
+  await page.waitForSelector("#world[data-ready=true]", { timeout: 90000 });
+  const present = await page.evaluate(() => !!window.geodesicQA?.state);
+  await page.close();
+  return present;
+})();
+if (!studioHook) console.log("studio fit | SKIPPED: no geodesicQA hook on this origin (deployed build); run against the dev server");
+for (const [name, vw, vh] of studioHook ? [["390x844", 390, 844], ["320x568", 320, 568]] : []) {
   const page = await browser.newPage({ viewport: { width: vw, height: vh }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   page.setDefaultTimeout(40000);
   await page.goto(base + "/?geodesicQA");
