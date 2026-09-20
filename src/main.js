@@ -168,8 +168,21 @@ const cameraFlight=createCameraFlight(camera,globe,controls,reducedMotion);
 for(const event of ['pointerdown','wheel','keydown'])document.addEventListener(event,()=>{initialPlacementFocusAllowed=false;cameraFlight.cancel();},{capture:true,passive:true});
 addEventListener('resize',()=>cameraFlight.cancel());
 
+// Browsing on a portrait phone frames the globe the way Google Earth does: the
+// sphere overfills the viewport with its limb about a tenth of the way down,
+// rather than sitting inside it as a disc with empty sky above and below.
+// Measured from Earth at 390x844, its silhouette radius is 0.40x the viewport
+// height and centred; that ratio fixes the angular size, so a single distance
+// serves every portrait viewport. The studio keeps the fitted framing, because
+// there the canvas is already only the band above the panel.
+const overfillRadiusFraction = .4;
+function overfillingBrowse() {
+  return innerWidth <= 700 && innerHeight > innerWidth && !document.body.classList.contains('creating');
+}
 function globeFitDistance() {
   const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+  if (overfillingBrowse())
+    return radius / Math.sin(Math.atan(2 * overfillRadiusFraction * Math.tan(verticalFov / 2)));
   const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
   return (radius + .24) / Math.sin(Math.min(verticalFov, horizontalFov) / 2) * 1.12;
 }
@@ -1987,6 +2000,9 @@ function resize() {
   canvas.style.left='0px';
   canvas.style.top='0px';
   canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
+  // Phone controls and the activity feed sit above the bottom pitch sheet.
+  const sheet = mobile && !active ? document.querySelector('.intro')?.getBoundingClientRect().height : 0;
+  document.documentElement.style.setProperty('--phone-sheet', `${Math.round(sheet || 0)}px`);
   camera.aspect = width / height;
   camera.clearViewOffset();
   camera.updateProjectionMatrix();
@@ -1994,6 +2010,8 @@ function resize() {
   frameGlobe(false);
 }
 addEventListener('resize', resize);
+// A phone opens on the globe, not on an expanded activity list.
+if(innerWidth<=700)document.querySelector('#claimFeed')?.removeAttribute('open');
 resize();
 frameGlobe(true);
 
@@ -2390,6 +2408,8 @@ function renderClaimFeed(){
     button.onclick=async()=>{await applyPersistentPlacements([record]);if(await inspectPlacement(record.anchor))viewInspectedPlacement();};target.append(button);
     ticker.push(title.textContent);
   }
+  // Phones hide the feed entirely rather than spend globe area saying nothing.
+  document.body.classList.toggle('has-activity',ticker.length>0);
   if(!ticker.length){const empty=document.createElement('div');empty.className='example-activity';empty.textContent='The next live placement will appear here.';target.append(empty);ticker.push('Waiting for the next live placement');}
   const tickerText=ticker.join('  ·  '),tickerElement=document.querySelector('#claimTicker'),track=tickerElement.querySelector('.ticker-track');
   tickerElement.setAttribute('aria-label','Latest activity: '+ticker.join('. '));track.textContent=tickerText+'  ·  '+tickerText;

@@ -589,3 +589,86 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
  body.creating .flow-progress{margin-bottom:8px}
  body.creating .flow-screen h2,#designStep .studio-heading h2{font-size:21px}
 }
+
+/* --- Globe-first phone composition -------------------------------------------
+   Browse on a phone gives the globe the screen instead of parking the pitch
+   across it: the proposition becomes a short bottom sheet, Claim moves into the
+   thumb zone, the control rail loses its frame and drops to the lower right, and
+   the activity feed stays collapsed and hides itself when it has nothing to say.
+   Studio panels get a height budget so the design surfaces stop taking the globe.
+   Rationale and measured targets: docs/mobile-globe-first-layout-recommendations.md
+   Revert this whole block to restore the previous composition. */
+
+/* Keep the split pitch paragraphs reading as one block on every size. */
+.intro>p:not(.eyebrow){margin-bottom:0}
+.intro .price-line{margin-top:0}
+
+@media(max-width:700px){
+ /* Pitch: a short bottom sheet, not a slab over the globe's centre. */
+ body:not(.detail-view):not(.creating) .intro{
+  /* Below the topbar's z-index 5: Claim is a topbar child, so it shares that
+     stacking context and would otherwise paint under this sheet's gradient. */
+  top:auto;bottom:0;left:0;right:0;width:100%;max-width:none;z-index:4;
+  display:grid;gap:5px;justify-items:start;pointer-events:none;
+  padding:14px 20px calc(66px + max(10px,env(safe-area-inset-bottom)));
+  background:linear-gradient(to top,#050b14f2 54%,#050b14cc 76%,#050b1400);
+ }
+ body:not(.detail-view):not(.creating) .intro>*{pointer-events:auto}
+ body:not(.detail-view):not(.creating) .intro .eyebrow{margin:0;font-size:8px}
+ body:not(.detail-view):not(.creating) .intro h1{font-size:clamp(23px,6.4vw,31px);line-height:1.03}
+ /* Keep the line break after the typed word; only unwrap the closing line. */
+ body:not(.detail-view):not(.creating) .intro h1 em br{display:none}
+ /* The blurred halo behind the metrics reads as a smudge over the globe limb. */
+ body:not(.creating) #globalMetrics:before{display:none}
+ /* Supporting copy and the fact strip do not earn globe area at rest. */
+ body:not(.detail-view):not(.creating) .intro>p:not(.eyebrow):not(.price-line){display:none}
+ body:not(.detail-view):not(.creating) .intro .facts{display:none}
+ body:not(.detail-view):not(.creating) .intro .price-line{margin:0;font-size:11px;line-height:1.45;color:#9fb1b5}
+
+ /* Claim: one full-width action in the thumb zone rather than a top corner. */
+ body:not(.creating):not(.detail-view) #claimButton{
+  position:fixed;left:16px;right:16px;width:auto;z-index:8;
+  bottom:max(12px,env(safe-area-inset-bottom));min-height:50px;font-size:13px;
+ }
+ /* The topbar is then brand-only, so it can be smaller and quieter. */
+ body:not(.creating) .topbar{height:58px;padding:10px 16px}
+ body:not(.creating) .mark{width:32px;height:32px;font-size:12px}
+ body:not(.creating) #globalMetrics{top:62px}
+
+ /* Controls: unframed, stage-relevant, lower right. Tour and rotation are
+    decorative on a phone; account moves up to the space Claim vacated. */
+ body:not(.creating) .globe-controls{
+  top:auto;transform:none;right:10px;left:auto;
+  bottom:calc(var(--phone-sheet, 150px) + max(10px,env(safe-area-inset-bottom)));
+  display:grid;gap:8px;background:none;border:0;box-shadow:none;backdrop-filter:none;border-radius:0;
+ }
+ body:not(.creating) .globe-controls button{
+  width:42px;height:42px;border:1px solid var(--line);border-radius:50%;
+  background:rgba(8,22,34,.72);backdrop-filter:blur(14px);
+ }
+ body:not(.creating) #demoTour,body:not(.creating) #rotationToggle{display:none}
+ /* display:contents above leaves no box to position, so restore one here. */
+ body:not(.creating) .globe-controls .account-access{
+  display:block;position:fixed;top:12px;right:16px;bottom:auto;width:42px;height:42px;
+ }
+ body:not(.creating) .hex-search>div{right:calc(100% + 10px);top:auto;bottom:0}
+
+ /* Activity: collapsed, and absent entirely when there is nothing to show. */
+ body:not(.has-activity) #claimFeed{display:none}
+ body:not(.creating) #claimFeed{bottom:calc(var(--phone-sheet, 150px) + max(10px,env(safe-area-inset-bottom)));left:16px}
+ body:not(.creating) #claimFeed[open]{width:min(280px,calc(100vw - 80px))}
+ body:not(.creating) #claimFeed[open] #claimFeedItems{height:96px;max-height:96px}
+
+ /* Studio height budget: the design surfaces stop owning the screen.
+    Review is a deliberate, stated exception because the user is reading a
+    summary there rather than working on the globe. */
+ body.creating .buy-panel{top:50dvh}
+ body[data-flow=location] .buy-panel{top:62dvh}
+ body[data-flow=review] .buy-panel{top:28dvh}
+ #placementInspector{max-height:42dvh}
+}
+@media(max-width:700px) and (max-height:650px){
+ body[data-flow=design] .buy-panel,body[data-flow=shape] .buy-panel{top:42dvh}
+ body:not(.detail-view):not(.creating) .intro{padding-bottom:calc(62px + max(8px,env(safe-area-inset-bottom)))}
+ body:not(.detail-view):not(.creating) .intro h1{font-size:clamp(21px,6vw,26px)}
+}
