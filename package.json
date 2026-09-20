@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "dev:status": "node scripts/dev-server.mjs",
+    "dev:stop": "node scripts/dev-server.mjs --stop",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "build:coming-soon": "vite build coming-soon --outDir ../coming-soon-dist --emptyOutDir",

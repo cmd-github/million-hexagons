@@ -9,7 +9,12 @@ import { appFiles, runtimeFiles, copyFiles } from './scripts/deployment-assets.m
 // stay local. Use Vite's resolved paths so other project roots still work.
 let config;
 export default defineConfig(({mode,command})=>({
-  server: { watch: { ignored: ['**/public/artwork/**','**/artifacts/**'] } },
+  // strictPort stops a second `npm run dev` from quietly starting on the next
+  // free port. Repeated runs used to stack independent servers, each with its
+  // own file watcher and esbuild child, which is how nine ended up running at
+  // once. Now a duplicate run fails loudly instead. Scripts that create their
+  // own server pass port 0 and are unaffected.
+  server: { strictPort: true, watch: { ignored: ['**/public/artwork/**','**/artifacts/**'] } },
   build: { target: 'es2022', copyPublicDir: false },
   plugins: [{
     name: 'runtime-public-assets',
