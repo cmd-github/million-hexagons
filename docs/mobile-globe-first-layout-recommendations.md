@@ -18,6 +18,58 @@ The hero review quotes 61.3% and 99.1% globe occlusion. Treat these as unverifie
 
 The source audits report an empty local globe and no physical-device testing. This consolidation did not rerun browser QA. Judge the eventual design with empty, sparse and populated inventory; do not infer real-phone performance or populated-globe quality from these audits. The layout review also records a stale second Claim action in the purchase-polish script; repair or verify that journey before relying on it.
 
+## Visual Google Earth reference audit
+
+The source reviews used Google's interaction documentation but did not visually inspect the current mobile app. That gap was corrected on 20 September 2026.
+
+### Evidence inspected
+
+- The current [Google Earth listing on Google Play](https://play.google.com/store/apps/details?hl=en_GB&gl=GB&id=com.google.earth), updated 10 September 2026. Eight official portrait phone screenshots and six landscape/tablet screenshots were inspected at source resolution.
+- The current [Google Earth listing on Apple's UK App Store](https://apps.apple.com/gb/app/google-earth/id293622097). Its visible iPhone previews show the same core composition as Google's Android imagery.
+- Google's current [mobile navigation guidance](https://support.google.com/earth/answer/7364447?co=GENIE.Platform%3DAndroid&hl=en-GB) and [product overview](https://www.google.com/earth/about/download/).
+
+These are official current promotional screenshots, not a controlled recording of app launch or every interaction state. The live Earth web client could not be captured in the mobile browser harness because its navigation aborted, and no physical Android/iPhone instance was connected. This establishes the published mobile visual hierarchy; it does not claim physical-app gesture or animation verification.
+
+### What the official phone screenshots show
+
+- Earth imagery fills essentially the complete viewport, including behind the system status region.
+- There is no persistent logo, headline, explanatory paragraph, fact strip, metric or promotional card over the scene.
+- Search is one circular button at the top-left and Layers is one circular button at the top-right.
+- Compass, Street View, 2D/3D and location form a small vertical cluster on the lower-right edge.
+- Scale is a quiet line and label at bottom-left.
+- Context rests as a shallow bottom-sheet Peek with only a drag handle visible.
+- Controls are isolated white circles, not one large framed toolbar.
+- The middle of the viewport remains completely clear for viewing and direct manipulation.
+
+The iPhone previews use the same broad grammar: full-bleed imagery, two isolated top controls, a compact lower-right navigation cluster, scale at bottom-left and a bottom surface. This cross-platform consistency is more useful than any Android-specific pixel value.
+
+The published screenshots are mostly close aerial/3D views rather than the opening whole-Earth view. They support conclusions about chrome, hierarchy and contextual surfaces; they do not establish Google's exact default globe diameter or launch-camera position.
+
+### Direct comparison
+
+| Surface | Current Million Hexagons Browse | Current Google Earth official phone imagery | Million Hexagons direction |
+|---|---|---|---|
+| Primary scene | Globe sits behind the product pitch | World imagery owns almost every pixel | Let the globe own the viewport |
+| Top-left | Full MH mark and wordmark | One Search button | Use the compact mark; keep utilities light |
+| Top-right | Large Claim Your Space action | One Layers button | Move Claim into the bottom thumb area |
+| Centre | Headline, supporting copy, price and facts cross the sphere | Completely clear | Keep the central globe region empty |
+| Right edge | Six controls inside one 260px framed rail | Four separated contextual circles in the lower half | Show only stage-relevant controls and remove the containing rail |
+| Bottom | Large open Latest activity card | Shallow bottom-sheet Peek | Collapse activity/selection into a compact bottom surface |
+| Empty state | Large card explains that activity will appear | Scene remains the content | Reserve no large area for absent activity |
+| Commercial action | Competes with branding at the top | Not applicable | Retain one strong Claim action below the globe's centre |
+
+### Consequences for this recommendation
+
+The visual audit strengthens four proposals and adjusts one:
+
+1. Keeping the central third clear should be a hard design rule, not just a preference.
+2. Collapsed activity and selected-object detail should share a shallow bottom-surface grammar.
+3. Remove the framed six-button rail. Three or four individually floating, stage-relevant controls will feel lighter even before reducing the count further.
+4. Claim remains prominent because Earth has no equivalent commercial task, but it belongs in the bottom thumb zone rather than a top corner.
+5. Do not introduce a large permanent Search pill by default. At 320px use a circular icon; at wider phone sizes expand only when active or when evidence shows a label is needed.
+
+Borrow this hierarchy, not Google's white Material styling, satellite imagery or exact control set.
+
 ## Recommended phone composition
 
 - **World:** retain a full-bleed canvas in a dynamic-viewport-height shell, with no Browse body scrolling. Keep the sphere fully visible in the unobstructed band and leave its centre clear.
