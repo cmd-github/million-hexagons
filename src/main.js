@@ -1994,6 +1994,20 @@ async function paintPlacement() {
 }
 document.querySelector('#previewPurchase').addEventListener('click', paintPlacement);
 
+// Phone controls and the activity feed sit above the bottom pitch sheet. The
+// sheet slides away once zooming turns on detail-view, so this is recomputed
+// on that change too, not only on resize.
+let phoneSheet=null;
+function updatePhoneSheet() {
+  const sheet=document.querySelector('.intro');
+  const hidden=innerWidth>700||document.body.classList.contains('creating')||
+    (document.body.classList.contains('detail-view')&&!document.body.classList.contains('selecting'));
+  const next=hidden||!sheet?0:Math.round(sheet.getBoundingClientRect().height);
+  if(next===phoneSheet)return;
+  phoneSheet=next;
+  document.documentElement.style.setProperty('--phone-sheet',`${next}px`);
+}
+
 function resize() {
   const active = document.body.dataset.flow==='design' && designSurface==='globe'?'place':document.body.dataset.flow;
   const mobile=innerWidth<=700;
@@ -2002,9 +2016,7 @@ function resize() {
   canvas.style.left='0px';
   canvas.style.top='0px';
   canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
-  // Phone controls and the activity feed sit above the bottom pitch sheet.
-  const sheet = mobile && !active ? document.querySelector('.intro')?.getBoundingClientRect().height : 0;
-  document.documentElement.style.setProperty('--phone-sheet', `${Math.round(sheet || 0)}px`);
+  updatePhoneSheet();
   camera.aspect = width / height;
   camera.clearViewOffset();
   camera.updateProjectionMatrix();
@@ -2076,6 +2088,7 @@ function animate() {
     if (Math.abs(distance - cameraDistanceTarget) < .005) cameraDistanceTarget = null;
   }
   document.body.classList.toggle('detail-view', camera.position.length() < globeFitDistance() * .72);
+  updatePhoneSheet();
   zoom.update();
   demoTour.update(performance.now());
   updateRotationControl();

@@ -70,6 +70,36 @@ for (const [name, vw, vh] of [["390x844", 390, 844], ["320x568", 320, 568]]) {
   };
   await page.close();
 }
+// Zooming in turns on detail-view, which used to unwind the phone composition:
+// Claim jumped back to the topbar and the pitch reflowed into the desktop slab.
+// Check the bottom surfaces stay put and stay clear of each other.
+const overlaps = (a, b) => !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
+for (const [name, vw, vh] of [["390x844", 390, 844], ["320x568", 320, 568]]) {
+  const page = await browser.newPage({ viewport: { width: vw, height: vh }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  await page.goto(base + "/?geodesicQA");
+  await page.waitForSelector("#world[data-ready=true]", { timeout: 90000 });
+  await page.waitForTimeout(2500);
+  const read = () => page.evaluate(() => {
+    const box = sel => { const el = document.querySelector(sel); if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right), position: getComputedStyle(el).position }; };
+    return { detail: document.body.classList.contains("detail-view"), vh: innerHeight,
+             claim: box("#claimButton"), controls: box(".globe-controls"), intro: box(".intro") };
+  });
+  const before = await read();
+  for (let i = 0; i < 5; i++) { await page.evaluate(() => document.querySelector("#zoomIn").click()); await page.waitForTimeout(700); }
+  const after = await read();
+  await page.screenshot({ path: `${out}/${name}-zoomed.png` });
+  if (!after.detail) throw Error(`${name}: zooming in should reach detail-view`);
+  if (after.claim.position !== "fixed") throw Error(`${name}: Claim must stay pinned when zoomed, was ${after.claim.position}`);
+  if (Math.abs(after.claim.top - before.claim.top) > 2) throw Error(`${name}: Claim moved on zoom, ${before.claim.top} -> ${after.claim.top}`);
+  if (after.claim.top + (after.claim.bottom - after.claim.top) / 2 < after.vh * .65) throw Error(`${name}: Claim left the thumb zone when zoomed`);
+  if (overlaps(after.controls, after.claim)) throw Error(`${name}: controls overlap Claim when the pitch sheet is hidden`);
+  if (after.intro.top < after.vh) throw Error(`${name}: the pitch must slide off the bottom, not reflow`);
+  console.log(`${name} | zoom transition holds: Claim fixed at ${after.claim.top}, controls clear, pitch off-screen`);
+  await page.close();
+}
+
 fs.writeFileSync(`${out}/occlusion-measured.json`, JSON.stringify(results, null, 2));
 for (const k in results) { const v = results[k];
   console.log(`${k} | globe on screen ${v.globe.onScreenPctOfScreen}% | covered ${v.occlusion.pctGlobeCoveredByUI}% | unobstructed ${v.occlusion.unobstructedGlobePctOfScreen}% | chrome ${v.chromePctOfScreen}% | clipped ${v.globe.clippedByViewport}`);
