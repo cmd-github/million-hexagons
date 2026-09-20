@@ -54,7 +54,9 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.15;
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x050b14, .018);
+// Space sits close to black so the lit globe reads as the brightest thing on
+// screen. Google Earth measures 23.5:1 globe-to-background; we were at 2.78:1.
+scene.fog = new THREE.FogExp2(0x01040a, .018);
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .1, 100);
 let topology = null, topologyPromise = null, cellDetail = null;
 const bootstrap = await fetchRuntimeJson('topology/bootstrap.json');
