@@ -1,6 +1,6 @@
 # Mobile globe: combined recommendation
 
-Status: proposed direction, consolidated 20 September 2026. Documentation only; no UI or rendering changes implemented.
+Status: consolidated 20 September 2026, and the Browse layout, framing, background and studio height budget were implemented the same day on branch `mobile-globe-first`. See [Implemented](#implemented-20-september-2026) for measured results and what is still open. Sections below describe the intended direction; where they differ from what shipped, the Implemented section is authoritative.
 
 ## Outcome
 
@@ -16,7 +16,7 @@ Both reviews report local emulated-phone inspection at 390x844 and 320x568. Thei
 
 The hero review quotes 61.3% and 99.1% globe occlusion. That challenge was correct about the evidence and has now been resolved. The `occlusion-390.json`/`occlusion-320.json` files it cites came from an abandoned first attempt that projected cells through the `geodesicQA` hook; at overview altitude only two cells are loaded, so it reported 11px and 0px diameters and was discarded. The published percentages actually came from a separate pixel measurement of the silhouette that was never written to disk — a real gap in the trail, not a real gap in the numbers.
 
-The measurement has been rebuilt as a single reproducible script, `artifacts/mobile-hero-audit/measure-occlusion.mjs`, which captures a clean render with overlays transparent, finds the globe silhouette row by row, and intersects it with the live overlay rects. The misleading files have been deleted and replaced by `occlusion-measured.json`. Re-running it confirms the claims with one small revision:
+The measurement has been rebuilt as a repeatable check, `npm run test:mobile-composition` ([scripts/mobile-composition-qa.mjs](../scripts/mobile-composition-qa.mjs)), which captures a clean render with overlays transparent, counts the globe's actual on-screen pixels and intersects them with the live overlay rects. The misleading files have been deleted. Re-running it confirms the claims with one small revision:
 
 | | 390x844 | 320x568 |
 |---|---|---|
@@ -149,6 +149,48 @@ After the first intentional drag, pinch or zoom, dismiss the introductory copy a
 
 Keep the existing navy/lime identity. Use a small consistent overlay surface for readable text rather than dimming the whole scene. Background particles should support the sphere, not compete with it.
 
+## Implemented, 20 September 2026
+
+Delivered on branch `mobile-globe-first` as four revertable commits. Measured with
+`npm run test:mobile-composition` against the local dev server and an empty globe.
+
+| | Before | After | Target |
+|---|---|---|---|
+| Globe on screen, 390x844 | 25.5% | **74.1%** | ~70% (Earth 75.9%) |
+| Globe on screen, 320x568 | 30.8% | **72.1%** | ~70% |
+| Unobstructed globe, 390x844 | 10.3% | **63.4%** | 45%+ |
+| Unobstructed globe, 320x568 | 0.2% | **50.3%** | 45%+ |
+| Globe covered by chrome, 390 | 59.5% | **14.3%** | under 10% |
+| Globe covered by chrome, 320 | 99.2% | **30.2%** | under 10% |
+| Figure-to-ground | 2.78:1 | **6.23:1** | 8:1 (Earth 23.5:1) |
+| Studio panel, Shape/Design | 62-68% | **50% / 58%** | under 50% |
+| Studio panel, Review | 84% | **72%** | stated exception |
+
+What landed: the pitch became a bottom sheet with supporting copy and the fact strip
+dropped, Claim moved to a full-width action in the thumb zone, the control rail lost its
+frame and dropped to four floating circles at the lower right with tour and rotation
+hidden, account moved to the corner Claim vacated, the activity feed collapsed by default
+and hides itself when empty, portrait Browse overfills the globe per the measured Earth
+ratio, the space background went close to black, and the studio panels took the height
+budget.
+
+Three targets are not met and remain open:
+
+1. **Chrome by bounding rect is 37.3% at 390 and 54.1% at 320, against a 20% target.**
+   Much of that rect is the pitch sheet's transparent gradient rather than paint, which is
+   why measured globe occlusion is only 14.3%. Either tighten the sheet or change the
+   criterion to measure painted chrome; the current number is not comparable to Earth's 9%.
+2. **90% unobstructed visible sphere** is missed at 320x568, where it reaches 69.8%. The
+   controls and pitch sheet take proportionally more of a short screen.
+3. **Figure-to-ground reached 6.23:1, not 8:1.** The background is now near black; the
+   remaining gap is the unlit, untextured globe surface at 54.2 median luminance against
+   Earth's 136.3. That is surface-study work and stays behind its gate.
+
+The honest caveat: this was judged on an **empty** globe with no placements, emulated, and
+never on a physical device. An overfilled featureless sphere fills the screen with a flat
+gradient, so the framing change will look considerably better on a populated globe than it
+does locally — and should be re-judged there before it is called good.
+
 ## Chrome budget: every surface, not just Browse
 
 Craig's framing, 20 September 2026: the central principle is that **menus, info panels and design boxes must stay compact enough that they never take over the globe** — the same discipline Earth applies. This section makes that a budget rather than a preference, and applies it to surfaces the rest of this document had exempted.
@@ -200,12 +242,26 @@ Portrait phones overfill, per the decision recorded above. Measured from Google 
 | Space above the limb at centre | 6.6% of viewport height | under 12% |
 | Scene below the limb | 93.4% of viewport height | the rest is world |
 
-Two implementation notes, because overfilling is not simply "move the camera closer":
+**Correction, 20 September 2026.** An earlier revision of this section said the globe centre must sit far below the viewport and that a downward offset was needed. That came from fitting a circle through three points on a very shallow arc, which is numerically unstable. Recomputing from the chord and sagitta instead gives a result all six measured arc points agree with to within 0.8px, and it is much simpler:
 
-1. **The globe centre must sit below the viewport**, otherwise reducing distance crops the sphere on all four edges at once and the limb leaves the top of the screen entirely. Earth's implied sphere centre is far below the bottom edge. Offset the controls target (or the rendered globe) downward rather than only shortening the camera distance.
-2. **The sphere's angular radius must exceed half the horizontal FOV** so it genuinely bleeds off the sides. At 390x844 with `camera.fov = 38`, the horizontal FOV is about 18 degrees, which is the axis `globeFitDistance()` currently fits to.
+| Property | Google Earth at 390x844 |
+|---|---|
+| Silhouette radius | 337.7px = **0.400 x viewport height** |
+| Silhouette diameter | 675px = 1.73 x viewport width |
+| Centre | y = 424 = **50.2% of viewport height**, i.e. centred |
 
-This replaces the `Math.min(verticalFov, horizontalFov)` fit with its `1.12` padding at [src/main.js:171](../src/main.js#L171) for portrait phones only. Desktop and landscape keep the current fitted framing. Solve for the distance and offset numerically against the limb-apex target and verify with the measurement script rather than hard-coding a distance; `globeFitDistance()` is shared by Home, placement flights and picking, so all three need regression coverage.
+Earth centres the globe and makes its radius 0.4 of the viewport height. Apex lands at 10% of height and the lower limb at 90%, and it overfills horizontally on any viewport taller than 1.25x its width. No view offset and no target offset are needed.
+
+That ratio fixes the angular size, so a single camera distance serves every portrait viewport:
+
+```
+tan(angle) = 2 * 0.4 * tan(fov / 2)
+distance   = radius / sin(angle)
+```
+
+At `fov = 38` and `radius = 4` this gives 15.06, against roughly 29.9 before.
+
+**Implemented** in `globeFitDistance()` at [src/main.js](../src/main.js), for portrait phones on Browse only. Desktop, landscape and the studio keep the fitted framing — the studio canvas is already only the band above the panel, so it needs no overfill. Because `globeFitDistance()` also drives Home, placement flights, the auto-rotate cutoff and the detail-view threshold, those all follow the new overview consistently.
 
 Use the same camera/projection state for rendering, placement flights, Home and picking. Pointer coordinates remain relative to the actual canvas; do not casually remap them to the smaller usable rectangle. Defer sheet-driven framing changes until all active pointers are released, including pinch gestures. Do not alter the picked cell during an active gesture.
 
