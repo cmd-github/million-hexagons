@@ -88,12 +88,29 @@ for (const [name, vw, vh] of [["390x844", 390, 844], ["320x568", 320, 568]]) {
   });
   const before = await read();
   // The opening view shows the whole globe and must still pull back from there.
-  const startDist = await page.evaluate(() => Math.hypot(...window.geodesicQA.state().camera));
+  // Measured from the rendered silhouette, so this does not need the dev hook
+  // and therefore runs against a deployed build as well as the dev server.
+  const globeWidth = async () => {
+    const style = await page.addStyleTag({ content: HIDE });
+    await page.waitForTimeout(400);
+    const shot = await page.screenshot();
+    await style.evaluate(el => el.remove());
+    const { data, info } = await sharp(shot).raw().toBuffer({ resolveWithObject: true });
+    let min = 1e9, max = -1e9;
+    for (let y = 0; y < info.height; y += 2) for (let x = 0; x < info.width; x++) {
+      const o = (y * info.width + x) * info.channels;
+      if (data[o + 2] > 55 && data[o + 2] - data[o] > 22 && data[o + 1] > 40) { if (x < min) min = x; if (x > max) max = x; }
+    }
+    return max > min ? (max - min) / (info.width / vw) : 0;
+  };
+  const startWidth = await globeWidth();
   for (let i = 0; i < 5; i++) { await page.evaluate(() => document.querySelector("#zoomOut").click()); await page.waitForTimeout(500); }
-  const outDist = await page.evaluate(() => Math.hypot(...window.geodesicQA.state().camera));
-  if (outDist <= startDist * 1.2) throw Error(`${name}: must zoom out well past the opening view, ${startDist.toFixed(1)} -> ${outDist.toFixed(1)}`);
+  const outWidth = await globeWidth();
+  if (startWidth < vw * .92) throw Error(`${name}: the opening view should show the whole globe across the width, was ${startWidth.toFixed(0)} of ${vw}`);
+  if (outWidth > startWidth * .85) throw Error(`${name}: must zoom out well past the opening view, ${startWidth.toFixed(0)}px -> ${outWidth.toFixed(0)}px`);
+  console.log(`${name} | opens at ${startWidth.toFixed(0)}px of ${vw} wide, pulls back to ${outWidth.toFixed(0)}px`);
   await page.evaluate(() => document.querySelector("#homeView").click());
-  await page.waitForTimeout(1400);
+  await page.waitForTimeout(1500);
   for (let i = 0; i < 5; i++) { await page.evaluate(() => document.querySelector("#zoomIn").click()); await page.waitForTimeout(700); }
   const after = await read();
   await page.screenshot({ path: `${out}/${name}-zoomed.png` });
