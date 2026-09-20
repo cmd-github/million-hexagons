@@ -162,12 +162,18 @@ for (const [name, vw, vh] of studioHook ? [["390x844", 390, 844], ["320x568", 32
     if (step === "design") {
       await page.locator("#toDesign").click();
       await page.locator("#designStep").waitFor({ state: "visible" });
-      await page.waitForTimeout(900);
+      // Measure with an image loaded: that reveals the layout choice and the
+      // second action button, and is the tallest the step ever gets.
+      await page.locator("#logoUpload").setInputFiles("scripts/fixtures/test-logo.svg");
+      await page.waitForFunction(() => document.querySelector("#addImageLabel").textContent === "Replace image");
+      await page.waitForTimeout(700);
     }
     const o = await overflow();
     await page.screenshot({ path: `${out}/${name}-${step}.png` });
     if (o.over > 0) throw Error(`${name}: ${o.flow} must fit without scrolling, overflows by ${o.over}px`);
-    console.log(`${name} | ${o.flow} fits its panel with no scrolling`);
+    const share = await page.evaluate(() => Math.round(document.querySelector("#buyPanel").getBoundingClientRect().height / innerHeight * 100));
+    if (share > (vh <= 650 ? 68 : 52)) throw Error(`${name}: ${o.flow} panel takes ${share}% of the screen`);
+    console.log(`${name} | ${o.flow} fits with no scrolling, panel ${share}% of screen`);
   }
   await page.close();
 }
