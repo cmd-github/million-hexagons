@@ -136,7 +136,7 @@ const studioHook = await (async () => {
   return present;
 })();
 if (!studioHook) console.log("studio fit | SKIPPED: no geodesicQA hook on this origin (deployed build); run against the dev server");
-for (const [name, vw, vh] of studioHook ? [["390x844", 390, 844], ["320x568", 320, 568]] : []) {
+for (const [name, vw, vh] of studioHook ? [["390x844", 390, 844], ["411x795", 411, 795], ["320x568", 320, 568]] : []) {
   const page = await browser.newPage({ viewport: { width: vw, height: vh }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   page.setDefaultTimeout(40000);
   await page.goto(base + "/?geodesicQA");
@@ -171,9 +171,19 @@ for (const [name, vw, vh] of studioHook ? [["390x844", 390, 844], ["320x568", 32
     const o = await overflow();
     await page.screenshot({ path: `${out}/${name}-${step}.png` });
     if (o.over > 0) throw Error(`${name}: ${o.flow} must fit without scrolling, overflows by ${o.over}px`);
-    const share = await page.evaluate(() => Math.round(document.querySelector("#buyPanel").getBoundingClientRect().height / innerHeight * 100));
-    if (share > (vh <= 650 ? 68 : 52)) throw Error(`${name}: ${o.flow} panel takes ${share}% of the screen`);
-    console.log(`${name} | ${o.flow} fits with no scrolling, panel ${share}% of screen`);
+    const m = await page.evaluate(() => {
+      const panel = document.querySelector("#buyPanel"), r = panel.getBoundingClientRect();
+      const kids = [...panel.children].filter(e => !e.hidden && getComputedStyle(e).display !== "none");
+      const lastRow = kids.map(e => e.getBoundingClientRect().bottom).reduce((a, b) => Math.max(a, b), 0);
+      return { share: Math.round(r.height / innerHeight * 100),
+               dead: Math.round(r.bottom - parseFloat(getComputedStyle(panel).paddingBottom) - lastRow) };
+    });
+    if (m.share > (vh <= 650 ? 68 : 56)) throw Error(`${name}: ${o.flow} panel takes ${m.share}% of the screen`);
+    // A panel sized by viewport percentage rather than by content leaves a dead
+    // band under the last control. That is invisible in an emulator whose
+    // viewport matches dvh exactly, and obvious on a real phone.
+    if (m.dead > 16) throw Error(`${name}: ${o.flow} leaves ${m.dead}px of empty panel below its content`);
+    console.log(`${name} | ${o.flow} fits with no scrolling, panel ${m.share}% of screen, ${m.dead}px dead space`);
   }
   await page.close();
 }

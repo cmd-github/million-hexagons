@@ -754,14 +754,25 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
  /* Studio height budget: the design surfaces stop owning the screen.
     Review is a deliberate, stated exception because the user is reading a
     summary there rather than working on the globe. */
- body.creating .buy-panel{top:49dvh;padding:12px 14px max(12px,env(safe-area-inset-bottom))}
- body[data-flow=location] .buy-panel{top:62dvh}
- body[data-flow=review] .buy-panel{top:28dvh}
+ /* Size the panel from its content, not from a share of the viewport.
+    A fixed element's bottom:0 and a dvh percentage do not resolve against the
+    same box while Chrome's toolbar is showing, so a top:Xdvh panel came out
+    taller than the percentage implied and left a dead gap under the content.
+    Anchoring to the bottom with an automatic height removes both problems: the
+    panel is exactly as tall as its rows need, and the globe keeps the rest. */
+ body.creating .buy-panel{
+  top:auto;bottom:0;height:auto;max-height:82svh;
+  padding:12px 14px max(12px,env(safe-area-inset-bottom));
+ }
+ body.creating .flow-screen,
+ body[data-flow=design] #designStep,body[data-flow=shape] #shapeStep,
+ body[data-flow=location] #locationStep,body[data-flow=review] #reviewStep{flex:0 1 auto}
+ body[data-flow=review] .buy-panel{max-height:88svh}
 }
 @media(max-width:700px) and (max-height:650px){
  /* A short screen cannot fit these stages in 42dvh, and scrolling them is
     worse than a smaller globe band while the user is actually working. */
- body[data-flow=design] .buy-panel,body[data-flow=shape] .buy-panel{top:33dvh}
+ body.creating .buy-panel{max-height:88svh}
  body.creating .flow-screen{gap:4px}
  /* Numbered circles carry the step on their own here; the words cost a row. */
  body.creating .flow-progress{margin-bottom:4px;padding-bottom:3px}
