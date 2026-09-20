@@ -32,6 +32,8 @@
 ## Validation
 
 - For UI/globe changes, run relevant browser journeys and inspect desktop/mobile behaviour.
+- For mobile UI/globe work on this Windows checkout, also inspect the site in the visible `Pixel_8a_API_35` Android emulator using headed Chrome. Keep the Android status, browser and navigation bars visible; see `docs/VALIDATION.md` for the workflow.
+- Treat Android-emulator evidence as a visual and interaction check, not as physical-device or iOS/Safari certification.
 - The Codex in-app Browser connection and this repository's Playwright browser QA are separate. An in-app message such as `No browser is available` does not mean Playwright or a local browser is missing.
 - Before reporting browser QA as unavailable, check `npm.cmd exec -- playwright --version` and the expected Chrome/Edge executable, then use the repository-owned journeys documented in `docs/VALIDATION.md` when the active tool policy permits command-line browser automation.
 - If an active tool policy requires the in-app Browser and prohibits command-line Playwright, report that exact constraint. Do not say that Playwright or the required browser is uninstalled.
