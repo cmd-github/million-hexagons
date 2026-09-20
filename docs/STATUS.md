@@ -1,6 +1,6 @@
 # Million Hexagons — Status
 
-Updated: 18 September 2026
+Updated: 20 September 2026
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
@@ -26,6 +26,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Revisit globe surface studies, achievements, advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Completed a rendered mobile globe-first layout review at 390x844 and 320x568, with desktop/tablet comparison and Google Earth interaction principles. The recommendation keeps the existing topology and Location -> Shape -> Design -> Review journey, but makes Browse an immersive globe with progressive overlays, compact controls and Peek/Half/Full contextual sheets. See [mobile globe-first layout recommendations](mobile-globe-first-layout-recommendations.md). Responsive composition passed; this was emulated-mobile visual QA, not physical iOS/Android acceptance. The broader purchase-polish script currently stops on a stale second Claim action after its clear-design dialog and must be repaired before reuse as a current gate.
 
 - [x] Shipped placement-specific social-link routing from source `fa3c28ac` plus shell/fallback fixes `59e7fa91` and `057877fe` as staging Worker `dc88a64d-c9f3-4e86-913c-956932acb605`, then deployed the matching `stagingPlacements` and `publishStagingPlacement` Firebase functions (`stagingplacements-00028-lig` confirmed). New shares use permanent `/placement/<placementId>` URLs while old fragment links still open. The Worker returns crawler-readable unique title, description, canonical, Open Graph and Twitter metadata from the public placement projection, with a reachable moderated/legacy fallback image. A disposable live publication verified the generated immutable 1200x630 `og.webp`, its public projection and the exact image URL returned by the permanent placement page to a Facebook-style crawler; moderation, rollback and cleanup also passed. The full launch gate passes 60 repository and 52 backend tests; focused desktop/mobile public-placement and owner-edit journeys, all 1,549 runtime objects, live metadata HTML/image fetches and CDN health pass. The unrelated 100,000-cell reservation, conflict and expiry checks were skipped because staging has no completely free fixed 100,000-cell test range. A real recipient-platform preview remains open.
 
