@@ -1,4 +1,8 @@
 > Archived source review. Superseded by [the combined recommendation](../mobile-globe-first-layout-recommendations.md). Observations and proposals below are historical, not current acceptance criteria.
+>
+> **Section 3 ("What to take from Google Earth") was written from recollection, not from inspection, and two of its five rules were later disproven by a live measured capture.** Rule 1 (globe "fills the short axis") is wrong — Earth overfills and crops the sphere. Rule 5 ("you never lose the horizon") is wrong — a tilted low-altitude view has no horizon at all. Rules 2 and 4 were confirmed; rule 3 is unverified. The 45% unobstructed target and the "cell #123,456 · 12 km" readout in section 4 are also superseded. Do not cite section 3 as evidence; see the Corrections table in the combined recommendation.
+>
+> The measured occlusion figures in section 2 were separately rebuilt and stand, at 59.5% and 99.2%.
 
 # Mobile layout — making the globe the hero
 
