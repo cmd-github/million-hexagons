@@ -170,21 +170,17 @@ const cameraFlight=createCameraFlight(camera,globe,controls,reducedMotion);
 for(const event of ['pointerdown','wheel','keydown'])document.addEventListener(event,()=>{initialPlacementFocusAllowed=false;cameraFlight.cancel();},{capture:true,passive:true});
 addEventListener('resize',()=>cameraFlight.cancel());
 
-// Browsing on a portrait phone frames the globe the way Google Earth does: the
-// sphere overfills the viewport with its limb about a tenth of the way down,
-// rather than sitting inside it as a disc with empty sky above and below.
-// Measured from Earth at 390x844, its silhouette radius is 0.40x the viewport
-// height and centred; that ratio fixes the angular size, so a single distance
-// serves every portrait viewport. The studio keeps the fitted framing, because
-// there the canvas is already only the band above the panel.
-const overfillRadiusFraction = .4;
+// Browsing on a portrait phone opens with the whole globe visible, its diameter
+// spanning the viewport width, and can still be pulled back further from there.
+// Fitting to width rather than to the smaller of the two fields of view is what
+// fills a tall screen; the previous fit left the globe at 84% of the width.
 function overfillingBrowse() {
   return innerWidth <= 700 && innerHeight > innerWidth && !document.body.classList.contains('creating');
 }
 function globeFitDistance() {
   const verticalFov = THREE.MathUtils.degToRad(camera.fov);
   if (overfillingBrowse())
-    return radius / Math.sin(Math.atan(2 * overfillRadiusFraction * Math.tan(verticalFov / 2)));
+    return radius / Math.sin(Math.atan(camera.aspect * Math.tan(verticalFov / 2)));
   const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
   return (radius + .24) / Math.sin(Math.min(verticalFov, horizontalFov) / 2) * 1.12;
 }
@@ -198,7 +194,8 @@ function distanceForArc(arc) {
 
 function frameGlobe(reset = false) {
   const fit = globeFitDistance();
-  controls.maxDistance = fit * 1.08;
+  // Phones open on the whole globe but keep real room to pull back from there.
+  controls.maxDistance = fit * (overfillingBrowse() ? 1.5 : 1.08);
   controls.target.set(0, 0, 0);
   if (reset) camera.position.set(0, fit * .018, fit);
   else if (camera.position.length() > controls.maxDistance) camera.position.setLength(controls.maxDistance);

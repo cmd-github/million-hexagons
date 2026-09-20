@@ -87,16 +87,22 @@ for (const [name, vw, vh] of [["390x844", 390, 844], ["320x568", 320, 568]]) {
              claim: box("#claimButton"), controls: box(".globe-controls"), intro: box(".intro") };
   });
   const before = await read();
+  // The opening view shows the whole globe and must still pull back from there.
+  const startDist = await page.evaluate(() => Math.hypot(...window.geodesicQA.state().camera));
+  for (let i = 0; i < 5; i++) { await page.evaluate(() => document.querySelector("#zoomOut").click()); await page.waitForTimeout(500); }
+  const outDist = await page.evaluate(() => Math.hypot(...window.geodesicQA.state().camera));
+  if (outDist <= startDist * 1.2) throw Error(`${name}: must zoom out well past the opening view, ${startDist.toFixed(1)} -> ${outDist.toFixed(1)}`);
+  await page.evaluate(() => document.querySelector("#homeView").click());
+  await page.waitForTimeout(1400);
   for (let i = 0; i < 5; i++) { await page.evaluate(() => document.querySelector("#zoomIn").click()); await page.waitForTimeout(700); }
   const after = await read();
   await page.screenshot({ path: `${out}/${name}-zoomed.png` });
   if (!after.detail) throw Error(`${name}: zooming in should reach detail-view`);
-  if (after.claim.position !== "fixed") throw Error(`${name}: Claim must stay pinned when zoomed, was ${after.claim.position}`);
   if (Math.abs(after.claim.top - before.claim.top) > 2) throw Error(`${name}: Claim moved on zoom, ${before.claim.top} -> ${after.claim.top}`);
-  if (after.claim.top + (after.claim.bottom - after.claim.top) / 2 < after.vh * .65) throw Error(`${name}: Claim left the thumb zone when zoomed`);
-  if (overlaps(after.controls, after.claim)) throw Error(`${name}: controls overlap Claim when the pitch sheet is hidden`);
+  if (after.claim.bottom > 70) throw Error(`${name}: Claim must stay in the header, bottom was ${after.claim.bottom}`);
+  if (overlaps(after.controls, after.claim)) throw Error(`${name}: controls overlap Claim`);
   if (after.intro.top < after.vh) throw Error(`${name}: the pitch must slide off the bottom, not reflow`);
-  console.log(`${name} | zoom transition holds: Claim fixed at ${after.claim.top}, controls clear, pitch off-screen`);
+  console.log(`${name} | zoom transition holds: Claim steady in the header at ${after.claim.top}, pitch off-screen`);
   await page.close();
 }
 

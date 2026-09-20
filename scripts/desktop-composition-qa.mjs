@@ -39,8 +39,9 @@ try {
       assert.ok(Math.abs(browse.intro.bottom-browse.innerHeight)<=1,`${item.name}: pitch must be anchored to the bottom`);
       assert.ok(browse.intro.height<=browse.innerHeight*.34,`${item.name}: pitch must stay within a third of the screen`);
       assert.ok(browse.intro.top>browse.innerHeight*.5,`${item.name}: pitch must not cross the globe centre`);
-      const claimCentre=browse.claim.top+browse.claim.height/2;
-      assert.ok(claimCentre>browse.innerHeight*.65,`${item.name}: Claim must sit in the lower thumb zone`);
+      // Claim sits in the header beside owner sign-in, clear of the globe.
+      assert.ok(browse.claim.bottom<=browse.topbar.bottom+2,`${item.name}: Claim must sit inside the header`);
+      assert.ok(browse.claim.right<=browse.innerWidth-16,`${item.name}: Claim must stay inside the viewport`);
     }
     assert.equal(browse.controlDisplay,'grid',`${item.name}: controls must keep the desktop vertical rail`);
     await page.waitForFunction(()=>document.querySelector('#heroChangingWord')?.textContent.endsWith('.')&&document.querySelector('#heroChangingWord').textContent!=='brand.',null,{timeout:7000});

@@ -592,9 +592,9 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
 
 /* --- Globe-first phone composition -------------------------------------------
    Browse on a phone gives the globe the screen instead of parking the pitch
-   across it: the proposition becomes a short bottom sheet, Claim moves into the
-   thumb zone, the control rail loses its frame and drops to the lower right, and
-   the activity feed stays collapsed and hides itself when it has nothing to say.
+   across it: the proposition becomes a short bottom sheet, Claim sits in the
+   header beside owner sign-in, the control rail loses its frame and drops to the
+   lower right, and the activity ticker appears only once you zoom in.
    Studio panels get a height budget so the design surfaces stop taking the globe.
    Rationale and measured targets: docs/mobile-globe-first-layout-recommendations.md
    Revert this whole block to restore the previous composition. */
@@ -614,7 +614,7 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
      stacking context and would otherwise paint under this sheet's gradient. */
   top:auto;bottom:0;left:0;right:0;width:100%;max-width:none;z-index:4;
   display:grid;gap:5px;justify-items:start;pointer-events:none;
-  padding:14px 20px calc(66px + max(10px,env(safe-area-inset-bottom)));
+  padding:14px 20px max(14px,env(safe-area-inset-bottom));
   background:linear-gradient(to top,#050b14f2 54%,#050b14cc 76%,#050b1400);
  }
  body:not(.creating) .intro>*{pointer-events:auto}
@@ -629,31 +629,33 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
  body:not(.creating) .intro .facts{display:none}
  body:not(.creating) .intro .price-line{margin:0;font-size:11px;line-height:1.45;color:#9fb1b5}
 
- /* Claim: one full-width action in the thumb zone rather than a top corner. */
- body:not(.creating) #claimButton{
-  position:fixed;left:16px;right:16px;width:auto;z-index:8;
-  bottom:max(12px,env(safe-area-inset-bottom));min-height:50px;font-size:13px;
- }
- /* The topbar is then brand-only, so it can be smaller and quieter. */
- body:not(.creating) .topbar{height:58px;padding:10px 16px}
+ /* Claim sits in the header beside owner sign-in. The topbar keeps its flex
+    layout, so the right padding reserves the account button's column. */
+ body:not(.creating) .topbar{height:58px;padding:10px 66px 10px 16px}
+ body:not(.creating) #claimButton{min-height:38px;padding:9px 14px;font-size:11px}
+ /* Reclaim that column when owner sign-in is not offered. */
+ body:not(.creating):has(#toggleAccount[hidden]) .topbar{padding-right:16px}
  body:not(.creating) .mark{width:32px;height:32px;font-size:12px}
  body:not(.creating) #globalMetrics{top:62px}
 
- /* Controls: unframed, stage-relevant, lower right. Tour and rotation are
-    decorative on a phone; account moves up to the space Claim vacated. */
+ /* Controls: unframed, stage-relevant, lower right. Rotation stays hidden as
+    decorative; the tour is a real way in, so it keeps its place. */
  body:not(.creating) .globe-controls{
   top:auto;transform:none;right:10px;left:auto;
-  bottom:calc(max(var(--phone-sheet, 150px), 62px) + max(10px,env(safe-area-inset-bottom)));
-  display:grid;gap:8px;background:none;border:0;box-shadow:none;backdrop-filter:none;border-radius:0;
+  bottom:calc(var(--phone-sheet, 150px) + max(10px,env(safe-area-inset-bottom)));
+  display:grid;gap:10px;background:none;border:0;box-shadow:none;backdrop-filter:none;border-radius:0;
  }
+ /* Smaller circle, but the pseudo-element keeps a 44px touch target. */
  body:not(.creating) .globe-controls button{
-  width:42px;height:42px;border:1px solid var(--line);border-radius:50%;
+  position:relative;width:36px;height:36px;border:1px solid var(--line);border-radius:50%;
   background:rgba(8,22,34,.72);backdrop-filter:blur(14px);
  }
- body:not(.creating) #demoTour,body:not(.creating) #rotationToggle{display:none}
+ body:not(.creating) .globe-controls button:after{content:'';position:absolute;inset:-4px;border-radius:50%}
+ body:not(.creating) .globe-controls .ico{--ico:19px}
+ body:not(.creating) #rotationToggle{display:none}
  /* display:contents above leaves no box to position, so restore one here. */
  body:not(.creating) .globe-controls .account-access{
-  display:block;position:fixed;top:12px;right:16px;bottom:auto;width:42px;height:42px;
+  display:block;position:fixed;top:11px;right:16px;bottom:auto;width:36px;height:36px;
  }
  body:not(.creating) .hex-search>div{right:calc(100% + 10px);top:auto;bottom:0}
 
@@ -661,25 +663,21 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
     reflows into the desktop slab. The base rule slides it sideways, which is a
     desktop gesture; on a phone it belongs down and out. */
  body.detail-view:not(.selecting) .intro{transform:translateY(100%)}
- /* The inspector is a bottom surface too, so it sits above Claim, not over it. */
- body:not(.creating) #placementInspector{bottom:calc(62px + max(12px,env(safe-area-inset-bottom)));max-height:42dvh}
+ body:not(.creating) #placementInspector{bottom:max(12px,env(safe-area-inset-bottom));max-height:42dvh}
 
  /* An open inspector is the bottom surface, so the controls lift above it and
     the ticker steps aside. Its 42dvh cap is the budget, so this needs no
     per-frame measurement of the panel's actual height. */
  body:not(.creating):has(#placementInspector:not([hidden])) .globe-controls{
-  bottom:calc(42dvh + 74px + env(safe-area-inset-bottom));
+  bottom:calc(42dvh + 24px + env(safe-area-inset-bottom));
  }
  body:not(.creating):has(#placementInspector:not([hidden])) #claimFeed{display:none}
 
- /* The confirmation toast is another bottom surface and outranks Claim on
-    z-index, so it has to clear it rather than cover it. */
- body:not(.creating) .toast{bottom:calc(74px + env(safe-area-inset-bottom))}
-
- /* Activity: collapsed, and absent entirely when there is nothing to show. */
- body:not(.has-activity) #claimFeed{display:none}
+ /* Activity: hidden on the opening view, and only once there is something to
+    report. Zooming in replaces the pitch with the ticker at the bottom. */
+ body:not(.has-activity) #claimFeed,body:not(.detail-view) #claimFeed{display:none}
  /* Stop short of the control column, which shares this bottom edge. */
- body:not(.creating) #claimFeed{bottom:calc(max(var(--phone-sheet, 150px), 62px) + max(10px,env(safe-area-inset-bottom)));left:16px;width:calc(100vw - 84px)}
+ body:not(.creating) #claimFeed{bottom:max(12px,env(safe-area-inset-bottom));left:16px;width:calc(100vw - 84px)}
  body:not(.creating) #claimFeed[open]{width:min(280px,calc(100vw - 84px))}
  body:not(.creating) #claimFeed[open] #claimFeedItems{height:96px;max-height:96px}
 
@@ -692,6 +690,6 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
 }
 @media(max-width:700px) and (max-height:650px){
  body[data-flow=design] .buy-panel,body[data-flow=shape] .buy-panel{top:42dvh}
- body:not(.creating) .intro{padding-bottom:calc(62px + max(8px,env(safe-area-inset-bottom)))}
+ body:not(.creating) .intro{padding-bottom:max(10px,env(safe-area-inset-bottom))}
  body:not(.creating) .intro h1{font-size:clamp(21px,6vw,26px)}
 }
