@@ -1107,7 +1107,12 @@ function enterDesignStep(){
   if(!ownerEdit&&placementCount()<5){document.querySelector('#shapeCountError').hidden=false;document.querySelector('#hexAmount').focus();return;}
   document.querySelector('#shapeCountError').hidden=true;
   document.body.classList.remove('choosing-start');selectionModeUniform.value=0;clearSelectionColours();showFlowStep('design');setDesignSurface('globe');setEditorMode('move',false);drawDesignPreview();updateTotals();
-  if(innerWidth<=700){const normal=new THREE.Vector3(...topology.centre(designAnchor));const angle=Math.acos(Math.max(-1,previewCells().reduce((dot,cell)=>Math.min(dot,normal.dot(new THREE.Vector3(...topology.centre(cell.id)))),1)))+.004;flyToCell(designAnchor,angle,600);}
+  if(innerWidth<=700){
+    selectedCell=cellForId(designAnchor);selectedCells=previewCells();
+    // Frame the complete footprint against the actual studio viewport. The old
+    // angular flight could leave a large selection below the phone sheet.
+    requestAnimationFrame(()=>{resize();focusSelection();});
+  }
 }
 async function confirmStartingSpot(id){
   if(!Number.isInteger(id)||occupiedCells[id-1])return;
@@ -2146,6 +2151,12 @@ function syncGlobeDesign(){
   controls.enableRotate=logoEditorMode==='pan';
   selectedCell=cellForId(designAnchor);
   selectedCells=previewCells();
+  // Blank cells still need to read as the footprint being designed. Keep the
+  // lime outline/faint fill until an image or per-cell treatment replaces it.
+  selectionColourData.fill(0);
+  if(!uploadedLogo)for(const cell of selectedCells)if(!cell.color&&!cell.transparent)writeCellColour(selectionColourData,cell,'#d7ff55');
+  selectionColourTexture.needsUpdate=true;
+  selectionModeUniform.value=!uploadedLogo&&selectedCells.some(cell=>!cell.color&&!cell.transparent)?1:0;
   const owned=ownerEdit?new Set(ownerEdit.record.cells):null,blocked=selectedCells.some(c=>occupiedCells[c.id-1]&&!owned?.has(c.id));
   document.querySelector('#toPlacement').disabled=blocked||!selectedCells.length;
   if(blocked)document.querySelector('#toolHint').textContent='This size overlaps purchased hexagons. Reduce the count or move the design.';

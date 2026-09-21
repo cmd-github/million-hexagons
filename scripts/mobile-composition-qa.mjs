@@ -123,7 +123,7 @@ for (const [name, vw, vh] of [["390x844", 390, 844], ["320x568", 320, 568]]) {
   await page.close();
 }
 
-// Shape and Design must fit their panel without vertical scrolling on a phone.
+// Every studio menu must fit without vertical scrolling on a phone.
 // Walking that journey needs the geodesicQA hook, which only a dev build exposes,
 // so against a deployed origin this reports as skipped rather than failing. Run it
 // against `npm run dev` to exercise it, as the other studio journeys are run.
@@ -158,15 +158,27 @@ for (const [name, vw, vh] of studioHook ? [["390x844", 390, 844], ["411x795", 41
     const s = document.querySelector(".flow-screen:not([hidden])");
     return { flow: document.body.dataset.flow, over: s ? s.scrollHeight - s.clientHeight : 0 };
   });
-  for (const step of ["shape", "design"]) {
+  for (const step of ["shape", "design", "review"]) {
     if (step === "design") {
       await page.locator("#toDesign").click();
       await page.locator("#designStep").waitFor({ state: "visible" });
+      const blankFootprintVisible = await page.evaluate(id => window.geodesicQA.selectionAlpha(id) > 0, anchor);
+      if (!blankFootprintVisible) throw Error(`${name}: blank Design footprint must retain its selection treatment`);
       // Measure with an image loaded: that reveals the layout choice and the
       // second action button, and is the tallest the step ever gets.
       await page.locator("#logoUpload").setInputFiles("scripts/fixtures/test-logo.svg");
       await page.waitForFunction(() => document.querySelector("#addImageLabel").textContent === "Replace image");
       await page.waitForTimeout(700);
+      const visible = await page.evaluate(id => {
+        const point = window.geodesicQA.screen(id);
+        const panelTop = document.querySelector("#buyPanel").getBoundingClientRect().top;
+        return point && point.y >= 0 && point.y < panelTop;
+      }, anchor);
+      if (!visible) throw Error(`${name}: selected design anchor must remain visible above the Design menu`);
+    } else if (step === "review") {
+      await page.locator("#toPlacement").click();
+      await page.locator("#reviewStep").waitFor({ state: "visible" });
+      await page.waitForTimeout(300);
     }
     const o = await overflow();
     await page.screenshot({ path: `${out}/${name}-${step}.png` });
@@ -178,13 +190,61 @@ for (const [name, vw, vh] of studioHook ? [["390x844", 390, 844], ["411x795", 41
       return { share: Math.round(r.height / innerHeight * 100),
                dead: Math.round(r.bottom - parseFloat(getComputedStyle(panel).paddingBottom) - lastRow) };
     });
-    if (m.share > (vh <= 650 ? 68 : 56)) throw Error(`${name}: ${o.flow} panel takes ${m.share}% of the screen`);
+    const maxShare = step === "review" ? 95 : (vh <= 650 ? 68 : 56);
+    if (m.share > maxShare) throw Error(`${name}: ${o.flow} panel takes ${m.share}% of the screen`);
     // A panel sized by viewport percentage rather than by content leaves a dead
     // band under the last control. That is invisible in an emulator whose
     // viewport matches dvh exactly, and obvious on a real phone.
     if (m.dead > 16) throw Error(`${name}: ${o.flow} leaves ${m.dead}px of empty panel below its content`);
     console.log(`${name} | ${o.flow} fits with no scrolling, panel ${m.share}% of screen, ${m.dead}px dead space`);
   }
+  await page.close();
+}
+
+// A rotated phone is wider than the phone breakpoint but still height-starved.
+// Its Design menu must use the short-viewport layout and keep every control in view.
+if (studioHook) {
+  const page = await browser.newPage({ viewport: { width: 868, height: 327 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  page.setDefaultTimeout(40000);
+  await page.goto(base + "/?geodesicQA");
+  await page.waitForSelector("#world[data-ready=true]", { timeout: 90000 });
+  await page.waitForTimeout(1800);
+  await page.locator("#claimButton").click();
+  const anchor = await page.evaluate(() => window.geodesicQA.state().designAnchor);
+  await page.evaluate(id => window.geodesicQA.start(id), anchor);
+  await page.locator("#shapeStep").waitFor({ state: "visible" });
+  await page.locator("#toDesign").click();
+  await page.locator("#designStep").waitFor({ state: "visible" });
+  await page.locator("#logoUpload").setInputFiles("scripts/fixtures/test-logo.svg");
+  await page.waitForFunction(() => document.querySelector("#addImageLabel").textContent === "Replace image");
+  await page.waitForTimeout(500);
+  const fit = await page.evaluate(() => {
+    const step = document.querySelector("#designStep"), panel = document.querySelector("#buyPanel");
+    const pr = panel.getBoundingClientRect();
+    const visible = [...step.querySelectorAll("button,input,select")].filter(el => !el.hidden && getComputedStyle(el).display !== "none");
+    return { over: step.scrollHeight - step.clientHeight, panel: { top: pr.top, right: pr.right, bottom: pr.bottom },
+      clipped: visible.filter(el => { const r=el.getBoundingClientRect();return r.top < 0 || r.bottom > innerHeight || r.left < 0 || r.right > innerWidth; }).map(el => el.id || el.className) };
+  });
+  await page.screenshot({ path: `${out}/868x327-design.png` });
+  if (fit.over > 0 || fit.clipped.length) throw Error(`868x327: Design menu does not fit: ${JSON.stringify(fit)}`);
+  console.log("868x327 | Design menu fits the short landscape viewport without clipping or scrolling");
+  await page.close();
+}
+
+// The share card is a fixed menu too: all formats and guidance must remain
+// visible without turning the card into a scroll container.
+for (const [name, vw, vh] of [["390x844",390,844],["320x568",320,568]]) {
+  const page = await browser.newPage({ viewport: { width: vw, height: vh }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  await page.goto(base + "/?geodesicQA");
+  await page.waitForSelector("#world[data-ready=true]", { timeout: 90000 });
+  await page.evaluate(() => { document.querySelector("#shareCard").hidden=false; });
+  const fit = await page.locator("#shareCard").evaluate(card => {
+    const r=card.getBoundingClientRect();
+    return { over:card.scrollHeight-card.clientHeight,top:Math.round(r.top),bottom:Math.round(r.bottom),vh:innerHeight };
+  });
+  await page.screenshot({ path: `${out}/${name}-share.png` });
+  if(fit.over>0||fit.top<0||fit.bottom>fit.vh)throw Error(`${name}: share card must fit without scrolling: ${JSON.stringify(fit)}`);
+  console.log(`${name} | share card fits without scrolling`);
   await page.close();
 }
 

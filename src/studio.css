@@ -797,3 +797,83 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
  body:not(.creating) .intro{padding-bottom:max(10px,env(safe-area-inset-bottom))}
  body:not(.creating) .intro h1{font-size:clamp(21px,6vw,26px)}
 }
+
+/* Mobile menu-fit contract: every fixed menu exposes its complete set of
+   controls without an inner scrollbar. Long activity lists remain scrollable. */
+@media(max-width:700px){
+ body[data-flow=review] .globe-controls{display:none}
+ body[data-flow=review] .buy-panel{max-height:94svh}
+ body[data-flow=review] #reviewStep{overflow:visible;padding-right:0;gap:4px}
+ body[data-flow=review] .flow-progress{margin-bottom:3px}
+ #reviewStep h2{margin:0;font-size:16px}
+ #reviewStep .review-card canvas{height:54px}
+ #reviewStep .review-card>div{padding:4px 9px}
+ #reviewStep #reviewEditDesign{min-height:32px;padding:4px}
+ #reviewStep>label{margin-top:3px;font-size:10px}
+ #reviewStep>label input{height:40px;margin-top:3px;padding:8px 10px}
+ #reviewStep textarea{height:60px;min-height:60px;margin-top:3px;padding:8px 10px}
+ #reviewStep .optional{font-size:9px}
+ #reviewStep .review-footer{position:static;margin-top:3px;padding-top:3px}
+ #reviewStep .review-price{padding:5px 0;margin-bottom:5px}
+ #reviewStep .review-price b{font-size:24px}
+ #reviewStep .review-footer .primary{min-height:44px;padding:10px}
+ #reviewStep .mock-note{margin-top:4px;font-size:9px}
+
+ .share-card{top:8px;right:12px;left:12px;width:auto;max-height:calc(100svh - 16px);overflow:hidden;padding:12px}
+ .share-card:not([hidden]){transform:none}
+ .share-card h2{margin:3px 0 8px;font-size:21px}
+ .share-card>button:first-child{width:38px;height:38px}
+ .share-image{padding:18px 7px 7px}
+ #shareCardPreview{height:min(25svh,230px)}
+ .share-controls{gap:6px;margin-top:7px;padding-top:7px}
+ .share-card-format select{padding:6px}
+ .share-destinations,.share-card-actions{gap:5px}
+ .share-destinations button,.share-no-link button{min-height:36px;padding:5px}
+ .share-card-actions button{min-height:40px;padding:7px}
+ .share-no-link{gap:5px}
+ #shareCardStatus{min-height:13px;font-size:10px}
+}
+
+/* Width-only phone queries miss a rotated handset. Use the available height as
+   the deciding constraint and turn the studio into a compact right-hand menu. */
+@media(max-height:480px) and (min-width:701px){
+ body.creating .buy-panel{
+  top:0;right:0;bottom:0;left:auto;width:min(62vw,560px);height:100dvh;
+  padding:8px 12px;border-radius:18px 0 0 18px;overflow:hidden;
+ }
+ body.creating .buy-panel>.close{top:6px;right:7px;width:38px;height:38px}
+ body.creating .flow-progress{height:28px;min-height:28px;margin:0 38px 4px 0;padding:0;gap:3px}
+ body.creating .flow-progress button{min-height:28px;flex-direction:row;gap:3px}
+ body.creating .flow-progress i{width:16px;height:16px;font-size:8px}
+ body.creating .flow-progress small{font-size:9px}
+ body.creating .flow-screen{gap:4px;overflow:visible;min-height:0}
+ body.creating .flow-screen h2,#designStep .studio-heading h2{font-size:16px;line-height:1;margin:0}
+ body.creating .flow-screen .panel-intro{display:none}
+ body.creating .globe-controls{left:10px;right:auto;top:8px;bottom:auto;transform:none}
+ #shapeStep .availability-key{display:none}
+ #shapeStep .shape-size-card{padding:5px;gap:3px}
+ #shapeStep .shape-count-stepper button,#shapeStep .studio-count input{height:32px;min-height:32px}
+ #shapeStep .size-presets button,#shapeStep .shape-brushes .hex-brush{height:30px;min-height:30px}
+ #shapeStep .place-summary{margin:0;padding:3px 0}
+ #shapeStep #toDesign{min-height:38px;padding:6px}
+ #designStep .studio-toolbar{grid-template-columns:1fr 1fr 38px 38px 54px;gap:3px}
+ #designStep .studio-toolbar>button{min-height:34px;padding:4px}
+ #designStep .studio-context{gap:3px;padding:2px 0}
+ #designStep #logoPositionControls{gap:1px;margin:0}
+ #designStep #logoPositionControls>label{min-height:25px;margin:0}
+ #designStep #logoPositionControls>label>input[type=range]{min-height:25px}
+ #designStep .add-image{min-height:30px;padding:4px}
+ #designStep .image-actions{margin:0}
+ #designStep .image-actions button{min-height:28px;padding:3px}
+ #designStep .design-footer{padding:3px 0 0}
+ #designStep .design-footer .primary{min-height:38px;padding:6px 10px}
+ #designStep .mini-price b{font-size:18px}
+}
+
+@media(max-width:700px) and (max-height:650px){
+ .share-card h2{font-size:18px}
+ .share-image{padding:14px 4px 4px}
+ #shareCardPreview{height:min(14svh,130px)}
+ .share-controls{gap:4px;margin-top:5px;padding-top:5px}
+ .share-no-link small{font-size:8px;line-height:1.25}
+}
