@@ -2042,7 +2042,9 @@ resize();
 frameGlobe(true);
 
 async function createTourStops(){
-  const grid=await ensureTopology(),sessionAreas=[...new Set(sessionPlacements.values())].map((placement,index)=>{
+  const grid=await ensureTopology(),sessionPlacementRecords=[...new Set(sessionPlacements.values())];
+  await grid.ensureCells(sessionPlacementRecords.map(placement=>placement.anchor));
+  const sessionAreas=sessionPlacementRecords.map((placement,index)=>{
     const centre=grid.centre(placement.anchor);let minimumDot=1;
     for(const id of placement.cells||[placement.anchor]){const point=grid.centre(id);minimumDot=Math.min(minimumDot,centre[0]*point[0]+centre[1]*point[1]+centre[2]*point[2]);}
     return{anchor:placement.anchor,angle:Math.max(placement.angle||0,Math.acos(Math.max(-1,minimumDot))+.004),name:placement.name||'Your placement',key:`session-${index}`};
