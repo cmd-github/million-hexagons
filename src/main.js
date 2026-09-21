@@ -104,6 +104,15 @@ const hoverCellUniform = { value: -2 };
 const globeMaterial = new THREE.MeshStandardMaterial({ color: '#071c2b', emissive:'#1c3545',emissiveIntensity:1, roughness: .7, metalness: .04 });
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius - .0005, 192, 128), globeMaterial);
 globe.add(sphere);
+// A restrained Fresnel rim keeps the spherical silhouette readable when a
+// close view removes most of the globe edge from the screen.
+const atmosphereMaterial=new THREE.ShaderMaterial({
+  transparent:true,depthWrite:false,side:THREE.FrontSide,blending:THREE.AdditiveBlending,
+  vertexShader:`varying vec3 vNormal;varying vec3 vView;void main(){vec4 world=modelMatrix*vec4(position,1.0);vNormal=normalize(mat3(modelMatrix)*normal);vView=normalize(cameraPosition-world.xyz);gl_Position=projectionMatrix*viewMatrix*world;}`,
+  fragmentShader:`varying vec3 vNormal;varying vec3 vView;void main(){float rim=pow(1.0-abs(dot(normalize(vNormal),normalize(vView))),3.0);gl_FragColor=vec4(0.42,0.78,0.88,rim*0.16);}`
+});
+const atmosphere=new THREE.Mesh(new THREE.SphereGeometry(radius+.025,128,96),atmosphereMaterial);
+atmosphere.renderOrder=9;globe.add(atmosphere);
 
 const artworkTiles = new ArtworkTiles(globe,radius,{base:millionFixture?'/artwork/million':runtimeAsset('artwork/empty'),maxTiles:innerWidth<700?64:128,anisotropy:Math.min(8,renderer.capabilities.getMaxAnisotropy())});
 await artworkTiles.ready;
@@ -2038,14 +2047,21 @@ async function createTourStops(){
     for(const id of placement.cells||[placement.anchor]){const point=grid.centre(id);minimumDot=Math.min(minimumDot,centre[0]*point[0]+centre[1]*point[1]+centre[2]*point[2]);}
     return{anchor:placement.anchor,angle:Math.max(placement.angle||0,Math.acos(Math.max(-1,minimumDot))+.004),name:placement.name||'Your placement',key:`session-${index}`};
   });
-  const candidates=[...(bootstrap.sampleAreas||[]).map((area,index)=>({anchor:area.anchor,angle:area.angle,name:bootstrap.sampleCampaigns[area.campaign].name,key:`sample-${index}`})),...sessionAreas]
-    .filter(area=>occupiedCells[area.anchor-1]);
+  let liveAreas=[];
+  if(snapshotEnabled){
+    try{
+      const client=await import('./staging-client.js'),records=await client.listPublicClaims();
+      liveAreas=records.filter(record=>record.publicationStatus==='published'&&record.status!=='deleted'&&record.status!=='revoked'&&record.moderationStatus!=='suspended').map(record=>({anchor:record.anchor,angle:record.angle||.012,name:record.title||'Untitled placement',key:`live-${record.placementId}`,trusted:true}));
+    }catch(error){console.error('Could not load live tour placements',error);}
+  }
+  const candidates=[...(bootstrap.sampleAreas||[]).map((area,index)=>({anchor:area.anchor,angle:area.angle,name:bootstrap.sampleCampaigns[area.campaign].name,key:`sample-${index}`})),...sessionAreas,...liveAreas]
+    .filter(area=>area.trusted||occupiedCells[area.anchor-1]);
   if(!candidates.length)return [
     {name:'Globe overview',normal:[0,0,1],angle:.4,overview:true,offset:0},
     {name:'Globe overview',normal:[1,0,0],angle:.4,overview:true,offset:0},
     {name:'Globe overview',normal:[0,0,-1],angle:.4,overview:true,offset:0},
   ];
-  await grid.ensureCells(sessionAreas.map(area=>area.anchor));
+  await grid.ensureCells(candidates.map(area=>area.anchor));
   const pool=[...candidates],selected=[pool.splice(Math.floor(Math.random()*pool.length),1)[0]],limit=Math.min(24,candidates.length);
   while(selected.length<limit&&pool.length){
     let best=0,bestScore=Infinity;
@@ -2262,6 +2278,7 @@ canvas.addEventListener('pointerup',()=>{
 for(const event of ['pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>globeStroke=null);
 let inspectorVersion=0;
 let inspectedId=null, inspectedCells=[], hudPinned=false, inspectedOwner=null;
+let inspectorRoute=[],inspectorRouteIndex=0;
 const analyticsSession=(()=>{try{let value=sessionStorage.getItem('mh-analytics-session');if(!value){value=crypto.randomUUID();sessionStorage.setItem('mh-analytics-session',value);}return value;}catch{return crypto.randomUUID();}})();
 function deviceClass(){return innerWidth<=700?'mobile':innerWidth<=1024?'tablet':'desktop';}
 function trackEvent(type,{placementId='',context={},unique=false}={}){if(!stagingClient)return;const sessionId=unique?`${analyticsSession}-${crypto.randomUUID().slice(0,8)}`:analyticsSession;void stagingClient.trackEvent({type,sessionId,...(placementId?{placementId}:{}),context:{deviceClass:deviceClass(),...context}}).catch(()=>{});}
@@ -2317,9 +2334,13 @@ let linkClicks={};
 try{const saved=JSON.parse(localStorage.getItem(clickStorageKey)||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))linkClicks=saved;}catch{}
 function ownerKey(id){const record=sessionPlacements.get(id);return record||'sample-'+sampleOwners[id-1];}
 function createHudThumbnail(source){const art=document.createElement('canvas');const scale=Math.min(1,160/Math.max(source.width,source.height));art.width=Math.max(1,Math.round(source.width*scale));art.height=Math.max(1,Math.round(source.height*scale));art.getContext('2d').drawImage(source,0,0,art.width,art.height);return art.toDataURL('image/png');}
-async function inspectPlacement(id){
+async function inspectPlacement(id,{keepRoute=false}={}){
   const version=++inspectorVersion;
-  try {return await prepareInspector(id,version);}
+  try {
+    const opened=await prepareInspector(id,version);
+    if(opened&&!keepRoute)await resetInspectorRoute(id);
+    return opened;
+  }
   catch(error){console.error('Could not load placement inspector',error);if(version===inspectorVersion){hexSearchStatus.textContent='Could not load this placement. Try again.';document.querySelector('#inspectorStatus').textContent='Could not load this placement. Try again.';}return false;}
 }
 async function prepareInspector(id,version){
@@ -2349,6 +2370,7 @@ async function prepareInspector(id,version){
   const owner=sampleOwners[id-1],queue=prepared;
   inspectedCells=queue;
   const views=document.querySelector('#inspectorInfo');views.textContent=record?.placementId?'…':record?'\u2014':'12,429';views.title=record?.placementId?'Measured placement views':record?'Views are not measured yet':'Illustrative views';
+  document.querySelector('#inspectorHexagons').textContent=queue.length.toLocaleString();
   document.querySelector('#inspectorDate').textContent=(record?new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'}):'08/08/26');
   const description=record?.description||sampleDescriptions[owner-1]||'';
   document.querySelector('#inspectorDescription').textContent=description;
@@ -2367,6 +2389,39 @@ async function prepareInspector(id,version){
   if(version!==inspectorVersion)return false;
   return true;
 }
+function updateInspectorNavigation(){
+  const available=inspectorRoute.length>1;
+  document.querySelector('#previousPlacement').disabled=!available;
+  document.querySelector('#nextPlacement').disabled=!available;
+  document.querySelector('#placementPosition').textContent=available?`${inspectorRouteIndex+1} of ${inspectorRoute.length}`:'No other placements';
+}
+async function resetInspectorRoute(id){
+  const live=[...new Set(sessionPlacements.values())].filter(record=>record?.placementId).map(record=>({id:record.anchor,record,key:`live-${record.placementId}`}));
+  const samples=[];
+  const sampleOwnersSeen=new Set();
+  for(const area of bootstrap.sampleAreas||[]){const owner=sampleOwners[area.anchor-1];if(!owner||sampleOwnersSeen.has(owner))continue;sampleOwnersSeen.add(owner);samples.push({id:area.anchor,record:null,key:`sample-${owner}`});}
+  const currentRecord=sessionPlacements.get(id),currentKey=currentRecord?.placementId?`live-${currentRecord.placementId}`:`sample-${sampleOwners[id-1]}`;
+  const candidates=[...live,...samples].filter((item,index,list)=>list.findIndex(other=>other.key===item.key)===index);
+  if(!candidates.some(item=>item.key===currentKey))candidates.unshift({id,record:currentRecord?.placementId?currentRecord:null,key:currentKey||`cell-${id}`});
+  await topology.ensureCells([...new Set(candidates.map(item=>item.id))]);
+  const origin=topology.centre(id);
+  inspectorRoute=candidates.sort((a,b)=>{
+    if(a.key===currentKey)return -1;if(b.key===currentKey)return 1;
+    const distance=item=>1-topology.centre(item.id).reduce((sum,value,index)=>sum+value*origin[index],0);
+    return distance(a)-distance(b)||a.key.localeCompare(b.key);
+  });
+  inspectorRouteIndex=Math.max(0,inspectorRoute.findIndex(item=>item.key===currentKey));
+  updateInspectorNavigation();
+}
+async function moveInspector(direction){
+  if(inspectorRoute.length<2)return;
+  const next=(inspectorRouteIndex+direction+inspectorRoute.length)%inspectorRoute.length,item=inspectorRoute[next];
+  if(item.record)await applyPersistentPlacements([item.record]);
+  if(await inspectPlacement(item.id,{keepRoute:true})){inspectorRouteIndex=next;updateInspectorNavigation();viewInspectedPlacement();}
+}
+document.querySelector('#previousPlacement').onclick=()=>void moveInspector(-1);
+document.querySelector('#nextPlacement').onclick=()=>void moveInspector(1);
+updateInspectorNavigation();
 async function renderNearbyPlacements(){
   const nearby=document.querySelector('#nearbyPlacements'),targetId=inspectedId;nearby.replaceChildren();
   const record=targetId?sessionPlacements.get(targetId):null,selectedRecord=record?.placementId?publicPlacementRecords.get(record.placementId)||record:null,records=[...publicPlacementRecords.values()];

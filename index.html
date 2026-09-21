@@ -47,7 +47,7 @@
       <p class="eyebrow">ONE MILLION PLACES. CLAIM YOURS.</p>
       <h1 aria-label="Your place. Part of the world."><span class="hero-changing-line" aria-hidden="true">Your <span class="hero-word-slot"><span id="heroChangingWord">idea.</span><span class="hero-cursor"></span></span></span><br><em aria-hidden="true">Part of <br>the world.</em></h1>
       <p>Create something memorable. Promote something worth seeing. Leave something worth discovering.</p>
-      <p class="price-line"><b>$1 per cell &middot; Pay Once. Change anytime.</b></p>
+      <p class="price-line"><b>$1 per hexagon &middot; Pay Once. Change anytime.</b></p>
       <div class="facts"><span><b>1,000,000</b> hexagons</span><span><b>Yours</b> to create</span></div>
     </aside>
 
@@ -56,6 +56,10 @@
       <button type="button" id="panEditor" data-icon="pan" aria-pressed="false" aria-label="Move globe" title="Move globe"></button>
       <button type="button" id="rotationToggle" data-icon="rotate-pause" aria-pressed="true" aria-label="Pause globe rotation" title="Pause globe rotation"></button>
       <button type="button" id="demoTour" data-icon="tour-start" aria-pressed="false" aria-label="Start globe tour" title="Start globe tour"></button>
+      <form class="hex-search" id="hexSearch" role="search">
+        <button type="button" id="toggleHexSearch" data-icon="search" aria-label="Find company or hex" aria-expanded="false"></button>
+        <div id="hexSearchPanel" hidden><label for="hexSearchInput" class="visually-hidden">Company or hex number</label><span><input id="hexSearchInput" autocomplete="off" placeholder="Company or #123" aria-describedby="hexSearchStatus"><button type="submit" data-icon="arrow-right" aria-label="Go to hexagon"></button></span><div id="companyResults"></div><small id="hexSearchStatus" role="status"></small></div>
+      </form>
       <div class="account-access">
         <button type="button" id="toggleAccount" data-icon="key" aria-label="Owner sign in" aria-expanded="false" title="Owner sign in"></button>
         <section id="accountPanel" hidden aria-label="Owner access">
@@ -64,10 +68,6 @@
           <small id="accountStatus" role="status"></small>
         </section>
       </div>
-      <form class="hex-search" id="hexSearch" role="search">
-        <button type="button" id="toggleHexSearch" data-icon="search" aria-label="Find company or hex" aria-expanded="false"></button>
-        <div id="hexSearchPanel" hidden><label for="hexSearchInput" class="visually-hidden">Company or hex number</label><span><input id="hexSearchInput" autocomplete="off" placeholder="Company or #123" aria-describedby="hexSearchStatus"><button type="submit" data-icon="arrow-right" aria-label="Go to hexagon"></button></span><div id="companyResults"></div><small id="hexSearchStatus" role="status"></small></div>
-      </form>
       <button id="zoomIn" data-icon="zoom-in" aria-label="Zoom in"></button><button id="zoomOut" data-icon="zoom-out" aria-label="Zoom out"></button><button id="homeView" data-icon="home" aria-label="Re-centre globe"></button>
     </nav>
     <section id="myGlobe" class="my-globe" hidden aria-label="My Globe">
@@ -98,7 +98,8 @@
 <button id="pinInspector" role="switch" aria-checked="false" aria-label="Keep placement details open" title="Keep details open"><span class="switch-track"></span></button>
 <div class="hud-brand"><img id="inspectorLogo" alt="" hidden><h2 id="inspectorName"></h2></div>
 <div class="hud-pages"><div id="hudDetails"><p id="inspectorDescription"></p>
-<div class="hud-stats"><div><strong id="inspectorInfo"></strong><span>Views</span></div><div><strong id="inspectorClicks"></strong><span>Visits</span></div><div><strong id="inspectorDate"></strong><span>Claimed</span></div></div><div id="inspectorBadges" class="hud-badges" aria-label="Top achievements"></div>
+<div class="hud-stats"><div><strong id="inspectorInfo"></strong><span>Views</span></div><div><strong id="inspectorClicks"></strong><span>Visits</span></div><div><strong id="inspectorHexagons"></strong><span>Hexagons</span></div><div><strong id="inspectorDate"></strong><span>Claimed</span></div></div><div id="inspectorBadges" class="hud-badges" aria-label="Top achievements"></div>
+<div class="hud-navigation" aria-label="Browse nearby placements"><button type="button" id="previousPlacement" data-icon="arrow-left" aria-label="Previous nearby placement" title="Previous nearby placement"></button><span id="placementPosition" aria-live="polite"></span><button type="button" id="nextPlacement" data-icon="arrow-right" aria-label="Next nearby placement" title="Next nearby placement"></button></div>
 <small id="inspectorContext"></small><div class="hud-actions"><a id="inspectorVisit" data-icon="visit" target="_blank" rel="noopener noreferrer">Visit website</a><button id="inspectorShare" data-icon="link" aria-label="Copy location link" title="Copy location link"></button><button id="deleteTestPlacement" hidden>Delete test</button></div>
 <button id="showNearby" aria-controls="hudNearby" aria-expanded="false">Nearby <span class="ico-slot" data-icon="arrow-right"></span></button><small id="inspectorStatus" role="status"></small></div>
 <div id="hudNearby" inert aria-hidden="true"><div class="nearby-heading"><h3>Nearby</h3><button id="backNearby" aria-label="Back to placement"><span class="ico-slot" data-icon="arrow-left"></span> Back</button></div><div id="nearbyPlacements"></div></div></div>
@@ -164,7 +165,12 @@
     <dialog id="studioExit" class="studio-dialog studio-exit" aria-labelledby="studioExitTitle"><form method="dialog"><p class="eyebrow">YOUR DESIGN</p><h2 id="studioExitTitle">Leave the studio?</h2><p>Your unfinished placement can stay here for later, or you can discard it and start fresh next time.</p><div class="dialog-actions exit-actions"><button value="continue" autofocus>Continue editing</button><button value="save" class="primary">Save for later</button><button value="discard" class="danger">Discard &amp; quit</button></div></form></dialog>
     <div class="toast glass" id="toast" role="status"><b>Welcome to the world.</b><span>Your preview is on the globe for this session.</span><a id="placementWebsite" hidden target="_blank" rel="noopener noreferrer">Visit website</a><button id="dismissToast" data-icon="close" aria-label="Dismiss confirmation"></button></div>
     <script type="module">
-      const slowBoot=setTimeout(()=>{document.querySelector('#loadingMessage').textContent='Still loading the globe. This is taking longer than usual.';},8000);
+      const loadingMessage=document.querySelector('#loadingMessage');
+      const playfulLoading=['Finding your place in the world…','Warming up one million hexagons…','Giving the globe a gentle spin…','Making room for big ideas…'];
+      let loadingCopyIndex=0;
+      loadingMessage.textContent=playfulLoading[loadingCopyIndex];
+      const playfulBoot=setInterval(()=>{loadingCopyIndex=(loadingCopyIndex+1)%playfulLoading.length;loadingMessage.textContent=playfulLoading[loadingCopyIndex];},1800);
+      const slowBoot=setTimeout(()=>{clearInterval(playfulBoot);loadingMessage.textContent='Still loading the globe. This is taking longer than usual.';},8000);
       const failedBoot=setTimeout(()=>{
         document.querySelector('#loadingMessage').textContent='Could not load the globe. Please try again.';
         document.querySelector('#loadingRetry').hidden=false;
@@ -179,7 +185,7 @@
         document.querySelector('#loadingError').textContent='Could not load the globe. Please try again.';
         document.querySelector('#loadingRetry').hidden=false;
         document.body.setAttribute('aria-busy','false');
-      }).finally(()=>{clearTimeout(slowBoot);clearTimeout(failedBoot);});
+      }).finally(()=>{clearInterval(playfulBoot);clearTimeout(slowBoot);clearTimeout(failedBoot);});
     </script>
   </body>
 </html>

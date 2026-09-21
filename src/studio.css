@@ -351,12 +351,16 @@ body:not(.detail-view) .intro .facts{margin:10px 0}
 #hudDetails, #hudNearby{grid-area:1/1;min-width:0}
 #hudNearby, .show-nearby #hudDetails{visibility:hidden;pointer-events:none}
 .show-nearby #hudNearby{visibility:visible;pointer-events:auto}
-#placementInspector .hud-stats{font-weight:400;flex-wrap:wrap;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 0 14px}
+#placementInspector .hud-stats{font-weight:400;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 14px}
 #placementInspector .hud-stats>div{display:flex;flex-direction:column;gap:5px}
-#placementInspector .hud-stats>div:nth-child(2){text-align:center}
+#placementInspector .hud-stats>div:not(:first-child):not(:last-child){text-align:center}
 #placementInspector .hud-stats>div:last-child{text-align:right}
-#placementInspector #inspectorInfo, #placementInspector #inspectorClicks, #placementInspector #inspectorDate{font-size:10px;font-weight:400;margin:0;font:600 15px Manrope,sans-serif;color:#eff7ef;letter-spacing:-.03em}
+#placementInspector #inspectorInfo, #placementInspector #inspectorClicks, #placementInspector #inspectorHexagons, #placementInspector #inspectorDate{font-size:10px;font-weight:400;margin:0;font:600 15px Manrope,sans-serif;color:#eff7ef;letter-spacing:-.03em}
 #placementInspector .hud-stats span{font-size:10px;color:#8ca7a2}
+#placementInspector .hud-navigation{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:8px;margin:0 0 10px}
+#placementInspector .hud-navigation button{display:grid!important;place-items:center;min-width:44px;min-height:40px;margin:0!important;padding:7px!important}
+#placementInspector .hud-navigation button:disabled{opacity:.28}
+#placementInspector #placementPosition{text-align:center;color:#8ca7a2;font:600 9px 'DM Mono',monospace;text-transform:uppercase;letter-spacing:.05em}
 #placementInspector #inspectorContext{border:0;padding:0;margin:0 0 12px;color:var(--lime);font-size:10px}
 #placementInspector .hud-actions{margin-top:0}
 #placementInspector .hud-actions a{display:flex;align-items:center;padding:10px 13px;border-color:#d7ff5544;color:var(--lime);justify-content:center;gap:8px;flex:1;font-size:12px;min-height:44px;box-sizing:border-box}
@@ -642,7 +646,7 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
     decorative; the tour is a real way in, so it keeps its place. */
  body:not(.creating) .globe-controls{
   top:auto;transform:none;right:10px;left:auto;
-  bottom:calc(var(--phone-sheet, 150px) + max(10px,env(safe-area-inset-bottom)));
+  bottom:calc(42dvh + 24px + env(safe-area-inset-bottom));
   display:grid;gap:10px;background:none;border:0;box-shadow:none;backdrop-filter:none;border-radius:0;
  }
  /* Smaller circle, but the pseudo-element keeps a 44px touch target. The base
@@ -658,23 +662,18 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
  body:not(.creating) .globe-controls .ico{--ico:19px}
  body:not(.creating) #rotationToggle{display:none}
  /* display:contents above leaves no box to position, so restore one here. */
- body:not(.creating) .globe-controls .account-access{
-  display:block;position:fixed;top:11px;right:16px;bottom:auto;width:36px;height:36px;
- }
+ body:not(.creating) .globe-controls .account-access{display:contents}
  body:not(.creating) .hex-search>div{right:calc(100% + 10px);top:auto;bottom:0}
 
  /* Zooming in hides the pitch, but it stays a bottom sheet so it never
     reflows into the desktop slab. The base rule slides it sideways, which is a
     desktop gesture; on a phone it belongs down and out. */
  body.detail-view:not(.selecting) .intro{transform:translateY(100%)}
- body:not(.creating) #placementInspector{bottom:max(12px,env(safe-area-inset-bottom));max-height:42dvh}
+ body:not(.creating) #placementInspector{bottom:max(12px,env(safe-area-inset-bottom));max-height:none;overflow:visible}
 
  /* An open inspector is the bottom surface, so the controls lift above it and
     the ticker steps aside. Its 42dvh cap is the budget, so this needs no
     per-frame measurement of the panel's actual height. */
- body:not(.creating):has(#placementInspector:not([hidden])) .globe-controls{
-  bottom:calc(42dvh + 24px + env(safe-area-inset-bottom));
- }
  body:not(.creating):has(#placementInspector:not([hidden])) #claimFeed{display:none}
 
  /* Activity: hidden on the opening view, and only once there is something to

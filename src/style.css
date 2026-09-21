@@ -127,7 +127,6 @@ h2:focus{outline:none}
 .intro h1{font-size:62px;line-height:1.02;letter-spacing:-.06em}
 .hero-changing-line{display:inline-block;white-space:nowrap}
 .hero-word-slot{display:inline-block;width:10.25ch;text-align:left}
-#heroChangingWord[data-long=true]{font-size:.84em}
 .hero-cursor{display:inline-block;width:2px;height:.82em;margin-left:.06em;background:var(--lime);vertical-align:-.04em;opacity:0}
 .typewriter-running .hero-cursor{opacity:1;animation:hero-cursor-blink 1.05s steps(1,end) infinite}
 @keyframes hero-cursor-blink{50%{opacity:.18}}

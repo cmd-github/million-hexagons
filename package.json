@@ -43,6 +43,7 @@
     "test:globe-startup": "node scripts/globe-startup-qa.mjs",
     "test:desktop-composition": "node scripts/desktop-composition-qa.mjs",
     "test:mobile-composition": "node scripts/mobile-composition-qa.mjs",
+    "test:craig-review": "node scripts/craig-review-qa.mjs",
     "test:globe-detail": "node --test scripts/globe-detail.test.mjs",
     "test:discovery": "node --test scripts/discovery.test.mjs",
     "test:hygiene": "node scripts/repo-hygiene.mjs",

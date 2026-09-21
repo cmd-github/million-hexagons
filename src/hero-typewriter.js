@@ -1,4 +1,4 @@
-export const HERO_WORDS=['brand','idea','art','community','mark','name','project','team','club','company','picture','game','memory','vision','cause','masterpiece','business'];
+export const HERO_WORDS=['brand','idea','art','community','mark','name','project','team','club','company','picture','game','memory','vision','cause','business'];
 export const HERO_HOLD_MS=3000;
 
 export function shuffleHeroWords(words,random=Math.random){
@@ -15,7 +15,7 @@ export function heroWordOrder(random=Math.random){
 
 export function startHeroTypewriter(element,{motion=matchMedia('(prefers-reduced-motion: reduce)'),random=Math.random}={}){
   let timer=0,index=0,text='',deleting=false,stopped=false,order=[];
-  const render=value=>{element.textContent=value;element.dataset.long=String(value.length>10);};
+  const render=value=>{element.textContent=value;};
   const schedule=(delay)=>{clearTimeout(timer);timer=setTimeout(step,delay);};
   const nextOrder=previous=>{const next=heroWordOrder(random);if(next[0]===previous)[next[0],next[1]]=[next[1],next[0]];return next;};
   function reset(){clearTimeout(timer);order=heroWordOrder(random);index=motion.matches?2:0;text=`${order[index]}.`;deleting=false;render(text);element.closest('.hero-changing-line')?.classList.toggle('typewriter-running',!motion.matches);if(!motion.matches)schedule(HERO_HOLD_MS);}
