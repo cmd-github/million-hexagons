@@ -53,11 +53,13 @@ try {
     const count = await page.locator('#hexAmount').inputValue();
     await screenshot(page, `${mobile ? 'mobile' : 'desktop'}-design`);
     await page.locator('#toPlacement').click();
+    await page.locator('#reviewStep').waitFor({state:'visible',timeout:90000});
     assert.equal(await page.locator('#reviewKind').textContent(),'Preview');assert.equal(await page.locator('#stagingOwnerAccess').isHidden(),true);
     await page.locator('#reviewEditDesign').click();
     assert.equal(await page.locator('#hexAmount').inputValue(), count);
     assert.equal(await page.locator('#logoOrientation').inputValue(), '37');
     await page.locator('#toPlacement').click();
+    await page.locator('#reviewStep').waitFor({state:'visible',timeout:90000});
     await page.locator('#companyName').fill('Staging verification');
     await page.locator('#website').fill('https://example.com/');
     await screenshot(page, `${mobile ? 'mobile' : 'desktop'}-review`);
@@ -70,6 +72,7 @@ try {
     await screenshot(page, `${mobile ? 'mobile' : 'desktop'}-checkout`);
     await page.locator('#closeEmbeddedCheckout').click();
     await page.locator('#closeBuy').click();
+    if (await page.locator('#studioExit').isVisible()) await page.locator('#studioExit button[value="discard"]').click();
     await page.waitForFunction(() => document.querySelector('#buyPanel').getAttribute('aria-hidden') === 'true');
     await page.waitForTimeout(500);
     await page.reload(); await page.waitForSelector('#world[data-ready=true]', { timeout: 90000 });
