@@ -9,7 +9,7 @@ const report=[];
 try{
   for(const viewport of [{width:390,height:844},{width:320,height:568}]){
     const page=await browser.newPage({viewport,isMobile:true,hasTouch:true,deviceScaleFactor:2});
-    const errors=[];page.on('pageerror',error=>errors.push(error.message));
+    const errors=[],consoleErrors=[];page.on('pageerror',error=>errors.push(error.message));page.on('console',message=>{if(message.type()==='error')consoleErrors.push(message.text());});
     await page.goto(`${base}/?geodesicQA`);
     assert.match(await page.locator('#loadingMessage').textContent(),/place|hexagons|spin|ideas/i);
     await page.waitForSelector('#world[data-ready=true]',{timeout:60000});
@@ -24,7 +24,8 @@ try{
     assert.deepEqual(await controls(),initial,'The mobile control rail must not move when zooming');
     await page.locator('#homeView').click();await page.waitForTimeout(100);
     await page.locator('#demoTour').click();
-    await page.waitForFunction(()=>document.querySelector('#demoTour').getAttribute('aria-pressed')==='true');
+    await page.waitForTimeout(5000);
+    assert.equal(await page.locator('#demoTour').getAttribute('aria-pressed'),'true',`Tour failed: ${await page.locator('#demoTour').getAttribute('aria-label')} | ${consoleErrors.join(' | ')}`);
     assert.ok(await page.locator('#demoTour').getAttribute('data-stop'));
     await page.locator('#placementInspector').waitFor({state:'visible',timeout:15000});
     await page.locator('#demoTour').click();assert.equal(await page.locator('#demoTour').getAttribute('aria-pressed'),'false');
