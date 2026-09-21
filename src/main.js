@@ -2042,13 +2042,7 @@ resize();
 frameGlobe(true);
 
 async function createTourStops(){
-  const grid=await ensureTopology(),sessionPlacementRecords=[...new Set(sessionPlacements.values())];
-  await grid.ensureCells(sessionPlacementRecords.map(placement=>placement.anchor));
-  const sessionAreas=sessionPlacementRecords.map((placement,index)=>{
-    const centre=grid.centre(placement.anchor);let minimumDot=1;
-    for(const id of placement.cells||[placement.anchor]){const point=grid.centre(id);minimumDot=Math.min(minimumDot,centre[0]*point[0]+centre[1]*point[1]+centre[2]*point[2]);}
-    return{anchor:placement.anchor,angle:Math.max(placement.angle||0,Math.acos(Math.max(-1,minimumDot))+.004),name:placement.name||'Your placement',key:`session-${index}`};
-  });
+  const grid=await ensureTopology(),sessionAreas=[...new Set(sessionPlacements.values())].map((placement,index)=>({anchor:placement.anchor,angle:placement.angle||.012,name:placement.name||'Your placement',key:`session-${index}`}));
   let liveAreas=[];
   if(snapshotEnabled){
     try{
@@ -2063,18 +2057,10 @@ async function createTourStops(){
     {name:'Globe overview',normal:[1,0,0],angle:.4,overview:true,offset:0},
     {name:'Globe overview',normal:[0,0,-1],angle:.4,overview:true,offset:0},
   ];
-  await grid.ensureCells(candidates.map(area=>area.anchor));
-  const pool=[...candidates],selected=[pool.splice(Math.floor(Math.random()*pool.length),1)[0]],limit=Math.min(24,candidates.length);
-  while(selected.length<limit&&pool.length){
-    let best=0,bestScore=Infinity;
-    for(let i=0;i<pool.length;i++){
-      const point=grid.centre(pool[i].anchor);
-      const separation=Math.max(...selected.map(area=>{const other=grid.centre(area.anchor);return point[0]*other[0]+point[1]*other[1]+point[2]*other[2];}));
-      const score=separation+Math.random()*.08;
-      if(score<bestScore){best=i;bestScore=score;}
-    }
-    selected.push(pool.splice(best,1)[0]);
-  }
+  const pool=[...candidates];
+  for(let index=pool.length-1;index>0;index--){const swap=Math.floor(Math.random()*(index+1));[pool[index],pool[swap]]=[pool[swap],pool[index]];}
+  const selected=pool.slice(0,Math.min(24,pool.length));
+  await grid.ensureCells(selected.map(area=>area.anchor));
   const firstDetail=Math.floor(Math.random()*selected.length),detailSlots=new Set([firstDetail]);
   if(selected.length>1)detailSlots.add((firstDetail+1+Math.floor(Math.random()*(selected.length-1)))%selected.length);
   return selected.map((area,index)=>({id:area.anchor,name:area.name,normal:Array.from(grid.centre(area.anchor)),angle:area.angle||.012,detail:detailSlots.has(index)||Math.random()<.35,offset:(Math.random()-.5)*.07}));
