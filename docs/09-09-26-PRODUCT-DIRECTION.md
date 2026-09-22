@@ -347,40 +347,9 @@ Do not build IP → translated UI logic prematurely.
 
 # 10. Pricing
 
-Pricing is not yet final.
+Craig confirmed tax-inclusive regional prices on 22 September 2026: GBP 1 per hexagon in the UK, EUR 1 in Europe, and USD 1 in the USA and all other supported countries. See [the canonical pricing and Managed Payments decision](stripe-managed-payments.md#pricing-decision) for the remaining Europe/eurozone country mapping and checkout requirements.
 
-The central product story must remain extremely simple.
-
-Avoid making regional pricing so complicated that users cannot understand the basic proposition.
-
-Potential models include:
-
-### Model A
-
-One canonical price per hex and currency converted at checkout.
-
-### Model B
-
-Simple local psychological price points.
-
-Examples being considered:
-
-- £1
-- €1
-- $1 or potentially $2
-- equivalent simple amounts in other currencies
-
-### Model C
-
-Credits.
-
-Example:
-
-1 hex = 1 credit
-
-Users purchase credits in their local currency.
-
-Do not hard-code a final pricing model until commercial terms are agreed.
+Keep pricing simple. Credits, auction pricing and premium-location pricing are not the selected launch model.
 
 Architecture should support:
 

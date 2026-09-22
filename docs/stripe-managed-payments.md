@@ -38,6 +38,24 @@ This significantly reduces the tax/compliance burden of selling Million Hexagons
 
 ---
 
+# Pricing decision
+
+Craig confirmed on 22 September 2026 that prices per hexagon include tax:
+
+| Buyer region | Tax-inclusive unit price |
+| --- | --- |
+| UK | GBP 1 |
+| Europe | EUR 1 |
+| USA and all other supported countries | USD 1 |
+
+Use explicit inclusive tax behaviour; applicable tax comes out of the stated customer price. These are regional price points, not a request to exchange USD 1 into local currencies. Unsupported tax jurisdictions remain blocked.
+
+Earlier brand guidance specified the **eurozone**. Craig's latest wording is **Europe**; the exact EUR country membership remains to be reconciled before implementation. Do not silently expand it to every European country. Radar's billing-country allow-list determines permission to purchase, not the price or currency. Regional price selection and any automatic currency conversion need separate integration validation.
+
+See the [captured Dashboard setup instructions](stripe-managed-payments-setup.md). This is a documented decision, not evidence that Managed Payments or regional pricing is implemented.
+
+---
+
 # Important jurisdiction restriction
 
 Managed Payments cannot assume tax liability in every country.
@@ -51,6 +69,8 @@ If a customer purchases from a jurisdiction where Stripe cannot assume the tax l
 * Birdcage may potentially need to register and manage tax obligations in that jurisdiction.
 
 Million Hexagons will therefore **not allow purchases from jurisdictions outside Stripe Managed Payments' supported tax-coverage list at launch**.
+
+Sandhiya, Stripe Priority Support (message supplied by Craig on 22 September 2026), clarified that a merchant-liable invoice does **not** mean the payment becomes a standard Stripe transaction: it remains a Managed Payments transaction, and its payment receipt remains OneLink/Link branded. The tax invoice identifies Birdcage as the tax-liable party. A branded receipt alone is therefore not proof that Stripe assumed tax liability.
 
 ---
 
@@ -77,17 +97,19 @@ Conceptually:
 Block if :billing_address_country: not in (SUPPORTED_COUNTRIES)
 ```
 
-The actual country list must be populated from Stripe's current Managed Payments tax-supported jurisdictions.
+The actual country list must be populated from Stripe's current [Managed Payments tax-supported jurisdictions](https://docs.stripe.com/payments/managed-payments/tax-compliance), including applicable seller-specific exceptions.
 
 ## Requirements
 
-* Enable the Stripe product/tier required for custom Radar rules.
+* Enable **Radar for Fraud Teams**, which Stripe Priority Support says is required for custom rules.
 * Use the billing-address country as the country signal.
 * Maintain an allow-list of countries covered by Managed Payments tax compliance.
 * Block the payment if the billing-address country is not on the allow-list.
 * Keep this allow-list easy to update as Stripe expands or changes coverage.
 
 The country list should be treated as configuration rather than being scattered through application logic.
+
+The rule blocks payment; it does not convert the transaction to non-Managed Payments or pre-approve the product. Support's example `Block if :billing_address_country: not in ('AT', 'AU', 'BE', ...)` is illustrative, not a complete deployable rule or country list.
 
 ---
 
@@ -217,6 +239,8 @@ Unsupported-country transactions
 ```
 
 The objective is that the private/home VAT address does not become customer-facing through Million Hexagons transactions.
+
+Stripe Priority Support directs us to **Dashboard -> Settings -> Business -> Public business information** to review the business address on file. An address configured there can appear on a merchant-liable tax invoice. Stripe's [tax-compliance documentation](https://docs.stripe.com/payments/managed-payments/tax-compliance#send-invoices-for-tax-unsupported-transactions) also points to invoice settings for invoice business/tax details. Check both before launch; do not infer privacy from OneLink/Link receipt branding.
 
 ---
 

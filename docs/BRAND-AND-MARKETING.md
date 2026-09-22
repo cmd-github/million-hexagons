@@ -29,7 +29,7 @@ Prefer `claim`, `placement`, `space`, `hexagons`, and `place on the canvas`. Use
 
 The globe is a recognisable shared object and a central visual hook. It is not Earth and does not imply geographic ownership. Recognisable prototype brands must be labelled as samples, never customers or endorsements.
 
-Current standard prices are fixed by customer region: £1 per hexagon in the UK, €1 in the eurozone, and $2 in the USA. Do not invent dynamic, auction, or premium-location pricing.
+Approved prices include tax: GBP 1 per hexagon in the UK, EUR 1 in Europe, and USD 1 in the USA and all other supported countries. The earlier eurozone boundary still needs reconciling with Craig's latest Europe wording; use the [canonical pricing decision](stripe-managed-payments.md#pricing-decision). Do not invent dynamic, auction, or premium-location pricing.
 
 “Permanent” describes the claimed placement, not immutable artwork or an unconditional forever-service guarantee. Product terms must define duration, permitted updates, moderation, and operating commitments before paid launch.
 
