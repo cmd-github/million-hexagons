@@ -15,9 +15,9 @@ export async function fetchRuntimeGzip(path, options = {}) {
 
 // Large topology responses are not reliably retained by the HTTP cache. Only
 // immutable release URLs enter this bounded, best-effort application cache.
-export async function fetchGzipUrl(url, { persistent = false, expectedBytes, expectedSha256, cacheGroup = 'mh-topology-v1', maxEntries = 1, signal } = {}) {
+export async function fetchGzipUrl(url, { persistent = false, expectedBytes, expectedSha256, cacheGroup = 'mh-topology-v1', maxEntries = 1, signal, onDecodedProgress } = {}) {
   const decode = async response => {
-    const bytes = await decodeGzipResponse(response, expectedBytes);
+    const bytes = await decodeGzipResponse(response, expectedBytes, onDecodedProgress);
     if (expectedSha256) {
       const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
       if (hash !== expectedSha256) throw Error('Topology checksum mismatch');
@@ -52,7 +52,7 @@ export async function fetchGzipUrl(url, { persistent = false, expectedBytes, exp
   return decoded;
 }
 
-async function decodeGzipResponse(response, expectedBytes) {
+async function decodeGzipResponse(response, expectedBytes, onProgress) {
   // Browsers decode Content-Encoding themselves. Inspect the actual bytes so
   // cross-origin responses also work when that header is not exposed by CORS.
   const bytes = new Uint8Array(await response.arrayBuffer());
@@ -60,5 +60,6 @@ async function decodeGzipResponse(response, expectedBytes) {
     new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip')),
   ).arrayBuffer());
   if(expectedBytes!==undefined&&decoded.length!==expectedBytes)throw new Error('Incomplete topology data');
+  onProgress?.(decoded.length,expectedBytes||decoded.length);
   return decoded;
 }

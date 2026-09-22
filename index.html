@@ -23,8 +23,11 @@
       .loading-hex .hex-trail{stroke-dasharray:38 130;animation:hex-trace 1.6s linear infinite}
       .loading-hex .hex-core{fill:currentColor;stroke:none;transform-origin:30px 30px;animation:hex-breathe 1.6s ease-in-out infinite}
       #loadingError{max-width:260px;margin:0;text-align:center;color:#c3d0d4}
-      #loadingMessage{max-width:280px;margin:0;text-align:center;color:#c3d0d4}
-      #appLoading[data-context=editor] #loadingMessage{display:none}
+      #loadingMessage{max-width:280px;margin:0;text-align:center;color:#c3d0d4;font-weight:700}
+      #loadingCount{display:flex;align-items:baseline;gap:7px;margin-top:-10px;font-family:ui-monospace,'DM Mono',monospace}
+      #loadingCount strong{min-width:8ch;text-align:right;color:#f5fbf8;font-size:19px;font-variant-numeric:tabular-nums}
+      #loadingCount span{color:#789095;font-size:10px}
+      #appLoading[data-context=editor] #loadingMessage,#appLoading[data-context=editor] #loadingCount{display:none}
       #loadingRetry{border:1px solid #d4ff5866;border-radius:9px;padding:9px 18px;background:#d4ff5815;color:#d4ff58;cursor:pointer}
       @keyframes hex-trace{to{stroke-dashoffset:-168}}
       @keyframes hex-breathe{50%{opacity:.4;transform:scale(.8)}}
@@ -34,7 +37,7 @@
   <body class="booting" aria-busy="true">
     <div id="appLoading" class="branded-loader" role="status" aria-label="Loading Million Hexagons">
       <svg class="loading-hex" viewBox="0 0 60 60" aria-hidden="true"><polygon points="30,3 54,16.5 54,43.5 30,57 6,43.5 6,16.5" opacity=".15"/><polygon class="hex-trail" points="30,3 54,16.5 54,43.5 30,57 6,43.5 6,16.5"/><polygon class="hex-core" points="30,21 38,25.5 38,34.5 30,39 22,34.5 22,25.5"/></svg>
-      <p id="loadingMessage">Loading the globe…</p><p id="loadingError" hidden></p><button id="loadingRetry" hidden onclick="location.reload()">Try again</button>
+      <p id="loadingMessage">Loading hexagons</p><div id="loadingCount" aria-label="0 of 1,000,000 hexagons loaded"><strong>0</strong><span>/ 1,000,000</span></div><p id="loadingError" hidden></p><button id="loadingRetry" hidden onclick="location.reload()">Try again</button>
     </div>
     <canvas id="world" aria-label="Interactive advertising globe. Drag to rotate; use the zoom controls to explore."></canvas>
     <header class="topbar">
@@ -166,11 +169,7 @@
     <div class="toast glass" id="toast" role="status"><b>Welcome to the world.</b><span>Your preview is on the globe for this session.</span><a id="placementWebsite" hidden target="_blank" rel="noopener noreferrer">Visit website</a><button id="dismissToast" data-icon="close" aria-label="Dismiss confirmation"></button></div>
     <script type="module">
       const loadingMessage=document.querySelector('#loadingMessage');
-      const playfulLoading=['Finding your place in the world…','Warming up one million hexagons…','Giving the globe a gentle spin…','Making room for big ideas…'];
-      let loadingCopyIndex=0;
-      loadingMessage.textContent=playfulLoading[loadingCopyIndex];
-      const playfulBoot=setInterval(()=>{loadingCopyIndex=(loadingCopyIndex+1)%playfulLoading.length;loadingMessage.textContent=playfulLoading[loadingCopyIndex];},1800);
-      const slowBoot=setTimeout(()=>{clearInterval(playfulBoot);loadingMessage.textContent='Still loading the globe. This is taking longer than usual.';},8000);
+      const slowBoot=setTimeout(()=>{loadingMessage.textContent='Still loading hexagons. This is taking longer than usual.';},8000);
       const failedBoot=setTimeout(()=>{
         document.querySelector('#loadingMessage').textContent='Could not load the globe. Please try again.';
         document.querySelector('#loadingRetry').hidden=false;
@@ -185,7 +184,7 @@
         document.querySelector('#loadingError').textContent='Could not load the globe. Please try again.';
         document.querySelector('#loadingRetry').hidden=false;
         document.body.setAttribute('aria-busy','false');
-      }).finally(()=>{clearInterval(playfulBoot);clearTimeout(slowBoot);clearTimeout(failedBoot);});
+      }).finally(()=>{clearTimeout(slowBoot);clearTimeout(failedBoot);});
     </script>
   </body>
 </html>

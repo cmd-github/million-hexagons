@@ -35,7 +35,9 @@ test('gzip assets decode with raw, browser-decoded and CORS-hidden encoding head
   const source = new Uint8Array([0, 1, 255, 10, 24]);
   for (const [bytes, headers] of [[gzipSync(source), {}], [source, { 'Content-Encoding': 'gzip' }], [source, {}]]) {
     t.mock.method(globalThis, 'fetch', async () => new Response(bytes, { headers }));
-    assert.deepEqual(await fetchRuntimeGzip('fixture.gz'), source);
+    let progress=0;
+    assert.deepEqual(await fetchRuntimeGzip('fixture.gz',{expectedBytes:source.length,onDecodedProgress:loaded=>progress=loaded}), source);
+    assert.equal(progress,source.length);
     t.mock.restoreAll();
   }
 });
