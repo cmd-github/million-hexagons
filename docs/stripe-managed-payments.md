@@ -4,6 +4,8 @@
 
 **Decision: Use Stripe Managed Payments for Million Hexagons at launch.**
 
+Open provider/account questions are collected in [Stripe questions to send together](stripe-support-questions.md). Craig believes Radar Lite is selected and does not want a monthly Radar subscription. Confirm account-specific custom-rule access and pay-as-you-go charges before upgrading; the support email's Radar for Fraud Teams wording differs from current public Radar Plus naming.
+
 Stripe Priority Support has confirmed that the Million Hexagons product model aligns with the published eligibility criteria for Managed Payments.
 
 Million Hexagons is:
@@ -109,7 +111,7 @@ The actual country list must be populated from Stripe's current [Managed Payment
 
 ## Requirements
 
-* Enable **Radar for Fraud Teams**, which Stripe Priority Support says is required for custom rules.
+* Confirm and configure the custom-rule tier: support named **Radar for Fraud Teams**; current public pricing names **Radar Plus**. Radar Lite does not publicly include custom rules. Account-specific inclusion and no-monthly-subscription pricing remain open; do not upgrade yet.
 * Use the billing-address country as the country signal.
 * Maintain an allow-list of countries covered by Managed Payments tax compliance.
 * Block the payment if the billing-address country is not on the allow-list.
@@ -425,7 +427,7 @@ This gives Million Hexagons a practical way to sell internationally while avoidi
 
 ## Next steps, in order
 
-1. **Craig / Stripe:** finish onboarding and terms, confirm sandbox/test availability, select an eligible product tax code and enable Radar for Fraud Teams. Activation is not final product approval. Review business and invoice settings without substituting an inaccurate address.
+1. **Craig / Stripe:** finish onboarding and terms, confirm sandbox/test availability and select an eligible product tax code. Keep the reported Radar Lite selection while resolving custom-rule access/cost in the [batched questions](stripe-support-questions.md). Activation is not final product approval. Review business and invoice settings without substituting an inaccurate address.
 2. **Craig / Stripe clarification:** confirm billing-country blocking covers every offered payment method, saved details, changed addresses and missing country before payment succeeds. Confirm how GBP 1 / EUR 1 / USD 1 inclusive regional prices can be maintained under Managed Payments Adaptive Pricing. Resolve Europe versus eurozone membership with Craig.
 3. **Development, test mode only:** enable Managed Payments on one-time embedded Checkout Sessions, remove unsupported parameters, set inclusive tax behaviour, configure a maintained tax-coverage allow-list and preserve server quotes, reservations and verified webhook fulfilment. No ordinary-payment fallback.
 4. **Acceptance:** prove supported and blocked-country journeys, correct regional totals/taxes, customer-facing documents, failed/expired payment release, duplicate/delayed webhooks and successful ownership/publication. Country filtering must prevent payment, not merely prevent fulfilment after payment.

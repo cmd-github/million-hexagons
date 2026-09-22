@@ -27,6 +27,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Recently done
 
+- [x] Created the appendable [Stripe support question list](stripe-support-questions.md) covering account-specific Radar cost, country enforcement, exact regional pricing and remaining privacy surfaces. Recorded the reported Lite selection and no-monthly-subscription preference; separated provider questions from work we can test ourselves. Draft only, not sent; no payment configuration changed.
+
 - [x] Reconciled the 17 September Stripe chat with the later Priority Support email in [Managed Payments](stripe-managed-payments.md): retained the later Radar recommendation, recorded enforcement/privacy evidence limits, flagged Adaptive Pricing compatibility and added ordered test-to-launch steps. Documentation only; country enforcement, pricing and live privacy checks remain unverified.
 
 - [x] Documented Craig's tax-inclusive GBP 1 / EUR 1 / USD 1 regional pricing decision and Stripe Priority Support's Radar for Fraud Teams, merchant-liable invoice and business-address guidance in [Managed Payments](stripe-managed-payments.md). Reconciled obsolete pricing options and USD 2 brand guidance. Exact Europe/eurozone membership remains open; documentation reviewed only, with no checkout code or Stripe configuration changes.
