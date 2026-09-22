@@ -27,6 +27,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Recently done
 
+- [x] Reconciled the 17 September Stripe chat with the later Priority Support email in [Managed Payments](stripe-managed-payments.md): retained the later Radar recommendation, recorded enforcement/privacy evidence limits, flagged Adaptive Pricing compatibility and added ordered test-to-launch steps. Documentation only; country enforcement, pricing and live privacy checks remain unverified.
+
 - [x] Documented Craig's tax-inclusive GBP 1 / EUR 1 / USD 1 regional pricing decision and Stripe Priority Support's Radar for Fraud Teams, merchant-liable invoice and business-address guidance in [Managed Payments](stripe-managed-payments.md). Reconciled obsolete pricing options and USD 2 brand guidance. Exact Europe/eurozone membership remains open; documentation reviewed only, with no checkout code or Stripe configuration changes.
 
 - [x] Added a truthful initial-load counter to the existing branded hexagon loader and deployed source `7bb706a4` as staging Worker `345767cd-bada-42a8-a9dc-e74fde30007a`. It reads Loading hexagons and advances from 0 to 1,000,000 only after the complete million-cell occupancy inventory has decoded and passed its length check. Prepended ten quieter single-hex motion studies to the standalone loading-animation gallery while retaining the earlier ten for comparison. Runtime-asset tests, production/staging builds, desktop/mobile loader recovery QA, responsive gallery inspection and all 1,549 public runtime-object health checks pass.

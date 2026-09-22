@@ -18,6 +18,12 @@ Stripe cannot provide definitive product approval before launch. Final eligibili
 
 This is an accepted platform risk.
 
+## Support chronology and evidence limits
+
+* **17 September 2026, Jordan/Jack chat:** Jack described the product as likely eligible, confirmed UK tax-covered checkout/standard receipts do not display Birdcage's address/VAT number, and described `LINK.COM* [statement descriptor]` and Link transaction support. He could not confirm country enforcement, warned that Radar country data was not necessarily the tax-jurisdiction source of truth, and escalated both enforcement and product eligibility. His suggestion to build a pre-session country check was provisional.
+* **Later Sandhiya Priority Support email, supplied 22 September:** explicitly recommends `:billing_address_country:` with Radar for Fraud Teams and confirms product alignment, but no definitive pre-launch approval. This is the later support guidance we follow; preserve Jack's uncertainty as the reason to validate the actual integration, not as a competing implementation instruction.
+* Neither exchange demonstrates our configuration working or guarantees that business details can never appear on every customer surface. Inspect checkout, receipts, invoices, confirmations and the Link customer account where available. Test purchases do not appear in the Link app, so that surface needs a genuine live-purchase check ([Stripe testing guidance](https://docs.stripe.com/payments/managed-payments/update-checkout#link)).
+
 ---
 
 # Payment model
@@ -51,6 +57,8 @@ Craig confirmed on 22 September 2026 that prices per hexagon include tax:
 Use explicit inclusive tax behaviour; applicable tax comes out of the stated customer price. These are regional price points, not a request to exchange USD 1 into local currencies. Unsupported tax jurisdictions remain blocked.
 
 Earlier brand guidance specified the **eurozone**. Craig's latest wording is **Europe**; the exact EUR country membership remains to be reconciled before implementation. Do not silently expand it to every European country. Radar's billing-country allow-list determines permission to purchase, not the price or currency. Regional price selection and any automatic currency conversion need separate integration validation.
+
+Stripe's current [migration guide](https://docs.stripe.com/payments/managed-payments/update-checkout#remove-unsupported-parameters) says Adaptive Pricing is always enabled for Managed Payments and lists `adaptive_pricing` as an unsupported Session parameter. Confirm how explicit regional prices interact with conversion before promising exact settlement/presentment currencies. The stated prices are the product requirement; provider compatibility is not yet verified.
 
 See the [captured Dashboard setup instructions](stripe-managed-payments-setup.md). This is a documented decision, not evidence that Managed Payments or regional pricing is implemented.
 
@@ -110,6 +118,10 @@ The actual country list must be populated from Stripe's current [Managed Payment
 The country list should be treated as configuration rather than being scattered through application logic.
 
 The rule blocks payment; it does not convert the transaction to non-Managed Payments or pre-approve the product. Support's example `Block if :billing_address_country: not in ('AT', 'AU', 'BE', ...)` is illustrative, not a complete deployable rule or country list.
+
+Before accepting this launch gate, verify missing billing country, country changes during Checkout, saved Link/wallet details and each offered payment method. Ask Stripe to confirm that the rule is evaluated before payment succeeds for all methods Managed Payments enables and how absent country values are handled. A pre-session country selector can improve UX but cannot prove the final billing country is unchanged. A post-payment webhook rejection/refund is too late to guarantee no merchant-liable transaction or invoice occurred.
+
+Do not implement the earlier chat's shipping-country workaround: the current [Managed Payments migration guide](https://docs.stripe.com/payments/managed-payments/update-checkout#remove-unsupported-parameters) prohibits `shipping_address_collection`. Do not assume generic Payment Element advice applies to our supported embedded Checkout integration.
 
 ---
 
@@ -365,7 +377,10 @@ Before real payments are enabled:
 * [ ] Current supported-country allow-list created
 * [ ] Billing-address-country blocking rule configured
 * [ ] Unsupported-country checkout tested
+* [ ] Missing/changed country, saved Link/wallet details and all offered payment methods verified against country restrictions
 * [ ] Supported-country checkout tested
+* [ ] EUR region membership and exact tax-inclusive regional pricing verified with Managed Payments Adaptive Pricing
+* [ ] Available customer-facing receipts/invoices/checkout checked for business-address and VAT exposure
 * [ ] Stripe webhook verification implemented
 * [ ] Webhook processing made idempotent
 * [ ] Reservation → payment → ownership flow tested
@@ -408,9 +423,13 @@ The chosen architecture is:
 
 This gives Million Hexagons a practical way to sell internationally while avoiding the need for Birdcage Tech Ltd to independently manage customer-side indirect taxes across multiple jurisdictions.
 
-The two remaining operational items are:
+## Next steps, in order
 
-1. complete the Stripe implementation and country restrictions;
-2. receive Change Accountants' instructions for recording Stripe Managed Payments income and self-billed invoices in FreeAgent / UK VAT returns.
+1. **Craig / Stripe:** finish onboarding and terms, confirm sandbox/test availability, select an eligible product tax code and enable Radar for Fraud Teams. Activation is not final product approval. Review business and invoice settings without substituting an inaccurate address.
+2. **Craig / Stripe clarification:** confirm billing-country blocking covers every offered payment method, saved details, changed addresses and missing country before payment succeeds. Confirm how GBP 1 / EUR 1 / USD 1 inclusive regional prices can be maintained under Managed Payments Adaptive Pricing. Resolve Europe versus eurozone membership with Craig.
+3. **Development, test mode only:** enable Managed Payments on one-time embedded Checkout Sessions, remove unsupported parameters, set inclusive tax behaviour, configure a maintained tax-coverage allow-list and preserve server quotes, reservations and verified webhook fulfilment. No ordinary-payment fallback.
+4. **Acceptance:** prove supported and blocked-country journeys, correct regional totals/taxes, customer-facing documents, failed/expired payment release, duplicate/delayed webhooks and successful ownership/publication. Country filtering must prevent payment, not merely prevent fulfilment after payment.
+5. **Craig / accountant, alongside development:** obtain FreeAgent and UK VAT treatment for Stripe payouts/self-billed invoices; finish commercial terms, refunds, support responsibilities and accurate business-address configuration.
+6. **Controlled live launch after gates pass:** configure live keys/webhooks and rules separately, monitor genuine initial purchases, inspect live Link/customer documents and Stripe eligibility review, then expand promotion. Test-mode success is not product approval or production verification.
 
-Neither currently blocks development of the payment integration.
+Test integration work can begin now. Live acceptance remains conditional on country-enforcement evidence, pricing compatibility, accounting/commercial decisions and the repository's other launch gates.
