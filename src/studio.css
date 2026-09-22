@@ -669,7 +669,8 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
     reflows into the desktop slab. The base rule slides it sideways, which is a
     desktop gesture; on a phone it belongs down and out. */
  body.detail-view:not(.selecting) .intro{transform:translateY(100%)}
- body:not(.creating) #placementInspector{bottom:max(12px,env(safe-area-inset-bottom));max-height:none;overflow:visible}
+ body:not(.creating) #placementInspector{right:60px;width:calc(100vw - 72px);bottom:max(12px,env(safe-area-inset-bottom));max-height:none;overflow:visible}
+ body:not(.creating) #placementInspector #inspectorDescription{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 
  /* An open inspector is the bottom surface, so the controls lift above it and
     the ticker steps aside. Its 42dvh cap is the budget, so this needs no

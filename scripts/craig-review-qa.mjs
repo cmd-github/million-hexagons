@@ -28,10 +28,11 @@ try{
     assert.equal(await page.locator('#demoTour').getAttribute('aria-pressed'),'true',`Tour failed: ${await page.locator('#demoTour').getAttribute('aria-label')} | ${consoleErrors.join(' | ')}`);
     assert.ok(await page.locator('#demoTour').getAttribute('data-stop'));
     await page.locator('#placementInspector').waitFor({state:'visible',timeout:15000});
-    await page.locator('#demoTour').click();assert.equal(await page.locator('#demoTour').getAttribute('aria-pressed'),'false');
+    await page.locator('#demoTour').evaluate(button=>button.click());assert.equal(await page.locator('#demoTour').getAttribute('aria-pressed'),'false');
     const detailControls=await controls();assert.deepEqual(detailControls,initial,'The mobile control rail must not move for placement details');
-    const fit=await page.locator('#placementInspector').evaluate(element=>{const box=element.getBoundingClientRect();return{top:box.top,bottom:box.bottom,clientHeight:element.clientHeight,scrollHeight:element.scrollHeight,overflow:getComputedStyle(element).overflowY};});
+    const fit=await page.locator('#placementInspector').evaluate(element=>{const box=element.getBoundingClientRect();return{top:box.top,right:box.right,bottom:box.bottom,clientHeight:element.clientHeight,scrollHeight:element.scrollHeight,overflow:getComputedStyle(element).overflowY};});
     assert.ok(fit.top>=0&&fit.bottom<=viewport.height+1);assert.equal(fit.scrollHeight,fit.clientHeight);assert.notEqual(fit.overflow,'auto');
+    const railLeft=await page.locator('.globe-controls').evaluate(element=>element.getBoundingClientRect().left);assert.ok(fit.right<railLeft,'Placement details must reserve the fixed control rail');
     assert.match(await page.locator('#inspectorHexagons').textContent(),/^\d[\d,]*$/);
     const first=await page.locator('#inspectorName').textContent();
     assert.equal(await page.locator('#nextPlacement').isEnabled(),true);
