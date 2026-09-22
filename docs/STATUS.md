@@ -1,6 +1,6 @@
 # Million Hexagons — Status
 
-Updated: 20 September 2026
+Updated: 22 September 2026
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
@@ -26,6 +26,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Revisit globe surface studies, achievements, advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Completed the 21 September Craig mobile-globe review and deployed source `1a799163` as staging Worker `87658a79-5206-463b-a6db-4fdf86960d4b`. Placement details now fit without scrolling at 390x844 and 320x568, reserve the fixed control rail, show Views / Visits / Hexagons / Claimed, and provide a distance-ordered previous/next route without repeats before wrapping. The mobile rail stays fixed across Browse, zoom and details, with owner sign-in between Search and Zoom In. The repaired tour shuffles the live catalogue, loads at most 24 selected regions, visits real placements and retains a no-placement overview fallback. Browse also has playful boot copy, `$1 per hexagon`, no `masterpiece`, and a subtle globe rim. The launch gate (60 repository and 52 backend tests), deployment checks, responsive composition, live 390/320 review journey and all 1,549 runtime-object health checks pass. The visible Pixel 8a rendered the revised Browse view with Android/Chrome bars, but Chrome and Google produced emulator crash dialogs during interaction, so that device pass is partial rather than full interaction acceptance. Paid tour inclusion and production achievements remain explicitly deferred in [Craig review](craig-review-21-09-26.md).
 
 - [x] Rewrote the Browse hero around creation and finite inventory and deployed source `c626575d` as staging Worker `a27f6ee0-64fe-4a22-b5e1-c51a34cea6b7`: "One million places. Claim yours.", the three-sentence create/promote/discover proposition, pay-once/change-anytime price copy, and a two-item 1,000,000 hexagons / yours to create fact row. Expanded the rotating "Your ..." vocabulary to 17 requested subjects; each shuffled cycle pins `brand` third and `business` fourth, while reduced motion holds on `brand`. The longest word receives a small same-font size adjustment to avoid clipping. The launch gate and rendered desktop/390px/320px composition pass; live staging serves the exact new copy and all 1,549 runtime objects, HTTPS, CORS and cache checks pass. Regional hero pricing remains deferred to the accepted Stripe/MoR work; the current displayed value remains `$1`.
 
