@@ -1,6 +1,6 @@
 # Stripe questions to send together
 
-Status: draft, not sent. Updated: 23 September 2026.
+Status: sent by Craig on 23 September 2026; awaiting Stripe's reply.
 Append new unresolved provider/account questions here. Record dated answers under their question, then update the [payment decision](stripe-managed-payments.md). Keep answered questions for context.
 
 ## Copy-paste reply to Stripe
@@ -11,7 +11,7 @@ Thank you for the detailed reply. It confirms the main points around product eli
 
 I have four remaining questions so that we can configure the integration correctly:
 
-1. You mentioned that the custom billing-country rule requires Radar for Fraud Teams. I believe our account currently has Radar Lite selected, and I do not want to take out a monthly Radar subscription. Stripe's current public pricing refers to Radar Plus rather than Radar for Fraud Teams. Which current Radar plan does our account need for this rule? Is there a pay-as-you-go option with no monthly subscription or minimum? Please confirm the charge per screened payment, whether blocked or failed attempts are charged, and whether there is any supported way to enforce this restriction without paying for an upgraded Radar plan.
+1. You mentioned that the custom billing-country rule requires Radar for Fraud Teams. I believe our account currently has Radar Lite selected, and I'd rather not take out a monthly Radar subscription. Stripe's current public pricing refers to Radar Plus rather than Radar for Fraud Teams. Which current Radar plan does our account need for this rule? Is there a pay-as-you-go option with no monthly subscription or minimum? Please confirm the charge per screened payment, whether blocked or failed attempts are charged, and whether there is any supported way to enforce this restriction without paying for an upgraded Radar plan.
 
 2. Does the `:billing_address_country:` rule block an unsupported-country payment before it succeeds for every payment method that Managed Payments might offer, including Link and digital wallets? What happens if the billing country is missing, the customer uses saved Link or wallet details, or the customer changes their billing country during Checkout? If any payment method cannot reliably provide this attribute or could bypass the rule, can that payment method be disabled for our account?
 

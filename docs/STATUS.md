@@ -1,12 +1,12 @@
 # Million Hexagons — Status
 
-Updated: 22 September 2026
+Updated: 23 September 2026
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
 ## Now
 
-- [ ] Complete Gate 1 when the accountant confirms international VAT/sales-tax treatment, registrations and launch-country constraints; then finalise checkout tax behaviour and legal copy.
+- [ ] Complete Gate 1 after the pending Stripe reply clarifies Radar cost/enforcement and exact regional pricing, and the accountant confirms international VAT/sales-tax treatment, registrations and payout accounting; then finish checkout configuration and legal copy.
 
 ## Next
 
