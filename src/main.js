@@ -33,6 +33,18 @@ let stagingInventoryLoaded=!import.meta.env.VITE_STAGING_SANDBOX;
 let ownedPlacementIds=new Set();
 document.querySelector('#claimButton').disabled = true;
 const loading = document.querySelector('#appLoading');
+const loadingCount=document.querySelector('#loadingCount'),loadingCountValue=loadingCount.querySelector('strong');
+let displayedLoadingHexagons=0,loadingCountTarget=850000,loadingCountFrame=0;
+const showLoadedHexagons=loaded=>{const count=Math.min(CELL_COUNT,Math.max(0,Math.floor(loaded)));loadingCountValue.textContent=count.toLocaleString('en-GB');loadingCount.setAttribute('aria-label',`${count.toLocaleString('en-GB')} of 1,000,000 hexagons prepared`);};
+const animateLoadingCount=()=>{
+  if(loading.hidden||displayedLoadingHexagons>=CELL_COUNT){loadingCountFrame=0;return;}
+  const remaining=loadingCountTarget-displayedLoadingHexagons;
+  if(remaining>0){displayedLoadingHexagons+=Math.max(1,Math.ceil(remaining*.018));showLoadedHexagons(displayedLoadingHexagons);}
+  loadingCountFrame=requestAnimationFrame(animateLoadingCount);
+};
+const advanceLoadingCount=target=>{loadingCountTarget=Math.max(loadingCountTarget,Math.min(CELL_COUNT-1,target));if(!loadingCountFrame)loadingCountFrame=requestAnimationFrame(animateLoadingCount);};
+const completeLoadingCount=async()=>{loadingCountTarget=CELL_COUNT;displayedLoadingHexagons=CELL_COUNT;showLoadedHexagons(CELL_COUNT);if(loadingCountFrame)cancelAnimationFrame(loadingCountFrame);loadingCountFrame=0;await new Promise(resolve=>setTimeout(resolve,220));};
+showLoadedHexagons(0);advanceLoadingCount(850000);
 let openingEditor=false,studioHistoryActive=false,studioHistoryPosition=0,handlingStudioHistory=false;
 function showLoading(){
   loading.dataset.context='editor';loading.hidden=false;
@@ -117,11 +129,9 @@ atmosphere.renderOrder=9;globe.add(atmosphere);
 const artworkTiles = new ArtworkTiles(globe,radius,{base:millionFixture?'/artwork/million':runtimeAsset('artwork/empty'),maxTiles:innerWidth<700?64:128,anisotropy:Math.min(8,renderer.capabilities.getMaxAnisotropy())});
 await artworkTiles.ready;
 let designAnchor = bootstrap.anchor;
-const loadingCount=document.querySelector('#loadingCount'),loadingCountValue=loadingCount.querySelector('strong');
-const showLoadedHexagons=loaded=>{const count=Math.min(CELL_COUNT,Math.max(0,loaded));loadingCountValue.textContent=count.toLocaleString('en-GB');loadingCount.setAttribute('aria-label',`${count.toLocaleString('en-GB')} of 1,000,000 hexagons loaded`);};
-const [occupancyBytes,sampleOwners]=await Promise.all([fetchRuntimeGzip('topology/occupancy-v1.gz',{expectedBytes:CELL_COUNT,onDecodedProgress:showLoadedHexagons}),fetchRuntimeGzip('topology/sample-owners-v1.gz',{expectedBytes:CELL_COUNT})]);
-showLoadedHexagons(occupancyBytes.length);
+const [occupancyBytes,sampleOwners]=await Promise.all([fetchRuntimeGzip('topology/occupancy-v1.gz',{expectedBytes:CELL_COUNT}),fetchRuntimeGzip('topology/sample-owners-v1.gz',{expectedBytes:CELL_COUNT})]);
 if(occupancyBytes.length!==CELL_COUNT||sampleOwners.length!==CELL_COUNT)throw Error('Incomplete inventory data');
+advanceLoadingCount(999999);
 occupiedCells.set(occupancyBytes);
 if(millionFixture)occupiedCells.fill(255,0,CELL_COUNT);
 occupancyTexture.needsUpdate=true;
@@ -2571,7 +2581,7 @@ startArtworkLoading(()=>{
     states=states.filter(state=>topology.cellsIntersectCap(state.record.cells,direction,cap));
   }
   return{ready:states.every(state=>state.ready)&&hasArtworkPreview(artworkTiles),error:states.some(state=>state.error),message:'Loading artwork…'};
-});
+},{beforeReady:completeLoadingCount});
 try{if(sessionStorage.getItem('mh-owner-update-complete')){sessionStorage.removeItem('mh-owner-update-complete');const toast=document.querySelector('#toast');toast.querySelector('b').textContent='Changes saved.';toast.querySelector('span').textContent='Your updated placement is now on the globe.';toast.classList.add('show');}}catch{}
 
 canvas.addEventListener('dblclick',event=>{

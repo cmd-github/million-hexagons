@@ -4,15 +4,16 @@ export function hasArtworkPreview(tiles){
   return !!tiles?.group.visible&&tiles.selection.length>0&&tiles.selection.every(tile=>tiles.views.get(tile.key)?.mesh.visible);
 }
 
-export function startArtworkLoading(readState){
+export function startArtworkLoading(readState,{beforeReady=()=>{}}={}){
   const loader=document.querySelector('#appLoading'),message=document.querySelector('#loadingMessage');
   const error=document.querySelector('#loadingError'),retry=document.querySelector('#loadingRetry');
-  let started=performance.now(),waiting=false;
+  let started=performance.now(),waiting=false,finishing=false;
   const timer=setInterval(()=>{
     const state=readState(),now=performance.now();
-    if(state.ready){
-      loader.hidden=true;document.body.classList.remove('booting');document.body.setAttribute('aria-busy','false');document.querySelector('#world').dataset.artworkReady='true';
-      clearInterval(timer);return;
+    if(state.ready&&!finishing){
+      finishing=true;clearInterval(timer);Promise.resolve(beforeReady()).then(()=>{
+        loader.hidden=true;document.body.classList.remove('booting');document.body.setAttribute('aria-busy','false');document.querySelector('#world').dataset.artworkReady='true';
+      });return;
     }
     if(!waiting){started=now;waiting=true;}
     const failed=state.error||now-started>=30000,slow=now-started>=8000;
