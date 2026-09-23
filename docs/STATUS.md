@@ -27,6 +27,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Recently done
 
+- [x] Implemented the disabled-by-default staging Managed Payments Checkout path: API version `2025-03-31.basil`, one-time embedded Checkout, `managed_payments.enabled`, inclusive inline prices, required eligible product-tax-code configuration and removal of the unsupported explicit payment-method list. The complete 54-test backend suite and staging build pass. Stripe account activation, tax-code selection, a real test Session, country enforcement, regional currencies/headline and deployment remain open.
+
 - [x] Created the appendable [Stripe support question list](stripe-support-questions.md) covering account-specific Radar cost, country enforcement, exact regional pricing and remaining privacy surfaces. Recorded the reported Lite selection and no-monthly-subscription preference; separated provider questions from work we can test ourselves. Draft only, not sent; no payment configuration changed.
 
 - [x] Reconciled the 17 September Stripe chat with the later Priority Support email in [Managed Payments](stripe-managed-payments.md): retained the later Radar recommendation, recorded enforcement/privacy evidence limits, flagged Adaptive Pricing compatibility and added ordered test-to-launch steps. Documentation only; country enforcement, pricing and live privacy checks remain unverified.

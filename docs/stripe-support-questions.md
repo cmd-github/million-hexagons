@@ -1,6 +1,6 @@
 # Stripe questions to send together
 
-Status: draft, not sent. Updated: 22 September 2026.
+Status: draft, not sent. Updated: 23 September 2026.
 Append new unresolved provider/account questions here. Record dated answers under their question, then update the [payment decision](stripe-managed-payments.md). Keep answered questions for context.
 
 ## Message for Stripe
@@ -35,9 +35,9 @@ We believe we selected Radar Lite. We want no monthly Radar subscription. Prices
 
 ## Work possible while answers are pending
 
-Proposed work, not implemented by this documentation update:
+Current implementation state:
 
-- Build a test-only Managed Payments Checkout path with one-time payment mode, an eligible configured tax code, explicit inclusive tax behaviour and unsupported parameters removed. Keep production payments disabled.
+- Implemented: an opt-in staging Managed Payments Checkout path with one-time payment mode, an eligible tax-code configuration requirement, explicit inclusive tax behaviour, API version `2025-03-31.basil` and unsupported `payment_method_types` removed. It is disabled by default and has not been exercised against Stripe because the account tax code and activation are not configured.
 - Centralise regional prices, country mappings and server-generated quote snapshots. Keep the purchase-permission allow-list separate from pricing regions. Do not invent the unresolved EUR country mapping.
 - Prototype the regional headline and matching Review price on staging, using estimated visitor country for display and a clear correction when confirmed billing country differs. Unknown location needs explicit currency wording. Do not publish a regional price promise until the checkout honours it.
 - Exercise reservation release, duplicate/delayed webhooks, ownership and publication with test payments; prepare blocked/missing/changed-country and customer-document checks.

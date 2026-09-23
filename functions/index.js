@@ -22,7 +22,7 @@ import { decodeArtworkSource, designObjectPath, publicationObjects, sourceObject
 import { extendTestReservation, releaseTestReservation, reserveTestCells } from './reservations.js';
 import { quoteCells } from './pricing.js';
 import Stripe from 'stripe';
-import { checkoutLineItem, checkoutOrderId, checkoutOwnerId, paidCheckoutEmail, paidEmailOwnerId } from './payments.js';
+import { checkoutOrderId, checkoutOwnerId, checkoutSessionParameters, paidCheckoutEmail, paidEmailOwnerId } from './payments.js';
 import {validateDestinationUrl} from './destination-validation.js';
 import { ownerIdsForIdentity } from './owner-access.js';
 import { checkoutSessionState, paymentFailure, refundState } from './payment-lifecycle.js';
@@ -36,6 +36,8 @@ const r2SecretAccessKey = defineSecret('MH_R2_SECRET_ACCESS_KEY');
 const stagingQaKey = defineSecret('MH_STAGING_QA_KEY');
 const stripeSecretKey = defineSecret('STRIPE_SECRET_KEY');
 const stripeWebhookSecret = defineSecret('STRIPE_WEBHOOK_SECRET');
+const stripeManagedPaymentsEnabled = defineBoolean('MH_STRIPE_MANAGED_PAYMENTS', { default: false });
+const stripeProductTaxCode = defineString('MH_STRIPE_PRODUCT_TAX_CODE', { default: '' });
 const stagingPublicBucket = defineString('MH_STAGING_PUBLIC_BUCKET', { default: 'million-hexagons-staging-public' });
 const stagingAssetOrigin = defineString('MH_STAGING_ASSET_ORIGIN', { default: 'https://assets-staging.millionhexagons.com' });
 const privateSourceBucket = 'million-hexagons.firebasestorage.app';
@@ -486,7 +488,7 @@ export const stagingCheckout=onRequest({region:'europe-west1',maxInstances:3,tim
       await orderRef.set({orderId,reservationId,reservationOwnerId:reservation.ownerId,placementId,placement,source:sourceReference,quote:reservation.quote,checkoutExpiresAt,status:'checkout-creating',environment:'staging',createdAt:FieldValue.serverTimestamp()},{merge:false});
     }
     let verifiedEmail='';const idToken=request.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];if(idToken)try{const identity=await getAuth().verifyIdToken(idToken);if(identity.email_verified)verifiedEmail=String(identity.email||'').trim().toLowerCase();}catch{}
-    const stripe=new Stripe(stripeSecretKey.value());const session=await stripe.checkout.sessions.create({mode:'payment',ui_mode:'embedded_page',redirect_on_completion:'never',payment_method_types:['card'],line_items:[checkoutLineItem(reservation.quote)],customer_creation:'always',...(verifiedEmail?{customer_email:verifiedEmail}:{}),expires_at:checkoutExpiresAt,metadata:{orderId,reservationId,placementId},payment_intent_data:{metadata:{orderId,reservationId,placementId}}},{idempotencyKey:orderId});
+    const managedPayments=stripeManagedPaymentsEnabled.value(),stripe=new Stripe(stripeSecretKey.value(),{apiVersion:'2025-03-31.basil'}),session=await stripe.checkout.sessions.create(checkoutSessionParameters({quote:reservation.quote,orderId,reservationId,placementId,checkoutExpiresAt,verifiedEmail,managedPayments,taxCode:stripeProductTaxCode.value()}),{idempotencyKey:orderId});
     await Promise.all([orderRef.set({stripeCheckoutSessionId:session.id,status:'checkout-open',paymentStatus:'unpaid',updatedAt:FieldValue.serverTimestamp()},{merge:true}),db.collection('stagingReservations').doc(reservationId).set({expiresAtMs:Number(session.expires_at)*1000,checkoutSessionId:session.id},{merge:true})]);response.status(201).json({ok:true,checkout:{orderId,placementId,clientSecret:session.client_secret,expiresAtMs:Number(session.expires_at)*1000}});
   }catch(error){logger.error('Could not create Stripe checkout',error);response.status(500).json({ok:false,error:'checkout-failed'});}
 });

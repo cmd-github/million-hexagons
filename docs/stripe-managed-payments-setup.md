@@ -63,3 +63,16 @@ See how tax is calculated for customers in different locations.
 3
 Process test payment
 Enter your email, phone and test card number 4242 4242 4242 4242 with any CVC and future expiration date.
+
+## Million Hexagons implementation
+
+The staging backend contains an opt-in Managed Payments Checkout path. It remains disabled until both Firebase parameters are deliberately configured:
+
+```text
+MH_STRIPE_MANAGED_PAYMENTS=true
+MH_STRIPE_PRODUCT_TAX_CODE=<eligible Stripe tax code selected in the Dashboard>
+```
+
+When enabled, staging uses API version `2025-03-31.basil`, sends `managed_payments[enabled]=true`, retains one-time `payment` mode and embedded Checkout, removes the explicit `payment_method_types` parameter, and marks inline prices as tax-inclusive. Enabling the flag without a tax code fails closed before Stripe Session creation.
+
+The checked-in default is disabled. Do not enable it until Managed Payments is active in the Stripe test account and the eligible product tax code has been selected. This does not enable Radar, country blocking, regional currencies or live payments.
