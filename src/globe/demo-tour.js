@@ -14,6 +14,9 @@ export function createDemoTour({camera,globe,controls,radius,button,wideDistance
   // back to start with the reason in the label where assistive tech reads it.
   const label=(message)=>{
     setIcon(button,loading||active?'tour-stop':'tour-start');
+    // A ring around the stop mark shows the route is still being fetched, so the
+    // press is visibly acknowledged during the wait without adding a third icon.
+    if(loading)button.dataset.loading='true';else delete button.dataset.loading;
     button.setAttribute('aria-pressed',String(active));
     const text=message||(loading?'Preparing globe tour':active?'Stop globe tour':'Start globe tour');
     button.setAttribute('aria-label',text);

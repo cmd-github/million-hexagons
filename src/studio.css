@@ -327,6 +327,13 @@ body[data-flow=review] .flow-progress{height:30px;margin-bottom:10px;padding-bot
 #claimFeedItems .example-activity span{display:block}
 #claimFeedItems .example-activity small{display:block;border:0;padding:0;margin-top:5px;font-size:9px;color:#8da9a3}
 .globe-controls button[aria-pressed=true]{background:#d7ff5520;color:var(--lime)}
+/* Tour route fetch: a small ring spins around the stop mark until the first
+   stop is ready, so a slow route still reads as "working" rather than "dead". */
+#demoTour[data-loading]{position:relative}
+#demoTour[data-loading]:after{content:'';position:absolute;top:50%;left:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;border:2px solid #d7ff5530;border-top-color:var(--lime);animation:tour-loading-spin .75s linear infinite;pointer-events:none}
+@keyframes tour-loading-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){#demoTour[data-loading]:after{animation:tour-loading-pulse 1.4s ease-in-out infinite;border-color:#d7ff5530;border-top-color:var(--lime)}}
+@keyframes tour-loading-pulse{0%,100%{opacity:.3}50%{opacity:1}}
 #rotateLeft, #rotateRight, #rotationToggle{font-family:Arial,sans-serif;font-size:23px}
 #rotationToggle{font-size:19px}
 body:not(.detail-view) #claimFeedItems{max-height:120px;overflow:auto}
@@ -351,12 +358,11 @@ body:not(.detail-view) .intro .facts{margin:10px 0}
 #hudDetails, #hudNearby{grid-area:1/1;min-width:0}
 #hudNearby, .show-nearby #hudDetails{visibility:hidden;pointer-events:none}
 .show-nearby #hudNearby{visibility:visible;pointer-events:auto}
-#placementInspector .hud-stats{font-weight:400;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 14px}
-#placementInspector .hud-stats>div{display:flex;flex-direction:column;gap:5px}
-#placementInspector .hud-stats>div:not(:first-child):not(:last-child){text-align:center}
-#placementInspector .hud-stats>div:last-child{text-align:right}
+#placementInspector .hud-stats{font-weight:400;display:grid;grid-template-columns:repeat(4,1fr);align-items:start;gap:8px;margin:10px 0 14px}
+/* All four read as one row: equal columns, one shared left edge per column. */
+#placementInspector .hud-stats>div{display:flex;flex-direction:column;justify-content:flex-start;gap:5px;text-align:left;min-width:0}
 #placementInspector #inspectorInfo, #placementInspector #inspectorClicks, #placementInspector #inspectorHexagons, #placementInspector #inspectorDate{font-size:10px;font-weight:400;margin:0;font:600 15px Manrope,sans-serif;color:#eff7ef;letter-spacing:-.03em}
-#placementInspector .hud-stats span{font-size:10px;color:#8ca7a2}
+#placementInspector .hud-stats span{font-size:10px;color:#8ca7a2;white-space:nowrap}
 #placementInspector .hud-navigation{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:8px;margin:0 0 10px}
 #placementInspector .hud-navigation button{display:grid!important;place-items:center;min-width:44px;min-height:40px;margin:0!important;padding:7px!important}
 #placementInspector .hud-navigation button:disabled{opacity:.28}

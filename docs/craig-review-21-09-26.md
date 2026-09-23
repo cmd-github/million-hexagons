@@ -12,3 +12,6 @@
 - [x] Removed “masterpiece” and its mobile-only word resizing.
 - [x] Changed the Browse submark to “$1 per hexagon · Pay Once. Change anytime.”
 - [ ] Review badges and achievements with Craig after launch evidence. The current illustrative sample badges are not a production achievement system.
+- [x] outlines of hexs on claimed spaces should be faintly visble as well as blank spaces
+- [x] need a mini loading animation on when the tour is loading
+- [x] views visits hexagons and claimed need aligning equally
