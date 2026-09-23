@@ -3,27 +3,35 @@
 Status: draft, not sent. Updated: 23 September 2026.
 Append new unresolved provider/account questions here. Record dated answers under their question, then update the [payment decision](stripe-managed-payments.md). Keep answered questions for context.
 
-## Message for Stripe
+## Copy-paste reply to Stripe
 
-We are integrating Million Hexagons, a directly sold, automatically fulfilled digital placement purchased once, with no resale or investment element. We use embedded Checkout Sessions. Sandhiya from Priority Support confirmed that we can prevent purchases where Managed Payments cannot assume indirect-tax liability with a Radar custom rule using `:billing_address_country:` and the current tax-coverage allow-list. She also confirmed that this requires Radar for Fraud Teams and blocks the payment rather than converting it to a non-Managed Payments transaction.
+Hi Sandhiya,
 
-We believe we selected Radar Lite. We want no monthly Radar subscription. Prices must include tax: GBP 1 per hexagon in the UK, EUR 1 in our European pricing region, and USD 1 in other permitted countries. Unsupported tax jurisdictions must not be charged at all. Please answer these questions for our account:
+Thank you for the detailed reply. It confirms the main points around product eligibility, merchant-of-record treatment and using the customer's billing-address country to block tax-unsupported jurisdictions.
 
-1. **Country-rule cost.** We understand a paid custom-rule tier is required. We believe we selected Radar Lite and do not want a monthly subscription. The email named Radar for Fraud Teams, while the current public site names Radar Plus. Which current plan is required on our account, and can we use it without a monthly subscription or minimum? Please confirm the per-screening charge, whether blocked/failed attempts are charged, and whether a supported no-additional-Radar-fee alternative can enforce the restriction before payment.
+I have four remaining questions so that we can configure the integration correctly:
 
-   Answer: **partially answered.** Priority Support confirmed that Radar for Fraud Teams is required for the custom rule. It did not confirm current plan naming, account-specific inclusion, monthly versus pay-as-you-go availability or charges.
+1. You mentioned that the custom billing-country rule requires Radar for Fraud Teams. I believe our account currently has Radar Lite selected, and I do not want to take out a monthly Radar subscription. Stripe's current public pricing refers to Radar Plus rather than Radar for Fraud Teams. Which current Radar plan does our account need for this rule? Is there a pay-as-you-go option with no monthly subscription or minimum? Please confirm the charge per screened payment, whether blocked or failed attempts are charged, and whether there is any supported way to enforce this restriction without paying for an upgraded Radar plan.
 
-2. **Country-rule edge cases.** Priority Support confirmed that `:billing_address_country:` with the current Managed Payments tax-coverage allow-list blocks unsupported-country payments. Does that rule apply before payment succeeds for every payment method Managed Payments offers, including Link and wallets? What happens when country is missing, saved details are used, or the customer changes billing country during Checkout? If any method can bypass or cannot supply the attribute, can it be disabled for our account?
+2. Does the `:billing_address_country:` rule block an unsupported-country payment before it succeeds for every payment method that Managed Payments might offer, including Link and digital wallets? What happens if the billing country is missing, the customer uses saved Link or wallet details, or the customer changes their billing country during Checkout? If any payment method cannot reliably provide this attribute or could bypass the rule, can that payment method be disabled for our account?
 
-   Answer: **core approach answered; edge cases pending.** The later Priority Support email supersedes the earlier chat's uncertainty and confirms the billing-country Radar rule. It does not discuss each payment method, missing data, saved details or address changes.
+3. Our prices must include tax and use fixed regional price points: GBP 1 per hexagon in the UK, EUR 1 per hexagon in our European pricing region, and USD 1 per hexagon in all other permitted countries. What is the supported way to implement those exact amounts and currencies with Managed Payments? The documentation says Managed Payments controls Adaptive Pricing, so can we stop automatic conversion from changing those customer-facing amounts? We use embedded Checkout Sessions. How should we handle a customer whose billing country entered during Checkout places them in a different pricing region from the price initially displayed on our website?
 
-3. **Exact regional, tax-inclusive prices.** What supported setup keeps the final price at GBP 1 / EUR 1 / USD 1 per hexagon according to the confirmed billing country? Your documentation says Managed Payments controls Adaptive Pricing. Can we retain these exact regional amounts/currencies without automatic conversion changing the customer total? How should an embedded Checkout integration handle a billing-country change that moves the customer to another price region before payment?
+4. You confirmed that an invoice for a jurisdiction where Stripe cannot assume tax liability can show Birdcage Tech Ltd's configured address and tax IDs, while the payment receipt remains OneLink/Link branded. For a transaction where Managed Payments does assume tax liability, can Birdcage Tech Ltd's address or VAT details appear anywhere else visible to the customer, including their Link/Onelink account, payment confirmation or another document or screen? If so, please identify the circumstances and the relevant Dashboard settings.
 
-   Answer: pending.
+To be clear, our intended setup is that customers in tax-unsupported jurisdictions cannot complete payment at all. We will not fall back to a transaction where Birdcage Tech Ltd is responsible for the customer's indirect tax.
 
-4. **Remaining privacy surfaces.** Priority Support confirmed that merchant-liable tax invoices can show Birdcage Tech Ltd's configured business address and tax IDs, while the payment receipt remains OneLink/Link branded. For transactions where Managed Payments does assume tax liability, can those details appear in the customer's Link/Onelink account, payment confirmations or any other customer surface? Please identify any exceptions and relevant settings.
+Thanks again for your help.
 
-   Answer: **partially answered.** The merchant-liable invoice exposure and Dashboard address location are confirmed. The reply does not explicitly answer every supported-country customer surface, particularly the Link/Onelink account.
+Best,
+Craig
+
+## Internal answer tracking
+
+1. **Country-rule cost:** partially answered. Priority Support confirmed that Radar for Fraud Teams is required for the custom rule. Current plan naming, account-specific inclusion, monthly versus pay-as-you-go availability and charges remain unanswered.
+2. **Country-rule edge cases:** core approach answered. The later Priority Support email confirms the billing-country Radar rule. Individual payment methods, missing data, saved details and address changes remain unanswered.
+3. **Exact regional, tax-inclusive prices:** unanswered.
+4. **Remaining privacy surfaces:** partially answered. Merchant-liable invoice exposure and the Dashboard address location are confirmed. Other supported-country customer surfaces, particularly the Link/Onelink account, remain unanswered.
 
 ## Keep out of the Stripe question list
 
