@@ -27,6 +27,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Recently done
 
+- [x] Deployed the final 21 September review follow-ups from source `19e1ac1b` as staging Worker `66c15873-eb35-4435-80c7-400c9f60f141`: claimed cells retain faint hexagon outlines, the tour button shows a loading ring while its route is fetched, and Views / Visits / Hexagons / Claimed use equal left-aligned columns. The production and staging builds and four globe-detail tests passed; all 1,549 immutable runtime objects and live staging HTTPS/CDN health checks passed with cache HITs. A full regression and completed browser/device journey were intentionally skipped at Craig's request; two older focused journeys hit stale fixture assumptions (four example activity items and an available tour placement), not assertions for these changes.
+
 - [x] Implemented the disabled-by-default staging Managed Payments Checkout path: API version `2025-03-31.basil`, one-time embedded Checkout, `managed_payments.enabled`, inclusive inline prices, required eligible product-tax-code configuration and removal of the unsupported explicit payment-method list. The complete 54-test backend suite and staging build pass. Stripe account activation, tax-code selection, a real test Session, country enforcement, regional currencies/headline and deployment remain open.
 
 - [x] Created the appendable [Stripe support question list](stripe-support-questions.md) covering account-specific Radar cost, country enforcement, exact regional pricing and remaining privacy surfaces. Recorded the reported Lite selection and no-monthly-subscription preference; separated provider questions from work we can test ourselves. Draft only, not sent; no payment configuration changed.
