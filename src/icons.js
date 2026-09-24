@@ -35,7 +35,13 @@ export const ICONS = {
   // Studio toolbar.
   image: `<path d="${HEX}"/><path d="m6.6 16.4 3.2-3.4 2.4 2.4 2.2-2.4 2.9 3.1"/><circle cx="14.6" cy="9.4" r="1.2"/>`,
   paint: `<path d="m16.4 3.4 4.2 4.2-10.6 10.6-4.2-4.2Z"/><path d="m5.8 14-2 6.2 6.2-2"/>`,
-  fill: `<path d="m7.1 4.1 9.8 9.8-6.7 6.7-6.8-6.8Z"/><path d="m12 9-2.8 2.8"/><path d="M16.9 13.9h3.3v5.8h-6.5Z"/>`,
+  // Tilted bucket pouring a drip. The previous mark was an abstract diamond that did not read
+  // as "fill" at toolbar size.
+  fill: `<path d="M9.4 2.6 7.2 4.8"/><path d="m11.6 5 5.9 5.9a1.2 1.2 0 0 1 0 1.7l-4.7 4.7a1.8 1.8 0 0 1-2.5 0l-4.6-4.6a1.8 1.8 0 0 1 0-2.5l4.7-4.7a1.2 1.2 0 0 1 1.2-.5Z"/><path d="M5.2 11.4h12.1"/><path class="ico-fill" d="M20.4 14.4s1.6 2 1.6 3a1.6 1.6 0 0 1-3.2 0c0-1 1.6-3 1.6-3Z"/>`,
+  // Eraser tilted on the grid: the head crosses the baseline so it reads as removal.
+  erase: `<path d="m13.4 4.6 6 6a1.4 1.4 0 0 1 0 2l-5.4 5.4H9.2l-4.6-4.6a1.4 1.4 0 0 1 0-2l7.4-7.4a1.4 1.4 0 0 1 1.4.6Z"/><path d="m8.4 9.6 6 6"/><path d="M4.2 20.2h15.6"/>`,
+  // Four-way move: the globe can be dragged in any direction.
+  move: `<path d="M12 3.4v17.2M3.4 12h17.2"/><path d="m9.6 5.8 2.4-2.4 2.4 2.4M9.6 18.2l2.4 2.4 2.4-2.4M5.8 9.6 3.4 12l2.4 2.4M18.2 9.6 20.6 12l-2.4 2.4"/>`,
   add: `<path d="${HEX}"/><path d="M12 8.4v7.2M8.4 12h7.2"/>`,
   remove: `<path d="${HEX}"/><path d="M8.4 12h7.2"/>`,
   pan: `<path d="M12 2.8v18.4M2.8 12h18.4"/><path d="m9.2 5.6 2.8-2.8 2.8 2.8M9.2 18.4l2.8 2.8 2.8-2.8M5.6 9.2 2.8 12l2.8 2.8M18.4 9.2 21.2 12l-2.8 2.8"/>`,

@@ -133,6 +133,17 @@ try {
       () => window.geodesicQA.state().design,
     );
     await page.waitForTimeout(550);
+    // Clicking a cell you already own no longer removes it: adding and deleting are separate
+    // modes now, so the brush only ever adds until the delete toggle is on.
+    await clickCell(freeCell);
+    await page.waitForTimeout(300);
+    assert.equal(
+      await page.evaluate(() => window.geodesicQA.state().design.length),
+      21,
+      'The selection brush must only add until delete mode is chosen',
+    );
+    await page.locator('#shapeRemoveMode').click();
+    assert.equal(await page.locator('#shapeRemoveMode').getAttribute('aria-pressed'),'true');
     await clickCell(freeCell);
     await page.waitForFunction(
       () => window.geodesicQA.state().design.length === 20,
@@ -142,6 +153,8 @@ try {
     assert.ok(deletionFlash[0]>deletionFlash[1]&&deletionFlash[1]>0);
     await page.waitForTimeout(300);
     assert.equal(await page.evaluate(id=>window.geodesicQA.selectionAlpha(id),freeCell),0);
+    await page.locator('#shapeRemoveMode').click();
+    assert.equal(await page.locator('#shapeRemoveMode').getAttribute('aria-pressed'),'false');
     const beforeDoubleClick=await page.evaluate(()=>({count:window.geodesicQA.state().design.length,camera:Math.hypot(...window.geodesicQA.state().camera)}));
     const freePoint=await page.evaluate(id=>window.geodesicQA.screen(id),freeCell);
     await page.mouse.dblclick(freePoint.x,freePoint.y,{delay:60});
@@ -382,9 +395,11 @@ try {
       await page.locator("#inspectorDescription").textContent(),
       "Independent design for curious people.",
     );
-    assert.match(
-      await page.locator("#inspectorDate").textContent(),
-      /\d{2}\/\d{2}\/\d{2}/,
+    // The claimed date was removed from the HUD; the three remaining stats share the row evenly.
+    assert.equal(await page.locator("#inspectorDate").count(), 0);
+    assert.equal(
+      await page.locator("#placementInspector .hud-stats > div").count(),
+      3,
     );
     assert.doesNotMatch(
       await page.locator("#claimFeedItems").textContent(),

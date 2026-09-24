@@ -65,8 +65,21 @@ const animateLoadingCount=()=>{
   loadingCountFrame=requestAnimationFrame(animateLoadingCount);
 };
 const advanceLoadingCount=target=>{loadingCountTarget=Math.max(loadingCountTarget,Math.min(CELL_COUNT-1,target));if(!loadingCountFrame)loadingCountFrame=requestAnimationFrame(animateLoadingCount);};
-const completeLoadingCount=async()=>{loadingCountTarget=CELL_COUNT;displayedLoadingHexagons=CELL_COUNT;showLoadedHexagons(CELL_COUNT);if(loadingCountFrame)cancelAnimationFrame(loadingCountFrame);loadingCountFrame=0;await new Promise(resolve=>setTimeout(resolve,220));};
+// Land on the full million, say so, and hold it long enough to read before the globe takes over.
+const completeLoadingCount=async()=>{
+  loadingCountTarget=CELL_COUNT;displayedLoadingHexagons=CELL_COUNT;showLoadedHexagons(CELL_COUNT);
+  if(loadingCountFrame)cancelAnimationFrame(loadingCountFrame);loadingCountFrame=0;
+  loadingCount.classList.add('complete');
+  const message=document.querySelector('#loadingMessage');
+  if(message)message.textContent=`${CELL_COUNT.toLocaleString('en-GB')} Hexagons Loaded`;
+  await new Promise(resolve=>setTimeout(resolve,900));
+};
 showLoadedHexagons(0);advanceLoadingCount(850000);
+// A span image is fitted to the footprint it was placed on. Painting more cells afterwards used
+// to re-fit it to the larger selection, so the artwork silently grew under the brush; people can
+// zoom on the image screen instead. Held as cell ids and re-derived from the live selection each
+// render, so relocating the placement still maps the image into the new frame.
+let spanFootprintIds=null,spanCellsSource=null,spanCellsCache=null;
 let openingEditor=false,studioHistoryActive=false,studioHistoryPosition=0,handlingStudioHistory=false;
 function showLoading(){
   loading.dataset.context='editor';loading.hidden=false;
@@ -670,9 +683,9 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   panel.scrollTop = 0;
   for(const id of ['companyName','companyDescription','website'])document.getElementById(id).value='';
   document.querySelector('#artworkQuality').hidden=true;
-  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;draftArtwork=null;
+  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;releaseSpanFootprint();draftArtwork=null;
   document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();
-  document.querySelector('#brushColor').value='#ff4d6d';document.querySelector('#logoTreatment').value='span';document.querySelector('#areaBrush').value='0';document.querySelector('#areaBrushValue').textContent='1 cell';showUploadMessage('');document.querySelector('#uploadStatus').hidden=true;
+  document.querySelector('#brushColor').value='#ff4d6d';document.querySelector('#logoTreatment').value='span';shapeBrushReach=0;designBrushReach=0;document.querySelector('#areaBrush').value='0';document.querySelector('#areaBrushValue').textContent='1 cell';showUploadMessage('');document.querySelector('#uploadStatus').hidden=true;
   resetLogoTransform();undoStack.length=0;redoStack.length=0;updateHistory();
   logoCells=[];footprintEdited=true;logoEditorMode='paint';
   designAnchor=preparedAnchor;
@@ -739,6 +752,7 @@ function restoreDraft() {
   amountInput.value=logoCells.length;
   footprintEdited=draft.footprintEdited;
   uploadedLogo=draft.logo;uploadedLogoCrop=draft.logoCrop;
+  if(uploadedLogo)lockSpanFootprint();else releaseSpanFootprint();
   document.querySelector('#brushColor').value=draft.baseColour;
   document.querySelector('#logoTreatment').value=draft.treatment;
   document.querySelector('#logoScale').value=draft.scale;
@@ -751,7 +765,7 @@ function restoreDraft() {
 }
 function discardDraft() {
   savedDraft=null;
-  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;draftArtwork=null;
+  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;releaseSpanFootprint();draftArtwork=null;
   document.querySelector('#logoUpload').value='';
   document.querySelector('#logoPreview').replaceChildren();
   document.querySelector('#logoPalette').hidden=true;
@@ -955,8 +969,8 @@ function availableConnectedSelection(anchor,count,source=[]) {
 
 function updateTotals() {
   const count = placementCount();
-  const pentagons = creationType ? previewCells().filter(cell => cell.pentagon).length : 0;
-  const countText = `${count.toLocaleString()} hexagon${count === 1 ? '' : 's'}${pentagons ? ` · ${pentagons} pentagon${pentagons === 1 ? '' : 's'}` : ''}`;
+  // The twelve pentagons are counted and sold as hexagons; the distinction only confused people.
+  const countText = `${count.toLocaleString()} hexagon${count === 1 ? '' : 's'}`;
   const priceText = ownerEdit?'Owned':formatRegionalPrice(count,pricingRegion);
   document.querySelector('#designCount').textContent = countText;
   document.querySelector('#price').textContent = priceText;
@@ -1017,6 +1031,17 @@ function layoutFor(cells) {
     do{edge=edges.get(current);if(!edge)break;path.lineTo(edge.q.x,edge.q.y);edges.delete(current);current=edge.to;}while(current!==first);path.closePath();
   }
   const layout={bounds,path,fits:new Map(),guides:null};layoutCache.set(cells,layout);return layout;
+}
+function lockSpanFootprint(){spanFootprintIds=new Set(previewCells().map(cell=>cell.id));spanCellsSource=null;spanCellsCache=null;}
+function releaseSpanFootprint(){spanFootprintIds=null;spanCellsSource=null;spanCellsCache=null;}
+function spanSourceCells(){
+  const cells=previewCells();
+  if(!spanFootprintIds)return cells;
+  if(spanCellsSource===cells)return spanCellsCache;
+  const kept=cells.filter(cell=>spanFootprintIds.has(cell.id));
+  // Keep array identity stable so layoutFor's cache still hits.
+  spanCellsSource=cells;spanCellsCache=kept.length?kept:cells;
+  return spanCellsCache;
 }
 function relocateDesign(draft, anchor) {
   if (!footprintEdited) {
@@ -1143,9 +1168,45 @@ function configureCreation() {
   updateImageControls();
   drawDesignPreview();updateTotals();
 }
+// Hex-select and the design stage each remember their own brush. They used to share the single
+// #areaBrush input, so a medium brush chosen while shaping still painted medium in design even
+// though the design toolbar showed small selected.
+let shapeBrushReach=0,designBrushReach=0;
+// Hex-select used to remove whenever you dragged back over your own selection, which made it
+// impossible to extend a shape confidently. Adding and deleting are now explicit modes, and a
+// third mode hands the globe back to the orbit controls for large placements.
+let shapeEraseMode=false,shapeMoveMode=false;
+function applyShapeMode(){
+  for(const [id,active] of [['shapeRemoveMode',shapeEraseMode],['shapeMoveMode',shapeMoveMode]]){
+    const button=document.querySelector(`#${id}`);
+    if(button){button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));}
+  }
+  document.querySelector('#shapeBrushControls')?.classList.toggle('brush-idle',shapeMoveMode);
+  if(document.body.dataset.flow==='shape')controls.enableRotate=shapeMoveMode;
+  const status=document.querySelector('#shapeStatus');
+  if(status&&document.body.dataset.flow==='shape'){
+    status.textContent=shapeMoveMode?'Drag the globe to move it. Pick a brush to keep shaping.':shapeEraseMode?'Drag across your selection to remove hexagons.':'';
+    status.hidden=!status.textContent;
+  }
+}
+document.querySelector('#shapeRemoveMode').addEventListener('click',()=>{shapeEraseMode=!shapeEraseMode;if(shapeEraseMode)shapeMoveMode=false;applyShapeMode();});
+document.querySelector('#shapeMoveMode').addEventListener('click',()=>{shapeMoveMode=!shapeMoveMode;if(shapeMoveMode)shapeEraseMode=false;applyShapeMode();});
+for(const button of document.querySelectorAll('[data-shape-brush]'))button.addEventListener('click',()=>{shapeMoveMode=false;applyShapeMode();});
+function applyBrushScope(scope){
+  const reach=scope==='shape'?shapeBrushReach:designBrushReach;
+  document.querySelector('#areaBrush').value=String(reach);
+  document.querySelector('#areaBrushValue').textContent=(1+3*reach*(reach+1)).toLocaleString();
+  const attribute=scope==='shape'?'data-shape-brush':'data-brush';
+  for(const item of document.querySelectorAll(`[${attribute}]`)){
+    const active=Number(item.getAttribute(attribute))===reach;
+    item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));
+  }
+}
 function enterShapeStep(){
+  applyBrushScope('shape');
   document.querySelector('#sizeControls').hidden=false;document.querySelector('#shapeBrushControls').hidden=false;document.querySelector('#shapeStatus').hidden=true;document.querySelector('#shapeStatus').textContent='';document.querySelector('#shapeCountError').hidden=true;
-  showFlowStep('shape');selectionModeUniform.value=1;selectedCell=cellForId(designAnchor);selectedCells=previewCells();clearPlacementPreview();logoEditorMode='hex';refreshSelection(selectedCells);controls.enableRotate=false;updateTotals();
+  shapeEraseMode=false;shapeMoveMode=false;
+  showFlowStep('shape');selectionModeUniform.value=1;selectedCell=cellForId(designAnchor);selectedCells=previewCells();clearPlacementPreview();logoEditorMode='hex';refreshSelection(selectedCells);controls.enableRotate=false;updateTotals();applyShapeMode();
 }
 function enterDesignStep(){
   if(!ownerEdit&&placementCount()<5){document.querySelector('#shapeCountError').hidden=false;document.querySelector('#hexAmount').focus();return;}
@@ -1187,6 +1248,7 @@ function setEditorMode(mode, zoomToCells=true) {
   if(designSurface==='globe')controls.enableRotate=mode==='pan';
   logoEditorMode=mode;logoDrag=null;editorPan=null;lastPaintedCell=null;
   document.querySelector('#areaBrushControls').hidden=!['remove','paint'].includes(mode);
+  if(['remove','paint'].includes(mode))applyBrushScope('design');
   const brushing=mode==='paint';
   for(const [id,value] of [['moveImageMode','move'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan']]) {
     const button=document.querySelector(`#${id}`),active=value===mode;
@@ -1282,7 +1344,9 @@ async function suggestLocation() {
   finally {if(version===suggestionVersion){button.disabled=false;button.textContent='Find another spot';}}
 }
 document.querySelector('#suggestLocation').addEventListener('click', suggestLocation);
-document.querySelector('#reviewEditDesign').addEventListener('click', () => document.querySelector('#backToDesign').click());
+// Leaving review is now only possible through this button, so it carries the reservation
+// release that the removed "Edit placement" back-link used to do.
+document.querySelector('#reviewEditDesign').addEventListener('click', () => { void releaseActiveCheckoutReservation(); document.querySelector('#backToDesign').click(); });
 document.querySelector('#dismissToast').addEventListener('click', () => document.querySelector('#toast').classList.remove('show'));
 // Escape unwinds the studio one layer at a time: an open menu, then checkout, then the
 // panel itself. It used to close the whole flow from any of those states.
@@ -1343,7 +1407,6 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   addHighResolutionPlacement(document.querySelector('#brushColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
   button.textContent=original;button.disabled=false;
 });
-document.querySelector('#backToPlacement').addEventListener('click', () => { void releaseActiveCheckoutReservation();clearPlacementPreview();selecting=false;selectionModeUniform.value=0;document.body.classList.remove('selecting','placing-design');showFlowStep('design');setDesignSurface('globe');setEditorMode('paint',false);drawDesignPreview();updateTotals(); });
 document.querySelectorAll('[data-add-size]').forEach(button=>button.addEventListener('click',()=>{amountInput.value=Math.min(100000,Math.max(1,placementCount())+Number(button.dataset.addSize));if(placementCount()>=5)void resizeDesign();else updateTotals();}));
 document.querySelectorAll('[data-step-size]').forEach(button=>button.addEventListener('click',()=>{amountInput.value=Math.max(1,Math.min(100000,placementCount()+Number(button.dataset.stepSize)));if(placementCount()>=5)void resizeDesign();else updateTotals();}));
 amountInput.addEventListener('change',()=>{amountInput.value=Math.max(1,placementCount());if(placementCount()>=5)void resizeDesign();else updateTotals();});
@@ -1360,7 +1423,7 @@ document.querySelectorAll('[data-flow-target]').forEach(button=>button.addEventL
 }));
 document.querySelector('#fillCells').addEventListener('click',()=>{rememberPaint();const colour=document.querySelector('#brushColor').value;logoCells=previewCells().map(c=>({...c,color:colour,transparent:false}));rememberRecentColour(colour);footprintEdited=true;drawDesignPreview();});
 document.querySelector('#removeImage').addEventListener('click',()=>{document.querySelector('#artworkQuality').hidden=true;
-  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();refreshSelection();});
+  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;releaseSpanFootprint();document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();refreshSelection();});
 function resetLogoTransform() {
   document.querySelector('#logoScale').value = 100;
   document.querySelector('#logoScaleValue').textContent = '100%';
@@ -1382,7 +1445,6 @@ document.querySelector('#discardRestoredDraft').onclick=async()=>{
   if(!await confirmDesignAction(true))return;
   discardDraft();document.querySelector('#draftNotice').hidden=true;closeBuy();await openBuy();
 };
-document.querySelector('#clearAllDesign').addEventListener('click',async()=>{if(!await confirmDesignAction(false))return;rememberPaint();uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;document.querySelector('#artworkQuality').hidden=true;logoCells=previewCells().map(({color,transparent,...cell})=>cell);resetLogoTransform();updateImageControls();setEditorMode('move',false);drawDesignPreview();updateTotals();});
 const designCanvas = document.querySelector('#designCanvas');
 const editorPointers=new Map();
 let editorPinch=null;
@@ -1566,6 +1628,7 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
     uploadedLogoCrop = findLogoContentBounds(raster);
     resetLogoTransform();
     document.querySelector('#logoTreatment').value='span';
+    lockSpanFootprint();
     updateImageControls();setEditorMode('move');
     const preview = document.querySelector('#logoPreview');
     const previewImage = document.createElement('img');
@@ -1586,8 +1649,15 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
   image.src = url;
 });
 
+// Rejections (size, type, resolution) belong next to the Add image button, where the person is
+// looking, rather than only in the status line at the bottom of the studio.
+const UPLOAD_REJECTIONS=['Logo must be','Use PNG','This image is too large'];
 function showUploadMessage(message) {
   const status=document.querySelector('#uploadStatus');status.textContent=message;status.hidden=message.startsWith('Logo ready');
+  const rejection=UPLOAD_REJECTIONS.some(prefix=>message.startsWith(prefix))?message:'';
+  const inline=document.querySelector('#addImageError');
+  if(inline){inline.textContent=rejection;inline.hidden=!rejection;}
+  document.querySelector('#logoControls')?.classList.toggle('has-error',Boolean(rejection));
   updateLogoGuidance(message);
 }
 
@@ -1638,7 +1708,7 @@ function largestLogoRect(cells,bounds,aspect,width,height) {
 }
 function renderArtwork(cells) {
   const bounds = layoutFor(cells).bounds;
-  const sourceCells=previewCells(),sourceLayout=layoutFor(sourceCells),sourceBounds=sourceLayout.bounds;
+  const sourceCells=spanSourceCells(),sourceLayout=layoutFor(sourceCells),sourceBounds=sourceLayout.bounds;
   const layers=artworkImageLayers(),signature=document.querySelector('#brushColor').value+JSON.stringify(layers.map(layer=>[layer.scale,layer.rotation,layer.treatment,layer.position.x,layer.position.y]));
   const cached=artworkCache.get(cells);
   if(cached&&cached.signature===signature&&cached.layers?.length===layers.length&&cached.layers.every((image,index)=>image===layers[index].image)&&cached.source===sourceCells)return cached.art;
@@ -1767,6 +1837,7 @@ function persistentArtwork(canvas){const limit=900,scale=Math.min(1,limit/Math.m
 function publicationArtwork(canvas){return canvas.toDataURL('image/webp',.95);}
 async function applyPersistentPlacements(records,{focus=false}={}){
   for(const record of records)publicPlacementRecords.set(record.placementId,record);
+  if(records.length)nearbyRenderedFor=null;
   if(snapshotEnabled){
     for(const record of records){
       const value={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor,cells:record.cells,logo:record.thumbnailDataUrl||record.artworkDataUrl,publicationStatus:record.publicationStatus,status:record.status,moderationStatus:record.moderationStatus};
@@ -2078,13 +2149,21 @@ if(innerWidth<=700)document.querySelector('#claimFeed')?.removeAttribute('open')
 resize();
 frameGlobe(true);
 
+// Every tour stop used the same fixed 0.012 angle, so a 1,800-cell claim was framed as tightly
+// as a 5-cell one and you only ever saw its middle. A claim covering fraction f of the sphere
+// has angular radius acos(1-2f); pad that so the placement sits inside the viewport, not flush.
+function tourAngleFor(cellCount,fallback=.012){
+  const cells=Number(cellCount)||0;
+  if(cells<1)return fallback;
+  return Math.min(.55,Math.max(fallback,Math.acos(Math.max(-1,1-2*cells/CELL_COUNT))*1.6));
+}
 async function createTourStops(){
-  const grid=await ensureTopology(),sessionAreas=[...new Set(sessionPlacements.values())].map((placement,index)=>({anchor:placement.anchor,angle:placement.angle||.012,name:placement.name||'Your placement',key:`session-${index}`}));
+  const grid=await ensureTopology(),sessionAreas=[...new Set(sessionPlacements.values())].map((placement,index)=>({anchor:placement.anchor,angle:tourAngleFor(placement.cellCount,placement.angle||.012),name:placement.name||'Your placement',key:`session-${index}`}));
   let liveAreas=[];
   if(snapshotEnabled){
     try{
       const client=await import('./staging-client.js'),records=await client.listPublicClaims();
-      liveAreas=records.filter(record=>record.publicationStatus==='published'&&record.status!=='deleted'&&record.status!=='revoked'&&record.moderationStatus!=='suspended').map(record=>({anchor:record.anchor,angle:record.angle||.012,name:record.title||'Untitled placement',key:`live-${record.placementId}`,trusted:true}));
+      liveAreas=records.filter(record=>record.publicationStatus==='published'&&record.status!=='deleted'&&record.status!=='revoked'&&record.moderationStatus!=='suspended').map(record=>({anchor:record.anchor,angle:tourAngleFor(record.cellCount,record.angle||.012),name:record.title||'Untitled placement',key:`live-${record.placementId}`,trusted:true}));
     }catch(error){console.error('Could not load live tour placements',error);}
   }
   const candidates=[...(bootstrap.sampleAreas||[]).map((area,index)=>({anchor:area.anchor,angle:area.angle,name:bootstrap.sampleCampaigns[area.campaign].name,key:`sample-${index}`})),...sessionAreas,...liveAreas]
@@ -2219,16 +2298,15 @@ document.querySelector('#editThisSpace').onclick=()=>{
   document.querySelector('#backToDesign').click();setDesignSurface('globe');
 };
 document.querySelectorAll('[data-brush]').forEach(button=>button.addEventListener('click',()=>{
-  const reach=Number(button.dataset.brush);document.querySelector('#areaBrush').value=String(reach);document.querySelector('#areaBrushValue').textContent=(1+3*reach*(reach+1)).toLocaleString();
-  document.querySelectorAll('[data-brush]').forEach(item=>{const active=item===button;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));});
+  designBrushReach=Number(button.dataset.brush);applyBrushScope('design');
 }));
 document.querySelectorAll('[data-shape-brush]').forEach(button=>button.addEventListener('click',()=>{
-  document.querySelector('#areaBrush').value=button.dataset.shapeBrush;
-  document.querySelectorAll('[data-shape-brush]').forEach(item=>{const active=item===button;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));});
+  shapeBrushReach=Number(button.dataset.shapeBrush);applyBrushScope('shape');
 }));
 async function editGlobeCell(id,stroke=globeStroke){
   const mode=logoEditorMode;
   if(!stroke||stroke.last===id)return;
+  if(document.body.dataset.flow==='shape'&&shapeMoveMode)return;
   const reach=Number(document.querySelector('#areaBrush').value);
   try {
     const brush=await topology.run(()=>{
@@ -2248,7 +2326,10 @@ function applyGlobeCell(id,stroke){
   let start=0,end=1;
   for(let ring=0;ring<reach;ring++){for(let i=start;i<end;i++)for(const n of topology.neighboursOf(brush[i]))if(!seen.has(n)){seen.add(n);brush.push(n);}start=end;end=brush.length;}
   if(logoEditorMode==='hex'){
-    if(document.body.dataset.flow==='shape'&&next.has(id)){
+    if(document.body.dataset.flow==='shape'&&shapeEraseMode){
+      // Delete mode only ever deletes. Dragging past the edge of the selection must not start
+      // adding cells behind you.
+      if(!next.has(id))return;
       const candidate=new Map(next),removed=[];for(const n of brush)if(candidate.delete(n))removed.push(n);
       if(candidate.size&&topology.isConnected([...candidate.values()])){
         next.clear();for(const [key,value] of candidate)next.set(key,value);
@@ -2303,7 +2384,7 @@ canvas.addEventListener('pointerup',()=>{
 for(const event of ['pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>globeStroke=null);
 let inspectorVersion=0;
 let inspectedId=null, inspectedCells=[], hudPinned=false, inspectedOwner=null;
-let inspectorRoute=[],inspectorRouteIndex=0;
+let inspectorRoute=[],inspectorRouteIndex=0,nearbyRenderedFor=null;
 const analyticsSession=(()=>{try{let value=sessionStorage.getItem('mh-analytics-session');if(!value){value=crypto.randomUUID();sessionStorage.setItem('mh-analytics-session',value);}return value;}catch{return crypto.randomUUID();}})();
 function deviceClass(){return innerWidth<=700?'mobile':innerWidth<=1024?'tablet':'desktop';}
 function trackEvent(type,{placementId='',context={},unique=false}={}){if(!stagingClient)return;const sessionId=unique?`${analyticsSession}-${crypto.randomUUID().slice(0,8)}`:analyticsSession;void stagingClient.trackEvent({type,sessionId,...(placementId?{placementId}:{}),context:{deviceClass:deviceClass(),...context}}).catch(()=>{});}
@@ -2396,7 +2477,6 @@ async function prepareInspector(id,version){
   inspectedCells=queue;
   const views=document.querySelector('#inspectorInfo');views.textContent=record?.placementId?'…':record?'\u2014':'12,429';views.title=record?.placementId?'Measured placement views':record?'Views are not measured yet':'Illustrative views';
   document.querySelector('#inspectorHexagons').textContent=queue.length.toLocaleString();
-  document.querySelector('#inspectorDate').textContent=(record?new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'}):'08/08/26');
   const description=record?.description||sampleDescriptions[owner-1]||'';
   document.querySelector('#inspectorDescription').textContent=description;
   document.querySelector('#inspectorDescription').hidden=!description;
@@ -2414,12 +2494,6 @@ async function prepareInspector(id,version){
   if(version!==inspectorVersion)return false;
   return true;
 }
-function updateInspectorNavigation(){
-  const available=inspectorRoute.length>1;
-  document.querySelector('#previousPlacement').disabled=!available;
-  document.querySelector('#nextPlacement').disabled=!available;
-  document.querySelector('#placementPosition').textContent=available?`${inspectorRouteIndex+1} of ${inspectorRoute.length}`:'No other placements';
-}
 async function resetInspectorRoute(id){
   const live=[...new Set(sessionPlacements.values())].filter(record=>record?.placementId).map(record=>({id:record.anchor,record,key:`live-${record.placementId}`}));
   const samples=[];
@@ -2436,25 +2510,20 @@ async function resetInspectorRoute(id){
     return distance(a)-distance(b)||a.key.localeCompare(b.key);
   });
   inspectorRouteIndex=Math.max(0,inspectorRoute.findIndex(item=>item.key===currentKey));
-  updateInspectorNavigation();
 }
-async function moveInspector(direction){
-  if(inspectorRoute.length<2)return;
-  const next=(inspectorRouteIndex+direction+inspectorRoute.length)%inspectorRoute.length,item=inspectorRoute[next];
-  if(item.record)await applyPersistentPlacements([item.record]);
-  if(await inspectPlacement(item.id,{keepRoute:true})){inspectorRouteIndex=next;updateInspectorNavigation();viewInspectedPlacement();}
-}
-document.querySelector('#previousPlacement').onclick=()=>void moveInspector(-1);
-document.querySelector('#nextPlacement').onclick=()=>void moveInspector(1);
-updateInspectorNavigation();
+// Opening the inspector already renders this panel, so clicking "Nearby" must not repeat the
+// cell fetch and flash "Finding nearby placements…" over an answer we already have.
 async function renderNearbyPlacements(){
-  const nearby=document.querySelector('#nearbyPlacements'),targetId=inspectedId;nearby.replaceChildren();
+  const nearby=document.querySelector('#nearbyPlacements'),targetId=inspectedId;
+  if(nearbyRenderedFor===targetId&&nearby.childElementCount)return;
+  nearby.replaceChildren();
   const record=targetId?sessionPlacements.get(targetId):null,selectedRecord=record?.placementId?publicPlacementRecords.get(record.placementId)||record:null,records=[...publicPlacementRecords.values()];
   if(selectedRecord&&records.length>1){const loading=document.createElement('p');loading.className='nearby-empty';loading.textContent='Finding nearby placements…';nearby.append(loading);try{await topology.ensureCells([...new Set(records.map(item=>item.anchor))]);}catch{if(inspectedId===targetId)loading.textContent='Nearby is temporarily unavailable. Try again.';return;}}
   if(inspectedId!==targetId)return;nearby.replaceChildren();
   const areas=closestPlacements(records,selectedRecord,cellId=>topology.centre(cellId));
-  for(const area of areas){const button=document.createElement('button');const image=document.createElement('img'),source=area.thumbnailDataUrl||area.artworkDataUrl;image.alt='';image.hidden=!source;if(source)image.src=source;const name=document.createElement('span');name.textContent=area.title||'Untitled placement';const arrow=document.createElement('span');arrow.textContent='\u2197';arrow.setAttribute('aria-hidden','true');button.append(image,name,arrow);button.onclick=async()=>{await applyPersistentPlacements([area]);if(await inspectPlacement(area.anchor))viewInspectedPlacement();};nearby.append(button);}
+  for(const area of areas){const button=document.createElement('button');const image=document.createElement('img'),source=area.thumbnailDataUrl||area.artworkDataUrl;image.alt='';image.hidden=!source;if(source)image.src=source;const name=document.createElement('span');name.textContent=area.title||'Untitled placement';const arrow=document.createElement('span');arrow.className='nearby-go';arrow.innerHTML=icon('arrow-right');arrow.setAttribute('aria-hidden','true');button.append(image,name,arrow);button.onclick=async()=>{await applyPersistentPlacements([area]);if(await inspectPlacement(area.anchor))viewInspectedPlacement();};nearby.append(button);}
   if(!areas.length){const empty=document.createElement('p');empty.className='nearby-empty';empty.textContent=selectedRecord?'No other live placements yet.':'Nearby is available for live placements.';nearby.append(empty);}
+  nearbyRenderedFor=targetId;
 }
 function closeInspector(force=false){
   if(hudPinned&&!force)return;

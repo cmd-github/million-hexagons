@@ -117,8 +117,9 @@ body[data-flow=location] .globe-controls,body[data-flow=shape] .globe-controls{r
 #shapeStep .shape-size-heading span{font-size:12px;font-weight:700;color:#eef6f3}
 #shapeStep .shape-size-heading small{font-size:9px;color:#8199a2}
 #shapeStep .studio-count{display:flex;align-items:center;color:#b7c9cf;font-size:12px}
+#shapeStep .shape-count-stepper>.studio-count{height:48px;margin:0}
 #shapeStep .studio-count input{width:100%;height:48px;padding:0 12px;border:1px solid #29414b;border-radius:9px;background:#091720;color:white;text-align:center;font:700 18px 'DM Mono';appearance:textfield}
-#shapeStep .shape-count-stepper{display:grid;grid-template-columns:48px minmax(0,1fr) 48px;align-items:stretch;gap:7px}
+#shapeStep .shape-count-stepper{display:grid;grid-template-columns:48px minmax(0,1fr) 48px;align-items:center;gap:7px}
 #shapeStep .shape-count-stepper>button{min-width:48px;height:48px;padding:0;border:1px solid #29414b;border-radius:9px;background:#132832;color:var(--lime);font:700 22px Manrope}
 #shapeStep .shape-count-stepper>button:hover{border-color:#d4ff5870;background:#d4ff5810}
 #shapeStep #shapeCountError{display:block;margin:-3px 2px 0;color:#ff7385;font-size:10px;line-height:1.4}
@@ -358,7 +359,7 @@ body:not(.detail-view) .intro .facts{margin:10px 0}
 #hudDetails, #hudNearby{grid-area:1/1;min-width:0}
 #hudNearby, .show-nearby #hudDetails{visibility:hidden;pointer-events:none}
 .show-nearby #hudNearby{visibility:visible;pointer-events:auto}
-#placementInspector .hud-stats{font-weight:400;display:grid;grid-template-columns:repeat(4,1fr);align-items:start;gap:8px;margin:10px 0 14px}
+#placementInspector .hud-stats{font-weight:400;display:grid;grid-template-columns:repeat(3,1fr);align-items:start;gap:8px;margin:10px 0 14px}
 /* All four read as one row: equal columns, one shared left edge per column. */
 #placementInspector .hud-stats>div{display:flex;flex-direction:column;justify-content:flex-start;gap:5px;text-align:left;min-width:0}
 #placementInspector #inspectorInfo, #placementInspector #inspectorClicks, #placementInspector #inspectorHexagons, #placementInspector #inspectorDate{font-size:10px;font-weight:400;margin:0;font:600 15px Manrope,sans-serif;color:#eff7ef;letter-spacing:-.03em}
@@ -507,7 +508,7 @@ body:not([data-flow=design]) .draft-notice{display:none}
 body[data-flow=review] .buy-panel{overflow:hidden}
 body[data-flow=review] #reviewStep{overflow-y:auto;overflow-x:hidden;padding-right:2px;scroll-padding-block:12px}
 body.creating .flow-progress button[aria-current=step]{opacity:1}
-#designStep .studio-toolbar{display:grid;grid-template-columns:1fr 1fr 32px 32px 58px;gap:4px}
+#designStep .studio-toolbar{display:grid;grid-template-columns:1fr 1fr 32px 32px;gap:4px}
 #designStep .studio-toolbar>button{display:flex;align-items:center;justify-content:center;gap:5px;padding:6px 4px;min-width:0;min-height:44px;white-space:nowrap}
 #designStep .toolbar-spacer{display:none}
 #designStep .colour-palette button{background:var(--swatch);padding:0;border:2px solid transparent}
@@ -567,7 +568,7 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
  #designStep .studio-heading{display:flex}body.creating .flow-screen .panel-intro{margin:0;font-size:12px}
  body.creating .globe-controls{right:10px;left:auto;top:12px;bottom:auto;transform:none;grid-template-columns:repeat(3,40px)}
  .creating .globe-controls button{width:40px;height:40px}.creating .globe-controls #demoTour{display:none}
- #designStep .studio-workspace{flex:none}#designStep .studio-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px 44px 58px;gap:4px}
+ #designStep .studio-workspace{flex:none}#designStep .studio-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px 44px;gap:4px}
  #designStep button,#designStep .add-image,#brushControls button,#areaBrushControls button.hex-brush{min-height:44px}
  #customPaintTools .toolbar-spacer{display:none}#designStep .studio-toolbar>button{display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;padding:8px;min-width:0}
  #designStep .studio-toolbar #undoPaint,#designStep .studio-toolbar #redoPaint{flex:0 0 44px}
@@ -862,7 +863,7 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
  #shapeStep .size-presets button,#shapeStep .shape-brushes .hex-brush{height:30px;min-height:30px}
  #shapeStep .place-summary{margin:0;padding:3px 0}
  #shapeStep #toDesign{min-height:38px;padding:6px}
- #designStep .studio-toolbar{grid-template-columns:1fr 1fr 38px 38px 54px;gap:3px}
+ #designStep .studio-toolbar{grid-template-columns:1fr 1fr 38px 38px;gap:3px}
  #designStep .studio-toolbar>button{min-height:34px;padding:4px}
  #designStep .studio-context{gap:3px;padding:2px 0}
  #designStep #logoPositionControls{gap:1px;margin:0}
@@ -883,3 +884,37 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
  .share-controls{gap:4px;margin-top:5px;padding-top:5px}
  .share-no-link small{font-size:8px;line-height:1.25}
 }
+
+/* Craig review 24-09-26: explicit add/delete/move modes, matched HUD arrows and an upload
+   error that appears where the person is actually looking. */
+.mode-toggle{display:inline-grid;place-items:center;min-width:34px;min-height:34px;padding:0;border:1px solid #29414b;border-radius:9px;background:#132832;color:#91a9b3}
+.mode-toggle .ico{--ico:18px}
+.mode-toggle:hover{border-color:#d4ff5870;background:#d4ff5810;color:#cfe3d9}
+.mode-toggle.active,.mode-toggle[aria-pressed=true]{border-color:#d4ff5880;background:#d4ff5814;color:var(--lime)}
+.shape-brush-divider{width:1px;height:24px;margin:0 2px;background:#29414b}
+#shapeBrushControls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+/* Choosing "move the globe" fades the brushes so the active mode is unambiguous. */
+#shapeBrushControls.brush-idle .hex-brush,#shapeBrushControls.brush-idle>span:first-child{opacity:.4}
+
+#logoControls{position:relative}
+.add-image-hint{display:block;margin-top:4px;color:#7e959b;font-size:10px;line-height:1.4}
+.add-image-error{display:block;margin-top:5px;color:#ff7385;font-size:11px;line-height:1.4;font-weight:600}
+#logoControls.has-error .add-image{border-color:#ff7385;background:#ff738512}
+#logoControls.has-error .add-image-hint{display:none}
+
+/* The nearby arrows were 16px in an .ico-slot while every other HUD control drew at 20px. */
+#placementInspector .hud-nav-icon{display:inline-flex;align-items:center;--ico:20px}
+#placementInspector #showNearby,#placementInspector #backNearby{display:flex;align-items:center;gap:8px}
+#nearbyPlacements .nearby-go{display:inline-flex;align-items:center;--ico:18px;color:#8ca7a2}
+
+/* "Edit design" sits in the preview row beside the kind label, still green. */
+.review-card .review-edit-design{margin:0;padding:5px 11px;border:1px solid #d4ff5859;border-radius:8px;background:#d4ff5814;color:var(--lime);font-size:11px;font-weight:700;min-height:32px;width:auto;flex:none}
+.review-card .review-edit-design:hover{border-color:#d4ff58a6;background:#d4ff5824}
+.review-card>div{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.review-card>div #reviewCount{margin-left:auto}
+
+#loadingCount.complete strong{color:var(--lime)}
+
+/* The phone studio panel has a strict height budget, so the format/size hint is desktop-only.
+   The rejection message itself still appears at the button on every screen. */
+@media(max-width:700px){.add-image-hint{display:none}}
