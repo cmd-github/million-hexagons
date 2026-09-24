@@ -6,7 +6,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Resolve Gate 1's payment-safety decision. Stripe confirms Radar Plus costs USD 0.07 per screened transaction and supports explicit GBP/EUR/USD prices, but does not guarantee its billing-country rule across missing data, Link/wallet details or every payment flow. Decide whether to accept that residual privacy risk, obtain a narrower guaranteed Stripe setup or assess another Merchant of Record; also define the EUR region and obtain the accountant's tax/payout advice before final checkout configuration and legal copy.
+- [ ] Resolve Gate 1's payment-safety decision. Stripe confirms Radar Plus costs USD 0.07 per screened transaction and supports explicit GBP/EUR/USD prices, but does not guarantee its billing-country rule across missing data, Link/wallet details or every payment flow. Craig is open to accepting that residual privacy risk and has selected UK GBP / eurozone EUR / other permitted countries USD; define the trusted automatic country-detection and server-quote implementation, then obtain the accountant's tax/payout advice before final checkout configuration and legal copy.
 
 ## Next
 
@@ -26,6 +26,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Revisit globe surface studies, achievements, advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Confirmed the regional pricing boundary: UK visitors use GBP, eurozone visitors use EUR, and other permitted countries use USD. Automatic location detection will choose the initial headline and authoritative server quote, with a customer correction path for inaccurate IP detection. Documentation only; the current browser display and server quote remain USD until the trusted country signal is implemented.
 
 - [x] Recorded Stripe Priority Support's 24 September answers: custom country rules require Radar Plus rather than Lite; quoted pay-as-you-go list pricing is USD 0.07 per screened transaction; explicit regional prices are supported; and the billing-country rule is only an additional control, not guaranteed tax-jurisdiction enforcement across every Link/wallet/missing-country flow. Updated the Managed Payments direction and launch gate to expose the resulting privacy-risk decision. Documentation only; no Stripe plan, configuration or application code changed.
 

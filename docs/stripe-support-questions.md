@@ -38,7 +38,7 @@ Craig
 - Product pre-approval: already answered; onboarding is not final approval and review follows live transactions.
 - General product fit: already answered; Stripe says Million Hexagons aligns with the published eligibility criteria, subject to an eligible Product Tax Code and post-transaction review.
 - Basic country blocking: Stripe recommends a maintained tax-coverage allow-list with `:billing_address_country:` on Radar Plus, but expressly says this is an additional control rather than a guaranteed tax-jurisdiction gate.
-- Europe versus eurozone membership: Craig's commercial decision, not Stripe's.
+- Europe versus eurozone membership: resolved by Craig on 24 September 2026; use the eurozone for EUR, the UK for GBP and USD for other permitted countries.
 - UK VAT / FreeAgent treatment of payouts and self-billed invoices: for Change Accountants.
 - Current tax-covered country list, API parameters and eligible tax-code catalogue: check public docs/Dashboard ourselves; ask Stripe only if the appropriate product classification remains ambiguous.
 - Actual checkout/rule behaviour: test ourselves as well as obtaining provider guidance. A support answer is not implementation evidence.
@@ -48,7 +48,7 @@ Craig
 Current implementation state:
 
 - Implemented: an opt-in staging Managed Payments Checkout path with one-time payment mode, an eligible tax-code configuration requirement, explicit inclusive tax behaviour, API version `2025-03-31.basil` and unsupported `payment_method_types` removed. It is disabled by default and has not been exercised against Stripe because the account tax code and activation are not configured.
-- Centralise explicit GBP, EUR and USD prices, country mappings and server-generated quote snapshots. Keep the purchase-permission allow-list separate from pricing regions. Do not invent the unresolved EUR country mapping.
+- Centralise explicit GBP, EUR and USD prices, the agreed UK/eurozone/other country mapping and server-generated quote snapshots. Keep the purchase-permission allow-list separate from pricing regions.
 - Prototype the regional headline and matching Review price on staging, using estimated visitor country for display and restarting/requoting when confirmed billing country differs. Unknown location needs explicit currency wording. Do not publish a regional price promise until the checkout honours it.
 - Exercise reservation release, duplicate/delayed webhooks, ownership and publication with test payments; prepare blocked/missing/changed-country and customer-document checks.
 - Treat Radar Plus as a paid defence in depth control, not proof that unsupported-country payments cannot succeed. The absolute privacy requirement is not currently guaranteed by Stripe's supported configuration; resolve that launch risk before enabling live payments.

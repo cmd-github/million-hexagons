@@ -54,12 +54,12 @@ Craig confirmed on 22 September 2026 that prices per hexagon include tax:
 | Buyer region | Tax-inclusive unit price |
 | --- | --- |
 | UK | GBP 1 |
-| Europe | EUR 1 |
+| Eurozone | EUR 1 |
 | USA and all other supported countries | USD 1 |
 
 Use explicit inclusive tax behaviour; applicable tax comes out of the stated customer price. These are regional price points, not a request to exchange USD 1 into local currencies. Unsupported tax jurisdictions remain blocked.
 
-Earlier brand guidance specified the **eurozone**. Craig's latest wording is **Europe**; the exact EUR country membership remains to be reconciled before implementation. Do not silently expand it to every European country. Radar's billing-country allow-list determines permission to purchase, not the price or currency.
+Craig confirmed on 24 September 2026 that the EUR tier means the **eurozone**, excluding the UK. Other permitted countries use USD. Radar's billing-country allow-list determines permission to purchase, not the price or currency.
 
 Stripe confirms that Adaptive Pricing remains enabled and cannot be disabled, but an explicitly selected GBP, EUR or USD price takes precedence. The server must select the correct explicit price before creating Checkout. If the customer's confirmed billing country changes the price region, reject or restart the Session with the correct price. The stated prices are therefore supported in principle but remain unverified in our account and integration.
 
@@ -429,7 +429,7 @@ This is workable only if Craig accepts the residual enforcement risk or Stripe p
 ## Next steps, in order
 
 1. **Craig:** decide whether the residual country-enforcement/privacy risk is acceptable. If it is not, obtain a guaranteed narrower Stripe configuration or assess another Merchant of Record before further live-payment commitment. Do not buy Radar Plus merely to resolve this decision.
-2. **Craig / Stripe:** finish onboarding and terms, confirm sandbox/test availability, select an eligible product tax code and resolve Europe versus eurozone membership. Activation is not final product approval. Review business and invoice settings without substituting an inaccurate address.
+2. **Craig / Stripe:** finish onboarding and terms, confirm sandbox/test availability and select an eligible product tax code. Activation is not final product approval. Review business and invoice settings without substituting an inaccurate address.
 3. **Development, test mode only:** configure explicit GBP/EUR/USD prices, server-side region selection and requoting, inclusive tax behaviour, required billing-address collection where supported, a maintained tax-coverage allow-list, and existing quotes, reservations and verified webhook fulfilment. No ordinary-payment fallback.
 4. **Acceptance:** prove supported and blocked-country journeys, correct regional totals/taxes, customer-facing documents, failed/expired payment release, duplicate/delayed webhooks and successful ownership/publication. Country filtering must prevent payment, not merely prevent fulfilment after payment.
 5. **Craig / accountant, alongside development:** obtain FreeAgent and UK VAT treatment for Stripe payouts/self-billed invoices; finish commercial terms, refunds, support responsibilities and accurate business-address configuration.
