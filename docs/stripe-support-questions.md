@@ -1,6 +1,6 @@
 # Stripe questions to send together
 
-Status: sent by Craig on 23 September 2026; awaiting Stripe's reply.
+Status: sent by Craig on 23 September 2026; answered by Stripe Priority Support on 24 September 2026.
 Append new unresolved provider/account questions here. Record dated answers under their question, then update the [payment decision](stripe-managed-payments.md). Keep answered questions for context.
 
 ## Copy-paste reply to Stripe
@@ -28,28 +28,29 @@ Craig
 
 ## Internal answer tracking
 
-1. **Country-rule cost:** partially answered. Priority Support confirmed that Radar for Fraud Teams is required for the custom rule. Current plan naming, account-specific inclusion, monthly versus pay-as-you-go availability and charges remain unanswered.
-2. **Country-rule edge cases:** core approach answered. The later Priority Support email confirms the billing-country Radar rule. Individual payment methods, missing data, saved details and address changes remain unanswered.
-3. **Exact regional, tax-inclusive prices:** unanswered.
-4. **Remaining privacy surfaces:** partially answered. Merchant-liable invoice exposure and the Dashboard address location are confirmed. Other supported-country customer surfaces, particularly the Link/Onelink account, remain unanswered.
+1. **Country-rule cost:** answered. Custom rules require Radar Plus, the current name for Radar for Fraud Teams; they are unavailable on Radar Lite. Stripe quoted pay-as-you-go list pricing of USD 0.07 per screened transaction, subject to the account's Dashboard or contract. Allowed, blocked and reviewed screenings are charged; retrying the same failed payment is not charged twice. Stripe offers no free-tier custom-rule alternative.
+2. **Country-rule edge cases:** answered with a material limitation. The rule evaluates the billing country available on the payment method or billing address, not IP, issuer country or an address stored only on the Customer. Stripe does not guarantee it as tax-jurisdiction enforcement across missing data, saved Link/wallet details, changes at payment time or every Link flow, and could not confirm that every problematic payment method can be disabled. Stripe recommends requiring billing-address collection, maintaining the allow-list and testing every offered method, with Radar as an additional control rather than the sole guarantee.
+3. **Exact regional, tax-inclusive prices:** answered. Create explicit GBP 1, EUR 1 and USD 1 prices and have the server select the applicable price before creating the embedded Checkout Session. Explicitly selected multi-currency prices take precedence, although Adaptive Pricing remains enabled and cannot be disabled. Configure inclusive tax behaviour. If the confirmed billing country belongs to a different price region, reject or restart Checkout with the correct price.
+4. **Remaining privacy surfaces:** answered only to Stripe's documented limit. For a tax-covered transaction the receipt remains Link branded and Stripe's current guidance does not list Birdcage's address or VAT details as standard receipt content. Stripe would not give an exhaustive guarantee for every customer-facing surface. Merchant-liable invoices remain the known exposure case.
 
 ## Keep out of the Stripe question list
 
 - Product pre-approval: already answered; onboarding is not final approval and review follows live transactions.
 - General product fit: already answered; Stripe says Million Hexagons aligns with the published eligibility criteria, subject to an eligible Product Tax Code and post-transaction review.
-- Basic country blocking: already answered; use a maintained tax-coverage allow-list with `:billing_address_country:` on the required custom-rule tier. The payment is blocked and does not fall back to a standard Birdcage transaction.
+- Basic country blocking: Stripe recommends a maintained tax-coverage allow-list with `:billing_address_country:` on Radar Plus, but expressly says this is an additional control rather than a guaranteed tax-jurisdiction gate.
 - Europe versus eurozone membership: Craig's commercial decision, not Stripe's.
 - UK VAT / FreeAgent treatment of payouts and self-billed invoices: for Change Accountants.
 - Current tax-covered country list, API parameters and eligible tax-code catalogue: check public docs/Dashboard ourselves; ask Stripe only if the appropriate product classification remains ambiguous.
 - Actual checkout/rule behaviour: test ourselves as well as obtaining provider guidance. A support answer is not implementation evidence.
 
-## Work possible while answers are pending
+## Implementation consequences
 
 Current implementation state:
 
 - Implemented: an opt-in staging Managed Payments Checkout path with one-time payment mode, an eligible tax-code configuration requirement, explicit inclusive tax behaviour, API version `2025-03-31.basil` and unsupported `payment_method_types` removed. It is disabled by default and has not been exercised against Stripe because the account tax code and activation are not configured.
-- Centralise regional prices, country mappings and server-generated quote snapshots. Keep the purchase-permission allow-list separate from pricing regions. Do not invent the unresolved EUR country mapping.
-- Prototype the regional headline and matching Review price on staging, using estimated visitor country for display and a clear correction when confirmed billing country differs. Unknown location needs explicit currency wording. Do not publish a regional price promise until the checkout honours it.
+- Centralise explicit GBP, EUR and USD prices, country mappings and server-generated quote snapshots. Keep the purchase-permission allow-list separate from pricing regions. Do not invent the unresolved EUR country mapping.
+- Prototype the regional headline and matching Review price on staging, using estimated visitor country for display and restarting/requoting when confirmed billing country differs. Unknown location needs explicit currency wording. Do not publish a regional price promise until the checkout honours it.
 - Exercise reservation release, duplicate/delayed webhooks, ownership and publication with test payments; prepare blocked/missing/changed-country and customer-document checks.
+- Treat Radar Plus as a paid defence in depth control, not proof that unsupported-country payments cannot succeed. The absolute privacy requirement is not currently guaranteed by Stripe's supported configuration; resolve that launch risk before enabling live payments.
 
-Wait for confirmed configuration before enabling paid Radar, claiming country enforcement is complete, or publishing exact regional checkout pricing. No real payments or subscription purchase is authorised by this list.
+Do not enable paid Radar, claim country enforcement is complete or publish regional checkout pricing until Craig accepts the final configuration and its residual risk. No real payments or subscription purchase is authorised by this list.

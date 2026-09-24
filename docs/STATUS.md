@@ -1,12 +1,12 @@
 # Million Hexagons — Status
 
-Updated: 23 September 2026
+Updated: 24 September 2026
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
 ## Now
 
-- [ ] Complete Gate 1 after the pending Stripe reply clarifies Radar cost/enforcement and exact regional pricing, and the accountant confirms international VAT/sales-tax treatment, registrations and payout accounting; then finish checkout configuration and legal copy.
+- [ ] Resolve Gate 1's payment-safety decision. Stripe confirms Radar Plus costs USD 0.07 per screened transaction and supports explicit GBP/EUR/USD prices, but does not guarantee its billing-country rule across missing data, Link/wallet details or every payment flow. Decide whether to accept that residual privacy risk, obtain a narrower guaranteed Stripe setup or assess another Merchant of Record; also define the EUR region and obtain the accountant's tax/payout advice before final checkout configuration and legal copy.
 
 ## Next
 
@@ -26,6 +26,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Revisit globe surface studies, achievements, advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Recorded Stripe Priority Support's 24 September answers: custom country rules require Radar Plus rather than Lite; quoted pay-as-you-go list pricing is USD 0.07 per screened transaction; explicit regional prices are supported; and the billing-country rule is only an additional control, not guaranteed tax-jurisdiction enforcement across every Link/wallet/missing-country flow. Updated the Managed Payments direction and launch gate to expose the resulting privacy-risk decision. Documentation only; no Stripe plan, configuration or application code changed.
 
 - [x] Fixed the initial loading counter so it starts moving immediately, continues below 1,000,000 while globe/artwork readiness is pending, and reaches 1,000,000 only at the actual reveal point. The focused delayed-startup desktop/mobile journey, editor-loader state, failure retry and staging build passed. Deployed source `87475913` as staging Worker `05487185-eda3-4965-a14e-9cd8b364349a`; all 1,549 runtime objects and warm live HTTPS/CDN checks passed with cache HITs. A full regression was intentionally not run.
 
