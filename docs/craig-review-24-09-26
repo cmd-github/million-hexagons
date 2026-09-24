@@ -1,0 +1,24 @@
+- [ ] Review badges and achievements with Craig after launch evidence. The current illustrative sample badges are not a production achievement system.
+- [ ] from HUD - remove claimed date - leave views / visits/ hexagons spaced evenly 
+- [ ] remove "x of 24" count and next and previous arrows
+- [ ] on HUD fix "Nearby ->" ui and "Back <-" ui
+- [ ] clicking Nearby showed (Finding Nearby placements) - that shouldn't need to load - can it be made efficient?
+- [ ] for the search the text shlould name "Name or #1234"
+Design Editor
+- [ ] on placement builder on desktop the - and + should line up with the text field
+- [ ] the brush selction and clicking the globe should only add hex's, we need a like toggle next to the brushes to put it in delete mode - favor an icon over words - same to use on the colour (design) menu
+- [ ] file szie restriction is not obvious at all - error should show on the "add image" button area
+- [ ] fill icon isn't recognisable - use a recognisable icon
+- [ ] when on colour mode - the brush size seems to retain the size chosen on the hex selct part - for example choosing the medium brush on hex select, when I got to design stage, even though the brush was on small the globe painted medium
+- [ ] when painitng after an image has already been sleected the image shouldn't grow to fill the new cells - they can zoom it on the image screen after if needed
+- [ ] remove the clear all option on the design screen
+- [ ] remove "<- Edit Placement" link
+- [ ] on review stage put "Edit Design in box next to Preview - but keep green.
+- [ ] on the count dont say 9500 hexagons 1 pentagon - just call them all hexagons
+- [ ] wehn editing a large placement - if on choose your shape mode - the globe can't be moved - give us a new icon in the controls like four arrows in nesw directions to indicate moving which allows the globe to be controled - it should be clear its selcted on that mode (green selcted) and brush select faded
+- [ ] the globe tour should show the full placement od teh one it zooms to - not too zoomed in
+- [ ] need some options on how we might give the sense of a globe when zoomed in
+
+- [ ] on the initial loading screen the animation should pause breifly after getting to 100000 and show 1,000,000 Hexagons Loaded
+- [] checkout says... Could not open secure checkout. Your design is still here - maybe due to pending codex work 
+- [ ] VS COde says: Pylance found a large number of source files in this workspace. Adding exclude paths may improve performance.
