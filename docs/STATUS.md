@@ -6,7 +6,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Resolve Gate 1's remaining payment decisions. Craig is open to accepting Stripe's residual country/privacy risk; automatic UK GBP / eurozone EUR / other-country USD display and authoritative regional quote code is complete locally. Deploy it after Firebase reauthentication, then obtain the accountant's tax/payout advice and configure/test Managed Payments, billing-address collection and Radar before final checkout and legal copy.
+- [ ] Resolve Gate 1's remaining payment decisions. Craig is open to accepting Stripe's residual country/privacy risk; automatic UK GBP / eurozone EUR / other-country USD display and authoritative regional quote code is deployed to staging (Worker version d22c0f62, release 6121418c). Next, obtain the accountant's tax/payout advice and configure/test Managed Payments, billing-address collection and Radar before final checkout and legal copy.
 
 ## Next
 
@@ -27,7 +27,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Recently done
 
-- [x] Implemented automatic regional pricing for staging. Cloudflare supplies the visitor country without caching it; the 2026 21-country eurozone, including Bulgaria, maps to EUR, the UK to GBP and other countries to USD. The headline and studio totals update automatically, a visible pricing-region selector handles VPN/travel errors, and the reservation server accepts only those three fixed £1/€1/$1 tax-inclusive tiers before Stripe receives the quote. Unit/backend tests, the staging build and rendered desktop UK/mobile France checks pass with no horizontal overflow. Firebase deployment is prepared but blocked by the expired local Firebase login, so neither the Worker nor functions have been deployed yet.
+- [x] Implemented automatic regional pricing for staging. Cloudflare supplies the visitor country without caching it; the 2026 21-country eurozone, including Bulgaria, maps to EUR, the UK to GBP and other countries to USD. The headline and studio totals update automatically, a visible pricing-region selector handles VPN/travel errors, and the reservation server accepts only those three fixed £1/€1/$1 tax-inclusive tiers before Stripe receives the quote. Unit/backend tests, the staging build and rendered desktop UK/mobile France checks pass with no horizontal overflow. Deployed to staging on 24 September 2026: the payment functions were already current, and the Worker now serves the regional front end (version d22c0f62-6f4d-4f51-a8a4-4e7c9aa7601b, release 6121418c).
 
 - [x] Confirmed the regional pricing boundary: UK visitors use GBP, eurozone visitors use EUR, and other permitted countries use USD. Automatic location detection chooses the initial headline and authoritative server quote, with a customer correction path for inaccurate IP detection.
 
