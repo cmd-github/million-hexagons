@@ -63,7 +63,7 @@ Craig confirmed on 24 September 2026 that the EUR tier means the **eurozone**, e
 
 Stripe confirms that Adaptive Pricing remains enabled and cannot be disabled, but an explicitly selected GBP, EUR or USD price takes precedence. The server must select the correct explicit price before creating Checkout. If the customer's confirmed billing country changes the price region, reject or restart the Session with the correct price. The stated prices are therefore supported in principle but remain unverified in our account and integration.
 
-See the [captured Dashboard setup instructions](stripe-managed-payments-setup.md). This is a documented decision, not evidence that Managed Payments or regional pricing is implemented.
+See the [captured Dashboard setup instructions](stripe-managed-payments-setup.md). The automatic regional display and fixed-currency server quote are implemented in staging code; Managed Payments account configuration and a real regional Checkout Session remain unverified.
 
 ---
 

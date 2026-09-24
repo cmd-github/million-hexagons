@@ -4,7 +4,7 @@ export function checkoutOwnerId(token){return`checkout:${createHash('sha256').up
 export function paidEmailOwnerId(email){return`paid-email:${createHash('sha256').update(String(email||'').trim().toLowerCase()).digest('hex')}`;}
 export function checkoutOrderId(reservationId){return`order-${String(reservationId||'').replace(/[^a-zA-Z0-9-]/g,'').slice(0,80)}`;}
 export function checkoutLineItem(quote,{taxCode=''}={}){
-  if(!quote||quote.currency!=='usd'||!Number.isSafeInteger(quote.unitAmountMinor)||quote.unitAmountMinor<1||!Number.isSafeInteger(quote.cellCount)||quote.cellCount<1||quote.totalAmountMinor!==quote.unitAmountMinor*quote.cellCount)throw Object.assign(new Error('invalid-quote'),{code:'invalid-quote'});
+  if(!quote||!['gbp','eur','usd'].includes(quote.currency)||!Number.isSafeInteger(quote.unitAmountMinor)||quote.unitAmountMinor<1||!Number.isSafeInteger(quote.cellCount)||quote.cellCount<1||quote.totalAmountMinor!==quote.unitAmountMinor*quote.cellCount)throw Object.assign(new Error('invalid-quote'),{code:'invalid-quote'});
   const product_data={name:'Million Hexagons placement',description:`Permanent claim to ${quote.cellCount.toLocaleString('en-US')} ${quote.cellCount===1?'cell':'cells'}`};
   if(taxCode)product_data.tax_code=taxCode;
   return{price_data:{currency:quote.currency,unit_amount:quote.unitAmountMinor,tax_behavior:'inclusive',product_data},quantity:quote.cellCount};

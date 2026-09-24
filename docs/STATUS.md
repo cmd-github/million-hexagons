@@ -6,7 +6,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Resolve Gate 1's payment-safety decision. Stripe confirms Radar Plus costs USD 0.07 per screened transaction and supports explicit GBP/EUR/USD prices, but does not guarantee its billing-country rule across missing data, Link/wallet details or every payment flow. Craig is open to accepting that residual privacy risk and has selected UK GBP / eurozone EUR / other permitted countries USD; define the trusted automatic country-detection and server-quote implementation, then obtain the accountant's tax/payout advice before final checkout configuration and legal copy.
+- [ ] Resolve Gate 1's remaining payment decisions. Craig is open to accepting Stripe's residual country/privacy risk; automatic UK GBP / eurozone EUR / other-country USD display and authoritative regional quote code is complete locally. Deploy it after Firebase reauthentication, then obtain the accountant's tax/payout advice and configure/test Managed Payments, billing-address collection and Radar before final checkout and legal copy.
 
 ## Next
 
@@ -27,7 +27,9 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Recently done
 
-- [x] Confirmed the regional pricing boundary: UK visitors use GBP, eurozone visitors use EUR, and other permitted countries use USD. Automatic location detection will choose the initial headline and authoritative server quote, with a customer correction path for inaccurate IP detection. Documentation only; the current browser display and server quote remain USD until the trusted country signal is implemented.
+- [x] Implemented automatic regional pricing for staging. Cloudflare supplies the visitor country without caching it; the 2026 21-country eurozone, including Bulgaria, maps to EUR, the UK to GBP and other countries to USD. The headline and studio totals update automatically, a visible pricing-region selector handles VPN/travel errors, and the reservation server accepts only those three fixed £1/€1/$1 tax-inclusive tiers before Stripe receives the quote. Unit/backend tests, the staging build and rendered desktop UK/mobile France checks pass with no horizontal overflow. Firebase deployment is prepared but blocked by the expired local Firebase login, so neither the Worker nor functions have been deployed yet.
+
+- [x] Confirmed the regional pricing boundary: UK visitors use GBP, eurozone visitors use EUR, and other permitted countries use USD. Automatic location detection chooses the initial headline and authoritative server quote, with a customer correction path for inaccurate IP detection.
 
 - [x] Recorded Stripe Priority Support's 24 September answers: custom country rules require Radar Plus rather than Lite; quoted pay-as-you-go list pricing is USD 0.07 per screened transaction; explicit regional prices are supported; and the billing-country rule is only an additional control, not guaranteed tax-jurisdiction enforcement across every Link/wallet/missing-country flow. Updated the Managed Payments direction and launch gate to expose the resulting privacy-risk decision. Documentation only; no Stripe plan, configuration or application code changed.
 

@@ -38,6 +38,7 @@
     "test:hero-typewriter": "node --test scripts/hero-typewriter.test.mjs",
     "test:admin-workspace": "node scripts/admin-workspace-qa.mjs",
     "test:checkout-reservation": "node scripts/checkout-reservation-qa.mjs",
+    "test:regional-pricing": "node scripts/regional-pricing-qa.mjs",
     "test:persistent-checkout": "node scripts/persistent-checkout-qa.mjs",
     "test:payment-lifecycle": "node scripts/payment-lifecycle-live-qa.mjs",
     "test:globe-startup": "node scripts/globe-startup-qa.mjs",

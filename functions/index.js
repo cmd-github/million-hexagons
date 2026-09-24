@@ -212,7 +212,7 @@ export const stagingPlacements = onRequest(
           const reservation=await releaseTestReservation(db,reservationId,ownerId,Date.now());if(stored.checkoutSessionId){const orderId=checkoutOrderId(reservationId);await db.collection('stagingOrders').doc(orderId).set({status:'checkout-cancelled',paymentStatus:'unpaid',closedAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()},{merge:true});}response.status(200).json({ok:true,reservation,checkoutClosed:Boolean(stored.checkoutSessionId)});return;
         }
         const now=Date.now(),ttlMs=20*60_000,checkoutToken=randomBytes(32).toString('base64url'),ownerId=`checkout:${createHash('sha256').update(checkoutToken).digest('hex')}`,reservationId=randomUUID();
-        const cells=request.body.reservation?.cells,quote=quoteCells(Array.isArray(cells)?cells.length:0,now,ttlMs,randomUUID());
+        const cells=request.body.reservation?.cells,quote=quoteCells(Array.isArray(cells)?cells.length:0,now,ttlMs,randomUUID(),String(request.body.pricingRegion||'usd'));
         const reservation=await reserveTestCells(getFirestore(),{...request.body.reservation,ownerId},now,ttlMs,reservationId,{quote});
         response.status(201).json({ok:true,quote,reservation,checkoutToken});return;
       }catch(error){const status=error.code==='cells-unavailable'?409:400;response.status(status).json({ok:false,error:error.code||'invalid-reservation',...(error.cellId?{cellId:error.cellId}:{})});return;}

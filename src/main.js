@@ -22,10 +22,32 @@ import { icon, renderIcons, setIcon } from './icons.js';
 import {cardCopy} from './share/card-copy.js';
 import {downloadShareCard,renderShareCard} from './share/card-renderer.js';
 import {startHeroTypewriter} from './hero-typewriter.js';
+import{formatRegionalPrice,pricingForRegion,pricingRegionForCountry}from'./pricing-regions.js';
 
 // Fill every [data-icon] before the boot overlay lifts, so no button flashes empty.
 renderIcons(document);
 startHeroTypewriter(document.querySelector('#heroChangingWord'));
+
+let pricingRegion='usd',detectedPricingCountry='';
+const pricingRegionSelect=document.querySelector('#pricingRegion');
+function refreshRegionalPrices(){
+  const pricing=pricingForRegion(pricingRegion),count=Math.max(0,Math.floor(Number(document.querySelector('#hexAmount')?.value)||0));
+  document.querySelector('#regionalUnitPrice').textContent=`${pricing.symbol}1 per hexagon · Pay Once. Change anytime.`;
+  if(!document.body.classList.contains('owner-editing'))for(const id of['price','placePrice','reviewPrice']){const element=document.getElementById(id);if(element)element.textContent=formatRegionalPrice(count,pricingRegion);}
+  const quoteStatus=document.querySelector('#serverQuoteStatus');if(quoteStatus&&!activeCheckoutReservation)quoteStatus.textContent=`Estimated at ${pricing.symbol}1 per cell`;
+}
+function setPricingRegion(region,{remember=false}={}){
+  pricingRegion=Object.hasOwn({gbp:1,eur:1,usd:1},region)?region:'usd';
+  pricingRegionSelect.value=pricingRegion;
+  if(remember)sessionStorage.setItem('mh-pricing-region',pricingRegion);
+  refreshRegionalPrices();
+}
+async function initialiseRegionalPricing(){
+  const remembered=sessionStorage.getItem('mh-pricing-region');
+  if(remembered){setPricingRegion(remembered);return;}
+  try{const response=await fetch('/api/location',{headers:{accept:'application/json'},cache:'no-store'});if(!response.ok)throw Error('location-unavailable');const result=await response.json();detectedPricingCountry=String(result.country||'').toUpperCase();setPricingRegion(pricingRegionForCountry(detectedPricingCountry));}
+  catch{setPricingRegion('usd');}
+}
 
 const canvas = document.querySelector('#world');
 let initialPlacementFocusAllowed=true;
@@ -540,7 +562,7 @@ function paintCustomCell(hit, cell) {
   }
   selectionError = '';
   amountInput.value = Math.max(1, selectedCells.length);
-  document.querySelector('#price').textContent = `$${selectedCells.length.toLocaleString()}`;
+  document.querySelector('#price').textContent = formatRegionalPrice(selectedCells.length,pricingRegion);
   refreshSelection();
 }
 
@@ -935,7 +957,7 @@ function updateTotals() {
   const count = placementCount();
   const pentagons = creationType ? previewCells().filter(cell => cell.pentagon).length : 0;
   const countText = `${count.toLocaleString()} hexagon${count === 1 ? '' : 's'}${pentagons ? ` · ${pentagons} pentagon${pentagons === 1 ? '' : 's'}` : ''}`;
-  const priceText = ownerEdit?'Owned':`$${count.toLocaleString()}`;
+  const priceText = ownerEdit?'Owned':formatRegionalPrice(count,pricingRegion);
   document.querySelector('#designCount').textContent = countText;
   document.querySelector('#price').textContent = priceText;
   document.querySelector('#placeCount').textContent = countText;
@@ -1305,7 +1327,7 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   const button=event.currentTarget,original=button.textContent;button.disabled=true;if(stagingClient)button.textContent='Checking availability…';
   if(stagingClient){
     if(ownerEdit){showFlowStep('review');setInteractionMode('move');focusSelection();const reviewCanvas=document.querySelector('#reviewCanvas');drawDesignPreview(reviewCanvas);document.querySelector('#reviewKind').textContent='Preview';clearPlacementPreview();addHighResolutionPlacement(document.querySelector('#brushColor').value,document.querySelector('#logoTreatment').value,previewPlacementLayers);button.textContent=original;button.disabled=false;return;}
-    try{await releaseActiveCheckoutReservation();activeCheckoutReservation=await stagingClient.quoteAndReserve(selectedCells.map(cell=>cell.id));document.querySelector('#reviewPrice').textContent=activeCheckoutReservation.quote.displayTotal;showCheckoutExpiry();}
+    try{await releaseActiveCheckoutReservation();activeCheckoutReservation=await stagingClient.quoteAndReserve(selectedCells.map(cell=>cell.id),pricingRegion);document.querySelector('#reviewPrice').textContent=activeCheckoutReservation.quote.displayTotal;showCheckoutExpiry();}
     catch(error){document.querySelector('#selectionStatus').textContent=error.code==='cells-unavailable'?`Hexagon ${error.cellId} was just reserved. Choose another location.`:'Could not reserve this location. Try again.';button.textContent=original;button.disabled=false;return;}
   }
   showFlowStep('review');
@@ -1701,6 +1723,8 @@ function addHighResolutionPlacement(color, treatment, targetLayer = placementLay
 
 let publishing=false;
 let stagingClient=null,stagingUser=null,activeCheckoutReservation=null,checkoutExpiryTimer=null,embeddedCheckoutInstance=null;
+pricingRegionSelect.addEventListener('change',()=>{setPricingRegion(pricingRegionSelect.value,{remember:true});if(activeCheckoutReservation)void releaseActiveCheckoutReservation();});
+void initialiseRegionalPricing();
 let restoredStagingOwner=null,restoringStagingOwner=null;
 let stagingInventoryPromise=null;
 function ensureStagingInventory(){
@@ -1731,7 +1755,7 @@ async function focusPersistentPlacement(record){
   if(!initialPlacementFocusAllowed||/^#cell=\d+$/.test(location.hash))return;
   flyToCell(record.anchor,.004,1200,()=>inspectPlacement(record.anchor));
 }
-function clearCheckoutReservation(){activeCheckoutReservation=null;clearInterval(checkoutExpiryTimer);checkoutExpiryTimer=null;const message=document.querySelector('#serverQuoteStatus'),extend=document.querySelector('#extendReservation');if(message){message.textContent='Estimated at $1 per cell';message.classList.remove('reservation-urgent');}if(extend)extend.hidden=true;}
+function clearCheckoutReservation(){activeCheckoutReservation=null;clearInterval(checkoutExpiryTimer);checkoutExpiryTimer=null;const message=document.querySelector('#serverQuoteStatus'),extend=document.querySelector('#extendReservation');if(message){message.textContent=`Estimated at ${pricingForRegion(pricingRegion).symbol}1 per cell`;message.classList.remove('reservation-urgent');}if(extend)extend.hidden=true;}
 async function releaseActiveCheckoutReservation(){const active=activeCheckoutReservation;clearCheckoutReservation();if(active&&stagingClient)await stagingClient.releaseCheckoutReservation(active.reservation.reservationId,active.checkoutToken).catch(()=>{});}
 function showCheckoutExpiry(){
   clearInterval(checkoutExpiryTimer);const message=document.querySelector('#serverQuoteStatus');

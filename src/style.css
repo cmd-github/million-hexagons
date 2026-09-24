@@ -172,6 +172,9 @@ summary{cursor:pointer;color:#a7bec0;font-size:12px;padding:8px 0}
 .mock-note{display:block;text-align:center;margin-top:11px;font-size:11px;color:#9bafb3;line-height:1.5}
 .price small{grid-column:1/-1;color:#71898f;font-size:11px}
 .price{margin-bottom:16px}
+.price-line .pricing-region{display:inline-flex;align-items:center;gap:5px;margin-left:7px;color:#71898f;font-size:10px;font-weight:500}
+.price-line .pricing-region select{max-width:126px;border:0;border-bottom:1px solid #78909566;border-radius:0;padding:1px 16px 1px 2px;background:transparent;color:#9fb1b5;font:inherit;cursor:pointer}
+.price-line .pricing-region select:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
 .toast{position:fixed;z-index:12;left:50%;transform:translate(-50%,130px);padding:15px 20px;border-radius:14px;transition:.3s;bottom:30px;max-width:calc(100% - 32px);padding-right:50px}
 .toast a{display:block;color:var(--lime);margin-top:10px;font-size:13px}
 .toast button{position:absolute;right:12px;top:12px;background:none;border:0;color:white;font-size:24px}
