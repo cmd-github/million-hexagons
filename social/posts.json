@@ -1,0 +1,146 @@
+{
+  "batch": "2026-09-25",
+  "note": "One entry per post. 'figure' and 'caption' are what appear on the rendered card; keep the figure to roughly twelve characters. See docs/SOCIAL-POSTS.md before writing new ones.",
+  "posts": [
+    {
+      "title": "The loading counter caps at 999,999",
+      "figure": "999,999",
+      "caption": "Where the loading counter stops before the globe is ready",
+      "linkedin": "The loading screen counts up to a million hexagons, and it stops at 999,999.\n\nBefore the globe can appear it has to find out which of the million hexagons are already claimed. That's a real list, downloaded fresh every time you open it, and the counter is that list arriving.\n\nThe last hexagon is held back on purpose. It won't land until the globe itself is ready to look at. So the number sits on 999,999 for a moment, flips to 1,000,000 Hexagons Loaded, and the world comes in.",
+      "x": "The loading screen counts to a million hexagons and deliberately stops at 999,999.\n\nIt's counting the real list of which hexagons are already taken, arriving. The last one only lands once the globe is actually ready to look at.\n\nThen: 1,000,000 Hexagons Loaded."
+    },
+    {
+      "title": "Framing the tour",
+      "figure": "11×",
+      "caption": "Wider framing for an 1,800 hexagon placement on the tour",
+      "linkedin": "The globe tour used to stop at the same distance for every placement.\n\nIt flies to a claimed placement, holds there a moment, then moves on to the next one. The camera came to rest at a fixed distance each time, which suits a placement of five hexagons and not one of 1,800, where you arrive looking at the middle of it with the edges off screen.\n\nThe stopping distance is now worked out from how many hexagons the placement actually covers, so the camera settles far enough back to hold the whole thing in frame. An 1,800 hexagon placement is now framed about eleven times wider than it was.",
+      "x": "The globe tour stopped at the same camera distance for every placement. Suits five hexagons, not 1,800, where you arrive looking at the middle with the edges off screen.\n\nThe stop is now worked out from the size of the placement. Big ones are framed around eleven times wider."
+    },
+    {
+      "title": "Giving the globe the screen",
+      "figure": "74.1%",
+      "caption": "Of a phone screen is now globe, up from 25.5%",
+      "linkedin": "On a phone the globe used to get a quarter of the screen.\n\nEverything else was stacked around it. The headline, the price, a row of facts, a framed bar of controls. Measured on a 390 by 844 phone, the globe had 25.5% of the screen, and only 10.3% of it was clear of something sitting on top.\n\nIt now has 74.1%, with 63.4% completely unobstructed. The pitch moved into a sheet at the bottom, the controls became four floating circles near your thumb, and the space around the globe went close to black so the globe is the brightest thing on screen.\n\nOn a smaller 320 by 568 phone it went from 30.8% to 72.1%.",
+      "x": "On a 390x844 phone the globe had 25.5% of the screen, and only 10.3% of that was clear of overlapping controls.\n\nNow 74.1% and 63.4%.\n\nThe pitch moved to a bottom sheet, the controls became four floating circles by the thumb, and the background went near black."
+    },
+    {
+      "title": "The stars are hexagons",
+      "figure": "800",
+      "caption": "Hexagons in the background, across three depths",
+      "linkedin": "The stars behind the globe are hexagons.\n\nThere are 800 of them across three layers at different depths. The two nearer layers are filled, the furthest is a crisp outline, and all of them are sized by distance so the field has depth instead of sitting flat behind the sphere.\n\nThey hold still. Nothing drifts or twinkles back there, because movement behind the globe pulls your eye off the globe.\n\nThe only twinkle is on the globe itself, and it lands on hexagons that are genuinely still available to claim.",
+      "x": "The stars behind the globe are hexagons. 800 of them, three layers at different depths, sized by perspective.\n\nThey hold still, because movement back there pulls your eye off the globe.\n\nThe only twinkle is on the globe, on hexagons still available to claim."
+    },
+    {
+      "title": "Claimed hexagons keep their outlines",
+      "figure": "Outlined",
+      "caption": "Claimed hexagons keep their grid under the artwork",
+      "linkedin": "Claimed hexagons used to lose their outlines.\n\nOnce a placement covered an area, the artwork sat on top of it and the grid underneath disappeared. Taken parts of the globe read as flat shapes while the empty parts still read as hexagons, so the surface changed character depending on what had been claimed.\n\nClaimed cells now keep a faint outline over the artwork. Zoom in anywhere and the grid is continuous, whether the hexagons are taken or not.",
+      "x": "Claimed hexagons used to lose their outlines, so taken areas read as flat shapes while empty ones still read as hexagons.\n\nClaimed cells now keep a faint outline over the artwork. The grid is continuous wherever you zoom in."
+    },
+    {
+      "title": "Two brushes, two sizes",
+      "figure": "2",
+      "caption": "Brushes, each remembering its own size",
+      "linkedin": "There are two places you use a brush. One for choosing which hexagons you want, one for painting colour onto them.\n\nThey look like separate controls and each showed its own size, but underneath they shared a single setting. So you could pick the medium brush while choosing your area, move on to colour, and the small brush would be highlighted while the globe painted medium.\n\nThey keep their own sizes now, and each one reselects its own when you arrive at it.",
+      "x": "Two brushes: one for choosing hexagons, one for painting them. They showed separate sizes but shared one setting underneath, so picking medium in the first step painted medium in the second while small was highlighted.\n\nThey keep their own sizes now."
+    },
+    {
+      "title": "Choosing your spot takes two clicks",
+      "figure": "2 clicks",
+      "caption": "Propose a hexagon, then confirm it with Start here",
+      "linkedin": "Starting a placement takes two clicks.\n\nThe first proposes a hexagon and shows it to you in the normal popup, with its number. The second confirms it with Start here. Until you confirm, nothing is selected and the globe stays fully navigable, so you can spin and zoom as much as you like while you decide.\n\nIf you change your mind later, choosing another spot moves the whole placement, artwork and all, intact.",
+      "x": "Starting a placement takes two clicks. The first proposes a hexagon and shows you its number, the second confirms it.\n\nUntil then nothing is selected and the globe stays fully navigable. Change your mind later and the whole placement moves, artwork intact."
+    },
+    {
+      "title": "Your shape has to stay joined up",
+      "figure": "1 piece",
+      "caption": "A placement is always one connected shape",
+      "linkedin": "A placement is one connected piece.\n\nYou can draw whatever shape you like across the available hexagons, but you cannot end up with two separate islands. When you delete cells, the check runs before the deletion is applied, so a cut that would split your shape in half simply does not happen.\n\nThe same rule holds when you type a smaller number into the count. It trims the shape you already have rather than starting a new one somewhere else.",
+      "x": "A placement is one connected piece. Draw whatever shape you like, but you cannot end up with two islands.\n\nDeletions that would split the shape are checked before they apply, and typing a smaller count trims the shape you have rather than replacing it."
+    },
+    {
+      "title": "The image stops growing",
+      "figure": "Locked",
+      "caption": "The image stays the size you set it",
+      "linkedin": "If you added an image and then painted more hexagons, the image used to grow to fill them.\n\nIt was being fitted to whatever your selection was at that moment, so every new cell restretched the artwork slightly and you could watch your logo creep outwards as you worked.\n\nThe image now locks to the area it was placed on. Painting more hexagons extends the placement around it and leaves the artwork the size you set. Resizing happens on the image controls, where there is a zoom slider for exactly that.",
+      "x": "Add an image, paint more hexagons, and the image used to grow to fill them. It was refitted to the selection every time.\n\nIt now locks to the area it was placed on, and you resize it deliberately on the zoom slider."
+    },
+    {
+      "title": "Adding and deleting are separate now",
+      "figure": "Add / Delete",
+      "caption": "Two modes, so the brush only ever adds",
+      "linkedin": "Dragging across your own selection used to remove hexagons from it.\n\nThat made adding and removing the same gesture, told apart only by what happened to be underneath your cursor. Extending a shape near its own edge meant hoping you started on empty globe.\n\nThey are separate modes now, with a delete toggle sitting beside the brushes. The brush only ever adds. Delete only ever deletes, including when you drag off the edge of your selection and onto empty globe.",
+      "x": "Dragging across your own selection used to remove hexagons, so adding and removing were the same gesture told apart by what was underneath.\n\nThere is a delete toggle beside the brushes now. The brush only adds. Delete only deletes."
+    },
+    {
+      "title": "Turning the globe while you shape it",
+      "figure": "Move",
+      "caption": "Turn the globe while you are shaping on it",
+      "linkedin": "While you are drawing a shape, dragging paints.\n\nThat is right for a small placement and awkward for a large one, where you need to turn the globe to reach the other side of the thing you are making.\n\nThere is now a move mode in the same row as the brushes, marked with a four way arrow. It turns green when it is on, the brushes dim so the state is unmistakable, and dragging turns the globe instead of painting.",
+      "x": "While shaping a placement, dragging paints, which makes turning the globe to reach the far side of a big one awkward.\n\nThere is a move mode beside the brushes now. It goes green, the brushes dim, and dragging turns the globe."
+    },
+    {
+      "title": "Nearby is already worked out",
+      "figure": "Ready",
+      "caption": "Nearby is built before you click it",
+      "linkedin": "The placement panel has a Nearby list, showing other claimed placements close to the one you are looking at.\n\nOpening it used to show a loading line first, because the list was worked out at the moment you clicked.\n\nIt is now built when the placement details open, before you ask for it. By the time you click Nearby, the answer is already sitting there.",
+      "x": "The placement panel has a Nearby list of other claims close to the one you are looking at. It used to be worked out at the moment you clicked.\n\nIt is now built when the details open, so the list is already there."
+    },
+    {
+      "title": "The details panel fits a phone",
+      "figure": "No scroll",
+      "caption": "Placement details fit 390×844 and 320×568",
+      "linkedin": "The placement details panel fits on a phone screen without scrolling.\n\nIt is measured at 390 by 844 and again at 320 by 568, and the check fails if the panel's content is taller than the panel itself. It also has to stay clear of the globe controls, which are fixed down the side of the screen.\n\nViews, visits and hexagons sit in three even columns across the top.",
+      "x": "The placement details panel fits on a phone without scrolling, measured at 390x844 and 320x568. The check fails if the content is taller than the panel.\n\nViews, visits and hexagons sit in three even columns."
+    },
+    {
+      "title": "The word that changes",
+      "figure": "17",
+      "caption": "Words cycling through the headline slot",
+      "linkedin": "The headline reads Your idea. Part of the world.\n\nThe middle word cycles through seventeen of them: idea, brand, business, club, story, and the rest. The slot it sits in is a fixed width, so the headline never reflows and the globe behind it never shifts as the word changes. The cursor stays attached to the end of the word while it types and deletes.\n\nIf your device is set to reduced motion, it holds on one word and the cursor does not blink.",
+      "x": "The headline reads Your idea. Part of the world.\n\nThe middle word cycles through seventeen of them. The slot is a fixed width, so the headline never reflows and the globe behind it never shifts.\n\nReduced motion holds it on one word."
+    },
+    {
+      "title": "Four shapes of share image",
+      "figure": "4",
+      "caption": "Shapes of share image for one placement",
+      "linkedin": "Claim a placement and you get a share image of it.\n\nThere are four sizes, because the places people post are different shapes: square, 4:5 portrait, 9:16 for stories, and 1.91:1 for link previews.\n\nThe preview puts the exact generated image inside a labelled frame, so what is inside the frame is what gets shared, and nothing on the page around it ends up in the picture by accident.",
+      "x": "Claim a placement and you get a share image of it, in four sizes: square, 4:5, 9:16 and 1.91:1.\n\nThe preview puts the exact image inside a labelled frame, so what is in the frame is what gets shared."
+    },
+    {
+      "title": "Every placement has an address",
+      "figure": "1200×630",
+      "caption": "Preview image generated once per placement",
+      "linkedin": "Every placement has its own permanent address.\n\nPaste one into a message and the preview that unfurls is that specific placement, with its own title, its own description and a generated image of the actual artwork at 1200 by 630.\n\nThat image is built once when the placement is published and then never changes. Links made in the older format still open.",
+      "x": "Every placement has its own permanent address.\n\nPaste one into a message and the preview is that specific placement, with its own title and a generated 1200x630 image of the actual artwork, built once when it publishes."
+    },
+    {
+      "title": "Twenty minutes to finish",
+      "figure": "20:00",
+      "caption": "Your hexagons are held while you finish",
+      "linkedin": "When you reach the last step, the hexagons you picked are held for twenty minutes, so nobody can take them while you are filling in your details.\n\nA quiet warning appears for the final five, and you can ask for one extension of ten more minutes.\n\nIf the hold does lapse, the design is still there exactly as you left it. The only thing released is the claim on those particular hexagons.",
+      "x": "Reach the last step and the hexagons you picked are held for twenty minutes, so nobody takes them while you finish.\n\nQuiet warning for the final five, one ten minute extension.\n\nIf it lapses, the design is untouched. Only the hold goes."
+    },
+    {
+      "title": "A hundred thousand at once",
+      "figure": "100,000",
+      "caption": "Hexagons claimable in a single operation",
+      "linkedin": "A single placement can be up to 100,000 hexagons.\n\nWhen you claim them, every one is taken in a single operation. There is no moment where half your area is yours and the other half is still up for grabs, and no way for two people to end up holding overlapping parts of the same shape.\n\nEither the whole thing is held for you, or none of it is and you are told exactly which hexagon somebody else reached first.",
+      "x": "A single placement can be up to 100,000 hexagons, and they are all claimed in one operation.\n\nEither the whole shape is yours or none of it is, and you are told exactly which hexagon somebody else reached first."
+    },
+    {
+      "title": "Undo, redo, and come back later",
+      "figure": "Undo",
+      "caption": "Across painting, filling, adding and removing",
+      "linkedin": "The design studio has undo and redo.\n\nIt covers painting, filling, and adding or removing hexagons, and the two buttons grey out when there is nothing left to go back or forward to.\n\nClose the studio with unfinished work and it offers to save it. Come back later and the placement, the colours, the image and its exact position are all where you left them.",
+      "x": "The design studio has undo and redo across painting, filling, and adding or removing hexagons. The buttons grey out when there is nothing to go back to.\n\nClose with unfinished work and it offers to save it for later."
+    },
+    {
+      "title": "Only the hexagons in front of you",
+      "figure": "Horizon",
+      "caption": "Only the hexagons actually in front of you load",
+      "linkedin": "The globe does not load a million hexagons of detail.\n\nIt works out which part of the sphere is actually in front of you, including where the horizon cuts it off, and loads the individual hexagons for that region only.\n\nTurn the globe and the next region arrives. What you are looking at is always the real grid, just never all million of it at once.",
+      "x": "The globe does not load a million hexagons of detail.\n\nIt works out which part of the sphere is actually in front of you, including where the horizon cuts it off, and loads the individual hexagons for that region only.\n\nTurn it and the next region arrives."
+    }
+  ]
+}

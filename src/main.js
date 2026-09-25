@@ -22,10 +22,32 @@ import { icon, renderIcons, setIcon } from './icons.js';
 import {cardCopy} from './share/card-copy.js';
 import {downloadShareCard,renderShareCard} from './share/card-renderer.js';
 import {startHeroTypewriter} from './hero-typewriter.js';
+import{formatRegionalPrice,pricingForRegion,pricingRegionForCountry}from'./pricing-regions.js';
 
 // Fill every [data-icon] before the boot overlay lifts, so no button flashes empty.
 renderIcons(document);
 startHeroTypewriter(document.querySelector('#heroChangingWord'));
+
+let pricingRegion='usd',detectedPricingCountry='';
+const pricingRegionSelect=document.querySelector('#pricingRegion');
+function refreshRegionalPrices(){
+  const pricing=pricingForRegion(pricingRegion),count=Math.max(0,Math.floor(Number(document.querySelector('#hexAmount')?.value)||0));
+  document.querySelector('#regionalUnitPrice').textContent=`${pricing.symbol}1 per hexagon · Pay Once. Change anytime.`;
+  if(!document.body.classList.contains('owner-editing'))for(const id of['price','placePrice','reviewPrice']){const element=document.getElementById(id);if(element)element.textContent=formatRegionalPrice(count,pricingRegion);}
+  const quoteStatus=document.querySelector('#serverQuoteStatus');if(quoteStatus&&!activeCheckoutReservation)quoteStatus.textContent=`Estimated at ${pricing.symbol}1 per cell`;
+}
+function setPricingRegion(region,{remember=false}={}){
+  pricingRegion=Object.hasOwn({gbp:1,eur:1,usd:1},region)?region:'usd';
+  pricingRegionSelect.value=pricingRegion;
+  if(remember)sessionStorage.setItem('mh-pricing-region',pricingRegion);
+  refreshRegionalPrices();
+}
+async function initialiseRegionalPricing(){
+  const remembered=sessionStorage.getItem('mh-pricing-region');
+  if(remembered){setPricingRegion(remembered);return;}
+  try{const response=await fetch('/api/location',{headers:{accept:'application/json'},cache:'no-store'});if(!response.ok)throw Error('location-unavailable');const result=await response.json();detectedPricingCountry=String(result.country||'').toUpperCase();setPricingRegion(pricingRegionForCountry(detectedPricingCountry));}
+  catch{setPricingRegion('usd');}
+}
 
 const canvas = document.querySelector('#world');
 let initialPlacementFocusAllowed=true;
@@ -33,6 +55,31 @@ let stagingInventoryLoaded=!import.meta.env.VITE_STAGING_SANDBOX;
 let ownedPlacementIds=new Set();
 document.querySelector('#claimButton').disabled = true;
 const loading = document.querySelector('#appLoading');
+const loadingCount=document.querySelector('#loadingCount'),loadingCountValue=loadingCount.querySelector('strong');
+let displayedLoadingHexagons=0,loadingCountTarget=850000,loadingCountFrame=0;
+const showLoadedHexagons=loaded=>{const count=Math.min(CELL_COUNT,Math.max(0,Math.floor(loaded)));loadingCountValue.textContent=count.toLocaleString('en-GB');loadingCount.setAttribute('aria-label',`${count.toLocaleString('en-GB')} of 1,000,000 hexagons prepared`);};
+const animateLoadingCount=()=>{
+  if(loading.hidden||displayedLoadingHexagons>=CELL_COUNT){loadingCountFrame=0;return;}
+  const remaining=loadingCountTarget-displayedLoadingHexagons;
+  if(remaining>0){displayedLoadingHexagons+=Math.max(1,Math.ceil(remaining*.018));showLoadedHexagons(displayedLoadingHexagons);}
+  loadingCountFrame=requestAnimationFrame(animateLoadingCount);
+};
+const advanceLoadingCount=target=>{loadingCountTarget=Math.max(loadingCountTarget,Math.min(CELL_COUNT-1,target));if(!loadingCountFrame)loadingCountFrame=requestAnimationFrame(animateLoadingCount);};
+// Land on the full million, say so, and hold it long enough to read before the globe takes over.
+const completeLoadingCount=async()=>{
+  loadingCountTarget=CELL_COUNT;displayedLoadingHexagons=CELL_COUNT;showLoadedHexagons(CELL_COUNT);
+  if(loadingCountFrame)cancelAnimationFrame(loadingCountFrame);loadingCountFrame=0;
+  loadingCount.classList.add('complete');
+  const message=document.querySelector('#loadingMessage');
+  if(message)message.textContent=`${CELL_COUNT.toLocaleString('en-GB')} Hexagons Loaded`;
+  await new Promise(resolve=>setTimeout(resolve,900));
+};
+showLoadedHexagons(0);advanceLoadingCount(850000);
+// A span image is fitted to the footprint it was placed on. Painting more cells afterwards used
+// to re-fit it to the larger selection, so the artwork silently grew under the brush; people can
+// zoom on the image screen instead. Held as cell ids and re-derived from the live selection each
+// render, so relocating the placement still maps the image into the new frame.
+let spanFootprintIds=null,spanCellsSource=null,spanCellsCache=null;
 let openingEditor=false,studioHistoryActive=false,studioHistoryPosition=0,handlingStudioHistory=false;
 function showLoading(){
   loading.dataset.context='editor';loading.hidden=false;
@@ -54,7 +101,9 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.15;
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x050b14, .018);
+// Space sits close to black so the lit globe reads as the brightest thing on
+// screen. Google Earth measures 23.5:1 globe-to-background; we were at 2.78:1.
+scene.fog = new THREE.FogExp2(0x01040a, .018);
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .1, 100);
 let topology = null, topologyPromise = null, cellDetail = null;
 const bootstrap = await fetchRuntimeJson('topology/bootstrap.json');
@@ -102,12 +151,22 @@ const hoverCellUniform = { value: -2 };
 const globeMaterial = new THREE.MeshStandardMaterial({ color: '#071c2b', emissive:'#1c3545',emissiveIntensity:1, roughness: .7, metalness: .04 });
 const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius - .0005, 192, 128), globeMaterial);
 globe.add(sphere);
+// A restrained Fresnel rim keeps the spherical silhouette readable when a
+// close view removes most of the globe edge from the screen.
+const atmosphereMaterial=new THREE.ShaderMaterial({
+  transparent:true,depthWrite:false,side:THREE.FrontSide,blending:THREE.AdditiveBlending,
+  vertexShader:`varying vec3 vNormal;varying vec3 vView;void main(){vec4 world=modelMatrix*vec4(position,1.0);vNormal=normalize(mat3(modelMatrix)*normal);vView=normalize(cameraPosition-world.xyz);gl_Position=projectionMatrix*viewMatrix*world;}`,
+  fragmentShader:`varying vec3 vNormal;varying vec3 vView;void main(){float rim=pow(1.0-abs(dot(normalize(vNormal),normalize(vView))),3.0);gl_FragColor=vec4(0.42,0.78,0.88,rim*0.16);}`
+});
+const atmosphere=new THREE.Mesh(new THREE.SphereGeometry(radius+.025,128,96),atmosphereMaterial);
+atmosphere.renderOrder=9;globe.add(atmosphere);
 
 const artworkTiles = new ArtworkTiles(globe,radius,{base:millionFixture?'/artwork/million':runtimeAsset('artwork/empty'),maxTiles:innerWidth<700?64:128,anisotropy:Math.min(8,renderer.capabilities.getMaxAnisotropy())});
 await artworkTiles.ready;
 let designAnchor = bootstrap.anchor;
-const [occupancyBytes,sampleOwners]=await Promise.all([fetchRuntimeGzip('topology/occupancy-v1.gz'),fetchRuntimeGzip('topology/sample-owners-v1.gz')]);
+const [occupancyBytes,sampleOwners]=await Promise.all([fetchRuntimeGzip('topology/occupancy-v1.gz',{expectedBytes:CELL_COUNT}),fetchRuntimeGzip('topology/sample-owners-v1.gz',{expectedBytes:CELL_COUNT})]);
 if(occupancyBytes.length!==CELL_COUNT||sampleOwners.length!==CELL_COUNT)throw Error('Incomplete inventory data');
+advanceLoadingCount(999999);
 occupiedCells.set(occupancyBytes);
 if(millionFixture)occupiedCells.fill(255,0,CELL_COUNT);
 occupancyTexture.needsUpdate=true;
@@ -168,8 +227,17 @@ const cameraFlight=createCameraFlight(camera,globe,controls,reducedMotion);
 for(const event of ['pointerdown','wheel','keydown'])document.addEventListener(event,()=>{initialPlacementFocusAllowed=false;cameraFlight.cancel();},{capture:true,passive:true});
 addEventListener('resize',()=>cameraFlight.cancel());
 
+// Browsing on a portrait phone opens with the whole globe visible, its diameter
+// spanning the viewport width, and can still be pulled back further from there.
+// Fitting to width rather than to the smaller of the two fields of view is what
+// fills a tall screen; the previous fit left the globe at 84% of the width.
+function overfillingBrowse() {
+  return innerWidth <= 700 && innerHeight > innerWidth && !document.body.classList.contains('creating');
+}
 function globeFitDistance() {
   const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+  if (overfillingBrowse())
+    return radius / Math.sin(Math.atan(camera.aspect * Math.tan(verticalFov / 2)));
   const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
   return (radius + .24) / Math.sin(Math.min(verticalFov, horizontalFov) / 2) * 1.12;
 }
@@ -183,7 +251,8 @@ function distanceForArc(arc) {
 
 function frameGlobe(reset = false) {
   const fit = globeFitDistance();
-  controls.maxDistance = fit * 1.08;
+  // Phones open on the whole globe but keep real room to pull back from there.
+  controls.maxDistance = fit * (overfillingBrowse() ? 1.5 : 1.08);
   controls.target.set(0, 0, 0);
   if (reset) camera.position.set(0, fit * .018, fit);
   else if (camera.position.length() > controls.maxDistance) camera.position.setLength(controls.maxDistance);
@@ -506,7 +575,7 @@ function paintCustomCell(hit, cell) {
   }
   selectionError = '';
   amountInput.value = Math.max(1, selectedCells.length);
-  document.querySelector('#price').textContent = `$${selectedCells.length.toLocaleString()}`;
+  document.querySelector('#price').textContent = formatRegionalPrice(selectedCells.length,pricingRegion);
   refreshSelection();
 }
 
@@ -614,9 +683,9 @@ async function openBuy(anchor = null, ownerUpdate = null) {
   panel.scrollTop = 0;
   for(const id of ['companyName','companyDescription','website'])document.getElementById(id).value='';
   document.querySelector('#artworkQuality').hidden=true;
-  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;draftArtwork=null;
+  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;releaseSpanFootprint();draftArtwork=null;
   document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();
-  document.querySelector('#brushColor').value='#ff4d6d';document.querySelector('#logoTreatment').value='span';document.querySelector('#areaBrush').value='0';document.querySelector('#areaBrushValue').textContent='1 cell';showUploadMessage('');document.querySelector('#uploadStatus').hidden=true;
+  document.querySelector('#brushColor').value='#ff4d6d';document.querySelector('#logoTreatment').value='span';shapeBrushReach=0;designBrushReach=0;document.querySelector('#areaBrush').value='0';document.querySelector('#areaBrushValue').textContent='1 cell';showUploadMessage('');document.querySelector('#uploadStatus').hidden=true;
   resetLogoTransform();undoStack.length=0;redoStack.length=0;updateHistory();
   logoCells=[];footprintEdited=true;logoEditorMode='paint';
   designAnchor=preparedAnchor;
@@ -683,6 +752,7 @@ function restoreDraft() {
   amountInput.value=logoCells.length;
   footprintEdited=draft.footprintEdited;
   uploadedLogo=draft.logo;uploadedLogoCrop=draft.logoCrop;
+  if(uploadedLogo)lockSpanFootprint();else releaseSpanFootprint();
   document.querySelector('#brushColor').value=draft.baseColour;
   document.querySelector('#logoTreatment').value=draft.treatment;
   document.querySelector('#logoScale').value=draft.scale;
@@ -695,7 +765,7 @@ function restoreDraft() {
 }
 function discardDraft() {
   savedDraft=null;
-  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;draftArtwork=null;
+  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;releaseSpanFootprint();draftArtwork=null;
   document.querySelector('#logoUpload').value='';
   document.querySelector('#logoPreview').replaceChildren();
   document.querySelector('#logoPalette').hidden=true;
@@ -899,9 +969,9 @@ function availableConnectedSelection(anchor,count,source=[]) {
 
 function updateTotals() {
   const count = placementCount();
-  const pentagons = creationType ? previewCells().filter(cell => cell.pentagon).length : 0;
-  const countText = `${count.toLocaleString()} hexagon${count === 1 ? '' : 's'}${pentagons ? ` · ${pentagons} pentagon${pentagons === 1 ? '' : 's'}` : ''}`;
-  const priceText = ownerEdit?'Owned':`$${count.toLocaleString()}`;
+  // The twelve pentagons are counted and sold as hexagons; the distinction only confused people.
+  const countText = `${count.toLocaleString()} hexagon${count === 1 ? '' : 's'}`;
+  const priceText = ownerEdit?'Owned':formatRegionalPrice(count,pricingRegion);
   document.querySelector('#designCount').textContent = countText;
   document.querySelector('#price').textContent = priceText;
   document.querySelector('#placeCount').textContent = countText;
@@ -961,6 +1031,17 @@ function layoutFor(cells) {
     do{edge=edges.get(current);if(!edge)break;path.lineTo(edge.q.x,edge.q.y);edges.delete(current);current=edge.to;}while(current!==first);path.closePath();
   }
   const layout={bounds,path,fits:new Map(),guides:null};layoutCache.set(cells,layout);return layout;
+}
+function lockSpanFootprint(){spanFootprintIds=new Set(previewCells().map(cell=>cell.id));spanCellsSource=null;spanCellsCache=null;}
+function releaseSpanFootprint(){spanFootprintIds=null;spanCellsSource=null;spanCellsCache=null;}
+function spanSourceCells(){
+  const cells=previewCells();
+  if(!spanFootprintIds)return cells;
+  if(spanCellsSource===cells)return spanCellsCache;
+  const kept=cells.filter(cell=>spanFootprintIds.has(cell.id));
+  // Keep array identity stable so layoutFor's cache still hits.
+  spanCellsSource=cells;spanCellsCache=kept.length?kept:cells;
+  return spanCellsCache;
 }
 function relocateDesign(draft, anchor) {
   if (!footprintEdited) {
@@ -1087,15 +1168,56 @@ function configureCreation() {
   updateImageControls();
   drawDesignPreview();updateTotals();
 }
+// Hex-select and the design stage each remember their own brush. They used to share the single
+// #areaBrush input, so a medium brush chosen while shaping still painted medium in design even
+// though the design toolbar showed small selected.
+let shapeBrushReach=0,designBrushReach=0;
+// Hex-select used to remove whenever you dragged back over your own selection, which made it
+// impossible to extend a shape confidently. Adding and deleting are now explicit modes, and a
+// third mode hands the globe back to the orbit controls for large placements.
+let shapeEraseMode=false,shapeMoveMode=false;
+function applyShapeMode(){
+  for(const [id,active] of [['shapeRemoveMode',shapeEraseMode],['shapeMoveMode',shapeMoveMode]]){
+    const button=document.querySelector(`#${id}`);
+    if(button){button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));}
+  }
+  document.querySelector('#shapeBrushControls')?.classList.toggle('brush-idle',shapeMoveMode);
+  if(document.body.dataset.flow==='shape')controls.enableRotate=shapeMoveMode;
+  const status=document.querySelector('#shapeStatus');
+  if(status&&document.body.dataset.flow==='shape'){
+    status.textContent=shapeMoveMode?'Drag the globe to move it. Pick a brush to keep shaping.':shapeEraseMode?'Drag across your selection to remove hexagons.':'';
+    status.hidden=!status.textContent;
+  }
+}
+document.querySelector('#shapeRemoveMode').addEventListener('click',()=>{shapeEraseMode=!shapeEraseMode;if(shapeEraseMode)shapeMoveMode=false;applyShapeMode();});
+document.querySelector('#shapeMoveMode').addEventListener('click',()=>{shapeMoveMode=!shapeMoveMode;if(shapeMoveMode)shapeEraseMode=false;applyShapeMode();});
+for(const button of document.querySelectorAll('[data-shape-brush]'))button.addEventListener('click',()=>{shapeMoveMode=false;applyShapeMode();});
+function applyBrushScope(scope){
+  const reach=scope==='shape'?shapeBrushReach:designBrushReach;
+  document.querySelector('#areaBrush').value=String(reach);
+  document.querySelector('#areaBrushValue').textContent=(1+3*reach*(reach+1)).toLocaleString();
+  const attribute=scope==='shape'?'data-shape-brush':'data-brush';
+  for(const item of document.querySelectorAll(`[${attribute}]`)){
+    const active=Number(item.getAttribute(attribute))===reach;
+    item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));
+  }
+}
 function enterShapeStep(){
+  applyBrushScope('shape');
   document.querySelector('#sizeControls').hidden=false;document.querySelector('#shapeBrushControls').hidden=false;document.querySelector('#shapeStatus').hidden=true;document.querySelector('#shapeStatus').textContent='';document.querySelector('#shapeCountError').hidden=true;
-  showFlowStep('shape');selectionModeUniform.value=1;selectedCell=cellForId(designAnchor);selectedCells=previewCells();clearPlacementPreview();logoEditorMode='hex';refreshSelection(selectedCells);controls.enableRotate=false;updateTotals();
+  shapeEraseMode=false;shapeMoveMode=false;
+  showFlowStep('shape');selectionModeUniform.value=1;selectedCell=cellForId(designAnchor);selectedCells=previewCells();clearPlacementPreview();logoEditorMode='hex';refreshSelection(selectedCells);controls.enableRotate=false;updateTotals();applyShapeMode();
 }
 function enterDesignStep(){
   if(!ownerEdit&&placementCount()<5){document.querySelector('#shapeCountError').hidden=false;document.querySelector('#hexAmount').focus();return;}
   document.querySelector('#shapeCountError').hidden=true;
   document.body.classList.remove('choosing-start');selectionModeUniform.value=0;clearSelectionColours();showFlowStep('design');setDesignSurface('globe');setEditorMode('move',false);drawDesignPreview();updateTotals();
-  if(innerWidth<=700){const normal=new THREE.Vector3(...topology.centre(designAnchor));const angle=Math.acos(Math.max(-1,previewCells().reduce((dot,cell)=>Math.min(dot,normal.dot(new THREE.Vector3(...topology.centre(cell.id)))),1)))+.004;flyToCell(designAnchor,angle,600);}
+  if(innerWidth<=700){
+    selectedCell=cellForId(designAnchor);selectedCells=previewCells();
+    // Frame the complete footprint against the actual studio viewport. The old
+    // angular flight could leave a large selection below the phone sheet.
+    requestAnimationFrame(()=>{resize();focusSelection();});
+  }
 }
 async function confirmStartingSpot(id){
   if(!Number.isInteger(id)||occupiedCells[id-1])return;
@@ -1126,6 +1248,7 @@ function setEditorMode(mode, zoomToCells=true) {
   if(designSurface==='globe')controls.enableRotate=mode==='pan';
   logoEditorMode=mode;logoDrag=null;editorPan=null;lastPaintedCell=null;
   document.querySelector('#areaBrushControls').hidden=!['remove','paint'].includes(mode);
+  if(['remove','paint'].includes(mode))applyBrushScope('design');
   const brushing=mode==='paint';
   for(const [id,value] of [['moveImageMode','move'],['removeHexMode','remove'],['paintCells','paint'],['panEditor','pan']]) {
     const button=document.querySelector(`#${id}`),active=value===mode;
@@ -1221,7 +1344,9 @@ async function suggestLocation() {
   finally {if(version===suggestionVersion){button.disabled=false;button.textContent='Find another spot';}}
 }
 document.querySelector('#suggestLocation').addEventListener('click', suggestLocation);
-document.querySelector('#reviewEditDesign').addEventListener('click', () => document.querySelector('#backToDesign').click());
+// Leaving review is now only possible through this button, so it carries the reservation
+// release that the removed "Edit placement" back-link used to do.
+document.querySelector('#reviewEditDesign').addEventListener('click', () => { void releaseActiveCheckoutReservation(); document.querySelector('#backToDesign').click(); });
 document.querySelector('#dismissToast').addEventListener('click', () => document.querySelector('#toast').classList.remove('show'));
 // Escape unwinds the studio one layer at a time: an open menu, then checkout, then the
 // panel itself. It used to close the whole flow from any of those states.
@@ -1266,7 +1391,7 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   const button=event.currentTarget,original=button.textContent;button.disabled=true;if(stagingClient)button.textContent='Checking availability…';
   if(stagingClient){
     if(ownerEdit){showFlowStep('review');setInteractionMode('move');focusSelection();const reviewCanvas=document.querySelector('#reviewCanvas');drawDesignPreview(reviewCanvas);document.querySelector('#reviewKind').textContent='Preview';clearPlacementPreview();addHighResolutionPlacement(document.querySelector('#brushColor').value,document.querySelector('#logoTreatment').value,previewPlacementLayers);button.textContent=original;button.disabled=false;return;}
-    try{await releaseActiveCheckoutReservation();activeCheckoutReservation=await stagingClient.quoteAndReserve(selectedCells.map(cell=>cell.id));document.querySelector('#reviewPrice').textContent=activeCheckoutReservation.quote.displayTotal;showCheckoutExpiry();}
+    try{await releaseActiveCheckoutReservation();activeCheckoutReservation=await stagingClient.quoteAndReserve(selectedCells.map(cell=>cell.id),pricingRegion);document.querySelector('#reviewPrice').textContent=activeCheckoutReservation.quote.displayTotal;showCheckoutExpiry();}
     catch(error){document.querySelector('#selectionStatus').textContent=error.code==='cells-unavailable'?`Hexagon ${error.cellId} was just reserved. Choose another location.`:'Could not reserve this location. Try again.';button.textContent=original;button.disabled=false;return;}
   }
   showFlowStep('review');
@@ -1282,7 +1407,6 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   addHighResolutionPlacement(document.querySelector('#brushColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
   button.textContent=original;button.disabled=false;
 });
-document.querySelector('#backToPlacement').addEventListener('click', () => { void releaseActiveCheckoutReservation();clearPlacementPreview();selecting=false;selectionModeUniform.value=0;document.body.classList.remove('selecting','placing-design');showFlowStep('design');setDesignSurface('globe');setEditorMode('paint',false);drawDesignPreview();updateTotals(); });
 document.querySelectorAll('[data-add-size]').forEach(button=>button.addEventListener('click',()=>{amountInput.value=Math.min(100000,Math.max(1,placementCount())+Number(button.dataset.addSize));if(placementCount()>=5)void resizeDesign();else updateTotals();}));
 document.querySelectorAll('[data-step-size]').forEach(button=>button.addEventListener('click',()=>{amountInput.value=Math.max(1,Math.min(100000,placementCount()+Number(button.dataset.stepSize)));if(placementCount()>=5)void resizeDesign();else updateTotals();}));
 amountInput.addEventListener('change',()=>{amountInput.value=Math.max(1,placementCount());if(placementCount()>=5)void resizeDesign();else updateTotals();});
@@ -1299,7 +1423,7 @@ document.querySelectorAll('[data-flow-target]').forEach(button=>button.addEventL
 }));
 document.querySelector('#fillCells').addEventListener('click',()=>{rememberPaint();const colour=document.querySelector('#brushColor').value;logoCells=previewCells().map(c=>({...c,color:colour,transparent:false}));rememberRecentColour(colour);footprintEdited=true;drawDesignPreview();});
 document.querySelector('#removeImage').addEventListener('click',()=>{document.querySelector('#artworkQuality').hidden=true;
-  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();refreshSelection();});
+  uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;releaseSpanFootprint();document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;resetLogoTransform();updateImageControls();drawDesignPreview();updateTotals();refreshSelection();});
 function resetLogoTransform() {
   document.querySelector('#logoScale').value = 100;
   document.querySelector('#logoScaleValue').textContent = '100%';
@@ -1321,7 +1445,6 @@ document.querySelector('#discardRestoredDraft').onclick=async()=>{
   if(!await confirmDesignAction(true))return;
   discardDraft();document.querySelector('#draftNotice').hidden=true;closeBuy();await openBuy();
 };
-document.querySelector('#clearAllDesign').addEventListener('click',async()=>{if(!await confirmDesignAction(false))return;rememberPaint();uploadVersion++;uploadedLogo=null;uploadedLogoCrop=null;document.querySelector('#logoUpload').value='';document.querySelector('#logoPreview').replaceChildren();document.querySelector('#logoPalette').hidden=true;document.querySelector('#artworkQuality').hidden=true;logoCells=previewCells().map(({color,transparent,...cell})=>cell);resetLogoTransform();updateImageControls();setEditorMode('move',false);drawDesignPreview();updateTotals();});
 const designCanvas = document.querySelector('#designCanvas');
 const editorPointers=new Map();
 let editorPinch=null;
@@ -1505,6 +1628,7 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
     uploadedLogoCrop = findLogoContentBounds(raster);
     resetLogoTransform();
     document.querySelector('#logoTreatment').value='span';
+    lockSpanFootprint();
     updateImageControls();setEditorMode('move');
     const preview = document.querySelector('#logoPreview');
     const previewImage = document.createElement('img');
@@ -1525,8 +1649,15 @@ document.querySelector('#logoUpload').addEventListener('change', (event) => {
   image.src = url;
 });
 
+// Rejections (size, type, resolution) belong next to the Add image button, where the person is
+// looking, rather than only in the status line at the bottom of the studio.
+const UPLOAD_REJECTIONS=['Logo must be','Use PNG','This image is too large'];
 function showUploadMessage(message) {
   const status=document.querySelector('#uploadStatus');status.textContent=message;status.hidden=message.startsWith('Logo ready');
+  const rejection=UPLOAD_REJECTIONS.some(prefix=>message.startsWith(prefix))?message:'';
+  const inline=document.querySelector('#addImageError');
+  if(inline){inline.textContent=rejection;inline.hidden=!rejection;}
+  document.querySelector('#logoControls')?.classList.toggle('has-error',Boolean(rejection));
   updateLogoGuidance(message);
 }
 
@@ -1577,7 +1708,7 @@ function largestLogoRect(cells,bounds,aspect,width,height) {
 }
 function renderArtwork(cells) {
   const bounds = layoutFor(cells).bounds;
-  const sourceCells=previewCells(),sourceLayout=layoutFor(sourceCells),sourceBounds=sourceLayout.bounds;
+  const sourceCells=spanSourceCells(),sourceLayout=layoutFor(sourceCells),sourceBounds=sourceLayout.bounds;
   const layers=artworkImageLayers(),signature=document.querySelector('#brushColor').value+JSON.stringify(layers.map(layer=>[layer.scale,layer.rotation,layer.treatment,layer.position.x,layer.position.y]));
   const cached=artworkCache.get(cells);
   if(cached&&cached.signature===signature&&cached.layers?.length===layers.length&&cached.layers.every((image,index)=>image===layers[index].image)&&cached.source===sourceCells)return cached.art;
@@ -1662,6 +1793,8 @@ function addHighResolutionPlacement(color, treatment, targetLayer = placementLay
 
 let publishing=false;
 let stagingClient=null,stagingUser=null,activeCheckoutReservation=null,checkoutExpiryTimer=null,embeddedCheckoutInstance=null;
+pricingRegionSelect.addEventListener('change',()=>{setPricingRegion(pricingRegionSelect.value,{remember:true});if(activeCheckoutReservation)void releaseActiveCheckoutReservation();});
+void initialiseRegionalPricing();
 let restoredStagingOwner=null,restoringStagingOwner=null;
 let stagingInventoryPromise=null;
 function ensureStagingInventory(){
@@ -1692,7 +1825,7 @@ async function focusPersistentPlacement(record){
   if(!initialPlacementFocusAllowed||/^#cell=\d+$/.test(location.hash))return;
   flyToCell(record.anchor,.004,1200,()=>inspectPlacement(record.anchor));
 }
-function clearCheckoutReservation(){activeCheckoutReservation=null;clearInterval(checkoutExpiryTimer);checkoutExpiryTimer=null;const message=document.querySelector('#serverQuoteStatus'),extend=document.querySelector('#extendReservation');if(message){message.textContent='Estimated at $1 per cell';message.classList.remove('reservation-urgent');}if(extend)extend.hidden=true;}
+function clearCheckoutReservation(){activeCheckoutReservation=null;clearInterval(checkoutExpiryTimer);checkoutExpiryTimer=null;const message=document.querySelector('#serverQuoteStatus'),extend=document.querySelector('#extendReservation');if(message){message.textContent=`Estimated at ${pricingForRegion(pricingRegion).symbol}1 per cell`;message.classList.remove('reservation-urgent');}if(extend)extend.hidden=true;}
 async function releaseActiveCheckoutReservation(){const active=activeCheckoutReservation;clearCheckoutReservation();if(active&&stagingClient)await stagingClient.releaseCheckoutReservation(active.reservation.reservationId,active.checkoutToken).catch(()=>{});}
 function showCheckoutExpiry(){
   clearInterval(checkoutExpiryTimer);const message=document.querySelector('#serverQuoteStatus');
@@ -1704,6 +1837,7 @@ function persistentArtwork(canvas){const limit=900,scale=Math.min(1,limit/Math.m
 function publicationArtwork(canvas){return canvas.toDataURL('image/webp',.95);}
 async function applyPersistentPlacements(records,{focus=false}={}){
   for(const record of records)publicPlacementRecords.set(record.placementId,record);
+  if(records.length)nearbyRenderedFor=null;
   if(snapshotEnabled){
     for(const record of records){
       const value={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor,cells:record.cells,logo:record.thumbnailDataUrl||record.artworkDataUrl,publicationStatus:record.publicationStatus,status:record.status,moderationStatus:record.moderationStatus};
@@ -1979,6 +2113,21 @@ async function paintPlacement() {
 }
 document.querySelector('#previewPurchase').addEventListener('click', paintPlacement);
 
+// Phone controls and the activity feed sit above the bottom pitch sheet. The
+// sheet slides away once zooming turns on detail-view, so this is recomputed
+// on that change too, not only on resize.
+let phoneSheet=null;
+function updatePhoneSheet() {
+  const sheet=document.querySelector('.intro');
+  // Deliberately not cleared for detail-view: the controls keep one position
+  // whether the pitch or the activity ticker is the bottom surface.
+  const hidden=innerWidth>700||document.body.classList.contains('creating');
+  const next=hidden||!sheet?0:Math.round(sheet.getBoundingClientRect().height);
+  if(next===phoneSheet)return;
+  phoneSheet=next;
+  document.documentElement.style.setProperty('--phone-sheet',`${next}px`);
+}
+
 function resize() {
   const active = document.body.dataset.flow==='design' && designSurface==='globe'?'place':document.body.dataset.flow;
   const mobile=innerWidth<=700;
@@ -1987,6 +2136,7 @@ function resize() {
   canvas.style.left='0px';
   canvas.style.top='0px';
   canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
+  updatePhoneSheet();
   camera.aspect = width / height;
   camera.clearViewOffset();
   camera.updateProjectionMatrix();
@@ -1994,34 +2144,39 @@ function resize() {
   frameGlobe(false);
 }
 addEventListener('resize', resize);
+// A phone opens on the globe, not on an expanded activity list.
+if(innerWidth<=700)document.querySelector('#claimFeed')?.removeAttribute('open');
 resize();
 frameGlobe(true);
 
+// Every tour stop used the same fixed 0.012 angle, so a 1,800-cell claim was framed as tightly
+// as a 5-cell one and you only ever saw its middle. A claim covering fraction f of the sphere
+// has angular radius acos(1-2f); pad that so the placement sits inside the viewport, not flush.
+function tourAngleFor(cellCount,fallback=.012){
+  const cells=Number(cellCount)||0;
+  if(cells<1)return fallback;
+  return Math.min(.55,Math.max(fallback,Math.acos(Math.max(-1,1-2*cells/CELL_COUNT))*1.6));
+}
 async function createTourStops(){
-  const grid=await ensureTopology(),sessionAreas=[...new Set(sessionPlacements.values())].map((placement,index)=>{
-    const centre=grid.centre(placement.anchor);let minimumDot=1;
-    for(const id of placement.cells||[placement.anchor]){const point=grid.centre(id);minimumDot=Math.min(minimumDot,centre[0]*point[0]+centre[1]*point[1]+centre[2]*point[2]);}
-    return{anchor:placement.anchor,angle:Math.max(placement.angle||0,Math.acos(Math.max(-1,minimumDot))+.004),name:placement.name||'Your placement',key:`session-${index}`};
-  });
-  const candidates=[...(bootstrap.sampleAreas||[]).map((area,index)=>({anchor:area.anchor,angle:area.angle,name:bootstrap.sampleCampaigns[area.campaign].name,key:`sample-${index}`})),...sessionAreas]
-    .filter(area=>occupiedCells[area.anchor-1]);
+  const grid=await ensureTopology(),sessionAreas=[...new Set(sessionPlacements.values())].map((placement,index)=>({anchor:placement.anchor,angle:tourAngleFor(placement.cellCount,placement.angle||.012),name:placement.name||'Your placement',key:`session-${index}`}));
+  let liveAreas=[];
+  if(snapshotEnabled){
+    try{
+      const client=await import('./staging-client.js'),records=await client.listPublicClaims();
+      liveAreas=records.filter(record=>record.publicationStatus==='published'&&record.status!=='deleted'&&record.status!=='revoked'&&record.moderationStatus!=='suspended').map(record=>({anchor:record.anchor,angle:tourAngleFor(record.cellCount,record.angle||.012),name:record.title||'Untitled placement',key:`live-${record.placementId}`,trusted:true}));
+    }catch(error){console.error('Could not load live tour placements',error);}
+  }
+  const candidates=[...(bootstrap.sampleAreas||[]).map((area,index)=>({anchor:area.anchor,angle:area.angle,name:bootstrap.sampleCampaigns[area.campaign].name,key:`sample-${index}`})),...sessionAreas,...liveAreas]
+    .filter(area=>area.trusted||occupiedCells[area.anchor-1]);
   if(!candidates.length)return [
     {name:'Globe overview',normal:[0,0,1],angle:.4,overview:true,offset:0},
     {name:'Globe overview',normal:[1,0,0],angle:.4,overview:true,offset:0},
     {name:'Globe overview',normal:[0,0,-1],angle:.4,overview:true,offset:0},
   ];
-  await grid.ensureCells(sessionAreas.map(area=>area.anchor));
-  const pool=[...candidates],selected=[pool.splice(Math.floor(Math.random()*pool.length),1)[0]],limit=Math.min(24,candidates.length);
-  while(selected.length<limit&&pool.length){
-    let best=0,bestScore=Infinity;
-    for(let i=0;i<pool.length;i++){
-      const point=grid.centre(pool[i].anchor);
-      const separation=Math.max(...selected.map(area=>{const other=grid.centre(area.anchor);return point[0]*other[0]+point[1]*other[1]+point[2]*other[2];}));
-      const score=separation+Math.random()*.08;
-      if(score<bestScore){best=i;bestScore=score;}
-    }
-    selected.push(pool.splice(best,1)[0]);
-  }
+  const pool=[...candidates];
+  for(let index=pool.length-1;index>0;index--){const swap=Math.floor(Math.random()*(index+1));[pool[index],pool[swap]]=[pool[swap],pool[index]];}
+  const selected=pool.slice(0,Math.min(24,pool.length));
+  await grid.ensureCells(selected.map(area=>area.anchor));
   const firstDetail=Math.floor(Math.random()*selected.length),detailSlots=new Set([firstDetail]);
   if(selected.length>1)detailSlots.add((firstDetail+1+Math.floor(Math.random()*(selected.length-1)))%selected.length);
   return selected.map((area,index)=>({id:area.anchor,name:area.name,normal:Array.from(grid.centre(area.anchor)),angle:area.angle||.012,detail:detailSlots.has(index)||Math.random()<.35,offset:(Math.random()-.5)*.07}));
@@ -2056,6 +2211,7 @@ function animate() {
     if (Math.abs(distance - cameraDistanceTarget) < .005) cameraDistanceTarget = null;
   }
   document.body.classList.toggle('detail-view', camera.position.length() < globeFitDistance() * .72);
+  updatePhoneSheet();
   zoom.update();
   demoTour.update(performance.now());
   updateRotationControl();
@@ -2115,6 +2271,12 @@ function syncGlobeDesign(){
   controls.enableRotate=logoEditorMode==='pan';
   selectedCell=cellForId(designAnchor);
   selectedCells=previewCells();
+  // Blank cells still need to read as the footprint being designed. Keep the
+  // lime outline/faint fill until an image or per-cell treatment replaces it.
+  selectionColourData.fill(0);
+  if(!uploadedLogo)for(const cell of selectedCells)if(!cell.color&&!cell.transparent)writeCellColour(selectionColourData,cell,'#d7ff55');
+  selectionColourTexture.needsUpdate=true;
+  selectionModeUniform.value=!uploadedLogo&&selectedCells.some(cell=>!cell.color&&!cell.transparent)?1:0;
   const owned=ownerEdit?new Set(ownerEdit.record.cells):null,blocked=selectedCells.some(c=>occupiedCells[c.id-1]&&!owned?.has(c.id));
   document.querySelector('#toPlacement').disabled=blocked||!selectedCells.length;
   if(blocked)document.querySelector('#toolHint').textContent='This size overlaps purchased hexagons. Reduce the count or move the design.';
@@ -2136,16 +2298,15 @@ document.querySelector('#editThisSpace').onclick=()=>{
   document.querySelector('#backToDesign').click();setDesignSurface('globe');
 };
 document.querySelectorAll('[data-brush]').forEach(button=>button.addEventListener('click',()=>{
-  const reach=Number(button.dataset.brush);document.querySelector('#areaBrush').value=String(reach);document.querySelector('#areaBrushValue').textContent=(1+3*reach*(reach+1)).toLocaleString();
-  document.querySelectorAll('[data-brush]').forEach(item=>{const active=item===button;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));});
+  designBrushReach=Number(button.dataset.brush);applyBrushScope('design');
 }));
 document.querySelectorAll('[data-shape-brush]').forEach(button=>button.addEventListener('click',()=>{
-  document.querySelector('#areaBrush').value=button.dataset.shapeBrush;
-  document.querySelectorAll('[data-shape-brush]').forEach(item=>{const active=item===button;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));});
+  shapeBrushReach=Number(button.dataset.shapeBrush);applyBrushScope('shape');
 }));
 async function editGlobeCell(id,stroke=globeStroke){
   const mode=logoEditorMode;
   if(!stroke||stroke.last===id)return;
+  if(document.body.dataset.flow==='shape'&&shapeMoveMode)return;
   const reach=Number(document.querySelector('#areaBrush').value);
   try {
     const brush=await topology.run(()=>{
@@ -2165,7 +2326,10 @@ function applyGlobeCell(id,stroke){
   let start=0,end=1;
   for(let ring=0;ring<reach;ring++){for(let i=start;i<end;i++)for(const n of topology.neighboursOf(brush[i]))if(!seen.has(n)){seen.add(n);brush.push(n);}start=end;end=brush.length;}
   if(logoEditorMode==='hex'){
-    if(document.body.dataset.flow==='shape'&&next.has(id)){
+    if(document.body.dataset.flow==='shape'&&shapeEraseMode){
+      // Delete mode only ever deletes. Dragging past the edge of the selection must not start
+      // adding cells behind you.
+      if(!next.has(id))return;
       const candidate=new Map(next),removed=[];for(const n of brush)if(candidate.delete(n))removed.push(n);
       if(candidate.size&&topology.isConnected([...candidate.values()])){
         next.clear();for(const [key,value] of candidate)next.set(key,value);
@@ -2220,6 +2384,7 @@ canvas.addEventListener('pointerup',()=>{
 for(const event of ['pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>globeStroke=null);
 let inspectorVersion=0;
 let inspectedId=null, inspectedCells=[], hudPinned=false, inspectedOwner=null;
+let inspectorRoute=[],inspectorRouteIndex=0,nearbyRenderedFor=null;
 const analyticsSession=(()=>{try{let value=sessionStorage.getItem('mh-analytics-session');if(!value){value=crypto.randomUUID();sessionStorage.setItem('mh-analytics-session',value);}return value;}catch{return crypto.randomUUID();}})();
 function deviceClass(){return innerWidth<=700?'mobile':innerWidth<=1024?'tablet':'desktop';}
 function trackEvent(type,{placementId='',context={},unique=false}={}){if(!stagingClient)return;const sessionId=unique?`${analyticsSession}-${crypto.randomUUID().slice(0,8)}`:analyticsSession;void stagingClient.trackEvent({type,sessionId,...(placementId?{placementId}:{}),context:{deviceClass:deviceClass(),...context}}).catch(()=>{});}
@@ -2275,9 +2440,13 @@ let linkClicks={};
 try{const saved=JSON.parse(localStorage.getItem(clickStorageKey)||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))linkClicks=saved;}catch{}
 function ownerKey(id){const record=sessionPlacements.get(id);return record||'sample-'+sampleOwners[id-1];}
 function createHudThumbnail(source){const art=document.createElement('canvas');const scale=Math.min(1,160/Math.max(source.width,source.height));art.width=Math.max(1,Math.round(source.width*scale));art.height=Math.max(1,Math.round(source.height*scale));art.getContext('2d').drawImage(source,0,0,art.width,art.height);return art.toDataURL('image/png');}
-async function inspectPlacement(id){
+async function inspectPlacement(id,{keepRoute=false}={}){
   const version=++inspectorVersion;
-  try {return await prepareInspector(id,version);}
+  try {
+    const opened=await prepareInspector(id,version);
+    if(opened&&!keepRoute)await resetInspectorRoute(id);
+    return opened;
+  }
   catch(error){console.error('Could not load placement inspector',error);if(version===inspectorVersion){hexSearchStatus.textContent='Could not load this placement. Try again.';document.querySelector('#inspectorStatus').textContent='Could not load this placement. Try again.';}return false;}
 }
 async function prepareInspector(id,version){
@@ -2307,7 +2476,7 @@ async function prepareInspector(id,version){
   const owner=sampleOwners[id-1],queue=prepared;
   inspectedCells=queue;
   const views=document.querySelector('#inspectorInfo');views.textContent=record?.placementId?'…':record?'\u2014':'12,429';views.title=record?.placementId?'Measured placement views':record?'Views are not measured yet':'Illustrative views';
-  document.querySelector('#inspectorDate').textContent=(record?new Date(record.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'}):'08/08/26');
+  document.querySelector('#inspectorHexagons').textContent=queue.length.toLocaleString();
   const description=record?.description||sampleDescriptions[owner-1]||'';
   document.querySelector('#inspectorDescription').textContent=description;
   document.querySelector('#inspectorDescription').hidden=!description;
@@ -2325,14 +2494,36 @@ async function prepareInspector(id,version){
   if(version!==inspectorVersion)return false;
   return true;
 }
+async function resetInspectorRoute(id){
+  const live=[...new Set(sessionPlacements.values())].filter(record=>record?.placementId).map(record=>({id:record.anchor,record,key:`live-${record.placementId}`}));
+  const samples=[];
+  const sampleOwnersSeen=new Set();
+  for(const area of bootstrap.sampleAreas||[]){const owner=sampleOwners[area.anchor-1];if(!owner||sampleOwnersSeen.has(owner))continue;sampleOwnersSeen.add(owner);samples.push({id:area.anchor,record:null,key:`sample-${owner}`});}
+  const currentRecord=sessionPlacements.get(id),currentKey=currentRecord?.placementId?`live-${currentRecord.placementId}`:`sample-${sampleOwners[id-1]}`;
+  const candidates=[...live,...samples].filter((item,index,list)=>list.findIndex(other=>other.key===item.key)===index);
+  if(!candidates.some(item=>item.key===currentKey))candidates.unshift({id,record:currentRecord?.placementId?currentRecord:null,key:currentKey||`cell-${id}`});
+  await topology.ensureCells([...new Set(candidates.map(item=>item.id))]);
+  const origin=topology.centre(id);
+  inspectorRoute=candidates.sort((a,b)=>{
+    if(a.key===currentKey)return -1;if(b.key===currentKey)return 1;
+    const distance=item=>1-topology.centre(item.id).reduce((sum,value,index)=>sum+value*origin[index],0);
+    return distance(a)-distance(b)||a.key.localeCompare(b.key);
+  });
+  inspectorRouteIndex=Math.max(0,inspectorRoute.findIndex(item=>item.key===currentKey));
+}
+// Opening the inspector already renders this panel, so clicking "Nearby" must not repeat the
+// cell fetch and flash "Finding nearby placements…" over an answer we already have.
 async function renderNearbyPlacements(){
-  const nearby=document.querySelector('#nearbyPlacements'),targetId=inspectedId;nearby.replaceChildren();
+  const nearby=document.querySelector('#nearbyPlacements'),targetId=inspectedId;
+  if(nearbyRenderedFor===targetId&&nearby.childElementCount)return;
+  nearby.replaceChildren();
   const record=targetId?sessionPlacements.get(targetId):null,selectedRecord=record?.placementId?publicPlacementRecords.get(record.placementId)||record:null,records=[...publicPlacementRecords.values()];
   if(selectedRecord&&records.length>1){const loading=document.createElement('p');loading.className='nearby-empty';loading.textContent='Finding nearby placements…';nearby.append(loading);try{await topology.ensureCells([...new Set(records.map(item=>item.anchor))]);}catch{if(inspectedId===targetId)loading.textContent='Nearby is temporarily unavailable. Try again.';return;}}
   if(inspectedId!==targetId)return;nearby.replaceChildren();
   const areas=closestPlacements(records,selectedRecord,cellId=>topology.centre(cellId));
-  for(const area of areas){const button=document.createElement('button');const image=document.createElement('img'),source=area.thumbnailDataUrl||area.artworkDataUrl;image.alt='';image.hidden=!source;if(source)image.src=source;const name=document.createElement('span');name.textContent=area.title||'Untitled placement';const arrow=document.createElement('span');arrow.textContent='\u2197';arrow.setAttribute('aria-hidden','true');button.append(image,name,arrow);button.onclick=async()=>{await applyPersistentPlacements([area]);if(await inspectPlacement(area.anchor))viewInspectedPlacement();};nearby.append(button);}
+  for(const area of areas){const button=document.createElement('button');const image=document.createElement('img'),source=area.thumbnailDataUrl||area.artworkDataUrl;image.alt='';image.hidden=!source;if(source)image.src=source;const name=document.createElement('span');name.textContent=area.title||'Untitled placement';const arrow=document.createElement('span');arrow.className='nearby-go';arrow.innerHTML=icon('arrow-right');arrow.setAttribute('aria-hidden','true');button.append(image,name,arrow);button.onclick=async()=>{await applyPersistentPlacements([area]);if(await inspectPlacement(area.anchor))viewInspectedPlacement();};nearby.append(button);}
   if(!areas.length){const empty=document.createElement('p');empty.className='nearby-empty';empty.textContent=selectedRecord?'No other live placements yet.':'Nearby is available for live placements.';nearby.append(empty);}
+  nearbyRenderedFor=targetId;
 }
 function closeInspector(force=false){
   if(hudPinned&&!force)return;
@@ -2390,6 +2581,8 @@ function renderClaimFeed(){
     button.onclick=async()=>{await applyPersistentPlacements([record]);if(await inspectPlacement(record.anchor))viewInspectedPlacement();};target.append(button);
     ticker.push(title.textContent);
   }
+  // Phones hide the feed entirely rather than spend globe area saying nothing.
+  document.body.classList.toggle('has-activity',ticker.length>0);
   if(!ticker.length){const empty=document.createElement('div');empty.className='example-activity';empty.textContent='The next live placement will appear here.';target.append(empty);ticker.push('Waiting for the next live placement');}
   const tickerText=ticker.join('  ·  '),tickerElement=document.querySelector('#claimTicker'),track=tickerElement.querySelector('.ticker-track');
   tickerElement.setAttribute('aria-label','Latest activity: '+ticker.join('. '));track.textContent=tickerText+'  ·  '+tickerText;
@@ -2481,7 +2674,7 @@ startArtworkLoading(()=>{
     states=states.filter(state=>topology.cellsIntersectCap(state.record.cells,direction,cap));
   }
   return{ready:states.every(state=>state.ready)&&hasArtworkPreview(artworkTiles),error:states.some(state=>state.error),message:'Loading artwork…'};
-});
+},{beforeReady:completeLoadingCount});
 try{if(sessionStorage.getItem('mh-owner-update-complete')){sessionStorage.removeItem('mh-owner-update-complete');const toast=document.querySelector('#toast');toast.querySelector('b').textContent='Changes saved.';toast.querySelector('span').textContent='Your updated placement is now on the globe.';toast.classList.add('show');}}catch{}
 
 canvas.addEventListener('dblclick',event=>{

@@ -3,6 +3,11 @@ const endpoint='https://europe-west1-million-hexagons.cloudfunctions.net/staging
 export default{
   async fetch(request,env,context){
     const url=new URL(request.url);
+    if(url.pathname==='/api/location'){
+      if(request.method!=='GET')return new Response('Method not allowed',{status:405});
+      const country=String(request.cf?.country||'').toUpperCase();
+      return Response.json({country:/^[A-Z]{2}$/.test(country)?country:''},{headers:{'cache-control':'private,no-store','x-content-type-options':'nosniff'}});
+    }
     const placementId=placementIdFromPath(url.pathname);
     if(placementId&&request.method==='GET'){
       const cache=caches.default,key=new Request(`${url.href}${url.search?'&':'?'}mh-meta=2`,{headers:{accept:'text/html'}}),hit=await cache.match(key);if(hit)return hit;

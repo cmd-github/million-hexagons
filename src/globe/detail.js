@@ -64,8 +64,10 @@ export function createCellDetail(topology, globe, radius, textures, selectionMod
         if(abs(id-hover)<.25)line=vec3(.68,1.,.09);
         if(selected.a>.5)line=mix(vec3(.45,.8,1.),vec3(.68,1.,.09),selectionMode);
         float artwork=max(occupied,step(.5,selected.a));
-        float alpha=visibility*border*mix(.48,.035,artwork);
-        if(selected.a>.5)alpha=visibility*mix(border*.035,max(border*.9,.13),selectionMode);
+        // Claimed cells keep a faint outline so the hexagon grid reads as one
+        // continuous surface; blank cells stay the brighter invitation to claim.
+        float alpha=visibility*border*mix(.48,.17,artwork);
+        if(selected.a>.5)alpha=visibility*mix(border*.17,max(border*.9,.13),selectionMode);
         gl_FragColor=vec4(line,alpha);
         #include <colorspace_fragment>
       }`,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,

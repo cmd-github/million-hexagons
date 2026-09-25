@@ -21,6 +21,44 @@ Prefer the task-specific commands in this document and inspect their screenshots
 
 For deployment/runtime-origin changes, run `npm run test:deployment` and the separated-build browser workflow in [STAGING.md](STAGING.md). Inspect its desktop/mobile screenshots. Cloudflare dry runs and a local R2 stand-in do not establish live CDN, rollback or physical-device readiness.
 
+### Headed Android emulator visual QA
+
+For mobile UI, globe, gesture or navigation work on this Windows checkout, supplement the repeatable Playwright checks with a visual pass in the existing `Pixel_8a_API_35` Android Virtual Device. Run the emulator with its window visible: the purpose is to inspect the real Android Chrome viewport together with the status bar, changing address bar, navigation bar, keyboard and touch interactions. Do not use `-no-window` or treat a DevTools screencast as equivalent visual evidence.
+
+```powershell
+$adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+$emulator = "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe"
+
+# Start this only when the AVD is not already running.
+& $emulator -avd Pixel_8a_API_35
+& $adb wait-for-device
+& $adb shell getprop sys.boot_completed
+```
+
+Start the site in one terminal and bridge the emulator to it in another:
+
+```powershell
+npm.cmd run dev -- --host 127.0.0.1 --port 4180 --strictPort
+
+$adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+& $adb reverse tcp:4180 tcp:4180
+```
+
+In the visible emulator, open Chrome as a normal browser tab and visit `http://localhost:4180/`. Keep browser chrome visible for the main review. `chrome://inspect/#devices` is useful for DOM and network diagnosis, but its page view is not the visual acceptance surface.
+
+For each affected journey, check portrait first and then the relevant edge cases: expand and collapse the address bar, rotate once, open and dismiss the keyboard, use Android Back, and exercise real taps, drags, swipes and pinch zoom. Confirm safe areas, viewport-height changes, fixed controls, sheets, focus, clipping and touch-target reachability. Use a normal Chrome tab unless installed/PWA mode is the feature under test.
+
+Capture at least one full-device screenshot with Android and Chrome chrome included:
+
+```powershell
+New-Item -ItemType Directory -Force artifacts/android-emulator | Out-Null
+$adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+& $adb shell screencap -p /sdcard/mh-mobile.png
+& $adb pull /sdcard/mh-mobile.png artifacts/android-emulator/mh-mobile.png
+```
+
+Record the AVD, Android/API version, tested URL, orientation, journey and screenshot paths. Report the result as **headed Android emulator** evidence. It complements Playwright's deterministic assertions but does not certify a physical Android device, iPhone, iOS Safari, real mobile GPU/memory/thermal behaviour or production networking.
+
 ## Core checks
 
 `npm run test:globe-startup` holds the inventory response open on desktop/mobile: the overview must render, editing must wait for inventory, and late restoration must not move the camera away from the editor. `npm run test:deployment` also checks the immutable topology cache, release replacement, corrupt-entry recovery and denied storage. These checks do not establish first-visit network performance; measure cold and actual reload navigations against staging separately.

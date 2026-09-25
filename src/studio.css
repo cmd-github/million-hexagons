@@ -117,8 +117,9 @@ body[data-flow=location] .globe-controls,body[data-flow=shape] .globe-controls{r
 #shapeStep .shape-size-heading span{font-size:12px;font-weight:700;color:#eef6f3}
 #shapeStep .shape-size-heading small{font-size:9px;color:#8199a2}
 #shapeStep .studio-count{display:flex;align-items:center;color:#b7c9cf;font-size:12px}
+#shapeStep .shape-count-stepper>.studio-count{height:48px;margin:0}
 #shapeStep .studio-count input{width:100%;height:48px;padding:0 12px;border:1px solid #29414b;border-radius:9px;background:#091720;color:white;text-align:center;font:700 18px 'DM Mono';appearance:textfield}
-#shapeStep .shape-count-stepper{display:grid;grid-template-columns:48px minmax(0,1fr) 48px;align-items:stretch;gap:7px}
+#shapeStep .shape-count-stepper{display:grid;grid-template-columns:48px minmax(0,1fr) 48px;align-items:center;gap:7px}
 #shapeStep .shape-count-stepper>button{min-width:48px;height:48px;padding:0;border:1px solid #29414b;border-radius:9px;background:#132832;color:var(--lime);font:700 22px Manrope}
 #shapeStep .shape-count-stepper>button:hover{border-color:#d4ff5870;background:#d4ff5810}
 #shapeStep #shapeCountError{display:block;margin:-3px 2px 0;color:#ff7385;font-size:10px;line-height:1.4}
@@ -327,6 +328,13 @@ body[data-flow=review] .flow-progress{height:30px;margin-bottom:10px;padding-bot
 #claimFeedItems .example-activity span{display:block}
 #claimFeedItems .example-activity small{display:block;border:0;padding:0;margin-top:5px;font-size:9px;color:#8da9a3}
 .globe-controls button[aria-pressed=true]{background:#d7ff5520;color:var(--lime)}
+/* Tour route fetch: a small ring spins around the stop mark until the first
+   stop is ready, so a slow route still reads as "working" rather than "dead". */
+#demoTour[data-loading]{position:relative}
+#demoTour[data-loading]:after{content:'';position:absolute;top:50%;left:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;border:2px solid #d7ff5530;border-top-color:var(--lime);animation:tour-loading-spin .75s linear infinite;pointer-events:none}
+@keyframes tour-loading-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){#demoTour[data-loading]:after{animation:tour-loading-pulse 1.4s ease-in-out infinite;border-color:#d7ff5530;border-top-color:var(--lime)}}
+@keyframes tour-loading-pulse{0%,100%{opacity:.3}50%{opacity:1}}
 #rotateLeft, #rotateRight, #rotationToggle{font-family:Arial,sans-serif;font-size:23px}
 #rotationToggle{font-size:19px}
 body:not(.detail-view) #claimFeedItems{max-height:120px;overflow:auto}
@@ -351,12 +359,15 @@ body:not(.detail-view) .intro .facts{margin:10px 0}
 #hudDetails, #hudNearby{grid-area:1/1;min-width:0}
 #hudNearby, .show-nearby #hudDetails{visibility:hidden;pointer-events:none}
 .show-nearby #hudNearby{visibility:visible;pointer-events:auto}
-#placementInspector .hud-stats{font-weight:400;flex-wrap:wrap;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 0 14px}
-#placementInspector .hud-stats>div{display:flex;flex-direction:column;gap:5px}
-#placementInspector .hud-stats>div:nth-child(2){text-align:center}
-#placementInspector .hud-stats>div:last-child{text-align:right}
-#placementInspector #inspectorInfo, #placementInspector #inspectorClicks, #placementInspector #inspectorDate{font-size:10px;font-weight:400;margin:0;font:600 15px Manrope,sans-serif;color:#eff7ef;letter-spacing:-.03em}
-#placementInspector .hud-stats span{font-size:10px;color:#8ca7a2}
+#placementInspector .hud-stats{font-weight:400;display:grid;grid-template-columns:repeat(3,1fr);align-items:start;gap:8px;margin:10px 0 14px}
+/* All four read as one row: equal columns, one shared left edge per column. */
+#placementInspector .hud-stats>div{display:flex;flex-direction:column;justify-content:flex-start;gap:5px;text-align:left;min-width:0}
+#placementInspector #inspectorInfo, #placementInspector #inspectorClicks, #placementInspector #inspectorHexagons, #placementInspector #inspectorDate{font-size:10px;font-weight:400;margin:0;font:600 15px Manrope,sans-serif;color:#eff7ef;letter-spacing:-.03em}
+#placementInspector .hud-stats span{font-size:10px;color:#8ca7a2;white-space:nowrap}
+#placementInspector .hud-navigation{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:8px;margin:0 0 10px}
+#placementInspector .hud-navigation button{display:grid!important;place-items:center;min-width:44px;min-height:40px;margin:0!important;padding:7px!important}
+#placementInspector .hud-navigation button:disabled{opacity:.28}
+#placementInspector #placementPosition{text-align:center;color:#8ca7a2;font:600 9px 'DM Mono',monospace;text-transform:uppercase;letter-spacing:.05em}
 #placementInspector #inspectorContext{border:0;padding:0;margin:0 0 12px;color:var(--lime);font-size:10px}
 #placementInspector .hud-actions{margin-top:0}
 #placementInspector .hud-actions a{display:flex;align-items:center;padding:10px 13px;border-color:#d7ff5544;color:var(--lime);justify-content:center;gap:8px;flex:1;font-size:12px;min-height:44px;box-sizing:border-box}
@@ -497,7 +508,7 @@ body:not([data-flow=design]) .draft-notice{display:none}
 body[data-flow=review] .buy-panel{overflow:hidden}
 body[data-flow=review] #reviewStep{overflow-y:auto;overflow-x:hidden;padding-right:2px;scroll-padding-block:12px}
 body.creating .flow-progress button[aria-current=step]{opacity:1}
-#designStep .studio-toolbar{display:grid;grid-template-columns:1fr 1fr 32px 32px 58px;gap:4px}
+#designStep .studio-toolbar{display:grid;grid-template-columns:1fr 1fr 32px 32px;gap:4px}
 #designStep .studio-toolbar>button{display:flex;align-items:center;justify-content:center;gap:5px;padding:6px 4px;min-width:0;min-height:44px;white-space:nowrap}
 #designStep .toolbar-spacer{display:none}
 #designStep .colour-palette button{background:var(--swatch);padding:0;border:2px solid transparent}
@@ -557,7 +568,7 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
  #designStep .studio-heading{display:flex}body.creating .flow-screen .panel-intro{margin:0;font-size:12px}
  body.creating .globe-controls{right:10px;left:auto;top:12px;bottom:auto;transform:none;grid-template-columns:repeat(3,40px)}
  .creating .globe-controls button{width:40px;height:40px}.creating .globe-controls #demoTour{display:none}
- #designStep .studio-workspace{flex:none}#designStep .studio-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px 44px 58px;gap:4px}
+ #designStep .studio-workspace{flex:none}#designStep .studio-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px 44px;gap:4px}
  #designStep button,#designStep .add-image,#brushControls button,#areaBrushControls button.hex-brush{min-height:44px}
  #customPaintTools .toolbar-spacer{display:none}#designStep .studio-toolbar>button{display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;padding:8px;min-width:0}
  #designStep .studio-toolbar #undoPaint,#designStep .studio-toolbar #redoPaint{flex:0 0 44px}
@@ -589,3 +600,321 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
  body.creating .flow-progress{margin-bottom:8px}
  body.creating .flow-screen h2,#designStep .studio-heading h2{font-size:21px}
 }
+
+/* --- Globe-first phone composition -------------------------------------------
+   Browse on a phone gives the globe the screen instead of parking the pitch
+   across it: the proposition becomes a short bottom sheet, Claim sits in the
+   header beside owner sign-in, the control rail loses its frame and drops to the
+   lower right, and the activity ticker appears only once you zoom in.
+   Studio panels get a height budget so the design surfaces stop taking the globe.
+   Rationale and measured targets: docs/mobile-globe-first-layout-recommendations.md
+   Revert this whole block to restore the previous composition. */
+
+/* A dismissed toast is slid out of view but keeps a sliver on screen, where it
+   still swallowed clicks. It should never intercept unless it is showing. */
+.toast:not(.show){pointer-events:none}
+
+/* Keep the split pitch paragraphs reading as one block on every size. */
+.intro>p:not(.eyebrow){margin-bottom:0}
+.intro .price-line{margin-top:0}
+
+@media(max-width:700px){
+ /* Pitch: a short bottom sheet, not a slab over the globe's centre. */
+ body:not(.creating) .intro{
+  /* Below the topbar's z-index 5: Claim is a topbar child, so it shares that
+     stacking context and would otherwise paint under this sheet's gradient. */
+  top:auto;bottom:0;left:0;right:0;width:100%;max-width:none;z-index:4;
+  display:grid;gap:5px;justify-items:start;pointer-events:none;
+  padding:14px 20px max(14px,env(safe-area-inset-bottom));
+  background:linear-gradient(to top,#050b14f2 54%,#050b14cc 76%,#050b1400);
+ }
+ body:not(.creating) .intro>*{pointer-events:auto}
+ body:not(.creating) .intro .eyebrow{margin:0;font-size:8px}
+ body:not(.creating) .intro h1{font-size:clamp(23px,6.4vw,31px);line-height:1.03}
+ /* Keep the line break after the typed word; only unwrap the closing line. */
+ body:not(.creating) .intro h1 em br{display:none}
+ /* The blurred halo behind the metrics reads as a smudge over the globe limb. */
+ body:not(.creating) #globalMetrics:before{display:none}
+ /* Supporting copy and the fact strip do not earn globe area at rest. */
+ body:not(.creating) .intro>p:not(.eyebrow):not(.price-line){display:none}
+ body:not(.creating) .intro .facts{display:none}
+ body:not(.creating) .intro .price-line{margin:0;font-size:11px;line-height:1.45;color:#9fb1b5}
+
+ /* Claim sits in the header beside owner sign-in. The topbar keeps its flex
+    layout, so the right padding reserves the account button's column. */
+ body:not(.creating) .topbar{height:58px;padding:10px 66px 10px 16px}
+ body:not(.creating) #claimButton{min-height:38px;padding:9px 14px;font-size:11px}
+ /* Reclaim that column when owner sign-in is not offered. */
+ body:not(.creating):has(#toggleAccount[hidden]) .topbar{padding-right:16px}
+ body:not(.creating) .mark{width:32px;height:32px;font-size:12px}
+ body:not(.creating) #globalMetrics{top:62px}
+
+ /* Controls: unframed, stage-relevant, lower right. Rotation stays hidden as
+    decorative; the tour is a real way in, so it keeps its place. */
+ body:not(.creating) .globe-controls{
+  top:auto;transform:none;right:10px;left:auto;
+  bottom:calc(42dvh + 24px + env(safe-area-inset-bottom));
+  display:grid;gap:10px;background:none;border:0;box-shadow:none;backdrop-filter:none;border-radius:0;
+ }
+ /* Smaller circle, but the pseudo-element keeps a 44px touch target. The base
+    rule leaves the glyph sitting off-centre, so centre it explicitly and drop
+    the inherited padding and line box. */
+ body:not(.creating) .globe-controls button{
+  position:relative;width:36px;height:36px;border:1px solid var(--line);border-radius:50%;
+  background:rgba(8,22,34,.72);backdrop-filter:blur(14px);
+  display:grid;place-items:center;padding:0;line-height:0;font-size:0;
+ }
+ body:not(.creating) .globe-controls button>*{grid-area:1/1;place-self:center}
+ body:not(.creating) .globe-controls button:after{content:'';position:absolute;inset:-4px;border-radius:50%}
+ body:not(.creating) .globe-controls .ico{--ico:19px}
+ body:not(.creating) #rotationToggle{display:none}
+ /* display:contents above leaves no box to position, so restore one here. */
+ body:not(.creating) .globe-controls .account-access{display:contents}
+ body:not(.creating) .hex-search>div{right:calc(100% + 10px);top:auto;bottom:0}
+
+ /* Zooming in hides the pitch, but it stays a bottom sheet so it never
+    reflows into the desktop slab. The base rule slides it sideways, which is a
+    desktop gesture; on a phone it belongs down and out. */
+ body.detail-view:not(.selecting) .intro{transform:translateY(100%)}
+ body:not(.creating) #placementInspector{right:60px;width:calc(100vw - 72px);bottom:max(12px,env(safe-area-inset-bottom));max-height:none;overflow:visible}
+ body:not(.creating) #placementInspector #inspectorDescription{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+
+ /* An open inspector is the bottom surface, so the controls lift above it and
+    the ticker steps aside. Its 42dvh cap is the budget, so this needs no
+    per-frame measurement of the panel's actual height. */
+ body:not(.creating):has(#placementInspector:not([hidden])) #claimFeed{display:none}
+
+ /* Activity: hidden on the opening view, and only once there is something to
+    report. Zooming in replaces the pitch with the ticker at the bottom. */
+ body:not(.has-activity) #claimFeed,body:not(.detail-view) #claimFeed{display:none}
+ /* Stop short of the control column, which shares this bottom edge. */
+ body:not(.creating) #claimFeed{bottom:max(12px,env(safe-area-inset-bottom));left:16px;width:calc(100vw - 84px)}
+ body:not(.creating) #claimFeed[open]{width:min(280px,calc(100vw - 84px))}
+ body:not(.creating) #claimFeed[open] #claimFeedItems{height:96px;max-height:96px}
+
+ /* Studio: each stage fits without scrolling, and spends far less height on
+    chrome. The progress row, step headings and explanatory copy were costing
+    more than the controls they introduce. */
+ body.creating .flow-progress{min-height:0;margin:0 40px 6px 0;padding-bottom:4px;gap:3px}
+ body.creating .flow-progress button{min-height:0;gap:2px}
+ body.creating .flow-progress i{width:16px;height:16px;font-size:7px}
+ body.creating .flow-progress small{font-size:7px;margin-top:0;letter-spacing:0}
+ body.creating .flow-screen{gap:5px}
+ body.creating .flow-screen h2,#designStep .studio-heading h2{font-size:17px;letter-spacing:-.4px;line-height:1.1}
+ body.creating .flow-screen .panel-intro{display:none}
+ body.creating .buy-panel>.close{width:38px;height:38px;right:10px;top:10px}
+
+ /* Shape: the size card and brushes carry most of the height. */
+ #shapeStep .availability-key{display:none}
+ #shapeStep .shape-size-card{padding:7px;gap:4px}
+ #shapeStep .shape-size-heading{font-size:9px;letter-spacing:.04em}
+ #shapeStep .shape-count-stepper{gap:6px}
+ #shapeStep .shape-count-stepper button{min-height:38px;padding:4px}
+ #shapeStep .studio-count input{padding:8px;font-size:16px}
+ #shapeStep .size-presets{gap:5px}
+ #shapeStep .size-presets button{min-height:34px;padding:5px;font-size:11px}
+ #shapeStep .shape-brushes{gap:5px;font-size:10px}
+ #shapeStep .shape-brushes .hex-brush{min-height:38px}
+ #shapeStep .place-summary{margin:0;padding:6px 0;font-size:11px}
+ #shapeStep .place-summary b{font-size:16px}
+ #shapeStep #toDesign{min-height:44px;padding:10px;font-size:12px}
+
+ /* Shape: stepper, presets and brushes sit on tighter rows. */
+ #shapeStep .shape-count-stepper button{min-height:36px;height:36px}
+ #shapeStep .studio-count input{padding:5px;height:36px;margin-top:0}
+ #shapeStep .size-presets button{min-height:32px;height:32px}
+ /* Put the brush label on the same row as the brushes. */
+ #shapeStep .shape-brushes{display:flex;align-items:center;flex-wrap:nowrap}
+ #shapeStep .shape-brushes>span{flex:1;margin:0}
+ #shapeStep .shape-brushes .hex-brush{min-height:34px;height:34px;flex:0 0 52px}
+
+ /* Design: the image controls carry the height, so tighten their rows. */
+ #designStep #logoPositionControls{margin-top:4px;display:grid;gap:4px}
+ /* One row per control: label, slider, value. Stacking these was costing
+    roughly 25px each for no added clarity. */
+ #designStep #logoPositionControls>label{
+  display:flex;align-items:center;gap:8px;font-size:10px;min-height:28px;margin:0;white-space:nowrap;
+ }
+ #designStep #logoPositionControls>label>input[type=range]{flex:1;min-width:0;min-height:22px;margin:0}
+ #designStep #logoPositionControls output{flex:none;min-width:34px;text-align:right;font-size:10px}
+ #designStep #logoOptions.image-layout-choice{gap:4px}
+ #designStep #logoOptions.image-layout-choice label{padding:4px;font-size:9px;min-height:26px}
+ #designStep .add-image{min-height:34px;padding:5px;font-size:11px}
+ #designStep .image-actions{gap:5px;margin-top:0}
+ #designStep .image-actions button{min-height:28px;padding:4px;font-size:10px}
+ #designStep .studio-toolbar>button{min-height:36px;padding:5px;font-size:10px}
+ #designStep .design-footer{padding:6px 0 0}
+ #designStep .mini-price span{font-size:9px}
+ #designStep .mini-price b{font-size:17px}
+ #designStep .design-footer .primary{min-height:42px;padding:9px 12px}
+
+ /* Design: trim the surround so the canvas keeps its size. */
+ #designStep .studio-toolbar{gap:3px}
+ #designStep .studio-toolbar>button{padding:6px;font-size:11px;min-height:40px}
+ #designStep .hex-editor{margin:6px 0;aspect-ratio:2.1}
+ #designStep .canvas-caption{font-size:9px}
+ #designStep .studio-context{gap:6px}
+ #designStep .design-footer{padding:8px 0 2px}
+ #designStep .mini-price b{font-size:19px}
+ #designStep .design-footer .primary{min-height:44px}
+
+ /* Studio height budget: the design surfaces stop owning the screen.
+    Review is a deliberate, stated exception because the user is reading a
+    summary there rather than working on the globe. */
+ /* Size the panel from its content, not from a share of the viewport.
+    A fixed element's bottom:0 and a dvh percentage do not resolve against the
+    same box while Chrome's toolbar is showing, so a top:Xdvh panel came out
+    taller than the percentage implied and left a dead gap under the content.
+    Anchoring to the bottom with an automatic height removes both problems: the
+    panel is exactly as tall as its rows need, and the globe keeps the rest. */
+ body.creating .buy-panel{
+  top:auto;bottom:0;height:auto;max-height:82svh;
+  padding:12px 14px max(12px,env(safe-area-inset-bottom));
+ }
+ body.creating .flow-screen,
+ body[data-flow=design] #designStep,body[data-flow=shape] #shapeStep,
+ body[data-flow=location] #locationStep,body[data-flow=review] #reviewStep{flex:0 1 auto}
+ body[data-flow=review] .buy-panel{max-height:88svh}
+}
+@media(max-width:700px) and (max-height:650px){
+ /* A short screen cannot fit these stages in 42dvh, and scrolling them is
+    worse than a smaller globe band while the user is actually working. */
+ body.creating .buy-panel{max-height:88svh}
+ body.creating .flow-screen{gap:4px}
+ /* Numbered circles carry the step on their own here; the words cost a row. */
+ body.creating .flow-progress{margin-bottom:4px;padding-bottom:3px}
+ body.creating .flow-progress small{display:none}
+ body.creating .flow-progress i{width:15px;height:15px}
+ body.creating .flow-screen h2,#designStep .studio-heading h2{font-size:16px}
+ #shapeStep .shape-size-card{padding:6px;gap:4px}
+ #shapeStep .shape-size-heading{font-size:8px}
+ #shapeStep .shape-count-stepper button{min-height:32px;height:32px}
+ #shapeStep .studio-count input{height:32px}
+ #shapeStep .size-presets button{min-height:28px;height:28px;font-size:10px}
+ #shapeStep .shape-brushes .hex-brush{min-height:30px;height:30px;flex:0 0 46px}
+ #shapeStep .place-summary{padding:4px 0}
+ #shapeStep #toDesign{min-height:40px;padding:8px}
+ #designStep #logoPositionControls{gap:2px}
+ #designStep #logoPositionControls>label{min-height:25px}
+ #designStep #logoOptions.image-layout-choice label{min-height:24px;padding:3px;font-size:8px}
+ #designStep .add-image{min-height:30px}
+ #designStep .image-actions button{min-height:24px}
+ #designStep .studio-toolbar>button{min-height:32px}
+ #designStep .design-footer .primary{min-height:38px}
+ body:not(.creating) .intro{padding-bottom:max(10px,env(safe-area-inset-bottom))}
+ body:not(.creating) .intro h1{font-size:clamp(21px,6vw,26px)}
+}
+
+/* Mobile menu-fit contract: every fixed menu exposes its complete set of
+   controls without an inner scrollbar. Long activity lists remain scrollable. */
+@media(max-width:700px){
+ body[data-flow=review] .globe-controls{display:none}
+ body[data-flow=review] .buy-panel{max-height:94svh}
+ body[data-flow=review] #reviewStep{overflow:visible;padding-right:0;gap:4px}
+ body[data-flow=review] .flow-progress{margin-bottom:3px}
+ #reviewStep h2{margin:0;font-size:16px}
+ #reviewStep .review-card canvas{height:54px}
+ #reviewStep .review-card>div{padding:4px 9px}
+ #reviewStep #reviewEditDesign{min-height:32px;padding:4px}
+ #reviewStep>label{margin-top:3px;font-size:10px}
+ #reviewStep>label input{height:40px;margin-top:3px;padding:8px 10px}
+ #reviewStep textarea{height:60px;min-height:60px;margin-top:3px;padding:8px 10px}
+ #reviewStep .optional{font-size:9px}
+ #reviewStep .review-footer{position:static;margin-top:3px;padding-top:3px}
+ #reviewStep .review-price{padding:5px 0;margin-bottom:5px}
+ #reviewStep .review-price b{font-size:24px}
+ #reviewStep .review-footer .primary{min-height:44px;padding:10px}
+ #reviewStep .mock-note{margin-top:4px;font-size:9px}
+
+ .share-card{top:8px;right:12px;left:12px;width:auto;max-height:calc(100svh - 16px);overflow:hidden;padding:12px}
+ .share-card:not([hidden]){transform:none}
+ .share-card h2{margin:3px 0 8px;font-size:21px}
+ .share-card>button:first-child{width:38px;height:38px}
+ .share-image{padding:18px 7px 7px}
+ #shareCardPreview{height:min(25svh,230px)}
+ .share-controls{gap:6px;margin-top:7px;padding-top:7px}
+ .share-card-format select{padding:6px}
+ .share-destinations,.share-card-actions{gap:5px}
+ .share-destinations button,.share-no-link button{min-height:36px;padding:5px}
+ .share-card-actions button{min-height:40px;padding:7px}
+ .share-no-link{gap:5px}
+ #shareCardStatus{min-height:13px;font-size:10px}
+}
+
+/* Width-only phone queries miss a rotated handset. Use the available height as
+   the deciding constraint and turn the studio into a compact right-hand menu. */
+@media(max-height:480px) and (min-width:701px){
+ body.creating .buy-panel{
+  top:0;right:0;bottom:0;left:auto;width:min(62vw,560px);height:100dvh;
+  padding:8px 12px;border-radius:18px 0 0 18px;overflow:hidden;
+ }
+ body.creating .buy-panel>.close{top:6px;right:7px;width:38px;height:38px}
+ body.creating .flow-progress{height:28px;min-height:28px;margin:0 38px 4px 0;padding:0;gap:3px}
+ body.creating .flow-progress button{min-height:28px;flex-direction:row;gap:3px}
+ body.creating .flow-progress i{width:16px;height:16px;font-size:8px}
+ body.creating .flow-progress small{font-size:9px}
+ body.creating .flow-screen{gap:4px;overflow:visible;min-height:0}
+ body.creating .flow-screen h2,#designStep .studio-heading h2{font-size:16px;line-height:1;margin:0}
+ body.creating .flow-screen .panel-intro{display:none}
+ body.creating .globe-controls{left:10px;right:auto;top:8px;bottom:auto;transform:none}
+ #shapeStep .availability-key{display:none}
+ #shapeStep .shape-size-card{padding:5px;gap:3px}
+ #shapeStep .shape-count-stepper button,#shapeStep .studio-count input{height:32px;min-height:32px}
+ #shapeStep .size-presets button,#shapeStep .shape-brushes .hex-brush{height:30px;min-height:30px}
+ #shapeStep .place-summary{margin:0;padding:3px 0}
+ #shapeStep #toDesign{min-height:38px;padding:6px}
+ #designStep .studio-toolbar{grid-template-columns:1fr 1fr 38px 38px;gap:3px}
+ #designStep .studio-toolbar>button{min-height:34px;padding:4px}
+ #designStep .studio-context{gap:3px;padding:2px 0}
+ #designStep #logoPositionControls{gap:1px;margin:0}
+ #designStep #logoPositionControls>label{min-height:25px;margin:0}
+ #designStep #logoPositionControls>label>input[type=range]{min-height:25px}
+ #designStep .add-image{min-height:30px;padding:4px}
+ #designStep .image-actions{margin:0}
+ #designStep .image-actions button{min-height:28px;padding:3px}
+ #designStep .design-footer{padding:3px 0 0}
+ #designStep .design-footer .primary{min-height:38px;padding:6px 10px}
+ #designStep .mini-price b{font-size:18px}
+}
+
+@media(max-width:700px) and (max-height:650px){
+ .share-card h2{font-size:18px}
+ .share-image{padding:14px 4px 4px}
+ #shareCardPreview{height:min(14svh,130px)}
+ .share-controls{gap:4px;margin-top:5px;padding-top:5px}
+ .share-no-link small{font-size:8px;line-height:1.25}
+}
+
+/* Craig review 24-09-26: explicit add/delete/move modes, matched HUD arrows and an upload
+   error that appears where the person is actually looking. */
+.mode-toggle{display:inline-grid;place-items:center;min-width:34px;min-height:34px;padding:0;border:1px solid #29414b;border-radius:9px;background:#132832;color:#91a9b3}
+.mode-toggle .ico{--ico:18px}
+.mode-toggle:hover{border-color:#d4ff5870;background:#d4ff5810;color:#cfe3d9}
+.mode-toggle.active,.mode-toggle[aria-pressed=true]{border-color:#d4ff5880;background:#d4ff5814;color:var(--lime)}
+.shape-brush-divider{width:1px;height:24px;margin:0 2px;background:#29414b}
+#shapeBrushControls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+/* Choosing "move the globe" fades the brushes so the active mode is unambiguous. */
+#shapeBrushControls.brush-idle .hex-brush,#shapeBrushControls.brush-idle>span:first-child{opacity:.4}
+
+#logoControls{position:relative}
+.add-image-hint{display:block;margin-top:4px;color:#7e959b;font-size:10px;line-height:1.4}
+.add-image-error{display:block;margin-top:5px;color:#ff7385;font-size:11px;line-height:1.4;font-weight:600}
+#logoControls.has-error .add-image{border-color:#ff7385;background:#ff738512}
+#logoControls.has-error .add-image-hint{display:none}
+
+/* The nearby arrows were 16px in an .ico-slot while every other HUD control drew at 20px. */
+#placementInspector .hud-nav-icon{display:inline-flex;align-items:center;--ico:20px}
+#placementInspector #showNearby,#placementInspector #backNearby{display:flex;align-items:center;gap:8px}
+#nearbyPlacements .nearby-go{display:inline-flex;align-items:center;--ico:18px;color:#8ca7a2}
+
+/* "Edit design" sits in the preview row beside the kind label, still green. */
+.review-card .review-edit-design{margin:0;padding:5px 11px;border:1px solid #d4ff5859;border-radius:8px;background:#d4ff5814;color:var(--lime);font-size:11px;font-weight:700;min-height:32px;width:auto;flex:none}
+.review-card .review-edit-design:hover{border-color:#d4ff58a6;background:#d4ff5824}
+.review-card>div{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.review-card>div #reviewCount{margin-left:auto}
+
+#loadingCount.complete strong{color:var(--lime)}
+
+/* The phone studio panel has a strict height budget, so the format/size hint is desktop-only.
+   The rejection message itself still appears at the button on every screen. */
+@media(max-width:700px){.add-image-hint{display:none}}

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=DM+Mono:wght@400;500&display=swap">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1200px;height:630px;overflow:hidden}
+  body{
+    background:#050b14;
+    font-family:Manrope,sans-serif;
+    position:relative;
+  }
+  #grid{position:absolute;inset:0}
+  .glow{
+    position:absolute;width:760px;height:760px;right:-230px;bottom:-330px;
+    background:radial-gradient(circle,rgba(212,255,88,.10) 0%,rgba(212,255,88,.035) 42%,transparent 68%);
+    pointer-events:none;
+  }
+  .frame{position:absolute;inset:0;padding:64px 72px;display:flex;flex-direction:column;justify-content:space-between}
+
+  .top{display:flex;align-items:center;gap:14px}
+  .mark{width:28px;height:32px}
+  .wordmark{
+    font-family:"DM Mono",monospace;font-size:14px;letter-spacing:.24em;
+    text-transform:uppercase;color:#7e9aa0;
+  }
+
+  .middle{max-width:900px}
+  .figure{
+    font-weight:800;color:#d4ff58;line-height:.92;letter-spacing:-.035em;
+    font-size:var(--size,168px);
+  }
+  .rule{width:88px;height:5px;background:#d4ff58;margin:34px 0 28px;border-radius:3px}
+  .label{
+    font-size:36px;font-weight:500;line-height:1.28;color:#d5e4e1;max-width:760px;
+    letter-spacing:-.005em;
+  }
+
+  .bottom{display:flex;align-items:flex-end;justify-content:space-between}
+  .kicker{
+    font-family:"DM Mono",monospace;font-size:14px;color:#63808a;letter-spacing:.06em;
+  }
+  .index{
+    font-family:"DM Mono",monospace;font-size:14px;color:#63808a;
+    font-variant-numeric:tabular-nums;letter-spacing:.1em;
+  }
+</style>
+</head>
+<body>
+<svg id="grid" viewBox="0 0 1200 630" aria-hidden="true"></svg>
+<div class="glow"></div>
+<div class="frame">
+  <div class="top">
+    <svg class="mark" viewBox="0 0 28 32" aria-hidden="true">
+      <polygon points="14,1 27,8.5 27,23.5 14,31 1,23.5 1,8.5" fill="none" stroke="#d4ff58" stroke-width="2"/>
+      <polygon points="14,9 20,12.5 20,19.5 14,23 8,19.5 8,12.5" fill="#d4ff58"/>
+    </svg>
+    <span class="wordmark">Million Hexagons</span>
+  </div>
+
+  <div class="middle">
+    <div class="figure" id="figure">999,999</div>
+    <div class="rule"></div>
+    <div class="label" id="label">The loading counter stops here</div>
+  </div>
+
+  <div class="bottom">
+    <span class="kicker" id="kicker">Build log</span>
+    <span class="index" id="index">01 / 20</span>
+  </div>
+</div>
+
+<script>
+// Pointy-top hexagon field, echoing the globe's own grid. A handful of cells near the
+// lower right are lit to suggest claimed space.
+(function(){
+  const svg = document.getElementById('grid');
+  const R = 27;
+  const stepX = Math.sqrt(3) * R;
+  const stepY = 1.5 * R;
+  // Kept to the right of the 760px text column so it never sits behind the label.
+  const lit = new Set(['19,9','20,9','21,9','19,10','20,10','21,10','22,10','20,11','21,11','22,11','21,12']);
+  let markup = '';
+  for (let row = -1; row * stepY < 700; row++) {
+    for (let col = -1; col * stepX < 1280; col++) {
+      const cx = col * stepX + (row % 2 ? stepX / 2 : 0);
+      const cy = row * stepY;
+      let points = '';
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 180) * (60 * i - 90);
+        points += (cx + R * Math.cos(a)).toFixed(1) + ',' + (cy + R * Math.sin(a)).toFixed(1) + ' ';
+      }
+      const key = col + ',' + row;
+      if (lit.has(key)) {
+        markup += '<polygon points="' + points.trim() + '" fill="rgba(212,255,88,.10)" stroke="rgba(212,255,88,.34)" stroke-width="1.1"/>';
+      } else {
+        markup += '<polygon points="' + points.trim() + '" fill="none" stroke="rgba(150,196,205,.085)" stroke-width="1"/>';
+      }
+    }
+  }
+  svg.innerHTML = markup;
+})();
+
+window.renderCard = function(card, index, total){
+  const figure = document.getElementById('figure');
+  figure.textContent = card.figure;
+  // Long word figures need to come down in size so they never crowd the rule.
+  const n = card.figure.length;
+  figure.style.setProperty('--size', n <= 3 ? '200px' : n <= 6 ? '168px' : n <= 9 ? '132px' : '104px');
+  document.getElementById('label').textContent = card.label;
+  document.getElementById('kicker').textContent = card.kicker || 'Build log';
+  document.getElementById('index').textContent =
+    String(index).padStart(2, '0') + ' / ' + total;
+};
+</script>
+</body>
+</html>

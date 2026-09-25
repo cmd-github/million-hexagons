@@ -22,7 +22,7 @@ import { decodeArtworkSource, designObjectPath, publicationObjects, sourceObject
 import { extendTestReservation, releaseTestReservation, reserveTestCells } from './reservations.js';
 import { quoteCells } from './pricing.js';
 import Stripe from 'stripe';
-import { checkoutLineItem, checkoutOrderId, checkoutOwnerId, paidCheckoutEmail, paidEmailOwnerId } from './payments.js';
+import { checkoutOrderId, checkoutOwnerId, checkoutSessionParameters, paidCheckoutEmail, paidEmailOwnerId } from './payments.js';
 import {validateDestinationUrl} from './destination-validation.js';
 import { ownerIdsForIdentity } from './owner-access.js';
 import { checkoutSessionState, paymentFailure, refundState } from './payment-lifecycle.js';
@@ -36,6 +36,8 @@ const r2SecretAccessKey = defineSecret('MH_R2_SECRET_ACCESS_KEY');
 const stagingQaKey = defineSecret('MH_STAGING_QA_KEY');
 const stripeSecretKey = defineSecret('STRIPE_SECRET_KEY');
 const stripeWebhookSecret = defineSecret('STRIPE_WEBHOOK_SECRET');
+const stripeManagedPaymentsEnabled = defineBoolean('MH_STRIPE_MANAGED_PAYMENTS', { default: false });
+const stripeProductTaxCode = defineString('MH_STRIPE_PRODUCT_TAX_CODE', { default: '' });
 const stagingPublicBucket = defineString('MH_STAGING_PUBLIC_BUCKET', { default: 'million-hexagons-staging-public' });
 const stagingAssetOrigin = defineString('MH_STAGING_ASSET_ORIGIN', { default: 'https://assets-staging.millionhexagons.com' });
 const privateSourceBucket = 'million-hexagons.firebasestorage.app';
@@ -210,7 +212,7 @@ export const stagingPlacements = onRequest(
           const reservation=await releaseTestReservation(db,reservationId,ownerId,Date.now());if(stored.checkoutSessionId){const orderId=checkoutOrderId(reservationId);await db.collection('stagingOrders').doc(orderId).set({status:'checkout-cancelled',paymentStatus:'unpaid',closedAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()},{merge:true});}response.status(200).json({ok:true,reservation,checkoutClosed:Boolean(stored.checkoutSessionId)});return;
         }
         const now=Date.now(),ttlMs=20*60_000,checkoutToken=randomBytes(32).toString('base64url'),ownerId=`checkout:${createHash('sha256').update(checkoutToken).digest('hex')}`,reservationId=randomUUID();
-        const cells=request.body.reservation?.cells,quote=quoteCells(Array.isArray(cells)?cells.length:0,now,ttlMs,randomUUID());
+        const cells=request.body.reservation?.cells,quote=quoteCells(Array.isArray(cells)?cells.length:0,now,ttlMs,randomUUID(),String(request.body.pricingRegion||'usd'));
         const reservation=await reserveTestCells(getFirestore(),{...request.body.reservation,ownerId},now,ttlMs,reservationId,{quote});
         response.status(201).json({ok:true,quote,reservation,checkoutToken});return;
       }catch(error){const status=error.code==='cells-unavailable'?409:400;response.status(status).json({ok:false,error:error.code||'invalid-reservation',...(error.cellId?{cellId:error.cellId}:{})});return;}
@@ -486,7 +488,7 @@ export const stagingCheckout=onRequest({region:'europe-west1',maxInstances:3,tim
       await orderRef.set({orderId,reservationId,reservationOwnerId:reservation.ownerId,placementId,placement,source:sourceReference,quote:reservation.quote,checkoutExpiresAt,status:'checkout-creating',environment:'staging',createdAt:FieldValue.serverTimestamp()},{merge:false});
     }
     let verifiedEmail='';const idToken=request.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];if(idToken)try{const identity=await getAuth().verifyIdToken(idToken);if(identity.email_verified)verifiedEmail=String(identity.email||'').trim().toLowerCase();}catch{}
-    const stripe=new Stripe(stripeSecretKey.value());const session=await stripe.checkout.sessions.create({mode:'payment',ui_mode:'embedded_page',redirect_on_completion:'never',payment_method_types:['card'],line_items:[checkoutLineItem(reservation.quote)],customer_creation:'always',...(verifiedEmail?{customer_email:verifiedEmail}:{}),expires_at:checkoutExpiresAt,metadata:{orderId,reservationId,placementId},payment_intent_data:{metadata:{orderId,reservationId,placementId}}},{idempotencyKey:orderId});
+    const managedPayments=stripeManagedPaymentsEnabled.value(),stripe=new Stripe(stripeSecretKey.value(),{apiVersion:'2025-03-31.basil'}),session=await stripe.checkout.sessions.create(checkoutSessionParameters({quote:reservation.quote,orderId,reservationId,placementId,checkoutExpiresAt,verifiedEmail,managedPayments,taxCode:stripeProductTaxCode.value()}),{idempotencyKey:orderId});
     await Promise.all([orderRef.set({stripeCheckoutSessionId:session.id,status:'checkout-open',paymentStatus:'unpaid',updatedAt:FieldValue.serverTimestamp()},{merge:true}),db.collection('stagingReservations').doc(reservationId).set({expiresAtMs:Number(session.expires_at)*1000,checkoutSessionId:session.id},{merge:true})]);response.status(201).json({ok:true,checkout:{orderId,placementId,clientSecret:session.client_secret,expiresAtMs:Number(session.expires_at)*1000}});
   }catch(error){logger.error('Could not create Stripe checkout',error);response.status(500).json({ok:false,error:'checkout-failed'});}
 });

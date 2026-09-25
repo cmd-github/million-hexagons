@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Million Hexagons — Loading studies</title>
+  <style>
+    :root{color-scheme:dark;--ink:#050b14;--panel:#081622;--panel2:#0d222d;--lime:#d5fa77;--cyan:#63e0c5;--line:rgba(190,214,213,.18);--muted:#91a7aa;--speed:1;--hex:32px}
+    *{box-sizing:border-box}html{background:var(--ink)}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 10%,#102c3b 0,#07131e 34%,#01040a 78%);color:#f5fbf8;font-family:Manrope,Inter,system-ui,sans-serif}
+    body:after{content:"";pointer-events:none;position:fixed;inset:0;background:radial-gradient(circle,transparent 46%,rgba(0,0,0,.48));z-index:10}
+    header,main,footer{position:relative;z-index:11}.top{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:28px clamp(20px,5vw,72px);border-bottom:1px solid var(--line)}
+    .brand{display:flex;align-items:center;gap:12px}.mark{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:var(--lime);color:#07121c;font-weight:950;letter-spacing:-.08em}.wordmark{font-size:13px;font-weight:850;line-height:1.15;letter-spacing:.08em}.wordmark span{display:block;color:var(--lime)}
+    h1{margin:0;font-size:clamp(24px,4vw,50px);letter-spacing:-.045em}.intro{max-width:580px;color:#aebdc0;line-height:1.6;font-size:14px}
+    .tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.tools button{border:1px solid var(--line);border-radius:999px;background:#0b1b25;color:#eaf4ef;padding:9px 14px;font-weight:750;cursor:pointer}.tools button:hover,.tools button.active{border-color:var(--lime);color:var(--lime);background:#d5fa7710}
+    main{padding:34px clamp(18px,4vw,64px) 54px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px;max-width:1500px;margin:auto}
+    article{min-height:330px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(145deg,rgba(13,34,45,.9),rgba(5,14,23,.92));box-shadow:0 22px 60px #0005;overflow:hidden;display:flex;flex-direction:column;isolation:isolate}
+    .stage{position:relative;display:grid;place-items:center;flex:1;min-height:235px;overflow:hidden;background:radial-gradient(circle,#173343 0,#081622 60%,#050b14 100%)}.stage:after{content:"";position:absolute;inset:auto 10% 12%;height:22px;border-radius:50%;background:#0008;filter:blur(14px)}
+    .copy{padding:17px 19px 19px;border-top:1px solid var(--line)}.number{color:var(--lime);font:700 9px ui-monospace,monospace;letter-spacing:.14em}.copy h2{font-size:17px;margin:5px 0 4px}.copy p{margin:0;color:var(--muted);font-size:11px;line-height:1.5}
+    .hex{width:var(--hex);height:calc(var(--hex)*1.1547);clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);background:var(--lime);position:relative}.outline{background:var(--line)}.outline:after{content:"";position:absolute;inset:2px;clip-path:inherit;background:#0a1b25}
+    .label{position:absolute;bottom:24px;z-index:3;color:#b5c7c9;font:650 9px ui-monospace,monospace;letter-spacing:.13em;text-transform:uppercase}
+    .paused *{animation-play-state:paused!important}
+
+    /* 01–10: restrained studies based on the existing single-hex loader. */
+    .new-loader{display:grid;place-items:center;gap:15px;position:relative;z-index:2}.study-hex{width:74px;height:74px;overflow:visible;filter:drop-shadow(0 0 12px #d5fa7733)}.study-hex polygon{fill:none;stroke:var(--lime);stroke-width:2;stroke-linejoin:round;transform-origin:30px 30px}.study-hex .ghost{opacity:.14}.study-hex .trace{stroke-dasharray:38 130;animation:hexTrace calc(1.6s/var(--speed)) linear infinite}.study-hex .core{fill:var(--lime);stroke:none}.study-count{text-align:center;font:750 20px ui-monospace,monospace;color:#f5fbf8;font-variant-numeric:tabular-nums}.study-count small{display:block;margin-top:5px;color:#8ca1a5;font:650 8px ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase}
+    .v01 .core{animation:coreBreathe calc(1.6s/var(--speed)) ease-in-out infinite}
+    .v02 .trace{stroke-dasharray:none;animation:outlineTurn calc(2.4s/var(--speed)) linear infinite}.v02 .core{opacity:.22}
+    .v03 .trace{stroke-dasharray:8 20;stroke-linecap:round;animation:hexTrace calc(1.2s/var(--speed)) linear infinite}.v03 .core{opacity:.18}
+    .v04 .core{animation:corePop calc(1.8s/var(--speed)) cubic-bezier(.3,.8,.25,1) infinite}.v04 .trace{opacity:.45;stroke-dasharray:none}
+    .v05 .trace{stroke-dasharray:none;animation:glowStroke calc(2s/var(--speed)) ease-in-out infinite}.v05 .core{opacity:.12}
+    .v06 .study-hex{animation:gentleTurn calc(4s/var(--speed)) linear infinite}.v06 .trace{stroke-dasharray:none}.v06 .core{fill:none;stroke:var(--cyan);stroke-width:1.5;animation:reverseTurn calc(4s/var(--speed)) linear infinite}
+    .v07 .study-hex{animation:tiltTurn calc(2.2s/var(--speed)) ease-in-out infinite}.v07 .trace{stroke-dasharray:none}.v07 .core{opacity:.3}
+    .v08 .trace{stroke-dasharray:18 18;stroke-linecap:round;animation:hexTrace calc(2.4s/var(--speed)) steps(6) infinite}.v08 .core{animation:coreBreathe calc(1.2s/var(--speed)) ease infinite}
+    .v09:before{content:"";position:absolute;width:86px;height:2px;top:34px;background:linear-gradient(90deg,transparent,var(--lime),transparent);box-shadow:0 0 12px #d5fa77;animation:miniScan calc(1.8s/var(--speed)) ease-in-out infinite}.v09 .trace{stroke-dasharray:none;opacity:.38}.v09 .core{opacity:.16}
+    .v10 .trace{stroke-dasharray:none}.v10 .core{animation:fillHex calc(2s/var(--speed)) ease-in-out infinite}
+    @keyframes hexTrace{to{stroke-dashoffset:-168}}@keyframes coreBreathe{50%{opacity:.35;transform:scale(.78)}}@keyframes outlineTurn{to{transform:rotate(360deg)}}@keyframes corePop{0%,100%{transform:scale(.42);opacity:.14}45%,70%{transform:scale(1.28);opacity:1}}@keyframes glowStroke{50%{stroke:#fff;filter:drop-shadow(0 0 8px var(--lime))}}@keyframes gentleTurn{to{transform:rotate(360deg)}}@keyframes reverseTurn{to{transform:rotate(-360deg)}}@keyframes tiltTurn{0%,100%{transform:perspective(200px) rotateY(-42deg)}50%{transform:perspective(200px) rotateY(42deg)}}@keyframes miniScan{0%,100%{transform:translateY(4px);opacity:.1}50%{transform:translateY(67px);opacity:1}}@keyframes fillHex{0%,100%{opacity:.08;transform:scale(.76)}50%{opacity:1;transform:scale(1)}}
+
+    /* Earlier explorations retained below for comparison. */
+    .orbit{position:relative;width:132px;height:132px;animation:spin calc(5s/var(--speed)) linear infinite}.orbit .hex{--hex:23px;position:absolute;left:54px;top:0;transform-origin:12px 66px;animation:counter calc(5s/var(--speed)) linear infinite}.orbit .hex:nth-child(2){transform:rotate(60deg)}.orbit .hex:nth-child(3){transform:rotate(120deg)}.orbit .hex:nth-child(4){transform:rotate(180deg)}.orbit .hex:nth-child(5){transform:rotate(240deg)}.orbit .hex:nth-child(6){transform:rotate(300deg)}.orbit .core{position:absolute;inset:43px;border:1px solid #d5fa7766;background:#d5fa7710;clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);box-shadow:0 0 34px #d5fa7755}.orbit .hex:nth-child(2n){background:var(--cyan)}
+    @keyframes spin{to{transform:rotate(360deg)}}@keyframes counter{to{rotate:-360deg}}
+
+    /* 02 Honeycomb pulse */
+    .honey{display:grid;grid-template-columns:repeat(5,27px);gap:0 4px;transform:rotate(30deg)}.honey .hex{--hex:28px;margin:-2px 0;opacity:.16;animation:pulse calc(1.8s/var(--speed)) ease-in-out infinite;animation-delay:calc(var(--i)*-.09s)}
+    @keyframes pulse{0%,70%,100%{opacity:.12;transform:scale(.72)}35%{opacity:1;transform:scale(1);filter:drop-shadow(0 0 10px #d5fa77)}}
+
+    /* 03 Draw */
+    .draw svg{width:142px;filter:drop-shadow(0 0 12px #d5fa7744)}.draw polygon{fill:#d5fa7708;stroke:var(--lime);stroke-width:3;stroke-linejoin:round;stroke-dasharray:300;stroke-dashoffset:300;animation:draw calc(2.4s/var(--speed)) cubic-bezier(.65,0,.2,1) infinite}.draw polygon+polygon{animation-delay:-1.2s;opacity:.28;transform-origin:center;transform:scale(.72)}
+    @keyframes draw{0%{stroke-dashoffset:300;opacity:.15}45%,70%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:-300;opacity:.08}}
+
+    /* 04 Globe build */
+    .globe{position:relative;width:150px;height:150px;border-radius:50%;overflow:hidden;border:1px solid #63e0c544;background:radial-gradient(circle at 35% 28%,#25546a,#0a2130 55%,#030910);box-shadow:inset -24px -18px 35px #0009,0 0 35px #63e0c522;animation:float calc(3s/var(--speed)) ease-in-out infinite}.globe .tiles{display:grid;grid-template-columns:repeat(6,28px);position:absolute;left:-8px;top:2px;animation:drift calc(5s/var(--speed)) linear infinite}.globe .hex{--hex:29px;margin:-2px 0;background:#d5fa77;opacity:0;animation:arrive calc(2.8s/var(--speed)) ease infinite;animation-delay:calc(var(--i)*-.13s)}
+    @keyframes arrive{0%,15%{opacity:0;transform:scale(.3)}40%,75%{opacity:.55;transform:scale(1)}100%{opacity:0}}@keyframes drift{to{transform:translateX(28px)}}@keyframes float{50%{transform:translateY(-7px)}}
+
+    /* 05 Scan */
+    .scan{position:relative;width:155px;height:148px}.scan .field{display:grid;grid-template-columns:repeat(5,30px)}.scan .hex{--hex:31px;margin:-3px 0;background:#17313e}.scan .beam{position:absolute;left:-10px;right:-10px;top:0;height:3px;background:var(--lime);box-shadow:0 0 16px 5px #d5fa7755;animation:scan calc(2.2s/var(--speed)) ease-in-out infinite}.scan:after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,#d5fa7722,transparent 42%);animation:scanGlow calc(2.2s/var(--speed)) ease-in-out infinite;pointer-events:none}
+    @keyframes scan{50%{transform:translateY(142px)}}@keyframes scanGlow{50%{transform:translateY(95px)}}
+
+    /* 06 Wave */
+    .wave{display:flex;align-items:center;gap:7px}.wave .hex{--hex:25px;animation:wave calc(1.5s/var(--speed)) ease-in-out infinite;animation-delay:calc(var(--i)*.1s)}.wave .hex:nth-child(even){background:var(--cyan)}
+    @keyframes wave{0%,100%{transform:translateY(20px) scale(.7);opacity:.2}50%{transform:translateY(-20px) scale(1);opacity:1;filter:drop-shadow(0 8px 10px #d5fa7755)}}
+
+    /* 07 Flip mosaic */
+    .flip{display:grid;grid-template-columns:repeat(4,34px);perspective:500px}.flip .hex{--hex:35px;margin:-3px 0;background:linear-gradient(135deg,var(--lime),var(--cyan));animation:flip calc(2s/var(--speed)) cubic-bezier(.7,0,.2,1) infinite;animation-delay:calc(var(--i)*.08s);transform-style:preserve-3d}
+    @keyframes flip{0%,25%{transform:rotateY(90deg);opacity:.06}55%,80%{transform:rotateY(0);opacity:1}100%{transform:rotateY(-90deg);opacity:.06}}
+
+    /* 08 Trail */
+    .trail{position:relative;width:170px;height:145px}.trail .hex{--hex:27px;position:absolute;left:72px;top:58px;opacity:.08;animation:trail calc(2.4s/var(--speed)) ease-in-out infinite;animation-delay:calc(var(--i)*-.15s)}
+    @keyframes trail{0%{transform:translate(-65px,-42px) scale(.5)}25%{transform:translate(48px,-42px) scale(.8)}50%{transform:translate(65px,38px) scale(1)}75%{transform:translate(-42px,38px) scale(.72)}100%{transform:translate(-65px,-42px) scale(.5)}40%,50%{opacity:1;filter:drop-shadow(0 0 10px #63e0c5)}}
+
+    /* 09 Beacon */
+    .beacon{position:relative;width:154px;height:154px;display:grid;place-items:center}.beacon .ring{position:absolute;inset:42px;border:1px solid var(--lime);clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);animation:beacon calc(2s/var(--speed)) ease-out infinite}.beacon .ring:nth-child(2){animation-delay:-.66s}.beacon .ring:nth-child(3){animation-delay:-1.32s}.beacon .hex{--hex:34px;filter:drop-shadow(0 0 14px #d5fa77)}
+    @keyframes beacon{0%{transform:scale(.45);opacity:.8}100%{transform:scale(2.6);opacity:0}}
+
+    /* 10 Million */
+    .million{display:grid;place-items:center;gap:14px}.million .count{font:750 28px ui-monospace,monospace;letter-spacing:-.06em;color:#f4faf7}.million .count:after{content:"1,000,000";animation:count calc(2.4s/var(--speed)) steps(1) infinite}.million .mini{display:flex;gap:5px}.million .hex{--hex:18px;animation:million calc(1.2s/var(--speed)) ease-in-out infinite;animation-delay:calc(var(--i)*.11s)}
+    @keyframes count{0%{content:"125,000"}16%{content:"250,000"}32%{content:"500,000"}48%{content:"750,000"}64%,100%{content:"1,000,000"}}@keyframes million{50%{background:var(--cyan);transform:scale(.55);opacity:.3}}
+
+    footer{padding:20px;text-align:center;color:#688087;font:9px ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase}
+    @media(max-width:650px){.top{align-items:flex-start;flex-direction:column}.intro{display:none}article{min-height:300px}.stage{min-height:215px}}
+    @media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;animation-iteration-count:1!important}}
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><div class="mark">MH</div><div class="wordmark">MILLION<span>HEXAGONS</span></div></div>
+    <div><h1>Loading animation studies</h1><p class="intro">Ten compact directions for moments when the globe, artwork or a placement needs a little more time.</p></div>
+    <div class="tools" aria-label="Animation controls"><button id="toggle">Pause all</button><button data-speed=".65">Slow</button><button class="active" data-speed="1">Normal</button><button data-speed="1.6">Fast</button></div>
+  </header>
+  <main><section class="grid">
+    <article><div class="stage"><div class="new-loader v01"></div></div><div class="copy"><span class="number">01</span><h2>Current + count</h2><p>The existing trace and breathing core, now with truthful progress.</p></div></article>
+    <article><div class="stage"><div class="new-loader v02"></div></div><div class="copy"><span class="number">02</span><h2>Quiet rotation</h2><p>The full outline turns around a subdued centre.</p></div></article>
+    <article><div class="stage"><div class="new-loader v03"></div></div><div class="copy"><span class="number">03</span><h2>Corner chase</h2><p>Short strokes travel around the same hexagon.</p></div></article>
+    <article><div class="stage"><div class="new-loader v04"></div></div><div class="copy"><span class="number">04</span><h2>Core arrival</h2><p>The central hexagon arrives, settles and repeats.</p></div></article>
+    <article><div class="stage"><div class="new-loader v05"></div></div><div class="copy"><span class="number">05</span><h2>Edge glow</h2><p>A restrained highlight travels through the outline.</p></div></article>
+    <article><div class="stage"><div class="new-loader v06"></div></div><div class="copy"><span class="number">06</span><h2>Counter rotation</h2><p>Outer and inner hexagons turn in opposite directions.</p></div></article>
+    <article><div class="stage"><div class="new-loader v07"></div></div><div class="copy"><span class="number">07</span><h2>Dimensional turn</h2><p>A small perspective movement hints at the globe.</p></div></article>
+    <article><div class="stage"><div class="new-loader v08"></div></div><div class="copy"><span class="number">08</span><h2>Six-step progress</h2><p>The edge advances one side at a time.</p></div></article>
+    <article><div class="stage"><div class="new-loader v09"></div></div><div class="copy"><span class="number">09</span><h2>Hex scan</h2><p>A fine light checks the existing mark from top to bottom.</p></div></article>
+    <article><div class="stage"><div class="new-loader v10"></div></div><div class="copy"><span class="number">10</span><h2>Fill and release</h2><p>The centre fills while the outline remains steady.</p></div></article>
+    <article><div class="stage"><div class="orbit"><i class="core"></i><i class="hex"></i><i class="hex"></i><i class="hex"></i><i class="hex"></i><i class="hex"></i><i class="hex"></i></div><span class="label">Finding your place…</span></div><div class="copy"><span class="number">11</span><h2>Orbit</h2><p>Six claimed spaces circle a quiet centre.</p></div></article>
+    <article><div class="stage"><div class="honey generated" data-count="25"></div><span class="label">Warming up the hexagons…</span></div><div class="copy"><span class="number">12</span><h2>Honeycomb pulse</h2><p>A soft wave reveals the shared canvas.</p></div></article>
+    <article><div class="stage draw"><svg viewBox="0 0 120 140" aria-hidden="true"><polygon points="30,8 90,8 118,70 90,132 30,132 2,70"/><polygon points="30,8 90,8 118,70 90,132 30,132 2,70"/></svg><span class="label">Drawing the edges…</span></div><div class="copy"><span class="number">13</span><h2>Perimeter draw</h2><p>The product’s basic unit draws itself.</p></div></article>
+    <article><div class="stage"><div class="globe"><div class="tiles generated" data-count="42"></div></div><span class="label">Building the globe…</span></div><div class="copy"><span class="number">14</span><h2>Globe build</h2><p>Hexagons progressively wrap a small sphere.</p></div></article>
+    <article><div class="stage"><div class="scan"><div class="field generated outline-set" data-count="25"></div><i class="beam"></i></div><span class="label">Checking the canvas…</span></div><div class="copy"><span class="number">15</span><h2>Claim scan</h2><p>A precise scan passes over available space.</p></div></article>
+    <article><div class="stage"><div class="wave generated" data-count="7"></div><span class="label">Connecting your space…</span></div><div class="copy"><span class="number">16</span><h2>Connected wave</h2><p>A continuous chain reinforces connected ownership.</p></div></article>
+    <article><div class="stage"><div class="flip generated" data-count="16"></div><span class="label">Turning on the canvas…</span></div><div class="copy"><span class="number">17</span><h2>Flip mosaic</h2><p>A crisp digital reveal for publication steps.</p></div></article>
+    <article><div class="stage"><div class="trail generated" data-count="10"></div><span class="label">Exploring one million places…</span></div><div class="copy"><span class="number">18</span><h2>Explorer trail</h2><p>One bright space leads the route around the globe.</p></div></article>
+    <article><div class="stage"><div class="beacon"><i class="ring"></i><i class="ring"></i><i class="ring"></i><i class="hex"></i></div><span class="label">Locating your placement…</span></div><div class="copy"><span class="number">19</span><h2>Placement beacon</h2><p>A claimed hexagon broadcasts its location.</p></div></article>
+    <article><div class="stage"><div class="million"><div class="count"></div><div class="mini generated" data-count="7"></div></div><span class="label">One shared canvas</span></div><div class="copy"><span class="number">20</span><h2>Million counter</h2><p>The finite inventory becomes the loading moment.</p></div></article>
+  </section></main>
+  <footer>Million Hexagons · Motion studies · Standalone prototype</footer>
+  <script>
+    const studyHex='<svg class="study-hex" viewBox="0 0 60 60" aria-hidden="true"><polygon class="ghost" points="30,3 54,16.5 54,43.5 30,57 6,43.5 6,16.5"/><polygon class="trace" points="30,3 54,16.5 54,43.5 30,57 6,43.5 6,16.5"/><polygon class="core" points="30,21 38,25.5 38,34.5 30,39 22,34.5 22,25.5"/></svg><div class="study-count">438,271<small>Loading hexagons · 43.8%</small></div>';
+    document.querySelectorAll('.new-loader').forEach(loader=>loader.innerHTML=studyHex);
+    for(const group of document.querySelectorAll('.generated')){
+      for(let i=0;i<Number(group.dataset.count);i++){const hex=document.createElement('i');hex.className='hex'+(group.classList.contains('outline-set')?' outline':'');hex.style.setProperty('--i',i);group.append(hex);}
+    }
+    const toggle=document.querySelector('#toggle');toggle.onclick=()=>{document.body.classList.toggle('paused');toggle.textContent=document.body.classList.contains('paused')?'Play all':'Pause all';};
+    for(const button of document.querySelectorAll('[data-speed]'))button.onclick=()=>{document.documentElement.style.setProperty('--speed',button.dataset.speed);document.querySelectorAll('[data-speed]').forEach(item=>item.classList.toggle('active',item===button));};
+  </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "// Pylance": "Only scripts/*.py are Python here; everything else is JS, build output or data. Without these excludes Pylance indexes node_modules and the generated dist/ trees and warns about workspace size.",
+  "python.analysis.exclude": [
+    "**/node_modules/**",
+    "dist/**",
+    "staging-dist/**",
+    "coming-soon-dist/**",
+    "public/**",
+    "**/.git/**"
+  ],
+  "python.analysis.indexing": true,
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/staging-dist/**": true,
+    "**/coming-soon-dist/**": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "dist": true,
+    "staging-dist": true,
+    "coming-soon-dist": true
+  }
+}

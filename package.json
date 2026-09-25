@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "dev:status": "node scripts/dev-server.mjs",
+    "dev:stop": "node scripts/dev-server.mjs --stop",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "build:coming-soon": "vite build coming-soon --outDir ../coming-soon-dist --emptyOutDir",
@@ -36,14 +38,20 @@
     "test:hero-typewriter": "node --test scripts/hero-typewriter.test.mjs",
     "test:admin-workspace": "node scripts/admin-workspace-qa.mjs",
     "test:checkout-reservation": "node scripts/checkout-reservation-qa.mjs",
+    "test:regional-pricing": "node scripts/regional-pricing-qa.mjs",
     "test:persistent-checkout": "node scripts/persistent-checkout-qa.mjs",
     "test:payment-lifecycle": "node scripts/payment-lifecycle-live-qa.mjs",
     "test:globe-startup": "node scripts/globe-startup-qa.mjs",
     "test:desktop-composition": "node scripts/desktop-composition-qa.mjs",
+    "test:mobile-composition": "node scripts/mobile-composition-qa.mjs",
+    "test:craig-review": "node scripts/craig-review-qa.mjs",
     "test:globe-detail": "node --test scripts/globe-detail.test.mjs",
     "test:discovery": "node --test scripts/discovery.test.mjs",
     "test:hygiene": "node scripts/repo-hygiene.mjs",
-    "test:launch": "node scripts/launch-checks.mjs"
+    "test:launch": "node scripts/launch-checks.mjs",
+    "social:cards": "node scripts/social-cards.mjs",
+    "social:telegram": "node scripts/post-to-telegram.mjs",
+    "promo:reel": "node scripts/promo-reel.mjs"
   },
   "dependencies": {
     "firebase": "^12.3.0",

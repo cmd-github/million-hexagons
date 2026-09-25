@@ -13,3 +13,9 @@ test('public state is shared briefly at the edge and failures are never cached',
     const asset=await worker.fetch(new Request('https://example.com/index.html'),{ASSETS:{fetch:async()=>new Response('asset')}},context);assert.equal(await asset.text(),'asset');
   }finally{globalThis.fetch=originalFetch;globalThis.caches=originalCaches;}
 });
+test('location response exposes only the Cloudflare country code and is never cached',async()=>{
+  const request=new Request('https://example.com/api/location');Object.defineProperty(request,'cf',{value:{country:'GB'}});
+  const response=await worker.fetch(request,{},{});
+  assert.deepEqual(await response.json(),{country:'GB'});assert.equal(response.headers.get('cache-control'),'private,no-store');
+  const missing=await worker.fetch(new Request('https://example.com/api/location'),{},{});assert.deepEqual(await missing.json(),{country:''});
+});

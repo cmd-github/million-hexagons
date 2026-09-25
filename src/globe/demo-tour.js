@@ -14,6 +14,9 @@ export function createDemoTour({camera,globe,controls,radius,button,wideDistance
   // back to start with the reason in the label where assistive tech reads it.
   const label=(message)=>{
     setIcon(button,loading||active?'tour-stop':'tour-start');
+    // A ring around the stop mark shows the route is still being fetched, so the
+    // press is visibly acknowledged during the wait without adding a third icon.
+    if(loading)button.dataset.loading='true';else delete button.dataset.loading;
     button.setAttribute('aria-pressed',String(active));
     const text=message||(loading?'Preparing globe tour':active?'Stop globe tour':'Start globe tour');
     button.setAttribute('aria-label',text);
@@ -48,7 +51,7 @@ export function createDemoTour({camera,globe,controls,radius,button,wideDistance
       cancelZoom();controls.autoRotate=false;controls.enableDamping=false;controls.update();
       loading=false;active=true;index=0;phase=0;elapsed=0;last=performance.now();prepare();label();
       batch=1;button.dataset.batch=String(batch);
-    }catch{if(token===generation){stop();label('Could not start the tour. Press to try again.');}}
+    }catch(error){console.error('Could not start globe tour',error);if(token===generation){stop();label('Could not start the tour. Press to try again.');}}
   }
   async function replenish(){
     const token=generation;
@@ -58,7 +61,7 @@ export function createDemoTour({camera,globe,controls,radius,button,wideDistance
       if(!active||token!==generation)return;
       if(!next?.length)throw Error('Empty route');
       stops=next;index=0;phase=0;elapsed=0;last=performance.now();batch++;button.dataset.batch=String(batch);prepare();
-    }catch{if(token===generation)stop();}
+    }catch(error){console.error('Could not continue globe tour',error);if(token===generation)stop();}
   }
   button.addEventListener('click',start);
   document.addEventListener('pointerdown',event=>{if(!button.contains(event.target)&&(active||loading))stop();},{capture:true});

@@ -12,8 +12,11 @@ for(const mobile of [false,true]){
  await p.locator('#appLoading').waitFor({state:'visible'});
  assert.equal(await p.locator('.topbar').isVisible(),false);
  assert.equal(await p.locator('#loadingError').isVisible(),false);
+ const initialCount=Number((await p.locator('#loadingCount strong').textContent()).replace(/,/g,''));await p.waitForTimeout(500);const movingCount=Number((await p.locator('#loadingCount strong').textContent()).replace(/,/g,''));
+ assert.ok(movingCount>initialCount&&movingCount<1000000,'Boot counter must advance while readiness is pending');
  await p.screenshot({path:'artifacts/loading/'+mobile+'-boot.png'});
  await p.locator('#appLoading').waitFor({state:'hidden',timeout:60000});
+ assert.equal(await p.locator('#loadingCount strong').textContent(),'1,000,000');
  await p.locator('#claimButton').click();await p.locator('#appLoading').waitFor({state:'visible'});
  assert.equal(await p.locator('#appLoading').evaluate(element=>getComputedStyle(element).backgroundColor),'rgb(5, 11, 20)');
  await p.screenshot({path:'artifacts/loading/'+mobile+'-editor.png'});
