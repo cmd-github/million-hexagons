@@ -2,9 +2,9 @@
 
 ## Status
 
-**Preferred direction: Stripe Managed Payments for Million Hexagons at launch, conditional on resolving the unsupported-country enforcement risk below.**
+**Decision: proceed toward launch with Stripe Managed Payments and the strongest practical country/privacy controls, while retaining account-level testing as a launch gate.**
 
-Stripe has now answered the batched [support questions](stripe-support-questions.md). Custom country rules require Radar Plus and are available at quoted pay-as-you-go list pricing of USD 0.07 per screened transaction, but Stripe does not guarantee the billing-country rule across every Managed Payments flow. This prevents the current design from honestly guaranteeing that Birdcage's details can never appear on a merchant-liable invoice.
+Stripe has now answered the batched [support questions](stripe-support-questions.md). Custom country rules require Radar Plus and are available at quoted pay-as-you-go list pricing of USD 0.07 per screened transaction, but Stripe does not guarantee the billing-country rule across every Managed Payments flow. Craig accepted this residual risk on 24 September 2026 and chose to proceed with billing-address collection, a maintained allow-list, payment-method testing and Radar Plus as defence in depth. This does not establish that Birdcage's details can never appear on a merchant-liable invoice.
 
 Stripe Priority Support has confirmed that the Million Hexagons product model aligns with the published eligibility criteria for Managed Payments.
 
@@ -60,6 +60,8 @@ Craig confirmed on 22 September 2026 that prices per hexagon include tax:
 Use explicit inclusive tax behaviour; applicable tax comes out of the stated customer price. These are regional price points, not a request to exchange USD 1 into local currencies. Unsupported tax jurisdictions remain blocked.
 
 Craig confirmed on 24 September 2026 that the EUR tier means the **eurozone**, excluding the UK. Other permitted countries use USD. Radar's billing-country allow-list determines permission to purchase, not the price or currency.
+
+The website should detect location automatically for the initial headline and currency. That IP-derived country is only a display hint: the customer can correct the pricing region, the server owns the quote, and a confirmed billing-country mismatch must reject or restart Checkout with the correct fixed price.
 
 Stripe confirms that Adaptive Pricing remains enabled and cannot be disabled, but an explicitly selected GBP, EUR or USD price takes precedence. The server must select the correct explicit price before creating Checkout. If the customer's confirmed billing country changes the price region, reject or restart the Session with the correct price. The stated prices are therefore supported in principle but remain unverified in our account and integration.
 
@@ -418,21 +420,21 @@ Do not assume the country list configured at launch remains permanently correct.
 
 # Current conclusion
 
-Stripe Managed Payments remains the preferred launch payment model, but it has not yet met the absolute requirement that an unsupported-country purchase can never expose Birdcage's business details.
+Stripe Managed Payments is the chosen launch payment model. Craig accepts that the available controls cannot prove an unsupported-country purchase will never expose Birdcage's business details; the exact launch configuration must still pass the documented country, payment-method and customer-document checks.
 
 The chosen architecture is:
 
 > **Stripe Managed Payments + OneLink/Link Merchant of Record + explicit regional prices + required billing address + Radar Plus allow-list as defence in depth.**
 
-This is workable only if Craig accepts the residual enforcement risk or Stripe provides a narrower configuration that closes it. If the privacy requirement is absolute, another Merchant of Record or a provably restricted set of payment methods/countries must be assessed before launch.
+Craig accepted the residual enforcement risk on 24 September 2026. Radar Plus is planned only on the quoted pay-as-you-go basis, subject to verifying the account's current price and that no monthly subscription or minimum applies. This decision does not authorise live payments or remove any test/configuration launch gate.
 
 ## Next steps, in order
 
-1. **Craig:** decide whether the residual country-enforcement/privacy risk is acceptable. If it is not, obtain a guaranteed narrower Stripe configuration or assess another Merchant of Record before further live-payment commitment. Do not buy Radar Plus merely to resolve this decision.
+1. **Craig / Stripe:** verify Radar Plus is available on the quoted pay-as-you-go terms without a monthly subscription or minimum, then configure it in test mode as defence in depth.
 2. **Craig / Stripe:** finish onboarding and terms, confirm sandbox/test availability and select an eligible product tax code. Activation is not final product approval. Review business and invoice settings without substituting an inaccurate address.
 3. **Development, test mode only:** configure explicit GBP/EUR/USD prices, server-side region selection and requoting, inclusive tax behaviour, required billing-address collection where supported, a maintained tax-coverage allow-list, and existing quotes, reservations and verified webhook fulfilment. No ordinary-payment fallback.
 4. **Acceptance:** prove supported and blocked-country journeys, correct regional totals/taxes, customer-facing documents, failed/expired payment release, duplicate/delayed webhooks and successful ownership/publication. Country filtering must prevent payment, not merely prevent fulfilment after payment.
 5. **Craig / accountant, alongside development:** obtain FreeAgent and UK VAT treatment for Stripe payouts/self-billed invoices; finish commercial terms, refunds, support responsibilities and accurate business-address configuration.
 6. **Controlled live launch after gates pass:** configure live keys/webhooks and rules separately, monitor genuine initial purchases, inspect live Link/customer documents and Stripe eligibility review, then expand promotion. Test-mode success is not product approval or production verification.
 
-Regional-pricing integration work can begin now. Live acceptance remains conditional on Craig's country-enforcement risk decision, account-level testing, accounting/commercial decisions and the repository's other launch gates.
+Regional pricing is implemented on staging. Live acceptance remains conditional on account-level testing, accounting/commercial decisions and the repository's other launch gates.

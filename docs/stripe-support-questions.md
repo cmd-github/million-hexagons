@@ -51,6 +51,6 @@ Current implementation state:
 - Centralise explicit GBP, EUR and USD prices, the agreed UK/eurozone/other country mapping and server-generated quote snapshots. Keep the purchase-permission allow-list separate from pricing regions.
 - Prototype the regional headline and matching Review price on staging, using estimated visitor country for display and restarting/requoting when confirmed billing country differs. Unknown location needs explicit currency wording. Do not publish a regional price promise until the checkout honours it.
 - Exercise reservation release, duplicate/delayed webhooks, ownership and publication with test payments; prepare blocked/missing/changed-country and customer-document checks.
-- Treat Radar Plus as a paid defence in depth control, not proof that unsupported-country payments cannot succeed. The absolute privacy requirement is not currently guaranteed by Stripe's supported configuration; resolve that launch risk before enabling live payments.
+- Treat Radar Plus as a paid defence in depth control, not proof that unsupported-country payments cannot succeed. Craig accepted the known residual risk on 24 September 2026, subject to testing the exact launch configuration.
 
-Do not enable paid Radar, claim country enforcement is complete or publish regional checkout pricing until Craig accepts the final configuration and its residual risk. No real payments or subscription purchase is authorised by this list.
+Verify that Radar Plus is available to this account on the quoted pay-as-you-go basis without a monthly subscription or minimum before enabling it. Do not claim country enforcement is complete until the configured flows pass testing. No real payments are authorised by this list.

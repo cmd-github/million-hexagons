@@ -6,7 +6,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Resolve Gate 1's remaining payment decisions. Craig is open to accepting Stripe's residual country/privacy risk; automatic UK GBP / eurozone EUR / other-country USD display and authoritative regional quote code is deployed to staging (Worker version d22c0f62, release 6121418c). Next, obtain the accountant's tax/payout advice and configure/test Managed Payments, billing-address collection and Radar before final checkout and legal copy.
+- [ ] Resolve Gate 1's remaining commercial/accounting decisions, Stripe test configuration and payment verification; diagnose the secure-checkout failure. Craig's Managed Payments, residual-risk, regional-pricing and country-control decisions are recorded in [Gate 1 decisions and checks](GATE-1-DECISIONS-AND-CHECKS.md). Regional pricing is deployed to staging (Worker `d22c0f62`, release `6121418c`).
 
 ## Next
 
@@ -23,7 +23,10 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 - [ ] Define richer impression-style Views/Clicks/Visits/Claimed HUD analytics after real usage justifies the measurement work.
 - [ ] Design explicit verified-owner rules for voluntarily merging directly connected purchases.
-- [ ] Revisit globe surface studies, achievements, advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
+- [ ] Explore visual options for preserving a sense of the globe when zoomed in, based on user/device evidence.
+- [ ] Review badges and achievements with Craig after launch evidence; current sample badges are illustrative, not a production achievement system.
+- [ ] Define paid placement tour inclusion, selection and disclosure rules before adding paid placements to the random tour.
+- [ ] Revisit advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
 
