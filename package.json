@@ -50,7 +50,8 @@
     "test:hygiene": "node scripts/repo-hygiene.mjs",
     "test:launch": "node scripts/launch-checks.mjs",
     "social:cards": "node scripts/social-cards.mjs",
-    "social:telegram": "node scripts/post-to-telegram.mjs"
+    "social:telegram": "node scripts/post-to-telegram.mjs",
+    "promo:reel": "node scripts/promo-reel.mjs"
   },
   "dependencies": {
     "firebase": "^12.3.0",

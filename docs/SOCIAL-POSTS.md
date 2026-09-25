@@ -93,3 +93,32 @@ Telegram's rate limits. The token is read from the file and never printed.
 
 Nothing here posts to LinkedIn or X. Copy the text and attach the card by hand, which also keeps
 the decision about what actually goes out with a person.
+
+## Promo reel
+
+`scripts/promo-reel.mjs` records a vertical reel from the real app. Nothing is mocked: it drives
+the actual studio through Location, Shape, Design and Review while Chrome records, so what plays
+is the product running.
+
+```
+npm run build
+npx vite preview --port 4181 --host 127.0.0.1    # in another terminal
+npm run promo:reel
+```
+
+Output is `artifacts/promo/reel.mp4` at 1080 x 1920, around thirty seconds, with the raw capture
+kept beside it as `reel-source.webm`.
+
+Record against the production build, not the dev server. Dev starts slowly enough that the
+overhead of video capture can push artwork loading past its own thirty second failure threshold,
+and you end up with a recording of the recovery screen. The script refuses to encode a take where
+the loader did not clear, and retries startup three times before giving up.
+
+Captions are injected as an overlay on top of the live page, styled in Manrope and the brand lime.
+They sit at the bottom over the globe and move to the top while the studio sheet owns the lower
+half of the screen. The script also hides the page's own hero copy, the live totals, the pricing
+region selector and the Stripe test-mode note for the duration of the recording, because those
+either duplicate the captions or should not appear in a promo.
+
+Edit the beats and caption text directly in the script. `REEL_URL` points it at a different
+server, and `CHROME_PATH` overrides the browser location.
