@@ -161,6 +161,40 @@ const atmosphereMaterial=new THREE.ShaderMaterial({
 const atmosphere=new THREE.Mesh(new THREE.SphereGeometry(radius+.025,128,96),atmosphereMaterial);
 atmosphere.renderOrder=9;globe.add(atmosphere);
 
+// PROTOTYPE (?domeShading) for the "sense of a globe when zoomed in" review item.
+//
+// At working zoom the limb is 48 degrees off-screen and the visible patch spans about 11
+// degrees of arc, so there is real curvature to show but four sources of flat fill erase it.
+// Distance fog cannot help either: the near surface is 1.35 away and the screen edge 1.63.
+//
+// This multiplies a view-dependent darkening over everything already drawn -- base sphere,
+// artwork tiles and cell detail alike -- so the patch reads as a dome without touching the
+// light rig or any material. N.V runs 1.0 at the centre of view to about 0.77 at the edge.
+//
+// Tune live: ?domeShading&domeStrength=0.55&domeFalloff=2.5, and press L to A/B it.
+const domeShadingRequested=new URLSearchParams(location.search).has('domeShading');
+const domeShadeMaterial=new THREE.ShaderMaterial({
+  transparent:true,premultipliedAlpha:true,depthWrite:false,depthTest:false,side:THREE.FrontSide,blending:THREE.MultiplyBlending,
+  uniforms:{uStrength:{value:.55},uFalloff:{value:2.5}},
+  vertexShader:`varying vec3 vNormal;varying vec3 vView;void main(){vec4 world=modelMatrix*vec4(position,1.0);vNormal=normalize(mat3(modelMatrix)*normal);vView=normalize(cameraPosition-world.xyz);gl_Position=projectionMatrix*viewMatrix*world;}`,
+  fragmentShader:`uniform float uStrength;uniform float uFalloff;varying vec3 vNormal;varying vec3 vView;void main(){float facing=clamp(dot(normalize(vNormal),normalize(vView)),0.0,1.0);float shade=mix(1.0-uStrength,1.0,pow(facing,uFalloff));gl_FragColor=vec4(vec3(shade),1.0);}`
+});
+const domeShade=new THREE.Mesh(new THREE.SphereGeometry(radius+.001,128,96),domeShadeMaterial);
+domeShade.renderOrder=8;domeShade.visible=domeShadingRequested;globe.add(domeShade);
+if(domeShadingRequested){
+  const search=new URLSearchParams(location.search);
+  const read=(key,fallback)=>{const value=Number(search.get(key));return Number.isFinite(value)&&value>0?value:fallback;};
+  domeShadeMaterial.uniforms.uStrength.value=read('domeStrength',.55);
+  domeShadeMaterial.uniforms.uFalloff.value=read('domeFalloff',2.5);
+  addEventListener('keydown',event=>{
+    if(event.key!=='l'&&event.key!=='L')return;
+    const target=event.target;
+    if(target?.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(target?.tagName))return;
+    domeShade.visible=!domeShade.visible;
+    console.info(`Dome shading ${domeShade.visible?'on':'off'} (strength ${domeShadeMaterial.uniforms.uStrength.value}, falloff ${domeShadeMaterial.uniforms.uFalloff.value})`);
+  });
+}
+
 const artworkTiles = new ArtworkTiles(globe,radius,{base:millionFixture?'/artwork/million':runtimeAsset('artwork/empty'),maxTiles:innerWidth<700?64:128,anisotropy:Math.min(8,renderer.capabilities.getMaxAnisotropy())});
 await artworkTiles.ready;
 let designAnchor = bootstrap.anchor;
