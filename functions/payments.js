@@ -11,6 +11,6 @@ export function checkoutLineItem(quote,{taxCode=''}={}){
 }
 export function checkoutSessionParameters({quote,orderId,reservationId,placementId,checkoutExpiresAt,verifiedEmail='',managedPayments=false,taxCode=''}){
   if(managedPayments&&!String(taxCode).trim())throw Object.assign(new Error('managed-payments-tax-code-required'),{code:'managed-payments-tax-code-required'});
-  return{mode:'payment',ui_mode:'embedded_page',redirect_on_completion:'never',...(managedPayments?{managed_payments:{enabled:true}}:{payment_method_types:['card']}),line_items:[checkoutLineItem(quote,{taxCode:managedPayments?String(taxCode).trim():''})],customer_creation:'always',...(verifiedEmail?{customer_email:verifiedEmail}:{}),expires_at:checkoutExpiresAt,metadata:{orderId,reservationId,placementId},payment_intent_data:{metadata:{orderId,reservationId,placementId}}};
+  return{mode:'payment',ui_mode:'embedded',redirect_on_completion:'never',...(managedPayments?{managed_payments:{enabled:true}}:{payment_method_types:['card']}),line_items:[checkoutLineItem(quote,{taxCode:managedPayments?String(taxCode).trim():''})],customer_creation:'always',...(verifiedEmail?{customer_email:verifiedEmail}:{}),expires_at:checkoutExpiresAt,metadata:{orderId,reservationId,placementId},payment_intent_data:{metadata:{orderId,reservationId,placementId}}};
 }
 export function paidCheckoutEmail(session){const email=String(session?.customer_details?.email||session?.customer_email||'').trim().toLowerCase();return session?.payment_status==='paid'&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?email:null;}

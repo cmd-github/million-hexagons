@@ -6,7 +6,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Now
 
-- [ ] Gate 1 operational work: record the accountant's FreeAgent/UK VAT answer when received, complete Managed Payments/Product Tax Code and agreed PAYG Radar setup, then verify Stripe's full test payment/publication lifecycle. Commercial decisions are recorded; regional quotes are deployed to staging (Worker `d22c0f62`, release `6121418c`). See [confirmed decisions and implementation plan](CRAIG-CONFIRMED-DECISIONS-AND-IMPLEMENTATION-PLAN.md).
+- [ ] Gate 1 operational work: record the accountant's FreeAgent/UK VAT answer when received, complete Managed Payments/Product Tax Code and agreed PAYG Radar setup, then verify Stripe's full test payment/publication lifecycle. Embedded test Checkout Session creation and cleanup now pass; no payment has been submitted. Commercial decisions are recorded; regional quotes are deployed to staging (Worker `d22c0f62`, release `6121418c`). See [confirmed decisions and implementation plan](CRAIG-CONFIRMED-DECISIONS-AND-IMPLEMENTATION-PLAN.md).
 
 ## Next
 
@@ -29,6 +29,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Revisit advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Fixed the staging secure-checkout 500. Cloud Logging showed Stripe rejected `ui_mode: embedded_page` with API `2025-03-31.basil` because that mode requires `2026-03-25.dahlia`; the integration now uses the standard `embedded` mode supported by the pinned API and existing Stripe.js `initEmbeddedCheckout` client. Focused payment tests pass. Deployed only `stagingCheckout` as revision `stagingcheckout-00011-teq`; a fresh live test Session, idempotent retry and reservation/session cleanup all pass without submitting payment. Managed Payments remains disabled and its product tax code unset; this fix restores the current card-only staging test flow and does not complete Managed Payments acceptance.
 
 - [x] Implemented automatic regional pricing for staging. Cloudflare supplies the visitor country without caching it; the 2026 21-country eurozone, including Bulgaria, maps to EUR, the UK to GBP and other countries to USD. The headline and studio totals update automatically, a visible pricing-region selector handles VPN/travel errors, and the reservation server accepts only those three fixed £1/€1/$1 tax-inclusive tiers before Stripe receives the quote. Unit/backend tests, the staging build and rendered desktop UK/mobile France checks pass with no horizontal overflow. Deployed to staging on 24 September 2026: the payment functions were already current, and the Worker now serves the regional front end (version d22c0f62-6f4d-4f51-a8a4-4e7c9aa7601b, release 6121418c).
 
