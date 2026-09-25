@@ -1,5 +1,7 @@
 # Stripe Managed Payments Decision
 
+See [Craig's confirmed decisions and implementation plan](CRAIG-CONFIRMED-DECISIONS-AND-IMPLEMENTATION-PLAN.md) for the agreed refund/ownership, dispute, immediate-publication and purchase-limit rules, plus a code-checked implementation sequence. Those product decisions are made; account and end-to-end verification remain open.
+
 ## Status
 
 **Decision: proceed toward launch with Stripe Managed Payments and the strongest practical country/privacy controls, while retaining account-level testing as a launch gate.**
@@ -305,15 +307,9 @@ Do not use net Stripe payout amounts as the canonical purchase price.
 
 ---
 
-# Refunds
+# Refunds, disputes and publication failure
 
-Refund behaviour should be handled through the Managed Payments model.
-
-A refund must also trigger the appropriate Million Hexagons ownership/business logic.
-
-Refunding a Stripe payment must not independently and silently remove ownership without an explicit application-level decision.
-
-Order status and ownership state should remain separately controlled.
+Craig's decisions are recorded in the [implementation plan](CRAIG-CONFIRMED-DECISIONS-AND-IMPLEMENTATION-PLAN.md): payment/refund and placement/ownership are independent. A refund does not release cells; admin may refund without release or revoke/release without refund. A moderation/Terms takedown does not automatically refund. A payment dispute hides/suspends the placement but retains the cells; restore after a customer-favourable resolution. For an ultimate reversal, admin may separately revoke and release. If payment succeeds but publication fails, preserve payment, ownership and cells while retrying; if delivery is unrecoverable, provide a full-refund route and explicitly resolve ownership. These operational behaviors still require implementation/acceptance evidence.
 
 ---
 
@@ -384,7 +380,7 @@ Before real payments are enabled:
 * [ ] Unsupported-country checkout tested
 * [ ] Missing/changed country, saved Link/wallet details and all offered payment methods verified against country restrictions
 * [ ] Supported-country checkout tested
-* [ ] EUR region membership and exact tax-inclusive regional pricing verified with Managed Payments Adaptive Pricing
+* [ ] In configured Stripe test mode, verify the decided UK GBP / eurozone EUR / other permitted country USD fixed tax-inclusive prices and billing-country mismatch rejection
 * [ ] Available customer-facing receipts/invoices/checkout checked for business-address and VAT exposure
 * [ ] Stripe webhook verification implemented
 * [ ] Webhook processing made idempotent
@@ -434,7 +430,7 @@ Craig accepted the residual enforcement risk on 24 September 2026. Radar Plus is
 2. **Craig / Stripe:** finish onboarding and terms, confirm sandbox/test availability and select an eligible product tax code. Activation is not final product approval. Review business and invoice settings without substituting an inaccurate address.
 3. **Development, test mode only:** configure explicit GBP/EUR/USD prices, server-side region selection and requoting, inclusive tax behaviour, required billing-address collection where supported, a maintained tax-coverage allow-list, and existing quotes, reservations and verified webhook fulfilment. No ordinary-payment fallback.
 4. **Acceptance:** prove supported and blocked-country journeys, correct regional totals/taxes, customer-facing documents, failed/expired payment release, duplicate/delayed webhooks and successful ownership/publication. Country filtering must prevent payment, not merely prevent fulfilment after payment.
-5. **Craig / accountant, alongside development:** obtain FreeAgent and UK VAT treatment for Stripe payouts/self-billed invoices; finish commercial terms, refunds, support responsibilities and accurate business-address configuration.
+5. **Craig / accountant, alongside development:** record Change Accountants' FreeAgent and UK VAT treatment for Stripe payouts/self-billed invoices when received. Implement the already-decided refund, dispute, publication-failure, support and ownership behavior; obtain qualified review of final customer wording and verify accurate business-address configuration.
 6. **Controlled live launch after gates pass:** configure live keys/webhooks and rules separately, monitor genuine initial purchases, inspect live Link/customer documents and Stripe eligibility review, then expand promotion. Test-mode success is not product approval or production verification.
 
-Regional pricing is implemented on staging. Live acceptance remains conditional on account-level testing, accounting/commercial decisions and the repository's other launch gates.
+Regional pricing is implemented on staging. Live acceptance remains conditional on account-level testing, the accountant's treatment, implementation of the confirmed lifecycle behavior and the repository's other launch gates. Craig's product/commercial decisions do not themselves enable live payments.

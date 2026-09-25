@@ -6,15 +6,17 @@ Passing local builds, staging tests or browser emulation does not by itself clos
 
 ## Gate 1 - commercial and regulatory decisions
 
-Owner: Craig, with qualified tax/legal advice where required.
+Owner: Craig, with qualified tax/legal advice where required. Product/commercial decisions are recorded in [the confirmed decisions and implementation plan](CRAIG-CONFIRMED-DECISIONS-AND-IMPLEMENTATION-PLAN.md); Gate 1 remains open for accountant advice, account configuration and test evidence.
 
-- Approve the price and currency shown before reservation and charged by Stripe.
-- Decide VAT/sales-tax handling, evidence required from buyers, invoice/receipt content and who is merchant/seller of record.
-- Approve refund, cancellation, dispute and failed-publication outcomes, including whether ownership is retained or revoked.
-- Approve the permanent-use wording, moderation rights, seller identity, governing law and customer-support route.
-- Translate the decisions into server pricing/configuration, customer copy, operational actions and tests; no contradictory hard-coded regional prices remain.
+- Configure Stripe Managed Payments/Link as Merchant of Record with fixed tax-inclusive GBP 1 UK / EUR 1 eurozone / USD 1 other permitted-country prices. IP/location is a display hint; billing country is authoritative. Reject unsupported tax jurisdictions and region mismatches; do not fall back to a Birdcage merchant-liable payment.
+- Record Change Accountants' FreeAgent, UK VAT, payout and self-billed-invoice advice. Stripe Priority Support's 23-24 September answers and Craig's acceptance of residual country/privacy risk are already documented; this acceptance does not replace account/payment-method testing.
+- Configure billing-address collection and supported-country allow-list. Enable Radar Plus only after confirming pay-as-you-go terms with no monthly/minimum commitment.
+- Verify eligible Product Tax Code, inclusive tax, country/price behavior, customer-facing Link/receipt/invoice exposure and Stripe's current account settings.
+- Implement and verify the decisions for refunds vs ownership revocation, dispute suspension/restoration/reversal, failed publication, immediate post-payment publication/moderation, required name, 10-10,000 purchase limits, explicit immediate-supply consent, seller/company contact, and service-duration-based cell-use wording.
+- Publish final legally reviewed Terms and checkout copy, preserving mandatory consumer rights; governing law is England and Wales subject to those rights.
+- Verify signed/idempotent payment fulfilment, no-refresh publication, decline/abandonment, duplicate/delayed webhooks, reservation recovery, fees/tax/net reconciliation and the actual customer documents in test mode.
 
-Exit: the decision record and customer terms agree with checkout, receipts, refunds and support operations in the intended launch countries.
+Exit: recorded decisions, qualified advice, account configuration, Terms/checkout, support operations and end-to-end test evidence agree for the intended launch countries. No live payment is enabled by this gate alone.
 
 ## Gate 2 - first-time-user usability
 

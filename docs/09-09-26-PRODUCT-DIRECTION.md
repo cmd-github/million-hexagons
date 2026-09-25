@@ -18,6 +18,8 @@ The priorities are:
 
 When working on the codebase, preserve existing working globe/rendering behaviour unless a change is explicitly required.
 
+Craig's confirmed 25 September 2026 product/commercial decisions and their implementation sequence are in [the confirmed decisions and implementation plan](CRAIG-CONFIRMED-DECISIONS-AND-IMPLEMENTATION-PLAN.md). That current decision record supersedes conflicting historical/aspirational wording below. In particular, do not promise unconditional or eternal ownership, do not gate publication on pre-publication manual review, and do not treat all owner content changes as requiring approval.
+
 ---
 
 # 1. Product concept
@@ -64,7 +66,7 @@ The most important concepts to communicate are:
 
 1. There are only 1,000,000 spaces.
 2. Anyone can claim some of them.
-3. Purchased cells remain claimed permanently, subject to product terms and moderation.
+3. Purchased cells remain claimed while Million Hexagons operates, subject to the Terms, moderation and permitted enforcement.
 4. The content displayed on owned cells can evolve.
 5. The globe becomes more interesting as more people participate.
 
@@ -74,9 +76,9 @@ The most important concepts to communicate are:
 
 This is the core architectural contract.
 
-## Permanent:
+## Continuing cell-use right:
 
-A buyer permanently owns the right to use their purchased cells.
+A buyer receives the right to use their purchased cells for as long as Million Hexagons operates, subject to the Terms, moderation and permitted enforcement. This is not an unconditional promise that the service or a particular placement will exist forever. Public/legal copy must follow reviewed Terms, not shorthand such as “permanent ownership.”
 
 Ownership is defined by:
 
@@ -113,9 +115,9 @@ Examples:
 
 Edits create new content versions.
 
-Therefore:
+The intended customer promise is:
 
-> Ownership is permanent. Content is editable. Location is fixed.
+> Your claimed hexagons remain yours while Million Hexagons operates. Content can change; the owned hexagons do not move.
 
 Deleting or changing content does not release cells.
 
@@ -129,7 +131,7 @@ An artwork or destination takedown must not delete the placement, release its ce
 
 Ownership, public content state and payment state are separate concerns. Refunds and ownership cancellation require their own explicit policy and workflow.
 
-Transfers, resale, subdivision and ownership trading are NOT launch requirements.
+At launch, owners cannot transfer/sell cells to another account, move/swap them to other cells, or voluntarily release them. Owner-directed grouping and splitting of visual placements over the same owned cells is intended; it does not change the underlying ownership set or transfer cells.
 
 ---
 
@@ -347,7 +349,7 @@ Do not build IP → translated UI logic prematurely.
 
 # 10. Pricing
 
-Craig confirmed tax-inclusive regional prices on 22 September 2026: GBP 1 per hexagon in the UK, EUR 1 in Europe, and USD 1 in the USA and all other supported countries. See [the canonical pricing and Managed Payments decision](stripe-managed-payments.md#pricing-decision) for the remaining Europe/eurozone country mapping and checkout requirements.
+Craig confirmed tax-inclusive fixed prices: GBP 1 per hexagon in the UK, EUR 1 in the eurozone and USD 1 in other permitted/supported countries. The server selects explicit regional prices; IP/location is only an initial display hint. Unsupported tax jurisdictions cannot purchase, and a billing-country/price-region mismatch must be rejected or restarted at the correct price. See [the canonical pricing and Managed Payments decision](stripe-managed-payments.md#pricing-decision).
 
 Keep pricing simple. Credits, auction pricing and premium-location pricing are not the selected launch model.
 
@@ -397,8 +399,8 @@ Target flow:
 6. Cells are temporarily reserved.
 7. User enters email/payment details.
 8. Payment succeeds.
-9. Permanent ownership is created.
-10. Placement enters publication workflow.
+9. Payment and ownership are confirmed as separate domain states.
+10. Placement is published immediately; manual moderation follows publication.
 11. User receives confirmation and management access.
 12. User receives something worth sharing.
 
@@ -499,9 +501,7 @@ Cell ownership does not change.
 
 Each published edit creates a new immutable `PlacementVersion`.
 
-Moderation should apply to the new version.
-
-The previous approved content may remain visible until replacement content is approved and published.
+Moderation applies after each version is published. Human approval is not a publication prerequisite. Publish a complete replacement immediately, then allow admin takedown or rollback if a later moderation action requires it.
 
 ## Owner editing interaction
 
@@ -509,11 +509,11 @@ Owner updates should reuse the same visual Design workspace used to create the o
 
 Do not maintain a separate reduced crop editor in My Globe when the primary Design workspace can express the update more clearly and consistently.
 
-## Later: connected purchase expansion
+## Owner-managed owned-cell groupings
 
-An owner who buys additional available cells directly connected to an existing holding should eventually be able to combine those holdings into one editable visual canvas so artwork can span the complete connected area.
+The owner-management model should support multiple purchases and let a verified owner combine adjacent owned hexagons into a larger visual placement, split visual placements, and apply artwork across any combination of cells they own. Owners may edit name, description, link, artwork and colours, or temporarily hide content, without changing the underlying owned cell set.
 
-This is not merely a rendering operation. Define explicit domain rules before implementation for placement identity, ownership grants, version history, analytics, public URLs, moderation, rollback and whether the source purchases remain independently identifiable. Never merge purchases solely because they share an email address; require verified common ownership and an explicit owner action.
+This changes visual grouping, not ownership provenance: preserve each acquired cell, its verified owner, purchase/grant history and audit trail. Require verified common ownership and explicit owner action; never merge on email equality alone. Owners cannot transfer, move, swap or release cells at launch. The exact public URL, analytics, moderation and rollback behavior for regrouping is specified in the current implementation plan.
 
 ---
 

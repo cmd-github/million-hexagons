@@ -1,20 +1,21 @@
 # Draft commercial terms and content policy
 
-Status: working product-policy draft only. This is not final legal text and must be reviewed for the countries in which Million Hexagons will sell before live payments are enabled.
+Status: working product-policy draft only. Craig's commercial/product decisions are recorded in [the confirmed decisions and implementation plan](CRAIG-CONFIRMED-DECISIONS-AND-IMPLEMENTATION-PLAN.md). This is not final legal text and must be reviewed for the countries in which Million Hexagons will sell before live payments are enabled.
 
 This document captures commercial decisions as the product develops. Keep the public terms concise, understandable and consistent with the implemented system.
 
 ## Product being purchased
 
-- A purchase grants the customer the right to use a fixed set of cells identified by a permanent `placementId`, topology version and exact cell membership.
-- The location and owned cell set are fixed. Artwork, title, description and destination URL may be updated.
-- “Permanent” describes the continuing claim to the placement under the applicable terms. It does not promise that particular artwork will remain unchanged or that the service will operate forever without interruption.
+- A purchase grants the customer the right to use the purchased hexagons for as long as Million Hexagons operates, subject to the Terms, moderation and permitted enforcement.
+- The underlying owned hexagons do not move or change owner at launch. Their visual grouping can be changed by the verified owner as the owner-management tools support combining adjacent owned cells or splitting visual placements.
+- Artwork, colours, required name, optional description and optional destination URL may be changed. Content may also be temporarily hidden without surrendering the cells.
+- Do not describe the right as unconditional or promise that the service will operate forever. `placementId` is a stable technical identifier, not a promise of perpetual service.
 - Ownership records, content versions, payments and refunds are separate records and must not be inferred from rendered globe files.
 
 ## Publication
 
-- New placements and owner edits are intended to publish immediately at launch.
-- Million Hexagons may introduce automated checks, delayed publication or pre-publication review later if abuse, safety or operational scale requires it.
+- New purchases and owner edits publish immediately after successful payment/save; human moderation follows publication.
+- Million Hexagons may take post-publication enforcement action for Terms, legal, fraud, safety or exceptional reasons. Do not add a mandatory pre-publication approval gate under the current launch decision.
 - A replacement is made public only when its complete artwork and metadata release is ready. Until then, the existing public version remains available.
 
 ## Content and destination rules
@@ -41,7 +42,13 @@ Each intervention should record the affected placement/version, action, reason, 
 
 ## Refunds and failed service
 
-Refund eligibility, cancellation rights, mistaken or duplicate purchases, payment disputes, prolonged service failure and the effect of a refund on ownership remain to be decided. These rules must be reflected consistently in checkout copy, receipts, support procedures and payment fulfilment code.
+Payment/refund and ownership/inventory states are independent. A refund does not automatically revoke ownership or release cells; admin may refund without release. Admin may also revoke a placement and release cells without a refund. Content removal for a Terms/moderation breach does not automatically produce a refund.
+
+For a payment dispute, temporarily hide/suspend the placement but keep its cells claimed. Restore it if the dispute resolves for the customer. If payment is ultimately reversed, admin may separately revoke the placement and release its cells.
+
+If technical publication fails after successful payment, preserve the paid order, ownership and cells while retrying/recovering. If delivery cannot be restored, provide a route to a full refund and explicitly resolve ownership/cell state; never silently release cells during technical recovery.
+
+Purchases should become non-cancellable once immediate supply begins to the extent legally permitted. For UK consumers, obtain explicit acknowledgement/consent to immediate supply and the applicable cancellation-right consequence before payment, using qualified legal wording. Preserve rights that cannot lawfully be waived. Mistaken/duplicate purchases, disputes, service outages and support handling must be addressed in final terms and operating procedures.
 
 ## Account credits
 
@@ -59,13 +66,21 @@ Refund eligibility, cancellation rights, mistaken or duplicate purchases, paymen
 - Owners are responsible for keeping account access and management links secure.
 - Ownership cannot be transferred, resold or subdivided at launch unless later terms explicitly introduce those capabilities.
 
-## Decisions still required before paid launch
+## Decisions recorded; legal review and implementation still required
 
-- Legal seller identity, contact address and governing law.
-- Final price, currencies, taxes and whether displayed prices include tax.
-- Consumer/business eligibility and applicable cancellation rights.
-- Refund and chargeback rules and their effect on ownership.
+- Stripe Managed Payments/Link is the chosen Merchant of Record direction; Craig accepts the documented residual country/privacy risk and requires the strongest practical controls. Account configuration and payment verification remain open.
+- Regional tax-inclusive pricing is GBP 1 UK / EUR 1 eurozone / USD 1 other permitted countries.
+- Birdcage Tech Ltd operates Million Hexagons. Disclose legally required company details appropriately while keeping Million Hexagons as the public brand.
+- England and Wales law is intended, subject to mandatory consumer rights in the customer's jurisdiction.
+- Use a Million Hexagons-branded support form routed internally to `support@birdcagetech.com`; provide any legally required direct electronic contact details in the correct legal location.
+- No transfer/resale, owner cell movement/swap or voluntary release at launch.
+- Required name; optional description, link and artwork; minimum 10 and maximum 10,000 hexagons per self-service purchase; larger requests go through the contact form.
+
+Still required before paid launch:
+
+- Qualified legal review of seller/contact disclosures, immediate-supply consent, applicable cancellation rights and the final Terms for launch jurisdictions.
+- Accountant confirmation of payout/self-billed invoice and UK VAT treatment.
+- Implement decisions and verify Stripe/account configuration, ownership, refund/dispute, failed-publication and support procedures.
 - Detailed prohibited-content and intellectual-property complaint process.
 - Privacy, cookies, analytics retention and processor disclosures.
-- Service duration, discontinuation and material-outage commitments.
 - Enforcement notices, appeals and repeat-abuse rules.

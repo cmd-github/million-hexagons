@@ -1,6 +1,6 @@
 # Gate 1: decisions and payment checks
 
-This note expands Gate 1 from [operational status](STATUS.md). It separates decisions Craig must make from provider setup and engineering verification. It records repository evidence as of 25 September 2026; unchecked means not evidenced here, not necessarily unfinished outside the repository.
+This earlier checklist is superseded for current product/commercial decisions and implementation order by [Craig's confirmed decisions and implementation plan](CRAIG-CONFIRMED-DECISIONS-AND-IMPLEMENTATION-PLAN.md). Use that document as the current source; this note preserves Stripe/account evidence context only. It records repository evidence as of 25 September 2026; unchecked means not evidenced here, not necessarily unfinished outside the repository.
 
 ## Current position
 
@@ -23,7 +23,7 @@ This note expands Gate 1 from [operational status](STATUS.md). It separates deci
 - Use Radar Plus only on the pay-as-you-go basis quoted by Stripe, subject to confirming the account's current price and absence of a monthly subscription or minimum in the Dashboard/contract. Craig did not agree to a GBP 12 monthly subscription.
 - Keep Managed Payments, paid Radar configuration and live payments disabled until the account setup and test-mode checks in this note pass.
 
-## Decisions and information still to record
+## Outstanding operations and external inputs
 
 ### 1. Accountant's FreeAgent and VAT treatment
 
@@ -48,18 +48,11 @@ Stripe's response explicitly limits the guarantee: billing-country data may be m
 
 Radar Plus pricing was quoted by Stripe Priority Support as USD 0.07 per screened transaction at pay-as-you-go list pricing; verify the account's current Dashboard/contract price before enabling it. Stripe said allowed, blocked and reviewed screenings are charged, while retrying the same failed payment is not charged twice.
 
-### 3. Commercial terms
+### 3. Product/commercial decisions
 
-Before final checkout and legal wording, record decisions for:
+Craig has confirmed these decisions in the linked current implementation plan. They are no longer an open decision-gathering task: fixed tax-inclusive regional pricing; Stripe Managed Payments/Link with accepted residual country/privacy risk; no Birdcage merchant-liable fallback; refund and ownership separation; dispute suspension/recovery; immediate publication followed by moderation; service-duration-based cell-use rights; England and Wales law subject to mandatory consumer rights; branded support form; and the 10–10,000 self-service range.
 
-- price and currencies (the regional tax-inclusive prices above are already decided);
-- VAT/sales-tax and evidence requirements, using accountant/provider advice where needed;
-- who is merchant/seller of record and what receipts, invoices or self-billed documents customers receive;
-- refunds, cancellations, disputes and failed publication, including the effect on placement ownership;
-- permanent-use/ownership wording;
-- seller identity, governing law and customer support ownership/contact route.
-
-Keep application ownership, payment/refund state, and any release of claimed cells explicit. A Stripe refund must not silently imply a domain ownership change; the product rules and support procedure need to agree.
+Remaining work is to implement the decisions, record the accountant's treatment when received, configure Stripe, and obtain qualified review of final legal wording. Keep payment/refund and ownership/inventory actions explicitly separate.
 
 ### 4. Stripe account and configuration
 
@@ -89,9 +82,9 @@ After test-mode configuration is available, use a controlled test run to verify:
 
 Existing controlled browser journeys and backend payment tests do not by themselves prove an actual Stripe Checkout Session or end-to-end Stripe webhook lifecycle. The payment validation procedure is documented in [VALIDATION.md](VALIDATION.md#payment-lifecycle).
 
-### 6. Secure-checkout report
+### 6. Secure-checkout report (after account setup)
 
-Reproduce the exact 24 September report in the environment where it occurred and capture:
+Do not prioritise a broad investigation before Managed Payments activation and eligible Product Tax Code setup. Capture an obvious cause if readily visible. Re-run checkout after that configuration; if it still fails, reproduce the exact report in the environment where it occurred and capture:
 
 - route and checkout action immediately before the error;
 - browser/device, timestamp and selected pricing region;
@@ -103,11 +96,11 @@ Classify the cause as account/configuration, Stripe session creation, applicatio
 
 ## Suggested order
 
-1. Check for and record the accountant's answer and resolve the remaining commercial terms. The residual-risk direction is recorded above.
-2. Diagnose the reported secure-checkout failure, in parallel with decisions that do not depend on its cause.
-3. Complete account onboarding, tax-code and agreed address/privacy configuration in Stripe test mode.
-4. Run the country, pricing, checkout, webhook, reservation, refund and customer-document checks above.
-5. Update [Stripe Managed Payments](stripe-managed-payments.md), [launch acceptance](LAUNCH-ACCEPTANCE.md) and [operational status](STATUS.md) from the resulting evidence. Keep live-payment and production launch decisions in their separate gates.
+1. Record accountant's FreeAgent/UK VAT advice when received.
+2. Complete account onboarding, tax-code and agreed address/privacy configuration in Stripe test mode; verify Radar's no-monthly/minimum PAYG terms first.
+3. Re-run checkout and complete payment/country/webhook/reservation/refund/dispute/publication/customer-document checks against configured test mode.
+4. Investigate the secure-checkout message fully only if it persists after setup, unless a clear cause appears sooner.
+5. Implement the remaining product decisions using the linked plan, then update [Stripe Managed Payments](stripe-managed-payments.md), [launch acceptance](LAUNCH-ACCEPTANCE.md) and [operational status](STATUS.md) from evidence. Keep live-payment and production launch decisions in their separate gates.
 
 ## Source notes
 
