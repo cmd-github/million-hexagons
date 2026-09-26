@@ -1,9 +1,18 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
+import { createServer } from "vite";
 import { chromium } from "playwright";
 
-const url = process.env.SMOKE_URL || "http://127.0.0.1:4174/";
+const server = process.env.SMOKE_URL ? null : await createServer({
+  server: { host: "127.0.0.1", port: 0, watch: null },
+  define: {
+    "import.meta.env.VITE_STAGING_SANDBOX": "true",
+    "import.meta.env.VITE_STAGING_API_URL": JSON.stringify("https://europe-west1-million-hexagons.cloudfunctions.net/stagingPlacements"),
+  },
+});
+if (server) await server.listen();
+const url = process.env.SMOKE_URL || `http://127.0.0.1:${server.httpServer.address().port}/`;
 const chrome = "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const browser = await chromium.launch({
   headless: true,
@@ -62,14 +71,14 @@ try {
           body: JSON.stringify({
             ok: true,
             quote: {
-              displayTotal: "$1",
+              displayTotal: "$10",
               currency: "usd",
-              totalAmountMinor: 100,
-              cellCount: 1,
+              totalAmountMinor: 1000,
+              cellCount: 10,
             },
             reservation: {
               reservationId: "qa-reservation",
-              cellCount: 1,
+              cellCount: 10,
               status: "active",
               expiresAtMs: reservationExpiry,
             },
@@ -95,52 +104,34 @@ try {
       }
       if (body.action === "extend-checkout-reservation") {
         extended = true; reservationExpiry += 600_000;
-        await route.fulfill({json:{ok:true,reservation:{reservationId:"qa-reservation",cellCount:1,status:"active",expiresAtMs:reservationExpiry,extended:true}}});
+        await route.fulfill({json:{ok:true,reservation:{reservationId:"qa-reservation",cellCount:10,status:"active",expiresAtMs:reservationExpiry,extended:true}}});
         return;
       }
+      if (body.action === "public-list") { await route.fulfill({ json: { placements: [] } }); return; }
+      if (body.action === "public-stats") { await route.fulfill({ json: { stats: { claimedCells: 0, remainingCells: 1_000_000, placements: 0, views: 0, clicks: 0 }, latest: [] } }); return; }
+      if (["record-event", "public-search", "public-placement"].includes(body.action)) { await route.fulfill({ json: {} }); return; }
       await route.abort();
     });
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
+    await page.goto(`${url}${url.includes("?") ? "&" : "?"}geodesicQA`, { waitUntil: "domcontentloaded", timeout: 90000 });
     await page.waitForSelector("#world[data-ready=true]", { timeout: 90000 });
+    await page.waitForFunction(() => window.geodesicQA);
     await page.locator("#claimButton").click();
-    await page.locator("#homeView").click();
-    await page.waitForTimeout(2300);
-    for (let zoom = 0; zoom < 8; zoom++) {
-      await page.locator("#zoomIn").click();
-      await page.waitForTimeout(160);
-    }
-    await page.waitForTimeout(500);
-    const world = await page.locator("#world").boundingBox(),
-      panel = await page.locator("#buyPanel").boundingBox(),
-      freeWidth = panel?.x || world.width;
-    let confirmed = false;
-    for (const fy of [0.2, 0.35, 0.5, 0.65, 0.8]) {
-      for (const fx of [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]) {
-        const x = freeWidth * fx,
-          y = world.y + world.height * fy;
-        if (mobile) await page.touchscreen.tap(x, y);
-        else await page.mouse.click(x, y);
-        await page.waitForTimeout(100);
-        if (await page.locator("#claimCell").isVisible()) {
-          await page.locator("#claimCell").click();
-          confirmed = true;
-          break;
-        }
-      }
-      if (confirmed) break;
-    }
+    await page.locator("#locationStep").waitFor({ state: "visible" });
+    const anchor = await page.evaluate(() => window.geodesicQA.state().designAnchor);
+    await page.evaluate((id) => window.geodesicQA.start(id), anchor);
+    await page.locator("#shapeStep").waitFor({ state: "visible", timeout: 90000 });
     await page.waitForFunction(
-      () => Number(document.querySelector("#hexAmount").value) === 1,
+      () => Number(document.querySelector("#hexAmount").value) >= 5,
     );
-    assert.equal(await page.locator("#hexAmount").inputValue(), "1");
+    assert.equal(await page.locator("#hexAmount").inputValue(), "10");
     await page.locator("#toDesign").click();
     await page.locator("#toPlacement").click();
     await page.waitForFunction(() => document.body.dataset.flow === "review", {
       timeout: 90000,
     });
-    assert.equal(quotedCells.length, 1);
-    assert.equal(new Set(quotedCells).size, 1);
-    assert.equal(await page.locator("#reviewPrice").textContent(), "$1");
+    assert.equal(quotedCells.length, 10);
+    assert.equal(new Set(quotedCells).size, 10, "every quoted cell is distinct");
+    assert.equal(await page.locator("#reviewPrice").textContent(), "$10");
     assert.match(
       await page.locator("#serverQuoteStatus").textContent(),
       /^Location reserved for (?:19|20):/,
@@ -164,7 +155,7 @@ try {
       path: `artifacts/checkout-reservation/${mobile ? "mobile" : "desktop"}-review.png`,
       animations: "disabled",
     });
-    await page.locator("#backToPlacement").click();
+    await page.locator("#reviewEditDesign").click();
     await page.waitForFunction(() => document.body.dataset.flow === "design");
     await page.waitForTimeout(200);
     assert.equal(released, true);
@@ -179,5 +170,6 @@ try {
   }
 } finally {
   await browser.close();
+  if (server) await server.close();
 }
 console.log(JSON.stringify(report, null, 2));

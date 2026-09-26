@@ -62,11 +62,18 @@ export const ICONS = {
   plus: `<path d="M12 5.4v13.2M5.4 12h13.2"/>`,
   minus: `<path d="M5.4 12h13.2"/>`,
   external: `<path d="M7.4 16.6 16.6 7.4"/><path d="M9.2 7.4h7.4v7.4"/>`,
+  download: `<path d="M12 3.8v10.4"/><path d="m7.8 10.4 4.2 4.2 4.2-4.2"/><path d="M4.6 16.4v2.2a1.6 1.6 0 0 0 1.6 1.6h11.6a1.6 1.6 0 0 0 1.6-1.6v-2.2"/>`,
 
   // Activity feed.
   claim: `<path d="${HEX}"/><path d="m8.8 12.1 2.4 2.4 4-5"/>`,
   trend: `<path d="M3.6 17.4 9.6 11.4l3.6 3.6 7.2-8.4"/><path d="M15.6 6.6h4.8v4.8"/>`,
   milestone: `<path d="M8.4 3.4h7.2v4.4a3.6 3.6 0 0 1-7.2 0Z"/><path d="M8.4 5.2H5v1.6a3.4 3.4 0 0 0 3.4 3.4M15.6 5.2H19v1.6a3.4 3.4 0 0 1-3.4 3.4"/><path d="M12 11.4v4.6M8.8 20.6h6.4l-1-4.6h-4.4Z"/>`,
+
+  // Share destinations. These are brand marks, so they are solid glyphs drawn
+  // with the fill class instead of the stroke geometry used above.
+  x: `<path class="ico-fill" d="M17.7 3h3.3l-7.2 8.3L22 21h-6.4l-4.6-6-5.3 6H2.4l7.7-8.8L2 3h6.6l4.2 5.5Zm-1.2 16h1.9L7.8 4.9H5.8Z"/>`,
+  linkedin: `<path class="ico-fill" d="M4.6 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4M2.9 8.6h3.4V21H2.9Zm6 0h3.3v1.7a3.6 3.6 0 0 1 3.2-1.8c3 0 3.9 1.9 3.9 4.6V21h-3.4v-6.5c0-1.6-.5-2.5-1.8-2.5-1.1 0-1.8.8-1.8 2.4V21H8.9Z"/>`,
+  facebook: `<path class="ico-fill" d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.7-3.9 1.1 0 2.2.2 2.2.2v2.4h-1.2c-1.2 0-1.6.8-1.6 1.6V12h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12"/>`,
 };
 
 /** Returns the SVG markup for one icon, or an empty string when the name is unknown. */

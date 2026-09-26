@@ -64,9 +64,20 @@ export function createDemoTour({camera,globe,controls,radius,button,wideDistance
     }catch(error){console.error('Could not continue globe tour',error);if(token===generation)stop();}
   }
   button.addEventListener('click',start);
-  document.addEventListener('pointerdown',event=>{if(!button.contains(event.target)&&(active||loading))stop();},{capture:true});
+  // A tap or click leaves the tour running: only deliberately taking the globe
+  // over ends it. That means a drag or pinch past a small threshold, a wheel or
+  // pinch zoom, Escape, or the tour button itself.
+  let press=null;
+  const release=()=>{press=null;};
+  document.addEventListener('pointerdown',event=>{press=button.contains(event.target)?null:{x:event.clientX,y:event.clientY};},{capture:true,passive:true});
+  document.addEventListener('pointermove',event=>{
+    if(!press||!(active||loading))return;
+    if(Math.hypot(event.clientX-press.x,event.clientY-press.y)>8){press=null;stop();}
+  },{capture:true,passive:true});
+  document.addEventListener('pointerup',release,{capture:true,passive:true});
+  document.addEventListener('pointercancel',release,{capture:true,passive:true});
   document.addEventListener('wheel',()=>{if(active||loading)stop();},{capture:true,passive:true});
-  document.addEventListener('keydown',event=>{if((event.key==='Escape'||!button.contains(event.target))&&(active||loading))stop();});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&(active||loading))stop();});
   addEventListener('resize',()=>{if(active||loading)stop();});
   label();
   return {stop,get active(){return active;},update(time){

@@ -25,7 +25,7 @@ try {
     await page.evaluate(id => geodesicQA.start(id), anchor);
     await page.locator('#shapeStep').waitFor({ state: 'visible' });
 
-    for (const count of [50000, 100000]) {
+    for (const count of [5000, 10000]) {
       const started = Date.now();
       await page.locator('#hexAmount').fill(String(count));
       await page.locator('#hexAmount').press('Enter');
@@ -54,7 +54,7 @@ try {
       assert.deepEqual(await page.evaluate(() => geodesicQA.state().design), selectedBefore);
       reports.push({ mobile, count, shapeMs, imageMs, reviewParity: true, connected: true });
       console.log(reports.at(-1));
-      if (count === 50000) {await page.locator('[data-flow-target="shape"]').click();await page.locator('#shapeStep').waitFor({state:'visible'});}
+      if (count === 5000) {await page.locator('[data-flow-target="shape"]').click();await page.locator('#shapeStep').waitFor({state:'visible'});}
     }
     await page.close();
   }

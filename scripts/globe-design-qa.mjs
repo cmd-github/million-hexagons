@@ -54,9 +54,15 @@ try {
       /polygon/,
     );
     const clickCell = async (id) => {
+      const shaping = await page.evaluate(() => document.body.dataset.flow === "shape");
+      if (shaping) {
+        await page.evaluate((id) => window.geodesicQA.focus(id, 0.6), id);
+        await page.waitForTimeout(350);
+      }
       const p = await page.evaluate((id) => window.geodesicQA.screen(id), id);
       if (mobile) await page.touchscreen.tap(p.x, p.y);
       else await page.mouse.click(p.x, p.y);
+      if (shaping) await page.waitForTimeout(350);
     };
     const initial = await page.evaluate(() => window.geodesicQA.state().design);
     assert.deepEqual(initial, []);

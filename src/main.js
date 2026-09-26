@@ -29,22 +29,17 @@ renderIcons(document);
 startHeroTypewriter(document.querySelector('#heroChangingWord'));
 
 let pricingRegion='usd',detectedPricingCountry='';
-const pricingRegionSelect=document.querySelector('#pricingRegion');
 function refreshRegionalPrices(){
   const pricing=pricingForRegion(pricingRegion),count=Math.max(0,Math.floor(Number(document.querySelector('#hexAmount')?.value)||0));
   document.querySelector('#regionalUnitPrice').textContent=`${pricing.symbol}1 per hexagon · Pay Once. Change anytime.`;
   if(!document.body.classList.contains('owner-editing'))for(const id of['price','placePrice','reviewPrice']){const element=document.getElementById(id);if(element)element.textContent=formatRegionalPrice(count,pricingRegion);}
   const quoteStatus=document.querySelector('#serverQuoteStatus');if(quoteStatus&&!activeCheckoutReservation)quoteStatus.textContent=`Estimated at ${pricing.symbol}1 per cell`;
 }
-function setPricingRegion(region,{remember=false}={}){
+function setPricingRegion(region){
   pricingRegion=Object.hasOwn({gbp:1,eur:1,usd:1},region)?region:'usd';
-  pricingRegionSelect.value=pricingRegion;
-  if(remember)sessionStorage.setItem('mh-pricing-region',pricingRegion);
   refreshRegionalPrices();
 }
 async function initialiseRegionalPricing(){
-  const remembered=sessionStorage.getItem('mh-pricing-region');
-  if(remembered){setPricingRegion(remembered);return;}
   try{const response=await fetch('/api/location',{headers:{accept:'application/json'},cache:'no-store'});if(!response.ok)throw Error('location-unavailable');const result=await response.json();detectedPricingCountry=String(result.country||'').toUpperCase();setPricingRegion(pricingRegionForCountry(detectedPricingCountry));}
   catch{setPricingRegion('usd');}
 }
@@ -109,6 +104,15 @@ let topology = null, topologyPromise = null, cellDetail = null;
 const bootstrap = await fetchRuntimeJson('topology/bootstrap.json');
 const millionFixture = import.meta.env.DEV && new URLSearchParams(location.search).has('millionLogos');
 const snapshotEnabled=import.meta.env.VITE_ARTWORK_SNAPSHOTS==='true';
+// Self-service purchases stop at 10,000 hexagons; anything larger is arranged
+// with support. Enforced here and again at quote, reservation and creation.
+const MAX_PURCHASE_CELLS=10000;
+const SUPPORT_EMAIL='millionhexagons@birdcagetech.com';
+function showPurchaseLimitNotice(show){
+  const notice=document.querySelector('#shapeLimitNotice');
+  if(notice)notice.hidden=!show;
+  if(show){const hint=document.querySelector('#toolHint');if(hint)hint.textContent=`Maximum ${MAX_PURCHASE_CELLS.toLocaleString()} hexagons per purchase. For more, contact ${SUPPORT_EMAIL}`;}
+}
 let snapshotRuntime=null;
 async function ensureTopology() {
   if(topology)return topology;
@@ -283,7 +287,8 @@ function updatePersistentArtwork(time) {
         const {record,image}=entry;
         await topology.ensureCells([...record.cells,record.anchor]);
         const cells=topology.cells(record.cells,record.anchor);
-        addHighResolutionPlacement('#000','contain',placementLayers,{cells,anchor:cellForId(record.anchor),artwork:image});
+        const mesh=addHighResolutionPlacement('#000','contain',placementLayers,{cells,anchor:cellForId(record.anchor),artwork:image});
+        if(mesh){mesh.userData.placementId=record.placementId;if(ownerEdit?.record.placementId===record.placementId)mesh.visible=false;}
         pendingPersistentArtwork.delete(id);
         persistentArtworkState.get(id).ready=true;
       }catch{entry.retryAt=performance.now()+3000;}
@@ -460,7 +465,7 @@ function connectedPattern(origin, amount, shape) {
 
 function refreshSelection(preparedCells = null) {
   const shape = document.querySelector('#selectionShape').value;
-  const amount = Math.max(1, Math.min(100000, Number(document.querySelector('#hexAmount').value) || 1));
+  const amount = Math.max(1, Math.min(MAX_PURCHASE_CELLS, Number(document.querySelector('#hexAmount').value) || 1));
   if (selectedCell) {
     const candidateCells = Array.isArray(preparedCells)?preparedCells:connectedPattern(selectedCell, amount, shape);
     const owned=ownerEdit?new Set(ownerEdit.record.cells):null;
@@ -702,10 +707,12 @@ async function openBuy(anchor = null, ownerUpdate = null) {
     document.querySelector('#brushColor').value=state.baseColour||'#ff4d6d';document.querySelector('#logoTreatment').value=transform.treatment==='repeat'?'repeat':'span';
     document.querySelector('#logoScale').value=Number(transform.scale||100);document.querySelector('#logoScaleValue').textContent=`${document.querySelector('#logoScale').value}%`;logoPosition.x=Number(transform.x||0);logoPosition.y=Number(transform.y||0);document.querySelector('#logoOrientation').value=Number(transform.rotation||0);updateLogoPreviewOrientation();
     document.querySelector('#companyName').value=ownerEdit.record.title||'';document.querySelector('#companyDescription').value=ownerEdit.record.description||'';document.querySelector('#website').value=ownerEdit.record.destinationUrl||'';
+    setPublishedPlacementVisible(ownerEdit.record.placementId,false);
   }
   designStartingSpotConfirmed=Boolean(ownerEdit||logoCells.length||Number.isInteger(anchor));configureCreation();setDesignSurface('globe');
   document.body.classList.toggle('choosing-start',!designStartingSpotConfirmed);
   document.body.classList.toggle('owner-editing',Boolean(ownerEdit));
+  renderCreditBalance();
   document.querySelector('#sizeControls').hidden=Boolean(ownerEdit);document.querySelector('#removeHexMode').hidden=Boolean(ownerEdit);
   document.querySelector('#designTitle').textContent=ownerEdit?'Update your placement.':'3. Create your design';document.querySelector('#designIntro').textContent=ownerEdit?'Your purchased space is locked. Update what appears inside it.':'Your space. Your design.';
   document.querySelector('#toPlacement').textContent=ownerEdit?'Review changes →':'Review placement →';document.querySelector('#previewPurchase').textContent=ownerEdit?'Save changes':'Continue to secure checkout';
@@ -808,7 +815,8 @@ function closeBuy({saveDraft=true,unwindHistory=true}={}) {
   proposedCellId=null;
   clearPlacementPreview();
   requestedAnchor = null;
-  ownerEdit=null;designStartingSpotConfirmed=false;document.body.classList.remove('owner-editing','choosing-start');document.querySelector('#removeHexMode').hidden=false;document.querySelector('#previewPurchase').textContent='Continue to secure checkout';
+  if(ownerEdit)setPublishedPlacementVisible(ownerEdit.record.placementId,true);
+  ownerEdit=null;designStartingSpotConfirmed=false;document.body.classList.remove('owner-editing','choosing-start');renderCreditBalance();document.querySelector('#removeHexMode').hidden=false;document.querySelector('#previewPurchase').textContent='Continue to secure checkout';
   pinnedCell = null;
   document.querySelector('#hint').innerHTML = '<span title="Drag to rotate" role="img" aria-label="Drag to rotate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18m-5-4 4 4-4 4M8 8l-4 4 4 4"/></svg></span><i></i><span title="Scroll to zoom" role="img" aria-label="Scroll to zoom"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14m5 12 6 6M7 10h6m-3-3v6"/></svg></span><i></i><span title="Click a tile" role="img" aria-label="Click a tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3 14 10-7 1-3 7z"/></svg></span>';
   if(historySteps)history.go(-historySteps);
@@ -841,14 +849,17 @@ document.querySelector('#closeBuy').addEventListener('click',()=>void requestStu
 // Rotation is a plain on/off toggle. It used to cycle through both directions, which needed
 // three icons to express and gave the button a state most visitors never looked for.
 document.querySelector('#rotationToggle').addEventListener('click',()=>{
+  demoTour.stop();
   controls.autoRotate=!controls.autoRotate;
   updateRotationControl();
 });
 document.querySelector('.brand').addEventListener('click',event=>{event.preventDefault();if(document.body.classList.contains('creating'))closeBuy();document.querySelector('#homeView').click();});
 document.querySelector('#zoomIn').addEventListener('click', () => {
+  demoTour.stop();
   zoom.change(.8);
 });
 document.querySelector('#zoomOut').addEventListener('click', () => {
+  demoTour.stop();
   zoom.change(1.25);
 });
 document.querySelector('#homeView').addEventListener('click', () => {
@@ -864,11 +875,27 @@ const hexSearch = document.querySelector('#hexSearch');
 const hexSearchPanel = document.querySelector('#hexSearchPanel');
 const hexSearchInput = document.querySelector('#hexSearchInput');
 const hexSearchStatus = document.querySelector('#hexSearchStatus');
+// The panel is positioned against the control rail, so a fixed offset drifts
+// whenever a control is hidden. Measure the search button instead and clamp the
+// result into the viewport.
+function anchorHexSearch() {
+  if (hexSearchPanel.hidden) return;
+  const button = document.querySelector('#toggleHexSearch');
+  const rail = button.offsetParent;
+  if (!rail) return;
+  hexSearchPanel.style.bottom = 'auto';
+  hexSearchPanel.style.top = `${button.offsetTop}px`;
+  const panel = hexSearchPanel.getBoundingClientRect();
+  const overflow = panel.bottom - (visualViewport?.height || innerHeight) + 12;
+  if (overflow > 0) hexSearchPanel.style.top = `${button.offsetTop - overflow}px`;
+}
 function showHexSearch(open) {
   hexSearchPanel.hidden = !open;
   document.querySelector('#toggleHexSearch').setAttribute('aria-expanded', String(open));
-  if (open) hexSearchInput.focus();
+  if (open) { anchorHexSearch(); hexSearchInput.focus(); }
+  else { hexSearchPanel.style.top = ''; hexSearchPanel.style.bottom = ''; }
 }
+addEventListener('resize', anchorHexSearch);
 document.querySelector('#toggleHexSearch').addEventListener('click', () => showHexSearch(hexSearchPanel.hidden));
 hexSearch.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -942,11 +969,11 @@ function showFlowStep(step) {
 }
 
 function placementCount() {
-  return Math.max(0, Math.min(100000, Math.floor(Number(amountInput.value)) || 0));
+  return Math.max(0, Math.min(MAX_PURCHASE_CELLS, Math.floor(Number(amountInput.value)) || 0));
 }
 
 function availableConnectedSelection(anchor,count,source=[]) {
-  const target=Math.max(1,Math.min(100000,Math.floor(Number(count))||1));
+  const target=Math.max(1,Math.min(MAX_PURCHASE_CELLS,Math.floor(Number(count))||1));
   const sourceById=new Map(source.map(cell=>[cell.id,cell]));
   const selected=new Map(),sourceQueue=[anchor],sourceSeen=new Set(sourceQueue);
   // Keep as much of an existing hand-drawn selection as possible when its
@@ -1144,7 +1171,7 @@ function paintEditorAt(event) {
   let next = cells.map(c=>({...c}));
   if(logoEditorMode === 'hex') {
     next=index<0?[...next,{id:hit.id}]:next.filter(c=>c.id!==hit.id);
-    if(next.length>100000){document.querySelector('#toolHint').textContent='Maximum 100,000 cells.';return;}
+    if(next.length>MAX_PURCHASE_CELLS){showPurchaseLimitNotice(true);return;}
     if(!topology.isConnected(next)) {updateLogoGuidance('Keep at least one connected cell.');return;}
   } else {
     if(index<0)return;
@@ -1210,7 +1237,7 @@ function enterShapeStep(){
 }
 function enterDesignStep(){
   if(!ownerEdit&&placementCount()<5){document.querySelector('#shapeCountError').hidden=false;document.querySelector('#hexAmount').focus();return;}
-  document.querySelector('#shapeCountError').hidden=true;
+  document.querySelector('#shapeCountError').hidden=true;showPurchaseLimitNotice(false);
   document.body.classList.remove('choosing-start');selectionModeUniform.value=0;clearSelectionColours();showFlowStep('design');setDesignSurface('globe');setEditorMode('move',false);drawDesignPreview();updateTotals();
   if(innerWidth<=700){
     selectedCell=cellForId(designAnchor);selectedCells=previewCells();
@@ -1391,7 +1418,7 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   const button=event.currentTarget,original=button.textContent;button.disabled=true;if(stagingClient)button.textContent='Checking availability…';
   if(stagingClient){
     if(ownerEdit){showFlowStep('review');setInteractionMode('move');focusSelection();const reviewCanvas=document.querySelector('#reviewCanvas');drawDesignPreview(reviewCanvas);document.querySelector('#reviewKind').textContent='Preview';clearPlacementPreview();addHighResolutionPlacement(document.querySelector('#brushColor').value,document.querySelector('#logoTreatment').value,previewPlacementLayers);button.textContent=original;button.disabled=false;return;}
-    try{await releaseActiveCheckoutReservation();activeCheckoutReservation=await stagingClient.quoteAndReserve(selectedCells.map(cell=>cell.id),pricingRegion);document.querySelector('#reviewPrice').textContent=activeCheckoutReservation.quote.displayTotal;showCheckoutExpiry();}
+    try{await releaseActiveCheckoutReservation();activeCheckoutReservation=await stagingClient.quoteAndReserve(selectedCells.map(cell=>cell.id),pricingRegion);applyCreditsToReview();showCheckoutExpiry();}
     catch(error){document.querySelector('#selectionStatus').textContent=error.code==='cells-unavailable'?`Hexagon ${error.cellId} was just reserved. Choose another location.`:'Could not reserve this location. Try again.';button.textContent=original;button.disabled=false;return;}
   }
   showFlowStep('review');
@@ -1407,10 +1434,11 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   addHighResolutionPlacement(document.querySelector('#brushColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
   button.textContent=original;button.disabled=false;
 });
-document.querySelectorAll('[data-add-size]').forEach(button=>button.addEventListener('click',()=>{amountInput.value=Math.min(100000,Math.max(1,placementCount())+Number(button.dataset.addSize));if(placementCount()>=5)void resizeDesign();else updateTotals();}));
-document.querySelectorAll('[data-step-size]').forEach(button=>button.addEventListener('click',()=>{amountInput.value=Math.max(1,Math.min(100000,placementCount()+Number(button.dataset.stepSize)));if(placementCount()>=5)void resizeDesign();else updateTotals();}));
-amountInput.addEventListener('change',()=>{amountInput.value=Math.max(1,placementCount());if(placementCount()>=5)void resizeDesign();else updateTotals();});
-amountInput.addEventListener('input',()=>{if(placementCount()>=5)void resizeDesign();else updateTotals();});
+document.querySelectorAll('[data-add-size]').forEach(button=>button.addEventListener('click',()=>{const wanted=Math.max(1,placementCount())+Number(button.dataset.addSize);showPurchaseLimitNotice(wanted>MAX_PURCHASE_CELLS);amountInput.value=Math.min(MAX_PURCHASE_CELLS,wanted);if(placementCount()>=5)void resizeDesign();else updateTotals();}));
+document.querySelectorAll('[data-step-size]').forEach(button=>button.addEventListener('click',()=>{const stepped=placementCount()+Number(button.dataset.stepSize);showPurchaseLimitNotice(stepped>MAX_PURCHASE_CELLS);amountInput.value=Math.max(1,Math.min(MAX_PURCHASE_CELLS,stepped));if(placementCount()>=5)void resizeDesign();else updateTotals();}));
+const requestedAmount=()=>Math.max(0,Math.floor(Number(amountInput.value))||0);
+amountInput.addEventListener('change',()=>{showPurchaseLimitNotice(requestedAmount()>MAX_PURCHASE_CELLS);amountInput.value=Math.max(1,placementCount());if(placementCount()>=5)void resizeDesign();else updateTotals();});
+amountInput.addEventListener('input',()=>{showPurchaseLimitNotice(requestedAmount()>MAX_PURCHASE_CELLS);if(placementCount()>=5)void resizeDesign();else updateTotals();});
 document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
 document.querySelectorAll('[name="logoTreatmentChoice"]').forEach(input=>input.addEventListener('change',()=>{document.querySelector('#logoTreatment').value=input.value;drawDesignPreview();}));
 document.querySelectorAll('[data-treatment]').forEach((button) => button.addEventListener('click', () => { document.querySelector('#logoTreatment').value = button.dataset.treatment; document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
@@ -1762,6 +1790,12 @@ function renderArtwork(cells) {
 
 function pointForCell(cell) { return new THREE.Vector3(...topology.centre(cell.id)).multiplyScalar(radius+.0006); }
 
+// The published artwork for a placement stays on the globe while its owner edits
+// it, so the editable draft would be drawn over a copy of itself. Hide the
+// published mesh for the duration of the edit and restore it afterwards.
+function setPublishedPlacementVisible(placementId,visible){
+  for(const child of placementLayers.children)if(child.userData?.placementId===placementId)child.visible=visible;
+}
 function clearPlacementPreview() {
   [...previewPlacementLayers.children].forEach((child) => {
     previewPlacementLayers.remove(child);
@@ -1793,7 +1827,6 @@ function addHighResolutionPlacement(color, treatment, targetLayer = placementLay
 
 let publishing=false;
 let stagingClient=null,stagingUser=null,activeCheckoutReservation=null,checkoutExpiryTimer=null,embeddedCheckoutInstance=null;
-pricingRegionSelect.addEventListener('change',()=>{setPricingRegion(pricingRegionSelect.value,{remember:true});if(activeCheckoutReservation)void releaseActiveCheckoutReservation();});
 void initialiseRegionalPricing();
 let restoredStagingOwner=null,restoringStagingOwner=null;
 let stagingInventoryPromise=null;
@@ -1824,6 +1857,21 @@ async function focusPersistentPlacement(record){
   await prepareLocation(record.anchor);
   if(!initialPlacementFocusAllowed||/^#cell=\d+$/.test(location.hash))return;
   flyToCell(record.anchor,.004,1200,()=>inspectPlacement(record.anchor));
+}
+function creditsForPurchase(){
+  const cells=selectedCells.length;
+  if(!cells||document.body.classList.contains('owner-editing'))return{applied:0,chargeCells:cells,covered:false};
+  const applied=Math.min(Math.max(0,Math.floor(creditBalance||0)),cells);
+  return{applied,chargeCells:cells-applied,covered:applied===cells};
+}
+function applyCreditsToReview(){
+  const price=document.querySelector('#reviewPrice'),button=document.querySelector('#previewPurchase');
+  if(!price)return;
+  const {applied,chargeCells,covered}=creditsForPurchase();
+  if(!activeCheckoutReservation)return;
+  price.textContent=applied?covered?formatRegionalPrice(0,pricingRegion):formatRegionalPrice(chargeCells,pricingRegion):activeCheckoutReservation.quote.displayTotal;
+  if(button&&!document.body.classList.contains('owner-editing'))button.textContent=covered?'Claim with credits':'Continue to secure checkout';
+  renderCreditBalance();
 }
 function clearCheckoutReservation(){activeCheckoutReservation=null;clearInterval(checkoutExpiryTimer);checkoutExpiryTimer=null;const message=document.querySelector('#serverQuoteStatus'),extend=document.querySelector('#extendReservation');if(message){message.textContent=`Estimated at ${pricingForRegion(pricingRegion).symbol}1 per cell`;message.classList.remove('reservation-urgent');}if(extend)extend.hidden=true;}
 async function releaseActiveCheckoutReservation(){const active=activeCheckoutReservation;clearCheckoutReservation();if(active&&stagingClient)await stagingClient.releaseCheckoutReservation(active.reservation.reservationId,active.checkoutToken).catch(()=>{});}
@@ -1908,32 +1956,48 @@ function showPurchaseConfirmation(checkout, summary, record) {
   document.querySelector('#closeEmbeddedCheckout').textContent='Return to globe';document.querySelector('#closeEmbeddedCheckout').onclick=leave;
   container.replaceChildren(card);document.querySelector('#embeddedCheckoutStatus').textContent='';card.querySelector('h2').focus();
 }
+async function settlePurchase(checkout,summary,{heading,note}){
+  const container=document.querySelector('#embeddedCheckout'),status=document.querySelector('#embeddedCheckoutStatus'),back=document.querySelector('#closeEmbeddedCheckout');
+  clearCheckoutReservation();discardDraft();document.querySelector('#draftNotice').hidden=true;
+  back.textContent=heading;back.disabled=true;
+  const indicator=document.createElement('div');indicator.className='branded-loader checkout-complete';indicator.setAttribute('role','status');indicator.setAttribute('aria-live','polite');indicator.append(loading.querySelector('.loading-hex').cloneNode(true));const message=document.createElement('p');message.textContent=heading;const detail=document.createElement('small');detail.textContent='Waiting for your placement to be published...';indicator.append(message,detail);container.replaceChildren(indicator);status.textContent=note;
+  const started=Date.now();
+  for(let attempt=0;attempt<60;attempt++){
+    const elapsed=Date.now()-started;if(elapsed>=60000)break;
+    if(elapsed>=30000)detail.textContent='This is taking a little longer. Your confirmation will stay here.';
+    else if(elapsed>=10000)detail.textContent=`Still waiting for publication. ${note}`;
+    const options={signal:AbortSignal.timeout(Math.max(1,Math.min(10000,60000-elapsed)))};
+    try{const match=snapshotEnabled?await stagingClient.getPublicPlacement(checkout.placementId,options):(await stagingClient.listPublicClaims(options)).find(record=>record.placementId===checkout.placementId);if(match){try{await applyPersistentPlacements([match]);if(snapshotEnabled)void snapshotRuntime.refresh();}catch(error){console.error('Could not render the completed placement',error);}back.disabled=false;showPurchaseConfirmation(checkout,summary,match);return;}}
+    catch(error){console.error('Could not check completed placement',error);}
+    if(Date.now()-started>=60000)break;
+    await new Promise(resolve=>setTimeout(resolve,1000));
+  }
+  back.disabled=false;showPurchaseConfirmation(checkout,summary,null);
+}
+function checkoutSummary(checkout){
+  const count=selectedCells.length,creditsApplied=Number(checkout?.creditsApplied||0);
+  const total=checkout?.creditsOnly?'Covered by credits':activeCheckoutReservation?.quote?.displayTotal||document.querySelector('#reviewPrice').textContent;
+  return{count,total,creditsApplied};
+}
+// A placement covered entirely by credits never reaches Stripe, so it opens the
+// same panel and waits for publication without mounting a payment form.
+async function completeCreditPurchase(checkout){
+  document.querySelector('#embeddedCheckoutPanel').hidden=false;document.querySelector('#buyPanel').scrollTop=0;
+  const summary=checkoutSummary(checkout),applied=summary.creditsApplied;
+  document.querySelector('#checkoutSummary').textContent=`${summary.count.toLocaleString()} hexagons · ${applied.toLocaleString()} ${applied===1?'credit':'credits'} used`;
+  await settlePurchase(checkout,summary,{heading:'Credits applied',note:'Nothing to pay. Your credits covered this placement.'});
+}
 async function showEmbeddedCheckout(checkout){
   const panel=document.querySelector('#embeddedCheckoutPanel'),container=document.querySelector('#embeddedCheckout'),status=document.querySelector('#embeddedCheckoutStatus');panel.hidden=false;status.textContent='';document.querySelector('#buyPanel').scrollTop=0;
-  const summary={count:selectedCells.length,total:activeCheckoutReservation?.quote?.displayTotal||document.querySelector('#reviewPrice').textContent};
-  document.querySelector('#checkoutSummary').textContent=`${summary.count.toLocaleString()} hexagons \u00b7 ${summary.total} order total`;
-  const back=document.querySelector('#closeEmbeddedCheckout');back.textContent='\u2190 Back to review';back.onclick=hideEmbeddedCheckout;
+  const summary=checkoutSummary(checkout),applied=summary.creditsApplied;
+  document.querySelector('#checkoutSummary').textContent=`${summary.count.toLocaleString()} hexagons · ${summary.total} order total${applied?` · ${applied.toLocaleString()} ${applied===1?'credit':'credits'} applied`:''}`;
+  const back=document.querySelector('#closeEmbeddedCheckout');back.textContent='← Back to review';back.onclick=hideEmbeddedCheckout;
   if(embeddedCheckoutInstance)embeddedCheckoutInstance.destroy();
   const stripe=await stripeBrowser();embeddedCheckoutInstance=await stripe.initEmbeddedCheckout({fetchClientSecret:async()=>checkout.clientSecret,onComplete:async()=>{
     embeddedCheckoutInstance?.destroy();embeddedCheckoutInstance=null;
-    clearCheckoutReservation();discardDraft();document.querySelector('#draftNotice').hidden=true;
-    back.textContent='Payment received';back.disabled=true;
-    const indicator=document.createElement('div');indicator.className='branded-loader checkout-complete';indicator.setAttribute('role','status');indicator.setAttribute('aria-live','polite');indicator.append(loading.querySelector('.loading-hex').cloneNode(true));const message=document.createElement('p');message.textContent='Payment received';const detail=document.createElement('small');detail.textContent='Waiting for your placement to be published...';indicator.append(message,detail);container.replaceChildren(indicator);status.textContent='You do not need to pay again.';
-    const started=Date.now();
-    for(let attempt=0;attempt<60;attempt++){
-      const elapsed=Date.now()-started;if(elapsed>=60000)break;
-      if(elapsed>=30000)detail.textContent='This is taking a little longer. Your confirmation will stay here.';
-      else if(elapsed>=10000)detail.textContent='Still waiting for publication. Your payment is complete.';
-      const options={signal:AbortSignal.timeout(Math.max(1,Math.min(10000,60000-elapsed)))};
-      try{const match=snapshotEnabled?await stagingClient.getPublicPlacement(checkout.placementId,options):(await stagingClient.listPublicClaims(options)).find(record=>record.placementId===checkout.placementId);if(match){try{await applyPersistentPlacements([match]);if(snapshotEnabled)void snapshotRuntime.refresh();}catch(error){console.error('Could not render the completed placement',error);}back.disabled=false;showPurchaseConfirmation(checkout,summary,match);return;}}
-      catch(error){console.error('Could not check completed placement',error);}
-      if(Date.now()-started>=60000)break;
-      await new Promise(resolve=>setTimeout(resolve,1000));
-    }
-    back.disabled=false;showPurchaseConfirmation(checkout,summary,null);
+    await settlePurchase(checkout,summary,{heading:'Payment received',note:'You do not need to pay again.'});
   }});container.replaceChildren();embeddedCheckoutInstance.mount('#embeddedCheckout');
 }
-
 document.querySelector('#closeEmbeddedCheckout').onclick=hideEmbeddedCheckout;
 async function initializeStaging(){
 if(import.meta.env.VITE_STAGING_SANDBOX){
@@ -1966,12 +2030,34 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
     myGlobeRecords.forEach(record=>record.cells?.forEach(cellId=>{const existing=sessionPlacements.get(cellId);if(existing?.placementId===record.placementId)Object.assign(existing,{name:record.title,description:record.description,website:record.destinationUrl});}));
     const cells=myGlobeRecords.reduce((sum,record)=>sum+Number(record.cellCount||0),0);
     document.querySelector('#myGlobeSummary').textContent=myGlobeRecords.length?`${myGlobeRecords.length} ${myGlobeRecords.length===1?'placement':'placements'} / ${cells.toLocaleString()} cells owned`:'Your purchased placements will appear here.';
-    myGlobePlacements.innerHTML=myGlobeRecords.length?myGlobeRecords.map(record=>{const views=Number(record.metrics?.views||0),clicks=Number(record.metrics?.clicks||0),ctr=views?`${(clicks/views*100).toFixed(1)}%`:'—';return `<article class="my-globe-card" data-placement-id="${escapeMyGlobe(record.placementId)}">${record.artworkDataUrl?`<img src="${escapeMyGlobe(record.artworkDataUrl)}" alt="">`:'<div class="my-globe-placeholder" aria-hidden="true">MH</div>'}<div class="my-globe-card-copy"><div class="my-globe-card-heading"><h3>${escapeMyGlobe(record.title||'Untitled placement')}</h3><span>${escapeMyGlobe(record.publicationStatus==='published'?'Live':'Updating')}</span></div><p>${record.cellCount.toLocaleString()} ${record.cellCount===1?'cell':'cells'}</p><div class="my-globe-metrics" aria-label="Placement performance"><span><b>${views.toLocaleString()}</b> views</span><span><b>${clicks.toLocaleString()}</b> visits</span><span><b>${ctr}</b> CTR</span></div><small>Claimed ${record.createdAt?new Date(record.createdAt).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'recently'}</small><div class="my-globe-actions"><button type="button" data-owner-action="view">View on globe</button><button type="button" data-owner-action="edit">Edit placement</button></div><form class="my-globe-edit" hidden><section class="my-globe-artwork" hidden><canvas width="640" height="400" aria-label="Artwork crop preview"></canvas><label>Replace artwork<input data-artwork-upload type="file" accept="image/png,image/webp"></label><div class="my-globe-sliders"><label>Scale<input data-artwork-scale type="range" min="50" max="250" value="100"></label><label>Left / right<input data-artwork-x type="range" min="-100" max="100" value="0"></label><label>Up / down<input data-artwork-y type="range" min="-100" max="100" value="0"></label><label>Rotation<input data-artwork-rotation type="range" min="-180" max="180" value="0"></label></div><button type="button" data-owner-action="restore-artwork">Restore saved artwork</button></section><label>Name<input name="title" maxlength="120" required value="${escapeMyGlobe(record.title||'Untitled placement')}"></label><label>Description<textarea name="description" maxlength="500" rows="3">${escapeMyGlobe(record.description||'')}</textarea></label><label>Website<input name="destinationUrl" type="url" value="${escapeMyGlobe(record.destinationUrl||'')}"></label><div><button type="button" data-owner-action="cancel">Cancel</button><button type="submit">Save changes</button></div><small role="status"></small></form></div></article>`;}).join(''):'<div class="my-globe-empty"><b>Your globe is waiting.</b><p>Purchases made with this verified email will appear here automatically.</p></div>';
+    renderCreditBalance();
+    myGlobePlacements.innerHTML=myGlobeRecords.length?myGlobeRecords.map(record=>{const views=Number(record.metrics?.views||0),clicks=Number(record.metrics?.clicks||0),ctr=views?`${(clicks/views*100).toFixed(1)}%`:'—';return `<article class="my-globe-card" data-placement-id="${escapeMyGlobe(record.placementId)}">${record.artworkDataUrl?`<img src="${escapeMyGlobe(record.artworkDataUrl)}" alt="">`:'<div class="my-globe-placeholder" aria-hidden="true">MH</div>'}<div class="my-globe-card-copy"><div class="my-globe-card-heading"><h3>${escapeMyGlobe(record.title||'Untitled placement')}</h3><span>${escapeMyGlobe(record.publicationStatus==='published'?'Live':'Updating')}</span></div><p>${record.cellCount.toLocaleString()} ${record.cellCount===1?'cell':'cells'}</p><div class="my-globe-metrics" aria-label="Placement performance"><span><b>${views.toLocaleString()}</b> views</span><span><b>${clicks.toLocaleString()}</b> visits</span><span><b>${ctr}</b> CTR</span></div><small>Claimed ${record.createdAt?new Date(record.createdAt).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'recently'}</small><div class="my-globe-actions"><button type="button" data-owner-action="view">View on globe</button><button type="button" data-owner-action="share">Share</button><button type="button" data-owner-action="edit">Edit placement</button></div><form class="my-globe-edit" hidden><section class="my-globe-artwork" hidden><canvas width="640" height="400" aria-label="Artwork crop preview"></canvas><label>Replace artwork<input data-artwork-upload type="file" accept="image/png,image/webp"></label><div class="my-globe-sliders"><label>Scale<input data-artwork-scale type="range" min="50" max="250" value="100"></label><label>Left / right<input data-artwork-x type="range" min="-100" max="100" value="0"></label><label>Up / down<input data-artwork-y type="range" min="-100" max="100" value="0"></label><label>Rotation<input data-artwork-rotation type="range" min="-180" max="180" value="0"></label></div><button type="button" data-owner-action="restore-artwork">Restore saved artwork</button></section><label>Name<input name="title" maxlength="120" required value="${escapeMyGlobe(record.title||'Untitled placement')}"></label><label>Description<textarea name="description" maxlength="500" rows="3">${escapeMyGlobe(record.description||'')}</textarea></label><label>Website<input name="destinationUrl" type="url" value="${escapeMyGlobe(record.destinationUrl||'')}"></label><div><button type="button" data-owner-action="cancel">Cancel</button><button type="submit">Save changes</button></div><small role="status"></small></form></div></article>`;}).join(''):'<div class="my-globe-empty"><b>Your globe is waiting.</b><p>Purchases made with this verified email will appear here automatically.</p></div>';
   }
-  async function openMyGlobe(){accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');myGlobe.hidden=false;document.body.classList.add('my-globe-open');myGlobeStatus.textContent='Loading your placements...';myGlobePlacements.replaceChildren();try{const records=await stagingClient.listTestClaims();renderMyGlobe(records);for(const actions of myGlobePlacements.querySelectorAll('.my-globe-actions')){const share=document.createElement('button');share.type='button';share.dataset.ownerAction='share';share.textContent='Share';actions.querySelector('[data-owner-action="edit"]').before(share);}myGlobeStatus.textContent='';}catch(error){myGlobeStatus.textContent=`Could not load your placements: ${error.message}`;}}
+  async function openMyGlobe(){accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');myGlobe.hidden=false;document.body.classList.add('my-globe-open');myGlobeStatus.textContent='Loading your placements...';myGlobePlacements.replaceChildren();try{const records=await stagingClient.listTestClaims();renderMyGlobe(records);myGlobeStatus.textContent='';}catch(error){myGlobeStatus.textContent=`Could not load your placements: ${error.message}`;}}
   document.querySelector('#openMyGlobe').onclick=()=>void openMyGlobe();
   document.querySelector('#closeMyGlobe').onclick=()=>{closeMyGlobe();accountToggle.focus();};
-  myGlobePlacements.onclick=async event=>{const button=event.target.closest('[data-owner-action]');if(!button)return;const card=button.closest('.my-globe-card'),record=myGlobeRecords.find(item=>item.placementId===card.dataset.placementId);if(!record)return;if(button.dataset.ownerAction==='view'){closeMyGlobe();initialPlacementFocusAllowed=true;await prepareLocation(record.anchor);flyToCell(record.anchor,.004,900,()=>inspectPlacement(record.anchor));}else if(button.dataset.ownerAction==='share'){closeMyGlobe();await applyPersistentPlacements([record]);if(await inspectPlacement(record.anchor))openShareCard(record);}else if(button.dataset.ownerAction==='edit'){button.disabled=true;myGlobeStatus.textContent='Loading your placement into the Design studio…';try{let source;try{source=await stagingClient.getPlacementContentSource(record.placementId,record.currentVersion);}catch(error){if(!record.artworkDataUrl)throw error;source={currentArtworkDataUrl:record.artworkDataUrl,originalArtworkDataUrl:record.artworkDataUrl,designState:null};}closeMyGlobe();await openBuy(record.anchor,{record,source});}catch(error){myGlobeStatus.textContent=`Could not open the Design studio: ${error.message}`;button.disabled=false;}}};
+  myGlobePlacements.onclick=async event=>{const button=event.target.closest('[data-owner-action]');if(!button)return;const card=button.closest('.my-globe-card'),record=myGlobeRecords.find(item=>item.placementId===card.dataset.placementId);if(!record)return;if(button.dataset.ownerAction==='view'){closeMyGlobe();initialPlacementFocusAllowed=true;await prepareLocation(record.anchor);flyToCell(record.anchor,.004,900,()=>inspectPlacement(record.anchor));}else if(button.dataset.ownerAction==='share'){
+    // Publication runs after purchase, so a card opened moments earlier can still
+    // hold a pre-publication status. Re-read the placement before giving up, and
+    // say why when it genuinely is not ready yet instead of doing nothing.
+    button.disabled=true;
+    try{
+      let current=record;
+      if(current.publicationStatus!=='published'){
+        myGlobeStatus.textContent='Checking whether your placement is ready to share…';
+        const records=await stagingClient.listTestClaims().catch(()=>null);
+        if(records){myGlobeRecords=records;current=records.find(item=>item.placementId===record.placementId)||current;}
+      }
+      if(current.publicationStatus!=='published'){myGlobeStatus.textContent='Your placement is still being published. The share card will be ready in a moment.';renderMyGlobe(myGlobeRecords);return;}
+      myGlobeStatus.textContent='';
+      closeMyGlobe();
+      await applyPersistentPlacements([current]);
+      if(!await inspectPlacement(current.anchor)||!await openShareCard(current)){
+        myGlobe.hidden=false;document.body.classList.add('my-globe-open');
+        myGlobeStatus.textContent='Could not open the share card for this placement. Try again in a moment.';
+      }
+    }finally{button.disabled=false;}
+  }else if(button.dataset.ownerAction==='edit'){button.disabled=true;myGlobeStatus.textContent='Loading your placement into the Design studio…';try{let source;try{source=await stagingClient.getPlacementContentSource(record.placementId,record.currentVersion);}catch(error){if(!record.artworkDataUrl)throw error;source={currentArtworkDataUrl:record.artworkDataUrl,originalArtworkDataUrl:record.artworkDataUrl,designState:null};}closeMyGlobe();await openBuy(record.anchor,{record,source});}catch(error){myGlobeStatus.textContent=`Could not open the Design studio: ${error.message}`;button.disabled=false;}}};
   myGlobePlacements.oninput=event=>{const field=event.target.matches('[data-artwork-scale]')?'scale':event.target.matches('[data-artwork-x]')?'x':event.target.matches('[data-artwork-y]')?'y':event.target.matches('[data-artwork-rotation]')?'rotation':'';if(!field)return;const card=event.target.closest('.my-globe-card'),state=myGlobeArtwork.get(card.dataset.placementId);if(state){state.transform[field]=Number(event.target.value);drawOwnerArtwork(card);}};
   myGlobePlacements.onchange=async event=>{if(!event.target.matches('[data-artwork-upload]'))return;const file=event.target.files?.[0],card=event.target.closest('.my-globe-card'),status=card.querySelector('[role=status]');if(!file)return;if(!['image/png','image/webp'].includes(file.type)||file.size>12*1024*1024){status.textContent='Choose a PNG or WebP image up to 12 MB.';return;}try{await setOwnerArtwork(card,await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);}));status.textContent='Replacement loaded. Adjust its crop, then save.';}catch(error){status.textContent=error.message;}};
   myGlobePlacements.onsubmit=async event=>{event.preventDefault();const form=event.target,card=form.closest('.my-globe-card'),record=myGlobeRecords.find(item=>item.placementId===card.dataset.placementId),state=myGlobeArtwork.get(record.placementId),button=form.querySelector('[type=submit]'),formStatus=form.querySelector('[role=status]'),fields=Object.fromEntries(new FormData(form));if(!state){formStatus.textContent='Wait for your artwork to load.';return;}button.disabled=true;formStatus.textContent='Saving changes...';try{const artworkDataUrl=ownerArtworkOutput(card),designState={topologyVersion:record.topologyVersion||'geodesic-v1',anchor:record.anchor,cells:record.cells.map(id=>({id})),baseColour:'#6366a8',imageTransform:{...state.transform,treatment:'original'}};await stagingClient.updatePlacementContent(record.placementId,{...fields,artworkDataUrl,sourceArtworkDataUrl:artworkDataUrl,originalArtworkDataUrl:state.original,designState});formStatus.textContent='Changes saved.';myGlobeArtwork.delete(record.placementId);await openMyGlobe();}catch(error){formStatus.textContent=`Could not save: ${error.message}`;}finally{button.disabled=false;}};
@@ -1980,14 +2066,16 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
     stagingUser=user;
     access.hidden=!user;status.textContent=user?`Signed in as ${user.email}.`:'';status.hidden=!user;document.querySelector('#reviewSignOut').hidden=!user;
     document.querySelector('#accountSignedOut').hidden=Boolean(user);document.querySelector('#accountSignedIn').hidden=!user;accountToggle.classList.toggle('signed-in',Boolean(user));accountToggle.title=user?'Your account':'Owner sign in';accountToggle.setAttribute('aria-label',user?'Open your account':'Owner sign in');accountStatus.textContent='';
-    if(user){document.querySelector('#accountIdentity').textContent=user.email||'Signed-in owner';try{const summary=await stagingClient.getAccountSummary();document.querySelector('#accountPlacementCount').textContent=summary.placements;document.querySelector('#accountCreditCount').textContent=summary.credits;document.querySelector('#openAdmin').hidden=!summary.administrator;}catch(error){accountStatus.textContent='Account details could not be refreshed.';}}
-    else closeMyGlobe();
+    if(user){document.querySelector('#accountIdentity').textContent=user.email||'Signed-in owner';try{const summary=await stagingClient.getAccountSummary();document.querySelector('#accountPlacementCount').textContent=summary.placements;document.querySelector('#accountCreditCount').textContent=summary.credits;applyCreditBalance(summary.credits);document.querySelector('#openAdmin').hidden=!summary.administrator;}catch(error){accountStatus.textContent='Account details could not be refreshed.';}}
+    else {applyCreditBalance(0);closeMyGlobe();}
     if(!user||restoredStagingOwner===user.uid||restoringStagingOwner===user.uid)return;
     restoringStagingOwner=user.uid;
     try{const records=await restoreTestPlacements();restoredStagingOwner=user.uid;if(records.length){const live=records.filter(record=>record.publicationStatus==='published').length;status.textContent=`Signed in as ${user.email}. Loaded ${records.length} saved test ${records.length===1?'placement':'placements'}${live===records.length?'':` · ${live} live`}.`;}}
     catch(error){status.textContent=`Signed in, but saved placements could not be loaded: ${error.message}`;}
     finally{restoringStagingOwner=null;}
   };
+  const setLinkButtonLabel=(button,text)=>{const label=button.querySelector('.link-label');if(label)label.textContent=text;else button.textContent=text;};
+  const playLinkSentTick=button=>{if(!button.querySelector('.link-tick'))return null;button.dataset.sent='true';return new Promise(resolve=>setTimeout(resolve,reducedMotion()?800:1500));};
   try{
     const completedUser=await stagingClient.completeEmailSignIn();
     await reflectStagingUser(completedUser||await stagingClient.currentUser());
@@ -1998,13 +2086,29 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
       toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),8000);
     }
   }
-  catch(error){status.textContent=error.message;if(error.code==='email-required'){accountPanel.hidden=false;accountToggle.setAttribute('aria-expanded','true');accountStatus.textContent=error.message;document.querySelector('#sendAccountLink').textContent='Finish sign in';document.querySelector('#accountEmail').focus();}}
+  catch(error){status.textContent=error.message;if(error.code==='email-required'){accountPanel.hidden=false;accountToggle.setAttribute('aria-expanded','true');accountStatus.textContent=error.message;setLinkButtonLabel(document.querySelector('#sendAccountLink'),'Finish sign in');document.querySelector('#accountEmail').focus();}}
   stagingClient.watchOwner(user=>{void reflectStagingUser(user);});
-  const sendLink=async(email,button,target)=>{button.disabled=true;try{if(stagingClient.hasPendingEmailSignIn()){await reflectStagingUser(await stagingClient.completeEmailSignIn(email));target.textContent='Signed in. Your purchases are ready in My Globe.';button.textContent='Email me a sign-in link';}else{await stagingClient.sendOwnerLink(email);target.textContent='Sign-in link sent. Check spam if not received.';}}catch(error){target.textContent=error.message;}finally{button.disabled=false;}};
+  const sendLink=async(email,button,target)=>{button.disabled=true;try{if(stagingClient.hasPendingEmailSignIn()){await reflectStagingUser(await stagingClient.completeEmailSignIn(email));target.textContent='Signed in. Your purchases are ready in My Globe.';setLinkButtonLabel(button,'Email me a sign-in link');}else{await stagingClient.sendOwnerLink(email);target.textContent='Sign-in link sent. Check spam if not received.';const tick=playLinkSentTick(button);if(tick){await tick;if(!accountPanel.hidden){accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');accountToggle.focus();}}}}catch(error){target.textContent=error.message;}finally{button.disabled=false;delete button.dataset.sent;}};
   document.querySelector('#sendOwnerLink').onclick=event=>sendLink(document.querySelector('#stagingOwnerEmail').value,event.currentTarget,status);
   document.querySelector('#sendAccountLink').onclick=event=>sendLink(document.querySelector('#accountEmail').value,event.currentTarget,accountStatus);
   document.querySelector('#accountSignOut').onclick=async event=>{event.currentTarget.disabled=true;try{closeMyGlobe();await stagingClient.signOutOwner();await reflectStagingUser(null);accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');}finally{event.currentTarget.disabled=false;}};
   document.querySelector('#reviewSignOut').onclick=async event=>{event.currentTarget.disabled=true;try{closeMyGlobe();await stagingClient.signOutOwner();await reflectStagingUser(null);}finally{event.currentTarget.disabled=false;}};
+  const adminCreditForm=document.querySelector('#adminCreditForm'),adminCreditStatus=document.querySelector('#adminCreditStatus');
+  const adminCreditHint=adminCreditStatus.textContent;
+  adminCreditForm.addEventListener('submit',async event=>{
+    event.preventDefault();
+    const button=adminCreditForm.querySelector('button[type=submit]'),email=document.querySelector('#adminCreditEmail').value.trim().toLowerCase();
+    const amount=Number(document.querySelector('#adminCreditAmount').value),reason=document.querySelector('#adminCreditReason').value.trim();
+    button.disabled=true;adminCreditStatus.textContent='Granting credits…';
+    try{
+      const result=await stagingClient.grantCreditsByEmail(email,amount,reason);
+      adminCreditStatus.textContent=`Granted ${amount.toLocaleString()} ${amount===1?'credit':'credits'} to ${email}. That account now holds ${Number(result.available).toLocaleString()}.`;
+      document.querySelector('#adminCreditAmount').value='10';document.querySelector('#adminCreditReason').value='';document.querySelector('#adminCreditEmail').value='';
+      // The founder may be crediting their own account.
+      if(stagingUser)await reflectStagingUser(stagingUser);
+    }catch(error){adminCreditStatus.textContent=error.code==='invalid-email'?'Enter a valid email address.':error.code==='invalid-credit-entry'?'Enter a whole number of credits and a reason.':`Could not grant credits: ${error.message}`;}
+    finally{button.disabled=false;setTimeout(()=>{if(adminCreditStatus.textContent.startsWith('Granted'))adminCreditStatus.textContent=adminCreditHint;},8000);}
+  });
   const adminWorkspace=document.querySelector('#adminWorkspace'),adminResults=document.querySelector('#adminResults'),adminStatus=document.querySelector('#adminStatus'),adminQuery=document.querySelector('#adminQuery'),adminMilestones=document.querySelector('#adminMilestones'),adminReviewQueue=document.querySelector('#adminReviewQueue');
   const escapeAdmin=value=>String(value??'').replace(/[&<>"']/g,character=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
   const adminActionName=action=>({approve:'Placement approved','remove-artwork':'Artwork removed','remove-link':'Link removed','remove-description':'Description removed','edit-link':'Link edited','edit-description':'Description edited','suspend':'Content suspended','reinstate':'Content reinstated','restore-version':'Version restored',revoke:'Placement revoked','credit-issue':'Credits granted','credit-redeem':'Credits redeemed','grant-credits':'Credits granted',refund:'Refund requested'}[action]||action);
@@ -2077,7 +2181,7 @@ async function paintPlacement() {
     publishing=true;
     if(!activeCheckoutReservation){publishing=false;const target=document.querySelector('#purchaseError');target.hidden=false;target.textContent='This reservation expired. Choose the location again.';return;}
     showEmbeddedCheckoutLoading();await nextPaint();
-    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),placement={topologyVersion:'geodesic-v1',anchor:selectedCell.id,cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},checkout=await stagingClient.createStripeCheckout(placement,activeCheckoutReservation.reservation.reservationId,activeCheckoutReservation.checkoutToken,stagingUser);trackEvent('checkout_started',{context:{cellCount:placement.cells.length,source:'checkout'}});if(checkout.expiresAtMs){activeCheckoutReservation.reservation.expiresAtMs=checkout.expiresAtMs;showCheckoutExpiry();}await showEmbeddedCheckout(checkout);publishing=false;return;}
+    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),placement={topologyVersion:'geodesic-v1',anchor:selectedCell.id,cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},checkout=await stagingClient.createStripeCheckout(placement,activeCheckoutReservation.reservation.reservationId,activeCheckoutReservation.checkoutToken,stagingUser);trackEvent('checkout_started',{context:{cellCount:placement.cells.length,source:'checkout',creditsApplied:Number(checkout.creditsApplied||0)}});if(checkout.expiresAtMs){activeCheckoutReservation.reservation.expiresAtMs=checkout.expiresAtMs;showCheckoutExpiry();}if(checkout.creditsOnly)await completeCreditPurchase(checkout);else await showEmbeddedCheckout(checkout);publishing=false;return;}
     catch(error){publishing=false;hideEmbeddedCheckout();const target=document.querySelector('#purchaseError');target.hidden=false;target.textContent=error.code==='reservation-invalid'?'This reservation expired. Choose the location again.':error.code==='destination-not-found'?'That website returned a 404. Check the address and try again.':error.code?.startsWith('destination-')?'That website could not be safely reached. Check the address and try again.':'Could not open secure checkout. Your design is still here.';return;}
   }
   publishing=true;
@@ -2264,7 +2368,7 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('geodesicQA'
     screen(id) { const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return {x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2}; },
   };
 }
-if(import.meta.env.DEV)window.performanceQA={screen(id){const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return{x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2};},tiles:artworkTiles.stats,focus(direction,altitude){zoom.cancel();controls.autoRotate=false;cameraDistanceTarget=null;globe.rotation.set(0,0,0);camera.position.set(...direction).normalize().multiplyScalar(radius+altitude);controls.update();},state(){return{tiles:{...artworkTiles.stats},topologyLoaded:!!topology,topologyTiming:topology?.loadTiming,regions:topology?{...topology.stats,retained:topology.regions.size}:null,detailVertices:cellDetail?.stats.vertices||0,grid:cellDetail?{...cellDetail.stats}:null,detailOpacity:cellDetail?.material.uniforms.visibility.value||0,inventoryLoaded:stagingInventoryLoaded,drawCalls:renderer.info.render.calls,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,camera:camera.position.toArray(),retainedPlacements:placementLayers.children.length};}};
+if(import.meta.env.DEV)window.performanceQA={screen(id){const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return{x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2};},tiles:artworkTiles.stats,focus(direction,altitude){zoom.cancel();controls.autoRotate=false;cameraDistanceTarget=null;globe.rotation.set(0,0,0);camera.position.set(...direction).normalize().multiplyScalar(radius+altitude);controls.update();},state(){return{tiles:{...artworkTiles.stats},topologyLoaded:!!topology,topologyTiming:topology?.loadTiming,regions:topology?{...topology.stats,retained:topology.regions.size}:null,detailVertices:cellDetail?.stats.vertices||0,grid:cellDetail?{...cellDetail.stats}:null,detailOpacity:cellDetail?.material.uniforms.visibility.value||0,inventoryLoaded:stagingInventoryLoaded,drawCalls:renderer.info.render.calls,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,camera:camera.position.toArray(),retainedPlacements:placementLayers.children.length};},placementLayerState(){return placementLayers.children.map(child=>({placementId:child.userData?.placementId||null,visible:child.visible}));}};
 
 // Globe and canvas share the source footprint, original image and per-cell edits.
 function syncGlobeDesign(){
@@ -2340,7 +2444,7 @@ function applyGlobeCell(id,stroke){
       let pending=brush.filter(n=>!occupiedCells[n-1]&&!next.has(n));
       for(let pass=0;pending.length&&pass<=reach+1;pass++){
         const rest=[];for(const n of pending){
-          if(next.size<100000&&topology.neighboursOf(n).some(k=>next.has(k)))next.set(n,{id:n});else rest.push(n);
+          if(next.size<MAX_PURCHASE_CELLS&&topology.neighboursOf(n).some(k=>next.has(k)))next.set(n,{id:n});else rest.push(n);
         }if(rest.length===pending.length)break;pending=rest;
       }
     }
@@ -2350,7 +2454,7 @@ function applyGlobeCell(id,stroke){
   }else if(logoEditorMode==='paint'){
     let pending=brush.filter(n=>!occupiedCells[n-1]&&!next.has(n));
     if(!next.size&&pending.includes(id)){designAnchor=id;next.set(id,{id});pending=pending.filter(n=>n!==id);}
-    for(let pass=0;pending.length&&pass<=reach+1;pass++){const rest=[];for(const n of pending){if(next.size<100000&&topology.neighboursOf(n).some(k=>next.has(k)))next.set(n,{id:n});else rest.push(n);}if(rest.length===pending.length)break;pending=rest;}
+    for(let pass=0;pending.length&&pass<=reach+1;pass++){const rest=[];for(const n of pending){if(next.size<MAX_PURCHASE_CELLS&&topology.neighboursOf(n).some(k=>next.has(k)))next.set(n,{id:n});else rest.push(n);}if(rest.length===pending.length)break;pending=rest;}
     const colour=document.querySelector('#brushColor').value;for(const n of brush){const cell=next.get(n);if(cell){cell.color=colour;delete cell.transparent;}}rememberRecentColour(colour);
   }
   logoCells=topology.cells([...next.values()],designAnchor);footprintEdited=true;exactGlobeArea=true;amountInput.value=next.size;if(document.body.dataset.flow==='shape'){selectedCell=cellForId(designAnchor);selectedCells=logoCells;clearPlacementPreview();refreshSelection(logoCells);updateTotals();}else queueDesignPreview();
@@ -2557,11 +2661,12 @@ function companyEntries(){return [...bootstrap.sampleAreas.map(area=>({id:area.a
 function renderCompanyResults(){
   const target=document.querySelector('#companyResults'),query=hexSearchInput.value.trim().toLowerCase();target.replaceChildren();
   if(!query||/^#?\d+$/.test(query))return;
-  if(snapshotEnabled){void import('./staging-client.js').then(client=>client.searchPublicPlacements(query)).then(records=>{if(hexSearchInput.value.trim().toLowerCase()!==query)return;for(const record of records){const button=document.createElement('button');button.type='button';button.textContent=record.title;button.onclick=()=>location.assign(`/placement/${record.placementId}`);target.append(button);}}).catch(()=>{hexSearchStatus.textContent='Search is temporarily unavailable.';});return;}
+  if(snapshotEnabled){void import('./staging-client.js').then(client=>client.searchPublicPlacements(query)).then(records=>{if(hexSearchInput.value.trim().toLowerCase()!==query)return;for(const record of records){const button=document.createElement('button');button.type='button';button.textContent=record.title;button.onclick=()=>location.assign(`/placement/${record.placementId}`);target.append(button);}anchorHexSearch();}).catch(()=>{hexSearchStatus.textContent='Search is temporarily unavailable.';});return;}
   for(const entry of companyEntries().filter((entry,index,all)=>all.findIndex(other=>other.name===entry.name)===index&&entry.name.toLowerCase().includes(query)).slice(0,8)){
     const button=document.createElement('button');button.type='button';button.textContent=entry.name;
     button.onclick=async()=>{if(await inspectPlacement(entry.id))viewInspectedPlacement();showHexSearch(false);};target.append(button);
   }
+  anchorHexSearch();
 }
 hexSearchInput.addEventListener('input',()=>{hexSearchInput.removeAttribute('aria-invalid');hexSearchStatus.textContent='';renderCompanyResults();});
 function activityIcon(kind){
@@ -2611,17 +2716,42 @@ function placementIdFromLocation(){return location.pathname.match(/^\/placement\
 function placementShareUrl(record,id){const url=new URL(location.href);if(record?.placementId){url.pathname=`/placement/${record.placementId}`;url.search='';url.hash='';}else{url.pathname='/';url.hash=`cell=${id}`;}return url.href;}
 function updateInspectorShareControl(){const button=document.querySelector('#inspectorShare'),record=sessionPlacements.get(inspectedId),owner=record?.placementId&&ownedPlacementIds.has(record.placementId);button.classList.toggle('owner-share',Boolean(owner));button.setAttribute('aria-label',owner?'Share your placement':'Share placement');button.title=owner?'Share your placement':'Share placement';}
 function closeShareCard(){document.querySelector('#shareCard').hidden=true;document.body.classList.remove('sharing-placement');activeShare=null;document.querySelector('#inspectorShare').focus();}
-async function refreshSharePreview(){if(!activeShare)return;const canvas=await renderShareCard(activeShare.record,document.querySelector('#shareCardFormat').value),preview=document.querySelector('#shareCardPreview');preview.width=canvas.width;preview.height=canvas.height;preview.getContext('2d').drawImage(canvas,0,0);}
-async function openShareCard(source,{prompt=false}={}){const record={...source,name:source.name||source.title,count:source.count||source.cellCount,logo:source.logo||source.artworkDataUrl||source.thumbnailDataUrl};if(!record?.placementId||record.publicationStatus&&record.publicationStatus!=='published')return false;const promptKey=`mh-share-prompted:${record.placementId}`;if(prompt&&localStorage.getItem(promptKey))return false;if(prompt)localStorage.setItem(promptKey,'1');const url=placementShareUrl(record,record.anchor);activeShare={record,url};document.querySelector('#shareCardStatus').textContent='Choose where to share, or download the exact image above.';document.querySelector('#shareCard').hidden=false;document.body.classList.add('sharing-placement');await refreshSharePreview();document.querySelector('[data-share-destination="x"]').focus();return true;}
+// Credits are granted by the founder and spend one-for-one against hexagons.
+// An account with no balance never sees any of this, so nothing about credits
+// appears for the overwhelming majority of visitors.
+let creditBalance=0;
+function renderCreditBalance(){
+  const count=Math.max(0,Math.floor(creditBalance||0));
+  const label=`${count.toLocaleString()} ${count===1?'credit':'credits'} available`;
+  const buying=!document.body.classList.contains('owner-editing');
+  for(const id of ['myGlobeCredits','purchaseCredits']){
+    const element=document.getElementById(id);
+    if(!element)continue;
+    const show=count>0&&(id!=='purchaseCredits'||buying);
+    element.hidden=!show;
+    if(!show){element.textContent='';continue;}
+    if(id!=='purchaseCredits'){element.textContent=label;continue;}
+    const {applied,chargeCells,covered}=creditsForPurchase();
+    element.textContent=!applied?`${label} · 1 credit = 1 hexagon`
+      :covered?`${applied.toLocaleString()} ${applied===1?'credit':'credits'} applied · nothing to pay`
+      :`${applied.toLocaleString()} ${applied===1?'credit':'credits'} applied · you pay for ${chargeCells.toLocaleString()} ${chargeCells===1?'hexagon':'hexagons'}`;
+  }
+  const summary=document.querySelector('.account-summary');
+  if(summary)summary.classList.toggle('has-credits',count>0);
+}
+function applyCreditBalance(count){creditBalance=Math.max(0,Math.floor(Number(count)||0));renderCreditBalance();if(activeCheckoutReservation)applyCreditsToReview();}
+
+// The share destinations all post a link, which X, LinkedIn and Facebook render
+// at 1.91:1, so one image is prepared and previewed in that shape.
+const SHARE_FORMAT='og';
+async function refreshSharePreview(){if(!activeShare)return;const canvas=await renderShareCard(activeShare.record,SHARE_FORMAT),preview=document.querySelector('#shareCardPreview');preview.width=canvas.width;preview.height=canvas.height;preview.getContext('2d').drawImage(canvas,0,0);}
+async function openShareCard(source,{prompt=false}={}){const record={...source,name:source.name||source.title,count:source.count||source.cellCount,logo:source.logo||source.artworkDataUrl||source.thumbnailDataUrl};if(!record?.placementId||record.publicationStatus&&record.publicationStatus!=='published')return false;const promptKey=`mh-share-prompted:${record.placementId}`;if(prompt&&localStorage.getItem(promptKey))return false;if(prompt)localStorage.setItem(promptKey,'1');const url=placementShareUrl(record,record.anchor);activeShare={record,url};document.querySelector('#shareCardStatus').textContent='This is your share image.';document.querySelector('#shareCard').hidden=false;document.body.classList.add('sharing-placement');await refreshSharePreview();document.querySelector('[data-share-destination="x"]').focus();return true;}
 document.querySelector('#closeShareCard').onclick=closeShareCard;
 document.querySelector('#inspectorShare').onclick=async()=>{const record=sessionPlacements.get(inspectedId),url=placementShareUrl(record,inspectedId);if(!record?.placementId){try{await navigator.clipboard.writeText(url);document.querySelector('#inspectorStatus').textContent='Copied ✓';}catch{document.querySelector('#inspectorStatus').textContent=url;}return;}await openShareCard(record);};
-document.querySelector('#shareCardFormat').onchange=()=>void refreshSharePreview();
-async function downloadActiveShare(button,message='Image downloaded ✓ Add it to your post, then paste the copied placement link where links are supported.'){if(!activeShare)return;button.disabled=true;document.querySelector('#shareCardStatus').textContent='Preparing your image…';try{await downloadShareCard(activeShare.record,document.querySelector('#shareCardFormat').value);document.querySelector('#shareCardStatus').textContent=message;trackEvent('placement_shared',{placementId:activeShare.record.placementId,context:{source:'share'},unique:true});}finally{button.disabled=false;}}
+async function downloadActiveShare(button,message='Image downloaded ✓ Add it to your post, then paste the copied placement link where links are supported.'){if(!activeShare)return;button.disabled=true;document.querySelector('#shareCardStatus').textContent='Preparing your image…';try{await downloadShareCard(activeShare.record,SHARE_FORMAT);document.querySelector('#shareCardStatus').textContent=message;trackEvent('placement_shared',{placementId:activeShare.record.placementId,context:{source:'share'},unique:true});}finally{button.disabled=false;}}
 document.querySelector('#downloadSharePlacement').onclick=event=>void downloadActiveShare(event.currentTarget,'Image downloaded ✓');
 document.querySelector('#copySharePlacement').onclick=async()=>{trackEvent('placement_shared',{placementId:activeShare.record.placementId,context:{source:'share'},unique:true});try{await navigator.clipboard.writeText(activeShare.url);document.querySelector('#shareCardStatus').textContent='Share link copied ✓';}catch{document.querySelector('#shareCardStatus').textContent=activeShare.url;}};
-document.querySelector('#nativeSharePlacement').onclick=async()=>{if(!activeShare)return;const status=document.querySelector('#shareCardStatus'),copy=cardCopy(activeShare.record,document.querySelector('#shareCardFormat').value);if(!navigator.share){status.textContent='Your browser has no app share sheet. Choose a destination, Download image, or Copy link.';return;}status.textContent='Opening your share options…';try{const canvas=await renderShareCard(activeShare.record,document.querySelector('#shareCardFormat').value),blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png')),file=new File([blob],`million-hexagons-${activeShare.record.anchor}.png`,{type:'image/png'}),data={title:`${copy.name} on Million Hexagons`,text:copy.shareText,url:activeShare.url};if(navigator.canShare?.({files:[file]}))data.files=[file];await navigator.share(data);status.textContent='Shared ✓';trackEvent('placement_shared',{placementId:activeShare.record.placementId,context:{source:'share'},unique:true});}catch(error){status.textContent=error.name==='AbortError'?'Share cancelled.':'Could not open the share sheet. Choose a destination or copy the link.';}};
-document.querySelector('.share-destinations').onclick=event=>{const button=event.target.closest('[data-share-destination]');if(!button||!activeShare)return;const copy=cardCopy(activeShare.record,document.querySelector('#shareCardFormat').value),text=encodeURIComponent(`${copy.shareText} ${activeShare.url}`),url=encodeURIComponent(activeShare.url),destinations={x:`https://twitter.com/intent/tweet?text=${text}`,facebook:`https://www.facebook.com/sharer/sharer.php?u=${url}`,whatsapp:`https://wa.me/?text=${text}`,linkedin:`https://www.linkedin.com/sharing/share-offsite/?url=${url}`};document.querySelector('#shareCardStatus').textContent=`Opening ${button.textContent}…`;window.open(destinations[button.dataset.shareDestination],'mh-share','noopener,noreferrer,width=720,height=640');trackEvent('placement_shared',{placementId:activeShare.record.placementId,context:{source:button.dataset.shareDestination},unique:true});};
-document.querySelector('.share-no-link').onclick=event=>{const button=event.target.closest('[data-share-download]');if(button)void downloadActiveShare(button,`${button.textContent} image downloaded ✓ Add it to your post; use Copy link for your bio, caption or link sticker.`);};
+document.querySelector('.share-destinations').onclick=event=>{const button=event.target.closest('[data-share-destination]');if(!button||!activeShare)return;const copy=cardCopy(activeShare.record,SHARE_FORMAT),text=encodeURIComponent(`${copy.shareText} ${activeShare.url}`),url=encodeURIComponent(activeShare.url),destinations={x:`https://twitter.com/intent/tweet?text=${text}`,facebook:`https://www.facebook.com/sharer/sharer.php?u=${url}`,linkedin:`https://www.linkedin.com/sharing/share-offsite/?url=${url}`},names={x:'X',linkedin:'LinkedIn',facebook:'Facebook'};document.querySelector('#shareCardStatus').textContent=`Opening ${names[button.dataset.shareDestination]}…`;window.open(destinations[button.dataset.shareDestination],'mh-share','noopener,noreferrer,width=720,height=640');trackEvent('placement_shared',{placementId:activeShare.record.placementId,context:{source:button.dataset.shareDestination},unique:true});};
 document.querySelector('#deleteTestPlacement').onclick=async event=>{const placementId=event.currentTarget.dataset.placementId;if(!placementId||!stagingClient)return;event.currentTarget.disabled=true;try{await stagingClient.deleteTestClaim(placementId);location.reload();}catch(error){document.querySelector('#inspectorStatus').textContent='Could not delete this test placement.';event.currentTarget.disabled=false;}};
 async function openLocationLink(){
   const placementId=placementIdFromLocation(),cellMatch=location.hash.match(/^#cell=(\d+)$/);if(!placementId&&!cellMatch)return;

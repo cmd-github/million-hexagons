@@ -1,0 +1,10 @@
+- search field should open next to the serach button
+- remove the pricing region selctor from the title / page 
+- on mobile the hud info about the company should be shorter adn extend across the width of teh screen - under the nav icons. still never a scroll bar in the hud though
+- rotate button is missing from mobile
+- clicking the screen should not stop the globe tour in progress
+- email sign in link should change the button to a cool tick animation with a hex then close the little window after a second or two
+- the share your placement screen is way too complicated - their should be one image presented - and an icon for each social media site that posts there and a downalod and copy link thats it... also "Everything inside this frame will be shared" is unneccessary - ui should make that clear 
+- on my globe - the shareable isn't immediately available for a new placemnet - not sure if have to refresh but it didn't work first time
+- the edit placement option showed the original image then the same image movign around above it
+- need the ability to credit accounts (by email address) 1 credit = one hex to be able to buy. if logged in and account has credits, they should be shown in my globe and purchase flow - dont show anything about credits if the account doesnt have any

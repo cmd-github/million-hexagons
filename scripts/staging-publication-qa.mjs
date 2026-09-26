@@ -43,17 +43,17 @@ const moderationOnly=process.env.STAGING_MODERATION_ONLY==='1';
 
 try{
   let largeReservation,largeConflictCell;
-  for(let block=0;block<10&&!largeReservation&&!moderationOnly;block++){
-    const cells=Array.from({length:100_000},(_,index)=>block*100_000+index+1);
+  for(let start=0;start+10_000<=1_000_000&&!largeReservation&&!moderationOnly;start+=10_000){
+    const cells=Array.from({length:10_000},(_,index)=>start+index+1);
     const candidate=await request({action:'reserve',reservation:{topologyVersion:'geodesic-v1',cells}});
     if(candidate.response.status===409)continue;
     assert.ok(candidate.response.ok,JSON.stringify(candidate.result));
-    largeReservation=candidate.result.reservation;largeConflictCell=cells[50_000];
+    largeReservation=candidate.result.reservation;largeConflictCell=cells[5_000];
   }
   if(!moderationOnly){
-    assert.ok(largeReservation,'Could not find a free 100,000-cell reservation test range');
+    assert.ok(largeReservation,'Could not find a free 10,000-cell reservation test range');
     reservationIds.push(largeReservation.reservationId);
-    assert.equal(largeReservation.cellCount,100_000);
+    assert.equal(largeReservation.cellCount,10_000);
     const reservedConflict=await request({action:'reserve',reservation:{topologyVersion:'geodesic-v1',cells:[largeConflictCell]}});
     assert.equal(reservedConflict.response.status,409,JSON.stringify(reservedConflict.result));
     const largeReleased=await request({action:'release-reservation',reservationId:largeReservation.reservationId});

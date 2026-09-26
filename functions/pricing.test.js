@@ -9,3 +9,8 @@ test('creates a versioned server price snapshot in minor units',()=>{
   assert.throws(()=>quoteCells(5,1000,900000,'q4','cad'),error=>error.code==='invalid-pricing-region');
   assert.throws(()=>quoteCells(0,1000),error=>error.code==='invalid-quote');
 });
+
+test('quotes stop at the self-service maximum',()=>{
+  assert.equal(quoteCells(10_000,1000,900_000,'q','usd').cellCount,10_000);
+  assert.throws(()=>quoteCells(10_001,1000,900_000,'q','usd'),error=>error.code==='invalid-quote');
+});

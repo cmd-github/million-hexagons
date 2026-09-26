@@ -156,7 +156,7 @@ try {
       await page.locator("#claimFeedItems small").first().textContent(),
       /^1 minute ago$/,
     );
-    assert.equal(await page.locator("#claimFeed").getAttribute("open"), "");
+    assert.equal(await page.locator("#claimFeed").getAttribute("open"), mobile ? null : "");
     await page.locator("#toggleHexSearch").click();
     await page.locator("#hexSearch").evaluate((form) => form.requestSubmit());
     assert.equal(await page.locator("#hexSearchStatus").textContent(), "");
@@ -170,6 +170,10 @@ try {
       await route.continue();
     });
     await page.keyboard.press("Escape");
+    if (mobile) {
+      await page.locator("#claimFeed summary").click();
+      await page.locator("#claimFeedItems button").first().waitFor({ state: "visible" });
+    }
     const hudStarted = Date.now();
     await page.locator("#claimFeedItems button").first().click();
     await page.waitForSelector("#placementInspector:not([hidden])", {
@@ -201,11 +205,16 @@ try {
     await page.locator("#inspectorShare").click();
     const card = page.locator("#shareCard");
     await card.waitFor({ state: "visible" });
-    assert.equal(await page.locator(".share-image>span").textContent(),"Everything inside this frame will be shared");
-    assert.equal(await page.locator(".share-destinations button").count(),4);
-    assert.equal(await page.locator("[data-share-download]").count(),2);
-    assert.equal(await page.locator("#shareCardPreview").getAttribute("width"), "1080");
+    assert.equal(await page.locator(".share-image>span").count(),0,"the frame needs no caption");
+    assert.equal(await page.locator("[data-share-destination]").count(),3);
+    assert.deepEqual(await page.locator("[data-share-destination]").evaluateAll(nodes=>nodes.map(n=>n.dataset.shareDestination)),["x","linkedin","facebook"]);
+    assert.equal(await page.locator("[data-share-download]").count(),0);
+    assert.equal(await page.locator("#shareCardFormat").count(),0,"one image, so no format picker");
+    assert.equal(await page.locator("#shareCardPreview").getAttribute("width"), "1200");
     assert.equal(await page.locator("#downloadSharePlacement").isVisible(), true);
+    assert.equal(await page.locator("#copySharePlacement").isVisible(), true);
+    for(const id of ["downloadSharePlacement","copySharePlacement"])
+      assert.ok((await page.locator(`#${id} svg.ico`).count())===1,`${id} shows an icon`);
     const box = await card.boundingBox(),
       viewport = await page.evaluate(() => ({width: innerWidth, height: innerHeight}));
     assert.ok(
@@ -224,10 +233,6 @@ try {
     await page.locator('[data-share-destination="x"]').click();
     assert.match(await page.evaluate(() => window.__shareDestination),/twitter\.com\/intent\/tweet/);
     assert.match(await page.locator('#shareCardStatus').textContent(),/Opening X/);
-    await page.locator('#nativeSharePlacement').click();
-    await page.waitForFunction(() => window.__nativeShare);
-    assert.match(await page.evaluate(() => window.__nativeShare.url),new RegExp(`/placement/${placementId}$`));
-    assert.match(await page.locator('#shareCardStatus').textContent(),/Shared/);
     await page.screenshot({
       path: `artifacts/public-placement/${mobile ? "mobile" : "desktop"}.png`,
       animations: "disabled",

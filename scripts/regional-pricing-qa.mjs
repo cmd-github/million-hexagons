@@ -13,16 +13,12 @@ try{
     const page=await browser.newPage({viewport:mobile?{width:390,height:844}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile});
     await page.route('**/api/location',route=>route.fulfill({json:{country}}));
     await page.goto(url,{waitUntil:'domcontentloaded',timeout:90000});
-    await page.waitForFunction(expected=>document.querySelector('#pricingRegion')?.value===expected,region);
+    await page.waitForFunction(expected=>document.querySelector('#regionalUnitPrice')?.textContent.startsWith(expected),symbol);
     assert.match(await page.locator('#regionalUnitPrice').textContent(),new RegExp(`^${symbol.replace('$','\\$')}1 per hexagon`));
     if(country==='GB'||country==='FR'){await page.locator('#appLoading').waitFor({state:'hidden',timeout:90000});await page.screenshot({path:`artifacts/regional-pricing/${country.toLowerCase()}-${mobile?'mobile':'desktop'}.png`,animations:'disabled'});}
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),true);
-    await page.locator('#pricingRegion').selectOption(region==='gbp'?'eur':'gbp');
-    const changed=region==='gbp'?['eur','€']:['gbp','£'];
-    assert.equal(await page.locator('#pricingRegion').inputValue(),changed[0]);
-    assert.match(await page.locator('#regionalUnitPrice').textContent(),new RegExp(`^${changed[1]}1 per hexagon`));
-    assert.equal(await page.evaluate(()=>sessionStorage.getItem('mh-pricing-region')),changed[0]);
+    assert.equal(await page.locator('#pricingRegion').count(),0,'the pricing region selector is no longer offered');
     await page.close();
   }
 }finally{await browser.close();}
-console.log(JSON.stringify({countries:cases.map(([country,region])=>({country,region})),manualCorrection:true},null,2));
+console.log(JSON.stringify({countries:cases.map(([country,region])=>({country,region})),manualCorrection:false},null,2));

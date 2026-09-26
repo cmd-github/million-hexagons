@@ -210,6 +210,7 @@ if (studioHook) {
   await page.waitForSelector("#world[data-ready=true]", { timeout: 90000 });
   await page.waitForTimeout(1800);
   await page.locator("#claimButton").click();
+  await page.locator("#locationStep").waitFor({ state: "visible" });
   const anchor = await page.evaluate(() => window.geodesicQA.state().designAnchor);
   await page.evaluate(id => window.geodesicQA.start(id), anchor);
   await page.locator("#shapeStep").waitFor({ state: "visible" });

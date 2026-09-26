@@ -1,8 +1,9 @@
+import { MAX_PURCHASE_CELLS } from './limits.js';
 import { randomUUID } from 'node:crypto';
 import { CELL_COUNT, TOPOLOGY_VERSION, decodeCells, decodeInventory, encodeCells, groupCellsByShard, mutateInventory, shardId } from './placements.js';
 
 export function normaliseReservation(input) {
-  if (!input || input.topologyVersion !== TOPOLOGY_VERSION || !Array.isArray(input.cells) || input.cells.length < 1 || input.cells.length > 100_000) return null;
+  if (!input || input.topologyVersion !== TOPOLOGY_VERSION || !Array.isArray(input.cells) || input.cells.length < 1 || input.cells.length > MAX_PURCHASE_CELLS) return null;
   const cells=[...new Set(input.cells.map(Number))].sort((a,b)=>a-b);
   if (cells.length !== input.cells.length || cells.some(id=>!Number.isSafeInteger(id)||id<1||id>CELL_COUNT)) return null;
   const ownerId=typeof input.ownerId==='string'?input.ownerId.trim().slice(0,128):'';

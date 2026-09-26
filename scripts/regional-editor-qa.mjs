@@ -13,11 +13,15 @@ try {
     await page.goto((process.env.SMOKE_URL||'http://127.0.0.1:4180')+'/?geodesicQA');await page.waitForFunction(()=>window.geodesicQA);
     await page.locator('#claimButton').click();await page.locator('#locationStep').waitFor({state:'visible'});
     const anchor=await page.evaluate(()=>geodesicQA.state().designAnchor);await page.evaluate(id=>geodesicQA.start(id),anchor);await page.locator('#shapeStep').waitFor({state:'visible'});
-    for(const count of [1500,100000]) {
+    for(const count of [1500,10000]) {
       const started=Date.now();await page.locator('#hexAmount').fill(String(count));
       await page.waitForFunction(n=>!document.querySelector('#appLoading').hidden?false:geodesicQA.state().design.length===n,count);
       const designMs=Date.now()-started,ids=await page.evaluate(()=>geodesicQA.state().design);
-      await page.locator('#toDesign').click();await page.locator('#designStep').waitFor({state:'visible'});
+      await page.waitForTimeout(300);
+      await page.locator('#toDesign').click();
+      await page.waitForFunction(()=>document.body.dataset.flow==='design',null,{timeout:30000})
+        .catch(async()=>{await page.locator('#toDesign').click();await page.waitForFunction(()=>document.body.dataset.flow==='design',null,{timeout:30000});});
+      await page.locator('#designStep').waitFor({state:'visible'});
       await page.locator('#logoUpload').setInputFiles('scripts/fixtures/test-logo.svg');await page.waitForFunction(()=>document.querySelector('#addImageLabel').textContent==='Replace image');
       await page.locator('#toPlacement').click();await page.locator('#reviewStep').waitFor({state:'visible'});assert.deepEqual(await page.evaluate(()=>geodesicQA.state().selected),ids);
       assert.equal(await page.evaluate(()=>geodesicQA.state().connected),true);

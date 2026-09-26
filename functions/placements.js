@@ -1,3 +1,4 @@
+import { MAX_PURCHASE_CELLS } from './limits.js';
 import { randomUUID } from 'node:crypto';
 import {readArtworkRevision,writeArtworkRevision} from './artwork-revisions.js';
 
@@ -23,7 +24,7 @@ function cleanUrl(value) {
 export function normalisePlacementClaim(input) {
   if (!input || typeof input !== 'object') return null;
   if (input.topologyVersion !== TOPOLOGY_VERSION) return null;
-  if (!Array.isArray(input.cells) || input.cells.length < 1 || input.cells.length > 100_000) return null;
+  if (!Array.isArray(input.cells) || input.cells.length < 1 || input.cells.length > MAX_PURCHASE_CELLS) return null;
   const cells = [...new Set(input.cells.map(Number))].sort((a, b) => a - b);
   if (cells.length !== input.cells.length || cells.some(id => !Number.isSafeInteger(id) || id < 1 || id > CELL_COUNT)) return null;
   const ownerId = cleanText(input.ownerId, 128);

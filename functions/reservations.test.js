@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { reserveTestCells, releaseTestReservation, extendTestReservation } from './reservations.js';
+import { reserveTestCells, releaseTestReservation, extendTestReservation, normaliseReservation } from './reservations.js';
 
 class MemoryFirestore {
   constructor(){this.documents=new Map();}
@@ -8,14 +8,19 @@ class MemoryFirestore {
   async runTransaction(work){const transaction={get:async ref=>({exists:this.documents.has(ref.key),data:()=>this.documents.get(ref.key)}),set:(ref,value,options)=>this.documents.set(ref.key,options?.merge?{...this.documents.get(ref.key),...value}:value),create:(ref,value)=>{if(this.documents.has(ref.key))throw new Error('exists');this.documents.set(ref.key,value);},update:(ref,value)=>this.documents.set(ref.key,{...this.documents.get(ref.key),...value})};return work(transaction);}
 }
 
-test('atomically reserves and releases the 100,000-cell launch maximum',async()=>{
-  const db=new MemoryFirestore(),cells=Array.from({length:100_000},(_,index)=>index+100_001);
+test('atomically reserves and releases the 10,000-cell self-service maximum',async()=>{
+  const db=new MemoryFirestore(),cells=Array.from({length:10_000},(_,index)=>index+100_001);
   const reserved=await reserveTestCells(db,{ownerId:'owner',topologyVersion:'geodesic-v1',cells},1000,900_000,'large');
-  assert.equal(reserved.cellCount,100_000);
-  await assert.rejects(reserveTestCells(db,{ownerId:'other',topologyVersion:'geodesic-v1',cells:[150_000]},1001,900_000,'conflict'),error=>error.code==='cells-unavailable');
+  assert.equal(reserved.cellCount,10_000);
+  await assert.rejects(reserveTestCells(db,{ownerId:'other',topologyVersion:'geodesic-v1',cells:[105_000]},1001,900_000,'conflict'),error=>error.code==='cells-unavailable');
   const released=await releaseTestReservation(db,'large','owner',2000);
-  assert.equal(released.releasedCells,100_000);
-  assert.equal((await reserveTestCells(db,{ownerId:'other',topologyVersion:'geodesic-v1',cells:[150_000]},2001,900_000,'reuse')).status,'active');
+  assert.equal(released.releasedCells,10_000);
+  assert.equal((await reserveTestCells(db,{ownerId:'other',topologyVersion:'geodesic-v1',cells:[105_000]},2001,900_000,'reuse')).status,'active');
+});
+
+test('a reservation above the self-service maximum is refused outright',()=>{
+  assert.equal(normaliseReservation({ownerId:'owner',topologyVersion:'geodesic-v1',cells:Array.from({length:10_001},(_,index)=>index+1)}),null);
+  assert.equal(normaliseReservation({ownerId:'owner',topologyVersion:'geodesic-v1',cells:Array.from({length:10_000},(_,index)=>index+1)})?.cells.length,10_000);
 });
 
 test('rejects early expiry and makes repeated expiry idempotent',async()=>{
