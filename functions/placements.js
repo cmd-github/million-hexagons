@@ -21,6 +21,16 @@ function cleanUrl(value) {
   } catch { return null; }
 }
 
+/** The unit vector of a placement's anchor, or null when it is not usable. */
+export function normaliseAnchorCentre(value) {
+  if (!Array.isArray(value) || value.length !== 3) return null;
+  const centre = value.map(Number);
+  if (centre.some(part => !Number.isFinite(part))) return null;
+  const length = Math.hypot(...centre);
+  if (!(length > 0.9 && length < 1.1)) return null;
+  return centre.map(part => Number((part / length).toFixed(6)));
+}
+
 export function normalisePlacementClaim(input) {
   if (!input || typeof input !== 'object') return null;
   if (input.topologyVersion !== TOPOLOGY_VERSION) return null;
@@ -35,7 +45,8 @@ export function normalisePlacementClaim(input) {
   const anchor = Number(input.anchor);
   if (!ownerId || !title || destinationUrl === null || !Number.isSafeInteger(anchor) || !cells.includes(anchor)) return null;
   if (input.artworkDataUrl && !artworkDataUrl) return null;
-  return { ownerId, title, description, destinationUrl, artworkDataUrl, anchor, topologyVersion: TOPOLOGY_VERSION, cells };
+  const anchorCentre = normaliseAnchorCentre(input.anchorCentre);
+  return { ownerId, title, description, destinationUrl, artworkDataUrl, anchor, topologyVersion: TOPOLOGY_VERSION, cells, ...(anchorCentre ? { anchorCentre } : {}) };
 }
 
 export function placementClaimDiagnostics(input) {
@@ -120,6 +131,7 @@ export async function createTestPlacement(db, input, timestamp, options = {}) {
     transaction.create(placementRef, {
       schemaVersion: PLACEMENT_SCHEMA_VERSION, placementId, ownerId: claim.ownerId,
       topologyVersion: claim.topologyVersion, cellCount: claim.cells.length, anchor: claim.anchor,
+      ...(claim.anchorCentre ? { anchorCentre: claim.anchorCentre } : {}),
       cellsEncoding: 'uint32le-base64', cellsData: encodeCells(claim.cells),
       title: claim.title, titleSearch:claim.title.toLowerCase(), currentVersion: 1,
       status: 'draft', environment: 'staging', quote, moderationReview:{status:'pending',submittedAt:timestamp}, createdAt: timestamp, updatedAt: timestamp

@@ -1884,8 +1884,9 @@ document.querySelector('#extendReservation').onclick=async event=>{if(!activeChe
 function persistentArtwork(canvas){const limit=900,scale=Math.min(1,limit/Math.max(canvas.width,canvas.height)),copy=document.createElement('canvas');copy.width=Math.max(1,Math.round(canvas.width*scale));copy.height=Math.max(1,Math.round(canvas.height*scale));copy.getContext('2d').drawImage(canvas,0,0,copy.width,copy.height);return copy.toDataURL('image/webp',.86);}
 function publicationArtwork(canvas){return canvas.toDataURL('image/webp',.95);}
 async function applyPersistentPlacements(records,{focus=false}={}){
+  const knownBefore=publicPlacementRecords.size;
   for(const record of records)publicPlacementRecords.set(record.placementId,record);
-  if(records.length)nearbyRenderedFor=null;
+  if(publicPlacementRecords.size!==knownBefore)nearbyRenderedFor=null;
   if(snapshotEnabled){
     for(const record of records){
       const value={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor,cells:record.cells,logo:record.thumbnailDataUrl||record.artworkDataUrl,publicationStatus:record.publicationStatus,status:record.status,moderationStatus:record.moderationStatus};
@@ -2181,7 +2182,7 @@ async function paintPlacement() {
     publishing=true;
     if(!activeCheckoutReservation){publishing=false;const target=document.querySelector('#purchaseError');target.hidden=false;target.textContent='This reservation expired. Choose the location again.';return;}
     showEmbeddedCheckoutLoading();await nextPaint();
-    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),placement={topologyVersion:'geodesic-v1',anchor:selectedCell.id,cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},checkout=await stagingClient.createStripeCheckout(placement,activeCheckoutReservation.reservation.reservationId,activeCheckoutReservation.checkoutToken,stagingUser);trackEvent('checkout_started',{context:{cellCount:placement.cells.length,source:'checkout',creditsApplied:Number(checkout.creditsApplied||0)}});if(checkout.expiresAtMs){activeCheckoutReservation.reservation.expiresAtMs=checkout.expiresAtMs;showCheckoutExpiry();}if(checkout.creditsOnly)await completeCreditPurchase(checkout);else await showEmbeddedCheckout(checkout);publishing=false;return;}
+    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),placement={topologyVersion:'geodesic-v1',anchor:selectedCell.id,anchorCentre:[...topology.centre(selectedCell.id)],cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},checkout=await stagingClient.createStripeCheckout(placement,activeCheckoutReservation.reservation.reservationId,activeCheckoutReservation.checkoutToken,stagingUser);trackEvent('checkout_started',{context:{cellCount:placement.cells.length,source:'checkout',creditsApplied:Number(checkout.creditsApplied||0)}});if(checkout.expiresAtMs){activeCheckoutReservation.reservation.expiresAtMs=checkout.expiresAtMs;showCheckoutExpiry();}if(checkout.creditsOnly)await completeCreditPurchase(checkout);else await showEmbeddedCheckout(checkout);publishing=false;return;}
     catch(error){publishing=false;hideEmbeddedCheckout();const target=document.querySelector('#purchaseError');target.hidden=false;target.textContent=error.code==='reservation-invalid'?'This reservation expired. Choose the location again.':error.code==='destination-not-found'?'That website returned a 404. Check the address and try again.':error.code?.startsWith('destination-')?'That website could not be safely reached. Check the address and try again.':'Could not open secure checkout. Your design is still here.';return;}
   }
   publishing=true;
@@ -2617,16 +2618,39 @@ async function resetInspectorRoute(id){
 }
 // Opening the inspector already renders this panel, so clicking "Nearby" must not repeat the
 // cell fetch and flash "Finding nearby placements…" over an answer we already have.
+function setNearbyCount(count){
+  const badge=document.querySelector('#nearbyCount'),entry=document.querySelector('#showNearby');
+  if(!badge||!entry)return;
+  badge.hidden=!count;badge.textContent=count?String(count):'';
+  entry.disabled=!count;
+  entry.setAttribute('aria-label',count?`Nearby placements, ${count}`:'Nearby placements');
+}
 async function renderNearbyPlacements(){
   const nearby=document.querySelector('#nearbyPlacements'),targetId=inspectedId;
   if(nearbyRenderedFor===targetId&&nearby.childElementCount)return;
-  nearby.replaceChildren();
+  setNearbyCount(0);nearby.replaceChildren();
   const record=targetId?sessionPlacements.get(targetId):null,selectedRecord=record?.placementId?publicPlacementRecords.get(record.placementId)||record:null,records=[...publicPlacementRecords.values()];
-  if(selectedRecord&&records.length>1){const loading=document.createElement('p');loading.className='nearby-empty';loading.textContent='Finding nearby placements…';nearby.append(loading);try{await topology.ensureCells([...new Set(records.map(item=>item.anchor))]);}catch{if(inspectedId===targetId)loading.textContent='Nearby is temporarily unavailable. Try again.';return;}}
+  // Each placement carries its anchor position, so ordering by distance is a
+  // sort over the catalogue already in memory. Only records saved before that
+  // was stored need geometry fetched, and only those are worth a wait.
+  const centres=new Map();
+  for(const item of [...records,selectedRecord]){
+    if(!item)continue;
+    const centre=Array.isArray(item.anchorCentre)&&item.anchorCentre.length===3?item.anchorCentre.map(Number):null;
+    if(centre&&centre.every(Number.isFinite))centres.set(item.anchor,centre);
+  }
+  if(selectedRecord&&records.length>1){
+    const missing=[...new Set([selectedRecord,...records].filter(item=>item&&!centres.has(item.anchor)).map(item=>item.anchor))];
+    if(missing.length){
+      const loading=document.createElement('p');loading.className='nearby-empty';loading.textContent='Finding nearby placements…';nearby.append(loading);
+      try{await topology.ensureCells(missing);}catch{if(inspectedId===targetId)loading.textContent='Nearby is temporarily unavailable. Try again.';return;}
+    }
+  }
   if(inspectedId!==targetId)return;nearby.replaceChildren();
-  const areas=closestPlacements(records,selectedRecord,cellId=>topology.centre(cellId));
+  const areas=closestPlacements(records,selectedRecord,cellId=>centres.get(cellId)||topology.centre(cellId));
   for(const area of areas){const button=document.createElement('button');const image=document.createElement('img'),source=area.thumbnailDataUrl||area.artworkDataUrl;image.alt='';image.hidden=!source;if(source)image.src=source;const name=document.createElement('span');name.textContent=area.title||'Untitled placement';const arrow=document.createElement('span');arrow.className='nearby-go';arrow.innerHTML=icon('arrow-right');arrow.setAttribute('aria-hidden','true');button.append(image,name,arrow);button.onclick=async()=>{await applyPersistentPlacements([area]);if(await inspectPlacement(area.anchor))viewInspectedPlacement();};nearby.append(button);}
   if(!areas.length){const empty=document.createElement('p');empty.className='nearby-empty';empty.textContent=selectedRecord?'No other live placements yet.':'Nearby is available for live placements.';nearby.append(empty);}
+  setNearbyCount(areas.length);
   nearbyRenderedFor=targetId;
 }
 function closeInspector(force=false){

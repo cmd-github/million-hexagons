@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createTestPlacement, decodeCells, decodeInventory, deleteTestPlacement, encodeCells, groupCellsByShard, mutateInventory, normalisePlacementClaim, placementClaimDiagnostics, updateTestPlacementContent } from './placements.js';
+import { createTestPlacement, decodeCells, decodeInventory, deleteTestPlacement, encodeCells, groupCellsByShard, mutateInventory, normalisePlacementClaim, placementClaimDiagnostics, updateTestPlacementContent, normaliseAnchorCentre } from './placements.js';
 
 const valid = { ownerId: 'test-owner', title: 'Test placement', description: 'A durable test.', destinationUrl: 'https://example.com', topologyVersion: 'geodesic-v1', anchor: 2, cells: [1, 2, 4097] };
 
@@ -103,4 +103,15 @@ test('creates immutable owner edits while locking ownership, anchor and purchase
   assert.equal(db.documents.get(`stagingOwnershipGrants/${created.placementId}`).ownerId,'test-owner');
   assert.deepEqual(db.documents.get(`stagingPlacementVersions/${created.placementId}-v2`).designSource,designSource);
   await assert.rejects(updateTestPlacementContent(db,created.placementId,'other-owner',{title:'No',destinationUrl:''},'updated',source,designSource),error=>error.code==='placement-forbidden');
+});
+
+test('a placement keeps its anchor position so nearby needs no geometry',()=>{
+  const base={ownerId:'o',topologyVersion:'geodesic-v1',anchor:5,cells:[5],title:'T',destinationUrl:'https://example.com/'};
+  // A unit vector is kept and normalised; anything else is dropped rather than stored wrong.
+  assert.deepEqual(normalisePlacementClaim({...base,anchorCentre:[1,0,0]}).anchorCentre,[1,0,0]);
+  assert.equal(normalisePlacementClaim({...base,anchorCentre:[9,0,0]}).anchorCentre,undefined);
+  assert.equal(normalisePlacementClaim({...base,anchorCentre:[0,0]}).anchorCentre,undefined);
+  assert.equal(normalisePlacementClaim({...base,anchorCentre:['a','b','c']}).anchorCentre,undefined);
+  assert.equal(normalisePlacementClaim(base).anchorCentre,undefined);
+  assert.equal(normaliseAnchorCentre([0.6,0.8,0]).length,3);
 });
