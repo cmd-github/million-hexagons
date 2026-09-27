@@ -43,6 +43,7 @@
     "test:payment-lifecycle": "node scripts/payment-lifecycle-live-qa.mjs",
     "test:globe-startup": "node scripts/globe-startup-qa.mjs",
     "test:boot": "node scripts/boot-integrity-qa.mjs",
+    "backfill:anchor-centres": "node scripts/backfill-anchor-centres.mjs",
     "test:desktop-composition": "node scripts/desktop-composition-qa.mjs",
     "test:mobile-composition": "node scripts/mobile-composition-qa.mjs",
     "test:craig-review": "node scripts/craig-review-qa.mjs",

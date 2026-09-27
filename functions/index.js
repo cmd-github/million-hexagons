@@ -17,7 +17,7 @@ import { resolveFixtureOwner, fixtureRetry } from './fixture-owner.js';
 import { normaliseDesignState, normaliseDraft } from './drafts.js';
 import { issueCredits, redeemCredits, creditsAvailableForOwners, redeemCreditsAcrossOwners, refundRedeemedCredits } from './credits.js';
 import { applyModeration, compareModerationQueue, moderationReviewState, normaliseModeration, publicPlacement } from './moderation.js';
-import { createTestPlacement, decodeCells, deleteTestPlacement, normalisePlacementClaim, placementClaimDiagnostics, updateTestPlacementContent } from './placements.js';
+import { createTestPlacement, decodeCells, deleteTestPlacement, normaliseAnchorCentre, normalisePlacementClaim, placementClaimDiagnostics, updateTestPlacementContent } from './placements.js';
 import { decodeArtworkSource, designObjectPath, publicationObjects, sourceObjectPath } from './publication.js';
 import { extendTestReservation, releaseTestReservation, reserveTestCells } from './reservations.js';
 import { quoteCells } from './pricing.js';
@@ -339,6 +339,24 @@ export const stagingPlacements = onRequest(
         const reference=getFirestore().collection('stagingPlacements').doc(placementId),placement=await reference.get();if(!placement.exists){response.status(404).json({ok:false,error:'placement-not-found'});return;}
         let versionContent=null;if(command.action==='restore-version'){const version=await getFirestore().collection('stagingPlacementVersions').doc(`${placementId}-v${command.version}`).get();if(!version.exists){response.status(404).json({ok:false,error:'version-not-found'});return;}versionContent=version.data();}
         const caseId=randomUUID();let publicState;await getFirestore().runTransaction(async transaction=>{const revision=await readArtworkRevision(getFirestore(),transaction),current=await transaction.get(reference);if(!current.exists||['deleted','revoked'].includes(current.data().status))throw Error('placement-not-found');publicState=applyModeration(current.data().publicState,command,versionContent);const reviewedAt=FieldValue.serverTimestamp(),moderationReview={status:command.action==='approve'?'approved':'actioned',reviewedAt,reviewedBy:identity.uid,reviewedVersion:Number(current.data().currentVersion||1),lastAction:command.action};transaction.set(reference,{publicState,moderationReview,updatedAt:reviewedAt},{merge:true});transaction.create(getFirestore().collection('stagingModerationActions').doc(caseId),{caseId,placementId,command,actorId:identity.uid,createdAt:reviewedAt});writeArtworkRevision(getFirestore(),transaction,revision,placementId,'moderated');});response.status(200).json({ok:true,placement:{placementId,publicState,reviewStatus:command.action==='approve'?'approved':'actioned'}});return;
+      }
+      if (action === 'backfill-anchor-centres') {
+        if(identity.stagingAdmin!==true){response.status(403).json({ok:false,error:'administrator-required'});return;}
+        const entries=Array.isArray(request.body.placements)?request.body.placements.slice(0,500):[];
+        const db=getFirestore();
+        let updated=0,alreadySet=0,notFound=0,rejected=0;
+        for(const entry of entries){
+          const placementId=String(entry?.placementId||'');
+          const centre=normaliseAnchorCentre(entry?.anchorCentre);
+          if(!placementId||!centre){rejected++;continue;}
+          const ref=db.collection('stagingPlacements').doc(placementId);
+          const snapshot=await ref.get();
+          if(!snapshot.exists){notFound++;continue;}
+          if(snapshot.data().anchorCentre){alreadySet++;continue;}
+          await ref.set({anchorCentre:centre,updatedAt:FieldValue.serverTimestamp()},{merge:true});
+          updated++;
+        }
+        response.status(200).json({ok:true,result:{requested:entries.length,updated,alreadySet,notFound,rejected}});return;
       }
       if (action === 'grant-credits') {
         if(identity.stagingAdmin!==true){response.status(403).json({ok:false,error:'administrator-required'});return;}

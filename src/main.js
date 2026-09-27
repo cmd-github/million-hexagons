@@ -1886,7 +1886,10 @@ function publicationArtwork(canvas){return canvas.toDataURL('image/webp',.95);}
 async function applyPersistentPlacements(records,{focus=false}={}){
   const knownBefore=publicPlacementRecords.size;
   for(const record of records)publicPlacementRecords.set(record.placementId,record);
-  if(publicPlacementRecords.size!==knownBefore)nearbyRenderedFor=null;
+  if(publicPlacementRecords.size!==knownBefore){
+    nearbyRenderedFor=null;
+    if(inspectedId)void renderNearbyPlacements();
+  }
   if(snapshotEnabled){
     for(const record of records){
       const value={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor,cells:record.cells,logo:record.thumbnailDataUrl||record.artworkDataUrl,publicationStatus:record.publicationStatus,status:record.status,moderationStatus:record.moderationStatus};
@@ -2621,14 +2624,15 @@ async function resetInspectorRoute(id){
 function setNearbyCount(count){
   const badge=document.querySelector('#nearbyCount'),entry=document.querySelector('#showNearby');
   if(!badge||!entry)return;
+  const known=Number.isInteger(count);
   badge.hidden=!count;badge.textContent=count?String(count):'';
-  entry.disabled=!count;
+  entry.disabled=known&&count===0;
   entry.setAttribute('aria-label',count?`Nearby placements, ${count}`:'Nearby placements');
 }
 async function renderNearbyPlacements(){
   const nearby=document.querySelector('#nearbyPlacements'),targetId=inspectedId;
   if(nearbyRenderedFor===targetId&&nearby.childElementCount)return;
-  setNearbyCount(0);nearby.replaceChildren();
+  setNearbyCount(null);nearby.replaceChildren();
   const record=targetId?sessionPlacements.get(targetId):null,selectedRecord=record?.placementId?publicPlacementRecords.get(record.placementId)||record:null,records=[...publicPlacementRecords.values()];
   // Each placement carries its anchor position, so ordering by distance is a
   // sort over the catalogue already in memory. Only records saved before that
