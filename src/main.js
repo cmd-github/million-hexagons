@@ -2841,8 +2841,9 @@ document.querySelector('#logoOrientation').addEventListener('input',event=>{
 
 // Icons keep the tool rail compact; accessible names and active-mode feedback remain.
 // Studio tools share the icon set; label and title stay beside the drawing.
-for(const [id,name,label] of [['moveImageMode','image','Image'],['paintCells','paint','Colour'],['editHexMode','add','Add hexagons'],['removeHexMode','remove','Delete'],['panEditor','pan','Move globe']]){
+for(const [id,name,label] of [['moveImageMode','image','Image'],['paintCells','paint','Colour'],['removeHexMode','remove','Delete'],['panEditor','pan','Move globe']]){
   const button=document.querySelector(`#${id}`);
+  if(!button)continue;
   button.innerHTML=`${icon(name)}<span>${label}</span>`;
   button.setAttribute('aria-label',label);
   button.title=label;

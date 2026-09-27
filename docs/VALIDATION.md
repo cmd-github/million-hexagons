@@ -4,6 +4,8 @@ Run checks relevant to the changed area. A passing build or scripted assertion d
 
 `npm run test:launch` is the canonical deterministic pre-production gate. It covers repository hygiene, repository and backend tests, staging build/release integrity and a Worker dry run. Live services, real payments, load testing, visual judgment and physical devices remain separate evidence.
 
+Run `npm run test:boot` for any change to `index.html` or `src/main.js`. The bootstrap treats a rejected `import('/src/main.js')` as a dead globe, so an error thrown late in module evaluation flashes "Could not load the globe" over a boot that otherwise works. Every other journey missed that for weeks because the globe still loaded.
+
 ## Browser QA environment
 
 The interactive Codex/in-app Browser connection is not the repository's browser-test runtime. If the interactive connection reports `No browser is available`, do not infer that Playwright is missing.
