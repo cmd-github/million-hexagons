@@ -271,8 +271,20 @@ globe.add(placementLayers);
 const pendingPersistentArtwork=new Map();
 const persistentArtworkState=new Map();
 let startupArtworkError=null,locationLoading=false,locationLoadError=null;
-let persistentArtworkJobs=0,persistentArtworkImages=0;
+let persistentArtworkJobs=0,persistentArtworkImages=0,lastPersistentArtworkTrim=0;
 function updatePersistentArtwork(time) {
+  if(topology&&loading.hidden&&time-lastPersistentArtworkTrim>2000){
+    lastPersistentArtworkTrim=time;
+    const direction=globe.worldToLocal(camera.position.clone()).normalize().toArray();
+    const altitude=camera.position.length()-radius;
+    const cap=Math.min(Math.acos(radius/camera.position.length())+.03,Math.max(.06,altitude/radius*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*Math.max(camera.aspect,1)*2));
+    for(const mesh of [...placementLayers.children]){
+      const id=mesh.userData?.placementId,state=persistentArtworkState.get(id);
+      if(!state?.ready||topology.cellsIntersectCap(state.record.cells,direction,cap))continue;
+      placementLayers.remove(mesh);mesh.geometry.dispose();mesh.material.map?.dispose();mesh.material.dispose();
+      state.ready=false;pendingPersistentArtwork.set(id,{record:state.record,image:null,loading:false});
+    }
+  }
   // Keep the topology loader's four slots fed as soon as artwork work finishes.
   // A 250ms polling gap made the opening view wait tens of seconds at scale.
   if(!topology||!pendingPersistentArtwork.size||persistentArtworkJobs>=4)return;
@@ -345,6 +357,7 @@ let editorPainting = false;
 const selectedCellColours = new Map();
 const sessionPlacements = new Map();
 const publicPlacementRecords = new Map();
+let snapshotNearbyPromise=null;
 let explorationStart = null;
 let requestedAnchor = null, proposedCellId = null;
 let pinnedCell = null;
@@ -1841,13 +1854,24 @@ let stagingClient=null,stagingUser=null,activeCheckoutReservation=null,checkoutE
 void initialiseRegionalPricing();
 let restoredStagingOwner=null,restoringStagingOwner=null;
 let stagingInventoryPromise=null;
+async function refreshSnapshotLatest(next){
+  const results=await Promise.allSettled((next.tiles.manifest.latest||[]).map(record=>stagingClient.getPublicPlacement(record.placementId)));
+  if(snapshotRuntime?.current!==next)return;
+  for(const result of results){
+    if(result.status!=='fulfilled')continue;
+    const record=result.value;
+    publicPlacementRecords.set(record.placementId,record);
+    sessionPlacements.set(record.anchor,{placementId:record.placementId,name:record.title,anchor:record.anchor,count:record.cellCount,createdAt:record.createdAt,cells:[record.anchor]});
+  }
+  nearbyRenderedFor=null;renderClaimFeed();
+}
 function ensureStagingInventory(){
   if(!import.meta.env.VITE_STAGING_SANDBOX)return Promise.resolve();
   if(!stagingInventoryPromise)stagingInventoryPromise=(async()=>{
     stagingClient=await import('./staging-client.js');
     if(snapshotEnabled){
       if(!snapshotRuntime){
-        snapshotRuntime=new SnapshotRuntime({globe,radius,options:{maxTiles:innerWidth<700?64:128,anisotropy:Math.min(8,renderer.capabilities.getMaxAnisotropy())},request:stagingClient.artworkRequest,onInvalidate(){stagingInventoryLoaded=false;closeInspector(true);sessionPlacements.clear();},prepareChanges:prepareSnapshotChanges,activateInventory(next){startupArtworkError=null;occupiedCells.fill(0);occupiedCells.set(next.occupancy);occupancyTexture.needsUpdate=true;sessionPlacements.clear();restoredPlacementIds.clear();sold=next.occupancy.reduce((n,v)=>n+(v?1:0),0);stagingInventoryLoaded=true;for(const record of next.tiles.manifest.latest||[]){if(next.records.some(change=>change.placementId===record.placementId))continue;sessionPlacements.set(record.anchor,{placementId:record.placementId,name:record.title,anchor:record.anchor,count:record.cellCount,createdAt:record.createdAt,cells:[record.anchor]});}updateInventoryDisplay();renderClaimFeed();artworkTiles.group.visible=false;},onUnavailable(error){startupArtworkError=error;stagingInventoryLoaded=false;console.error('Artwork release unavailable',error);}});
+        snapshotRuntime=new SnapshotRuntime({globe,radius,options:{maxTiles:innerWidth<700?64:128,anisotropy:Math.min(8,renderer.capabilities.getMaxAnisotropy())},request:stagingClient.artworkRequest,onInvalidate(){stagingInventoryLoaded=false;closeInspector(true);sessionPlacements.clear();},prepareChanges:prepareSnapshotChanges,activateInventory(next){startupArtworkError=null;occupiedCells.fill(0);occupiedCells.set(next.occupancy);occupancyTexture.needsUpdate=true;sessionPlacements.clear();publicPlacementRecords.clear();snapshotNearbyPromise=null;nearbyRenderedFor=null;restoredPlacementIds.clear();sold=next.occupancy.reduce((n,v)=>n+(v?1:0),0);stagingInventoryLoaded=true;for(const record of next.records){if(['deleted','revoked'].includes(record.status))continue;publicPlacementRecords.set(record.placementId,record);sessionPlacements.set(record.anchor,{placementId:record.placementId,name:record.title,anchor:record.anchor,count:record.cellCount,createdAt:record.createdAt,cells:record.cells});}updateInventoryDisplay();renderClaimFeed();void refreshSnapshotLatest(next);artworkTiles.group.visible=false;},onUnavailable(error){startupArtworkError=error;stagingInventoryLoaded=false;console.error('Artwork release unavailable',error);}});
         setInterval(()=>void snapshotRuntime.refresh(),5000);
       }
       await snapshotRuntime.refresh();
@@ -2640,10 +2664,28 @@ function setNearbyCount(count){
   entry.disabled=known&&count===0;
   entry.setAttribute('aria-label',count?`Nearby placements, ${count}`:'Nearby placements');
 }
-async function renderNearbyPlacements(){
+async function ensureSnapshotNearbyCatalogue(){
+  if(!snapshotNearbyPromise){
+    const current=snapshotRuntime?.current;
+    snapshotNearbyPromise=stagingClient.listPublicCatalogue().then(records=>{
+      if(snapshotRuntime?.current!==current)return;
+      for(const record of records)publicPlacementRecords.set(record.placementId,record);
+      renderClaimFeed();
+    }).catch(error=>{snapshotNearbyPromise=null;throw error;});
+  }
+  return snapshotNearbyPromise;
+}
+async function renderNearbyPlacements(full=false){
   const nearby=document.querySelector('#nearbyPlacements'),targetId=inspectedId;
   if(nearbyRenderedFor===targetId&&nearby.childElementCount)return;
   setNearbyCount(null);nearby.replaceChildren();
+  if(snapshotEnabled){
+    if(!full&&!snapshotNearbyPromise)return;
+    const loading=document.createElement('p');loading.className='nearby-empty';loading.textContent='Finding nearby placements…';nearby.append(loading);
+    try{await ensureSnapshotNearbyCatalogue();}catch{if(inspectedId===targetId)loading.textContent='Nearby is temporarily unavailable. Try again.';return;}
+    if(inspectedId!==targetId)return;
+    nearby.replaceChildren();
+  }
   const record=targetId?sessionPlacements.get(targetId):null,selectedRecord=record?.placementId?publicPlacementRecords.get(record.placementId)||record:null,records=[...publicPlacementRecords.values()];
   // Each placement carries its anchor position, so ordering by distance is a
   // sort over the catalogue already in memory. Only records saved before that
@@ -2675,7 +2717,7 @@ function closeInspector(force=false){
   if(!document.body.classList.contains('creating')){clearSelectionColours();selectionModeUniform.value=0;}
 }
 function showNearby(open,focus=false){
-  if(open)void renderNearbyPlacements();
+  if(open)void renderNearbyPlacements(true);
   document.querySelector('#placementInspector').classList.toggle('show-nearby',open);
   for(const [id,active] of [['hudDetails',!open],['hudNearby',open]]){const page=document.getElementById(id);page.inert=!active;page.setAttribute('aria-hidden',String(!active));}
   document.querySelector('#showNearby').setAttribute('aria-expanded',String(open));

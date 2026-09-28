@@ -41,6 +41,16 @@ export async function quoteAndReserve(cells,pricingRegion='usd'){return publicRe
 export async function releaseCheckoutReservation(reservationId,checkoutToken){return(await publicRequest({action:'release-checkout-reservation',reservationId,checkoutToken})).reservation;}
 export async function extendCheckoutReservation(reservationId,checkoutToken){return(await publicRequest({action:'extend-checkout-reservation',reservationId,checkoutToken})).reservation;}
 export async function listPublicClaims(options){return(await publicRequest({action:'public-list'},options)).placements;}
+export async function listPublicCatalogue(options){
+  const records=[];let cursor=null;
+  do{
+    const page=await publicRequest({action:'public-list',pageSize:1000,...(cursor?{cursor}:{})},options);
+    records.push(...page.placements);
+    if(page.nextCursor===cursor&&cursor)throw Error('Public catalogue cursor did not advance');
+    cursor=page.nextCursor||null;
+  }while(cursor);
+  return records;
+}
 export async function getPublicPlacement(placementId,options){return(await publicRequest({action:'public-placement',placementId},options)).placement;}
 export async function getPublicStats(){return publicRequest({action:'public-stats'});}
 export async function searchPublicPlacements(query){return(await publicRequest({action:'public-search',query})).placements;}

@@ -57,6 +57,8 @@ try{for(const mobile of [false,true]){
   releaseDetail();
   await page.waitForFunction(()=>window.snapshotProbe?.().current===10&&snapshotProbe().visible,{timeout:90000});
   const initial=await page.evaluate(()=>snapshotProbe());assert.equal(catalogueRequests,0);assert.equal(initial.inventory,true);
+  await page.locator('#claimFeedItems button').first().waitFor({state:'attached',timeout:15000});
+  assert.equal(catalogueRequests,0,'Recent activity must not request the whole catalogue');
   await page.evaluate(id=>{location.hash=`placement=${id}`;},target.placementId);
   await page.waitForFunction(title=>document.querySelector('#inspectorName')?.textContent===title,target.title,{timeout:90000});
   await page.keyboard.press('Escape');

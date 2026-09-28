@@ -10,18 +10,19 @@ try{for(const mobile of [false,true]){
   const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.addInitScript(()=>{
     new MutationObserver(()=>{
-      if(!window.artworkReveal&&document.querySelector('#world')?.dataset.artworkReady==='true')window.artworkReveal={ms:performance.now(),resources:performance.getEntriesByType('resource').filter(entry=>entry.name.includes('/placements/')).length};
+      if(!window.artworkReveal&&document.querySelector('#world')?.dataset.artworkReady==='true')window.artworkReveal={ms:performance.now(),resources:performance.getEntriesByType('resource').filter(entry=>entry.name.includes('/releases/artwork/')).length};
     }).observe(document,{subtree:true,attributes:true,childList:true});
   });
   for(const repeat of [false,true]){
     await page.goto(origin,{waitUntil:'domcontentloaded'});
     await page.waitForSelector('#world[data-artwork-ready=true]',{state:'attached',timeout:90000});
+    await page.locator('#claimFeedItems button').first().waitFor({state:'attached',timeout:15000});
     assert.equal(await page.locator('#appLoading').isVisible(),false);
     await page.screenshot({path:`${output}/${mobile?'mobile':'desktop'}-${repeat?'repeat':'cold'}-reveal.png`});
-    report.push({mobile,repeat,...await page.evaluate(()=>window.artworkReveal)});
+    report.push({mobile,repeat,...await page.evaluate(()=>window.artworkReveal),activityEntries:await page.locator('#claimFeedItems button').count()});
   }
   let release;const gate=new Promise(resolve=>release=resolve);let held=0;
-  const artworkPattern='**/releases/placements/**';
+  const artworkPattern='**/releases/artwork/**/preview/*.webp';
   await page.route(artworkPattern,async route=>{held++;await gate;await route.continue();});
   await page.goto(origin,{waitUntil:'domcontentloaded'});
   await page.waitForSelector('#world[data-ready=true]',{state:'attached',timeout:90000});

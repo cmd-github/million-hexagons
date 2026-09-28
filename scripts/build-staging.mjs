@@ -6,6 +6,13 @@ import { stagingViteDefines } from './staging-vite-defines.mjs';
 
 const root = process.cwd();
 const settings = { ...loadEnv('staging', root, 'MH_'), ...process.env };
+if(settings.MH_ARTWORK_SNAPSHOTS==='true'){
+  const api=settings.MH_STAGING_API_URL||'https://europe-west1-million-hexagons.cloudfunctions.net/stagingPlacements';
+  const response=await fetch(api,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'artwork-state'}),signal:AbortSignal.timeout(10000)});
+  if(!response.ok)throw Error('Snapshot state unavailable; staging build remains on the current renderer');
+  const state=await response.json();
+  if(!state.active||!state.complete||state.overflow||state.baseRevision!==state.active.revision)throw Error('No complete artwork snapshot is active; staging build remains on the current renderer');
+}
 const local = process.argv.includes('--local');
 const origin = assetOrigin(settings.MH_ASSET_ORIGIN, local);
 const files = await runtimeFiles(path.join(root, 'public'));

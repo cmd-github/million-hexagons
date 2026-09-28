@@ -1,9 +1,12 @@
 import * as THREE from 'three';
-import {loadTopology} from '../src/globe/full-topology-loader.js';
+import {SphericalTopology} from '../src/globe/topology.js';
 import {captureTile} from '../src/globe/tile-baker.js';
 import {footprintBounds} from '../src/placements/geometry.js';
 
-const topology=await loadTopology(),renderer=new THREE.WebGLRenderer({alpha:true,antialias:false});
+// The offline compiler has access to the frozen canonical binary. The old
+// packed monolith is no longer published with the regional visitor runtime.
+const [manifest,buffer]=await Promise.all([fetch('/topology/geodesic-v1.json').then(r=>r.json()),fetch('/topology/geodesic-v1.bin').then(r=>r.arrayBuffer())]);
+const topology=new SphericalTopology(buffer,manifest),renderer=new THREE.WebGLRenderer({alpha:true,antialias:false});
 renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.NoToneMapping;
 const scene=new THREE.Scene();
 const cache=new Map();

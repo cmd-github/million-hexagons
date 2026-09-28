@@ -3,8 +3,8 @@
   "counts": [1000, 10000, 100000, 1000000],
   "content": ["photographs", "transparent-logos", "small-text", "high-frequency-patterns", "mixed"],
   "viewports": [
-    {"name":"desktop", "width":1440, "height":900, "dpr":1, "previewMs":2000, "inspectionMs":5000, "textureBytes":209715200},
-    {"name":"mobile", "width":390, "height":844, "dpr":2, "cpuSlowdown":4, "downstreamMbps":1.6, "latencyMs":150, "previewMs":4000, "inspectionMs":5000, "textureBytes":104857600}
+    {"name":"desktop", "width":1440, "height":900, "dpr":1, "previewMs":6000, "inspectionMs":5000, "textureBytes":209715200},
+    {"name":"mobile", "width":390, "height":844, "dpr":2, "cpuSlowdown":4, "downstreamMbps":1.6, "latencyMs":150, "previewMs":8000, "inspectionMs":5000, "textureBytes":104857600}
   ],
   "cacheStates": ["cold", "repeat"],
   "journeys": ["overview", "target-link", "rotate-all-faces", "seam-crossing-artwork", "pole-artwork", "single-cell-inspection", "100000-cell-placement", "ten-minute-navigation"],

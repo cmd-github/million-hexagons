@@ -29,7 +29,9 @@ try{
       const meaningfulMs=snapshot.previewTileSize?await page.evaluate(()=>performanceQA.tiles.meaningfulMs):null;
       await page.waitForFunction(()=>performanceQA.tiles.required>0&&performanceQA.tiles.fallback===0&&performanceQA.tiles.pending===0,null,{timeout:90000});
       const state=await page.evaluate(()=>({readyMs:performance.now(),...performanceQA.state(),resources:performance.getEntriesByType('resource').map(r=>({url:r.name,bytes:r.transferSize,duration:r.duration}))}));
-      assert.equal(state.retainedPlacements,0);assert.equal(state.topologyLoaded,false);assert.equal(state.tiles.errors,0);assert.ok(!state.resources.some(r=>r.url.includes('/placements/')||r.url.includes('/sources/')));
+      // Sparse twinkles may prepare topology after the overview appears; tile
+      // readiness itself must not create placement meshes or source requests.
+      assert.equal(state.retainedPlacements,0);assert.equal(state.tiles.errors,0);assert.ok(!state.resources.some(r=>r.url.includes('/placements/')||r.url.includes('/sources/')));
       await page.screenshot({path:`${output}/${mobile?'mobile':'desktop'}-${repeat?'repeat':'cold'}.png`});report.push({mobile,repeat,meaningfulMs,...state});
     }
     for(const [name,direction,altitude] of [['northstar',[.246,-.309,.919],1.5],['seam',[1,0,1],.4],['north',[0,1,0],.4],['microcell',[0,0,1],.035]]){

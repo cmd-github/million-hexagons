@@ -5,9 +5,9 @@ import crypto from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {S3Client,PutObjectCommand,HeadObjectCommand} from '@aws-sdk/client-s3';
 import {settings,concurrent} from './staging-release.mjs';
-const config=settings(),workerId=crypto.randomUUID(),api=config.VITE_STAGING_API_URL||'https://europe-west1-million-hexagons.cloudfunctions.net/stagingPlacements';
-if(config.MH_R2_BUCKET!=='million-hexagons-staging-public'||!config.MH_STAGING_QA_KEY)throw Error('Staging compiler credentials required');
-const call=async body=>{const r=await fetch(api,{method:'POST',headers:{'content-type':'application/json','x-mh-qa-key':config.MH_STAGING_QA_KEY},body:JSON.stringify(body)}),value=await r.json();if(!r.ok)throw Error(value.error);return value;};
+const config=settings(),workerId=crypto.randomUUID(),api=config.VITE_STAGING_API_URL||'https://europe-west1-million-hexagons.cloudfunctions.net/stagingPlacements',qaKey=config.MH_STAGING_QA_KEY||config.MH_R2_SECRET_ACCESS_KEY;
+if(config.MH_R2_BUCKET!=='million-hexagons-staging-public'||!qaKey)throw Error('Staging compiler credentials required');
+const call=async body=>{const r=await fetch(api,{method:'POST',headers:{'content-type':'application/json','x-mh-qa-key':qaKey},body:JSON.stringify(body)}),value=await r.json();if(!r.ok)throw Error(value.error);return value;};
 if(!(await call({action:'artwork-needed'})).needed){console.log('Artwork release is current.');process.exit(0);}
 const {job}=await call({action:'artwork-claim',workerId});
 const workspace=`artifacts/artwork-workers/${workerId}`;
