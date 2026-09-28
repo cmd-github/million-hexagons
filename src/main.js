@@ -271,7 +271,7 @@ globe.add(placementLayers);
 const pendingPersistentArtwork=new Map();
 const persistentArtworkState=new Map();
 let startupArtworkError=null,locationLoading=false,locationLoadError=null;
-let persistentArtworkJobs=0;
+let persistentArtworkJobs=0,persistentArtworkImages=0;
 function updatePersistentArtwork(time) {
   // Keep the topology loader's four slots fed as soon as artwork work finishes.
   // A 250ms polling gap made the opening view wait tens of seconds at scale.
@@ -282,6 +282,16 @@ function updatePersistentArtwork(time) {
   for(const [id,entry] of pendingPersistentArtwork){
     if(persistentArtworkJobs>=4)break;
     if(entry.loading||time<(entry.retryAt||0)||!topology.cellsIntersectCap(entry.record.cells,direction,cap))continue;
+    if(!entry.image){
+      if(!entry.imageLoading&&persistentArtworkImages<4){
+        entry.imageLoading=true;persistentArtworkImages++;
+        const image=new Image();image.crossOrigin='anonymous';
+        image.onload=()=>{entry.image=image;entry.imageLoading=false;persistentArtworkImages--;persistentArtworkState.get(id).error=false;};
+        image.onerror=()=>{entry.imageLoading=false;persistentArtworkImages--;entry.retryAt=performance.now()+3000;persistentArtworkState.get(id).error=true;console.error('Could not load persistent placement artwork',id);};
+        image.src=entry.record.artworkDataUrl;
+      }
+      continue;
+    }
     entry.loading=true;persistentArtworkJobs++;
     void (async()=>{
       try {
@@ -1910,7 +1920,7 @@ async function applyPersistentPlacements(records,{focus=false}={}){
   });
   occupancyTexture.needsUpdate=true;sold=Math.min(1000000,sold+fresh.reduce((sum,record)=>sum+record.cellCount,0));updateInventoryDisplay();renderClaimFeed();
   const latest=[...fresh].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];if(focus&&latest)void focusPersistentPlacement(latest).catch(error=>console.error('Could not focus saved placement',error));
-  for(const {record,placementRecord} of restored)if(record.artworkDataUrl){const state={record,ready:false,error:false};persistentArtworkState.set(record.placementId,state);const image=new Image();image.crossOrigin='anonymous';placementRecord.logo=record.artworkDataUrl;image.onload=()=>{pendingPersistentArtwork.set(record.placementId,{record,image,loading:false});};image.onerror=()=>{state.error=true;console.error('Could not load persistent placement artwork',record.placementId);};image.src=record.artworkDataUrl;}
+  for(const {record,placementRecord} of restored)if(record.artworkDataUrl){persistentArtworkState.set(record.placementId,{record,ready:false,error:false});placementRecord.logo=record.artworkDataUrl;pendingPersistentArtwork.set(record.placementId,{record,image:null,loading:false});}
   return records;
 }
 async function restoreTestPlacements(){return applyPersistentPlacements(await stagingClient.listTestClaims(),{focus:true});}
@@ -2839,7 +2849,11 @@ startArtworkLoading(()=>{
     const cap=Math.min(Math.acos(radius/camera.position.length())+.03,Math.max(.06,altitude/radius*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*Math.max(camera.aspect,1)*2));
     states=states.filter(state=>topology.cellsIntersectCap(state.record.cells,direction,cap));
   }
-  return{ready:states.every(state=>state.ready)&&hasArtworkPreview(artworkTiles),error:states.some(state=>state.error),message:'Loading artwork…',progress:artworkLoadProgress()};
+  const readyCount=states.filter(state=>state.ready).length;
+  // Large opening views continue filling in after the globe appears. Waiting
+  // for every visible placement makes startup scale with the whole catalogue.
+  const openingBatchReady=!placementId&&!location.hash&&states.length>40&&readyCount>=1;
+  return{ready:(states.every(state=>state.ready)||openingBatchReady)&&hasArtworkPreview(artworkTiles),error:states.some(state=>state.error),message:'Loading artwork…',progress:artworkLoadProgress()};
 },{beforeReady:completeLoadingCount});
 try{if(sessionStorage.getItem('mh-owner-update-complete')){sessionStorage.removeItem('mh-owner-update-complete');const toast=document.querySelector('#toast');toast.querySelector('b').textContent='Changes saved.';toast.querySelector('span').textContent='Your updated placement is now on the globe.';toast.classList.add('show');}}catch{}
 
