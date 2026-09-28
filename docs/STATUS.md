@@ -1,6 +1,6 @@
 # Million Hexagons — Status
 
-Updated: 25 September 2026
+Updated: 28 September 2026
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
@@ -12,7 +12,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 - [ ] Gate 1 implementation follow-through: required placement name; 10-10,000 per-purchase limit and large-placement contact path; immediate-supply consent; post-payment publication with moderation afterwards; refund/dispute separation; failed-publication recovery; and remaining owner/public/legal behavior in the linked plan.
 - [ ] Scale and performance findings from the 28 September audit, measured against fixtures built from the canonical topology, ranked by when they bite. Staging has 24 placements today, so all of these are ahead of us rather than behind.
-  - [ ] **The opening screen takes 43 seconds at roughly 500 placements.** The reveal waits for every placement in the opening view to have its artwork rendered, two at a time, each needing a topology region. Measured reveal: 3.5s at 25 placements, 7.3s at 100, 18.8s at 250, 42.9s at 500. The false failure this used to show is fixed; the serialised rendering behind it is not, and it is the reason the other findings here matter sooner than they look.
+  - [ ] **The opening screen takes 43 seconds at roughly 500 placements.** The reveal waits for every placement in the opening view to have its artwork rendered, each needing a topology region. Measured before the scheduler change: 3.5s at 25 placements, 7.3s at 100, 18.8s at 250, 42.9s at 500. The false failure is fixed. The artwork scheduler now fills all four topology-loading slots without the former 250ms polling gap; boot and build pass, but the 500-placement reveal still needs a valid before/after fixture and headed Android check before this item can close.
   - [ ] **Placements past the 1,000th are invisible to the client.** `public-list` paginates at a default and maximum `pageSize` of 1000 and returns `nextCursor`, but the client never sends a cursor or follows one. Beyond 1,000 placements, ordered by document id and so effectively at random, the rest have no artwork on the globe and are absent from Nearby and the activity feed, with nothing reported. Sold cells still grey out correctly because occupancy comes from the separate bitmap; it is the content that disappears. Needs a decision on how the client walks pages.
   - [ ] **Placement meshes are never released.** Nothing removes children from `placementLayers`; `addHighResolutionPlacement` only adds. Spinning the globe with 200 placements took meshes from 99 to 173, draw calls from 112 to 265, textures from 109 to 163 and heap from 40MB to 88MB, and only stops once every placement has been seen. `artworkTiles` has a 128-tile budget with evictions and `sessionPlacements` caps at 8; this layer has no cap.
   - [ ] **The catalogue is served uncompressed.** 331KB on the wire for 25 placements with no `content-encoding`, even when gzip is requested. It gzips to 127KB. One-line win.

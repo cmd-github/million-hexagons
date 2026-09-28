@@ -271,15 +271,16 @@ globe.add(placementLayers);
 const pendingPersistentArtwork=new Map();
 const persistentArtworkState=new Map();
 let startupArtworkError=null,locationLoading=false,locationLoadError=null;
-let persistentArtworkCheck=0,persistentArtworkJobs=0;
+let persistentArtworkJobs=0;
 function updatePersistentArtwork(time) {
-  if(!topology||!pendingPersistentArtwork.size||persistentArtworkJobs>=2||time-persistentArtworkCheck<250)return;
-  persistentArtworkCheck=time;
+  // Keep the topology loader's four slots fed as soon as artwork work finishes.
+  // A 250ms polling gap made the opening view wait tens of seconds at scale.
+  if(!topology||!pendingPersistentArtwork.size||persistentArtworkJobs>=4)return;
   const direction=globe.worldToLocal(camera.position.clone()).normalize().toArray();
   const altitude=camera.position.length()-radius;
   const cap=Math.min(Math.acos(radius/camera.position.length())+.03,Math.max(.06,altitude/radius*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*Math.max(camera.aspect,1)*2));
   for(const [id,entry] of pendingPersistentArtwork){
-    if(persistentArtworkJobs>=2)break;
+    if(persistentArtworkJobs>=4)break;
     if(entry.loading||time<(entry.retryAt||0)||!topology.cellsIntersectCap(entry.record.cells,direction,cap))continue;
     entry.loading=true;persistentArtworkJobs++;
     void (async()=>{
