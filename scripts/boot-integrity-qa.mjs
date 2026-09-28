@@ -20,8 +20,14 @@ const chrome = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const browser = await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
 const report = [];
 try {
-  for (const mobile of [false, true]) {
-    const page = await browser.newPage({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 900 }, isMobile: mobile, hasTouch: mobile });
+  for (const [mobile, slow] of [[false, false], [true, false], [false, true]]) {
+    const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 900 }, isMobile: mobile, hasTouch: mobile });
+    const page = await context.newPage();
+    if (slow) {
+      const cdp = await context.newCDPSession(page);
+      await cdp.send('Network.enable');
+      await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 300, downloadThroughput: 110 * 1024, uploadThroughput: 110 * 1024 });
+    }
     const pageErrors = [];
     page.on('pageerror', error => pageErrors.push(error.message));
     if (server) await page.route('**/__qa/placements', route => {
@@ -51,8 +57,9 @@ try {
     await page.waitForSelector('#world[data-ready=true]', { timeout: 120000 });
     assert.deepEqual(pageErrors, [], `The boot must not throw: ${pageErrors.join(' | ')}`);
     assert.deepEqual(failures, [], `A healthy boot must never offer a retry or claim the globe failed: ${JSON.stringify(failures)}`);
-    report.push({ mobile, bootErrors: 0, falseFailures: 0 });
+    report.push({ mobile, slow, bootErrors: 0, falseFailures: 0 });
     await page.close();
+    await context.close();
   }
 } finally {
   await browser.close();

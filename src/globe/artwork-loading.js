@@ -7,7 +7,7 @@ export function hasArtworkPreview(tiles){
 export function startArtworkLoading(readState,{beforeReady=()=>{}}={}){
   const loader=document.querySelector('#appLoading'),message=document.querySelector('#loadingMessage');
   const error=document.querySelector('#loadingError'),retry=document.querySelector('#loadingRetry');
-  let started=performance.now(),waiting=false,finishing=false;
+  let started=performance.now(),waitingSince=started,waiting=false,finishing=false,lastProgress=null;
   const timer=setInterval(()=>{
     const state=readState(),now=performance.now();
     if(state.ready&&!finishing){
@@ -15,8 +15,9 @@ export function startArtworkLoading(readState,{beforeReady=()=>{}}={}){
         loader.hidden=true;document.body.classList.remove('booting');document.body.setAttribute('aria-busy','false');document.querySelector('#world').dataset.artworkReady='true';
       });return;
     }
-    if(!waiting){started=now;waiting=true;}
-    const failed=state.error||now-started>=30000,slow=now-started>=8000;
+    if(!waiting){started=now;waitingSince=now;waiting=true;}
+    if(state.progress!==undefined&&state.progress!==lastProgress){lastProgress=state.progress;started=now;}
+    const failed=state.error||now-started>=30000,slow=now-waitingSince>=8000;
     const text=failed?'Could not load the artwork. Please try again.':slow?'Still loading artwork. This is taking longer than usual.':state.message||'Loading artwork…';
     if(message.textContent!==text)message.textContent=text;
     error.hidden=true;retry.hidden=!failed;loader.querySelector('svg').style.display=failed?'none':'';

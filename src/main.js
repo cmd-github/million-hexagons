@@ -2814,24 +2814,31 @@ pendingPersistentFocus=null;
 void initializeStaging().then(()=>{
   if(import.meta.env.VITE_STAGING_SANDBOX&&!snapshotEnabled)setInterval(()=>void restorePublicPlacements().catch(error=>console.warn('Could not refresh live activity',error)),15000);
 }).catch(error=>{startupArtworkError=error;console.error('Could not load public staging placements',error);});
+const artworkLoadProgress=()=>[
+  artworkTiles?.stats?.resident||0,
+  artworkTiles?.stats?.visible||0,
+  snapshotRuntime?.current?.tiles?.stats?.resident||0,
+  [...persistentArtworkState.values()].filter(state=>state.ready).length,
+  topology?.regions?.size||0,
+].join(':');
 startArtworkLoading(()=>{
   if(locationLoadError)return{error:locationLoadError};
   if(locationLoading||cameraFlight.active)return{message:'Preparing your location…'};
-  if(snapshotEnabled)return{ready:hasArtworkPreview(snapshotRuntime?.current?.tiles),error:startupArtworkError,message:'Loading artwork…'};
+  if(snapshotEnabled)return{ready:hasArtworkPreview(snapshotRuntime?.current?.tiles),error:startupArtworkError,message:'Loading artwork…',progress:artworkLoadProgress()};
   if(startupArtworkError)return{error:startupArtworkError};
   const placementId=placementIdFromLocation();
-  if(!stagingInventoryLoaded&&!placementId)return{message:'Loading the globe…'};
+  if(!stagingInventoryLoaded&&!placementId)return{message:'Loading the globe…',progress:artworkLoadProgress()};
   let states=[...persistentArtworkState.values()];
   if(placementId)states=states.filter(state=>state.record.placementId===placementId);
   else if(/^#cell=\d+$/.test(location.hash))states=states.filter(state=>state.record.cells.includes(Number(location.hash.slice(6))));
   else if(states.length){
-    if(!topology)return{message:'Preparing the globe…'};
+    if(!topology)return{message:'Preparing the globe…',progress:artworkLoadProgress()};
     const direction=globe.worldToLocal(camera.position.clone()).normalize().toArray();
     const altitude=camera.position.length()-radius;
     const cap=Math.min(Math.acos(radius/camera.position.length())+.03,Math.max(.06,altitude/radius*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*Math.max(camera.aspect,1)*2));
     states=states.filter(state=>topology.cellsIntersectCap(state.record.cells,direction,cap));
   }
-  return{ready:states.every(state=>state.ready)&&hasArtworkPreview(artworkTiles),error:states.some(state=>state.error),message:'Loading artwork…'};
+  return{ready:states.every(state=>state.ready)&&hasArtworkPreview(artworkTiles),error:states.some(state=>state.error),message:'Loading artwork…',progress:artworkLoadProgress()};
 },{beforeReady:completeLoadingCount});
 try{if(sessionStorage.getItem('mh-owner-update-complete')){sessionStorage.removeItem('mh-owner-update-complete');const toast=document.querySelector('#toast');toast.querySelector('b').textContent='Changes saved.';toast.querySelector('span').textContent='Your updated placement is now on the globe.';toast.classList.add('show');}}catch{}
 
