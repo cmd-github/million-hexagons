@@ -2,11 +2,12 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 
 const base=(process.env.SMOKE_URL||'http://127.0.0.1:4180').replace(/\/$/,'');
 const shots='artifacts/desktop-composition';
 await mkdir(shots,{recursive:true});
-const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+const browser=withSettledConsent(await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}));
 const cases=[
   {name:'desktop',viewport:{width:1440,height:900},mobile:false,layoutWidth:1440},
   {name:'phone-390',viewport:{width:390,height:844},mobile:true,layoutWidth:390},

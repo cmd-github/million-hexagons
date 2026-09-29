@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 
 // Exercise the real browser client and renderer against controlled HTTP responses.
 // No Stripe sessions, reservations or durable placements are created by this suite.
@@ -11,7 +12,7 @@ const server=await createServer({server:{host:'127.0.0.1',port:0,watch:null},def
 await server.listen();
 const origin=`http://127.0.0.1:${server.httpServer.address().port}`;
 const chrome='C:/Program Files/Google/Chrome/Application/chrome.exe';
-const browser=await chromium.launch({headless:true,...(existsSync(chrome)?{executablePath:chrome}:{})});
+const browser=withSettledConsent(await chromium.launch({headless:true,...(existsSync(chrome)?{executablePath:chrome}:{})}));
 await mkdir('artifacts/purchase-polish',{recursive:true});
 const report=[];
 try {

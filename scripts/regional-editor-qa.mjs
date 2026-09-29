@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {gzipSync} from 'node:zlib';
 import {chromium} from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 
-const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+const browser=withSettledConsent(await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}));
 const reports=[];await mkdir('artifacts/regions',{recursive:true});
 try {
   for(const mobile of [false,true]) {

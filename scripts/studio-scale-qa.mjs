@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { chromium } from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 
 const executablePath = [
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
 ].find(fs.existsSync);
-const browser = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
+const browser = withSettledConsent(await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) }));
 const reports = [], errors = [];
 fs.mkdirSync('artifacts/studio-scale', { recursive: true });
 

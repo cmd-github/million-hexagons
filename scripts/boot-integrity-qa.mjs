@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 
 // The bootstrap treats a rejected `import('/src/main.js')` as a dead globe. An
 // error thrown late in module evaluation therefore flashes "Could not load the
@@ -17,7 +18,7 @@ const server = process.env.SMOKE_URL ? null : await createServer({
 if (server) await server.listen();
 const base = process.env.SMOKE_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
 const chrome = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const browser = await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
+const browser = withSettledConsent(await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) }));
 const report = [];
 try {
   for (const [mobile, slow] of [[false, false], [true, false], [false, true]]) {

@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { createServer } from "vite";
 import { chromium } from "playwright";
+import { withSettledConsent } from './qa-consent.mjs';
 const placementId = "12345678-1234-1234-1234-123456789abc",
   record = {
     placementId,
@@ -65,10 +66,10 @@ const server = await createServer({
 await server.listen();
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`,
   chrome = "C:/Program Files/Google/Chrome/Application/chrome.exe",
-  browser = await chromium.launch({
+  browser = withSettledConsent(await chromium.launch({
     headless: true,
     ...(existsSync(chrome) ? { executablePath: chrome } : {}),
-  });
+  }));
 await mkdir("artifacts/public-placement", { recursive: true });
 const report = [];
 try {

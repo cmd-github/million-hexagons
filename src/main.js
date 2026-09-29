@@ -1175,7 +1175,7 @@ function renderDesignPreview(target) {
   const visible=cell=>{const x=ox+(cell.x-bounds.left)*scale,y=oy+(cell.y-bounds.top)*scale;return x>-scale*4&&x<target.width+scale*4&&y>-scale*4&&y<target.height+scale*4;};
   const displayed=[];
   if(scale>=4) {
-    for(const cell of guides)if(visible(cell)){polygonPath(context,cell,bounds,scale,scale,false,ox,oy);context.fillStyle='#17303b';context.fill();context.strokeStyle='#d4ff5870';context.stroke();displayed.push(cell);}
+    for(const cell of guides)if(visible(cell)){polygonPath(context,cell,bounds,scale,scale,false,ox,oy);context.fillStyle='#17303b';context.fill();context.strokeStyle='#d7ff5570';context.stroke();displayed.push(cell);}
     context.strokeStyle='rgba(220,255,245,.25)';context.lineWidth=Math.max(1,target.width/1200);
     context.beginPath();
     for(const cell of cells)if(visible(cell)){polygonPath(context,cell,bounds,scale,scale,true,ox,oy);displayed.push(cell);}

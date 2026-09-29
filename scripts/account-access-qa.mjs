@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 
 const url=process.env.SMOKE_URL||'https://million-hexagons-staging.million-hexagons.workers.dev/';
 const chrome='C:/Program Files/Google/Chrome/Application/chrome.exe';
-const browser=await chromium.launch({headless:true,...(existsSync(chrome)?{executablePath:chrome}:{})});
+const browser=withSettledConsent(await chromium.launch({headless:true,...(existsSync(chrome)?{executablePath:chrome}:{})}));
 await mkdir('artifacts/account-access',{recursive:true});
 const report=[];
 try{

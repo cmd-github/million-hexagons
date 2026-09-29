@@ -2,10 +2,11 @@ import assert from'node:assert/strict';
 import{existsSync}from'node:fs';
 import{mkdir}from'node:fs/promises';
 import{chromium}from'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 
 const url=process.env.SMOKE_URL||'http://127.0.0.1:4174/';
 const chrome='C:/Program Files/Google/Chrome/Application/chrome.exe';
-const browser=await chromium.launch({headless:true,...(existsSync(chrome)?{executablePath:chrome}:{})});
+const browser=withSettledConsent(await chromium.launch({headless:true,...(existsSync(chrome)?{executablePath:chrome}:{})}));
 const cases=[['GB','gbp','£',false],['FR','eur','€',true],['BG','eur','€',false],['US','usd','$',false]];
 await mkdir('artifacts/regional-pricing',{recursive:true});
 try{

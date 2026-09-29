@@ -1,6 +1,7 @@
 ﻿import {chromium} from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 import assert from 'node:assert/strict';
-const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+const browser=withSettledConsent(await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}));
 try{
  const page=await browser.newPage();await page.route('**/baker-fixture',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><title>Publication validation</title>'}));
  await page.goto('http://127.0.0.1:4180/baker-fixture');

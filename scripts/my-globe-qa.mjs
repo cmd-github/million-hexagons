@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { createServer } from "vite";
 import { chromium } from "playwright";
+import { withSettledConsent } from './qa-consent.mjs';
 import sharp from "sharp";
 
 const server = await createServer({
@@ -15,10 +16,10 @@ const server = await createServer({
 await server.listen();
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`,
   chrome = "C:/Program Files/Google/Chrome/Application/chrome.exe";
-const browser = await chromium.launch({
+const browser = withSettledConsent(await chromium.launch({
   headless: true,
   ...(existsSync(chrome) ? { executablePath: chrome } : {}),
-});
+}));
 await mkdir("artifacts/my-globe", { recursive: true });
 const currentArtwork = await sharp({
     create: { width: 320, height: 200, channels: 4, background: "#245a73" },

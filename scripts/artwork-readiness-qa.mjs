@@ -6,6 +6,7 @@ import {createServer} from 'node:http';
 import {gzipSync} from 'node:zlib';
 import path from 'node:path';
 import {chromium} from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 import assert from 'node:assert/strict';
 
 const monitor=JSON.parse(await fs.readFile('deploy/staging-monitor.json','utf8'));
@@ -42,7 +43,7 @@ const server=createServer(async(request,response)=>{
 });
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const origin=`http://127.0.0.1:${server.address().port}`;
-const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+const browser=withSettledConsent(await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}));
 await fs.mkdir('artifacts/artwork-readiness',{recursive:true});
 const report=[];
 try{

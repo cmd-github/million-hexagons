@@ -15,10 +15,10 @@
     <style>
       html,body{margin:0;background:#050b14}
       body.booting>:not(#appLoading):not(script){visibility:hidden}
-      #appLoading{position:fixed;inset:0;z-index:1000;display:grid;place-content:center;justify-items:center;gap:18px;background:#050b14;color:#d4ff58;font:13px system-ui,sans-serif}
+      #appLoading{position:fixed;inset:0;z-index:1000;display:grid;place-content:center;justify-items:center;gap:18px;background:#050b14;color:#d7ff55;font:13px system-ui,sans-serif}
       #appLoading[hidden]{display:none}
       #appLoading[data-context=editor]{background:#050b14}
-      .loading-hex{width:60px;height:60px;overflow:visible;filter:drop-shadow(0 0 12px #d4ff5833)}
+      .loading-hex{width:60px;height:60px;overflow:visible;filter:drop-shadow(0 0 12px #d7ff5533)}
       .loading-hex polygon{fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}
       .loading-hex .hex-trail{stroke-dasharray:38 130;animation:hex-trace 1.6s linear infinite}
       .loading-hex .hex-core{fill:currentColor;stroke:none;transform-origin:30px 30px;animation:hex-breathe 1.6s ease-in-out infinite}
@@ -28,7 +28,7 @@
       #loadingCount strong{min-width:8ch;text-align:right;color:#f5fbf8;font-size:19px;font-variant-numeric:tabular-nums}
       #loadingCount span{color:#789095;font-size:10px}
       #appLoading[data-context=editor] #loadingMessage,#appLoading[data-context=editor] #loadingCount{display:none}
-      #loadingRetry{border:1px solid #d4ff5866;border-radius:9px;padding:9px 18px;background:#d4ff5815;color:#d4ff58;cursor:pointer}
+      #loadingRetry{border:1px solid #d7ff5566;border-radius:9px;padding:9px 18px;background:#d7ff5515;color:#d7ff55;cursor:pointer}
       @keyframes hex-trace{to{stroke-dashoffset:-168}}
       @keyframes hex-breathe{50%{opacity:.4;transform:scale(.8)}}
       @media(prefers-reduced-motion:reduce){.loading-hex .hex-trail,.loading-hex .hex-core{animation:none}}

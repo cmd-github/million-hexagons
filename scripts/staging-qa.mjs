@@ -1,10 +1,11 @@
 import { chromium } from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 const url = process.env.SMOKE_URL || 'http://127.0.0.1:4183';
 const chrome = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const browser = await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
+const browser = withSettledConsent(await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) }));
 const report = { url, journeys: [], errors: [], runtimeRequests: 0, firestoreRequests: 0 };
 async function screenshot(page, file) {
   // Allow the existing panel/camera transition and replacement tiles to settle.

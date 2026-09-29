@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {createServer} from 'vite';
 import {chromium} from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 
 const server=process.env.SMOKE_URL?null:await createServer({server:{host:'127.0.0.1',port:0,watch:null},define:{'import.meta.env.VITE_STAGING_SANDBOX':'true','import.meta.env.VITE_STAGING_API_URL':JSON.stringify('/__qa/placements')}});
 if(server)await server.listen();
@@ -10,7 +11,7 @@ const base=(process.env.SMOKE_URL||`http://127.0.0.1:${server.httpServer.address
 // one so Next has somewhere to go.
 const catalogue=[966630,720104,410233].map((anchor,index)=>({placementId:`qa-placement-${index}`,topologyVersion:'geodesic-v1',anchor,cells:[anchor],cellCount:index+1,title:`QA placement ${index+1}`,description:'A placement used by the mobile review journey.',destinationUrl:'https://example.com/',artworkDataUrl:'',publicationStatus:'published',status:'active',moderationStatus:'active',createdAt:Date.now()-index*60000,metrics:{views:10*(index+1),clicks:index+1}}));
 await mkdir('artifacts/craig-review',{recursive:true});
-const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+const browser=withSettledConsent(await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}));
 const report=[];
 try{
   for(const viewport of [{width:390,height:844},{width:320,height:568}]){

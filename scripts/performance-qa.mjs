@@ -1,8 +1,9 @@
 import {chromium} from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 const executablePath=['C:/Program Files/Google/Chrome/Application/chrome.exe','C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'].find(fs.existsSync);
-const browser=await chromium.launch({headless:true,...(executablePath?{executablePath}:{})});
+const browser=withSettledConsent(await chromium.launch({headless:true,...(executablePath?{executablePath}:{})}));
 const reports=[],errors=[],base=process.env.SMOKE_URL||'http://127.0.0.1:4182';
 fs.mkdirSync('artifacts/performance-qa',{recursive:true});
 try {

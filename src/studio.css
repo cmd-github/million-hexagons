@@ -22,7 +22,7 @@ body[data-flow=location] #locationStep,body[data-flow=shape] #shapeStep{display:
 #startingSpotPrompt small{color:var(--lime);font-size:10px}
 body.choosing-start #startingSpotPrompt{display:block}
 body.choosing-start .cell-tooltip{z-index:35}
-#designStep .add-image{display:flex;align-items:center;gap:7px;border:1px solid #d4ff5844;background:#d4ff5810;color:var(--lime);border-radius:10px;height:40px;cursor:pointer;white-space:nowrap;font-size:12px}
+#designStep .add-image{display:flex;align-items:center;gap:7px;border:1px solid #d7ff5544;background:#d7ff5510;color:var(--lime);border-radius:10px;height:40px;cursor:pointer;white-space:nowrap;font-size:12px}
 #designStep .add-image>span:first-child{font-size:20px}
 #logoUpload:focus-visible+.add-image{outline:2px solid var(--lime)}
 #designStep .studio-count{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:11px;color:#90a8b2}
@@ -37,7 +37,7 @@ body.choosing-start .cell-tooltip{z-index:35}
 #designStep .studio-toolbar{display:flex;align-items:center;gap:4px;border:0;border-radius:0;margin:0;background:none;flex-shrink:0}
 #designStep button{min-height:32px;font-size:11px;padding:6px 10px;border-radius:8px}
 #designStep .studio-toolbar>button{background:none;border-color:transparent;color:#91a9b3}
-#designStep .studio-toolbar>button[aria-pressed=true]{background:#d4ff5814;color:var(--lime);border-color:#d4ff5840}
+#designStep .studio-toolbar>button[aria-pressed=true]{background:#d7ff5514;color:var(--lime);border-color:#d7ff5540}
 #designStep button:disabled{opacity:.35;cursor:default}
 .toolbar-spacer{flex:1}
 #logoPositionControls, #brushControls{display:flex;align-items:center;gap:8px;margin:0!important}
@@ -50,7 +50,7 @@ body.choosing-start .cell-tooltip{z-index:35}
 #recentColours>small{margin-right:2px;color:#8199a2;font-size:9px}
 #designStep #recentColours .recent-colour{width:24px;height:24px;min-height:24px;padding:0;border:2px solid #ffffff55;border-radius:50%}
 #brushControls button{min-height:28px;font-size:10px;padding:4px 8px;background:none;border:1px solid transparent;color:#90a8b2}
-#brushControls button[aria-pressed=true]{color:var(--lime);border-color:#d4ff5840}
+#brushControls button[aria-pressed=true]{color:var(--lime);border-color:#d7ff5540}
 #paintColourChip{display:none}
 #toolHint{color:#8fa6ae;font-size:10px;line-height:1.3}
 #designStep .studio-context:has(#brushControls:not([hidden])) #toolHint, #designStep .studio-context:has(#logoPositionControls:not([hidden])) #toolHint{display:none}
@@ -110,7 +110,7 @@ body[data-flow=location] .buy-panel,body[data-flow=shape] .buy-panel,body[data-f
 body[data-flow=location] .globe-controls,body[data-flow=shape] .globe-controls{right:490px;left:auto}
 #logoOptions.image-layout-choice{display:flex;gap:8px}
 #logoOptions.image-layout-choice label{display:flex;align-items:center;gap:9px;flex:1;padding:12px;border:1px solid #29414b;border-radius:11px;color:#b7c9cf;font-size:11px;cursor:pointer;background:#09172080}
-#logoOptions.image-layout-choice label:has(input:checked){border-color:#d4ff5870;background:#d4ff5810;color:var(--lime)}
+#logoOptions.image-layout-choice label:has(input:checked){border-color:#d7ff5570;background:#d7ff5510;color:var(--lime)}
 #logoOptions input[type=radio]{accent-color:var(--lime)}
 #shapeStep .shape-size-card{display:grid;grid-template-columns:1fr;align-items:center;gap:10px;padding:15px;border:1px solid #29414b;border-radius:13px;background:#09172080}
 #shapeStep .shape-size-heading{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between}
@@ -121,7 +121,7 @@ body[data-flow=location] .globe-controls,body[data-flow=shape] .globe-controls{r
 #shapeStep .studio-count input{width:100%;height:48px;padding:0 12px;border:1px solid #29414b;border-radius:9px;background:#091720;color:white;text-align:center;font:700 18px 'DM Mono';appearance:textfield}
 #shapeStep .shape-count-stepper{display:grid;grid-template-columns:48px minmax(0,1fr) 48px;align-items:center;gap:7px}
 #shapeStep .shape-count-stepper>button{min-width:48px;height:48px;padding:0;border:1px solid #29414b;border-radius:9px;background:#132832;color:var(--lime);font:700 22px Manrope}
-#shapeStep .shape-count-stepper>button:hover{border-color:#d4ff5870;background:#d4ff5810}
+#shapeStep .shape-count-stepper>button:hover{border-color:#d7ff5570;background:#d7ff5510}
 #shapeStep #shapeCountError{display:block;margin:-3px 2px 0;color:#ff7385;font-size:10px;line-height:1.4}
 #shapeStep #shapeCountError[hidden]{display:none}
 #shapeStep #shapeLimitNotice{display:block;margin:6px 2px 0;color:#a9bcba;font-size:10px;line-height:1.5}
@@ -130,7 +130,7 @@ body[data-flow=location] .globe-controls,body[data-flow=shape] .globe-controls{r
 #shapeStep .studio-count input::-webkit-inner-spin-button,#shapeStep .studio-count input::-webkit-outer-spin-button{appearance:none;margin:0}
 #shapeStep .size-presets{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 #shapeStep .size-presets button{min-width:46px;height:44px;padding:0;border:1px solid #29414b;border-radius:9px;background:#132832;color:#b7c9cf;font:600 11px 'DM Mono'}
-#shapeStep .size-presets button:hover{border-color:#d4ff5870;background:#d4ff5810;color:var(--lime)}
+#shapeStep .size-presets button:hover{border-color:#d7ff5570;background:#d7ff5510;color:var(--lime)}
 #shapeStep .shape-brushes{display:flex;align-items:center;gap:7px;padding:10px 12px;border:1px solid #29414b;border-radius:11px;background:#09172080;color:#a4bac5;font-size:11px}
 #shapeStep .shape-brushes[hidden]{display:none}
 #shapeStep .availability-key{width:max-content;max-width:100%;margin-top:4px;align-items:center;justify-content:flex-start;gap:12px;padding:8px 10px;border:1px solid #29414b;border-radius:9px;background:#09172080}
@@ -164,13 +164,13 @@ body[data-flow=design][data-surface=globe] #world{opacity:1;pointer-events:auto}
 .shape-brushes .hex-brush.active small{color:#07121c}
 .colour-palette{display:flex;flex-wrap:wrap;gap:5px}
 .colour-palette button{width:25px;height:25px;min-height:25px;padding:0;border:2px solid transparent;border-radius:50%;background:var(--swatch)}
-.colour-palette button.active{border-color:white;box-shadow:0 0 0 2px #d7ff55}
+.colour-palette button.active{border-color:white;box-shadow:0 0 0 2px var(--lime)}
 #areaBrushValue{min-width:62px}
-body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;margin-top:7px}
-#customPaintTools button[aria-pressed=true]{background:#d7ff5530;box-shadow:inset 0 -2px #d7ff55;color:#e5ff94}
+body[data-flow=design] #toolHint{display:block;font-size:11px;color:var(--lime);margin-top:7px}
+#customPaintTools button[aria-pressed=true]{background:#d7ff5530;box-shadow:inset 0 -2px var(--lime);color:#e5ff94}
 #customPaintTools #removeHexMode[aria-pressed=true]{background:#ff596d22;color:#ff92a0;box-shadow:inset 0 -2px #ff596d}
 #placementInspector{position:fixed;z-index:20;background:linear-gradient(130deg,#0b2029c9,#0b202955);backdrop-filter:blur(12px);border:1px solid #d7ff5540;box-shadow:0 8px 40px #0002;border-radius:14px;right:80px;padding:17px}
-#placementInspector .eyebrow{font-size:9px;color:#d7ff55;margin:0}
+#placementInspector .eyebrow{font-size:9px;color:var(--lime);margin:0}
 #placementInspector h2{font-size:25px;margin:10px 0 6px}
 #placementInspector button:not(#closeInspector), #placementInspector a{display:inline-block;padding:8px 10px;font-size:11px;margin:3px 3px 3px 0;background:#ffffff06}
 #placementInspector details{font-size:11px;margin-top:9px}
@@ -186,13 +186,13 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:#d7ff55;marg
 #designStep #logoPositionControls .image-actions{display:flex;gap:6px}
 #designStep #logoPositionControls .image-actions button{flex:1;border:1px solid #ffffff20;background:#ffffff08;color:#c7d7dc}
 #logoControls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-#designStep #logoPositionControls.empty{grid-template-columns:1fr;padding:12px;border:1px dashed #d4ff5844;border-radius:11px;background:#d4ff5508}
+#designStep #logoPositionControls.empty{grid-template-columns:1fr;padding:12px;border:1px dashed #d7ff5544;border-radius:11px;background:#d4ff5508}
 #designStep #logoPositionControls.empty #logoControls{justify-content:center}
 #designStep #logoPositionControls.empty~#toolHint{text-align:center}
 #designStep #areaBrushControls{width:100%}
 #designStep #areaBrushControls{display:flex;align-items:center;gap:5px}
 #designStep #toolHint{margin:0;width:100%}
-#designStep #fillCells{width:40px;min-width:40px;padding:0;color:var(--lime);border-color:#d4ff5844;background:#d4ff5510}
+#designStep #fillCells{width:40px;min-width:40px;padding:0;color:var(--lime);border-color:#d7ff5544;background:#d4ff5510}
 #designStep #fillCells .ico{--ico:21px}
 .checkout-complete{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 .checkout-complete p{margin:20px 0 4px;font-size:24px;font-weight:700;color:#f4faf7}
@@ -439,11 +439,11 @@ body:not(.detail-view) .intro{top:19%}
 .staging-owner-access small{display:block;margin-top:8px;color:#9fb4b1;line-height:1.45}
 .embedded-checkout{position:absolute;inset:0;z-index:8;overflow:auto;padding:22px;background:#0d1b24}
 .embedded-checkout>header{display:flex;align-items:center;gap:14px;margin-bottom:14px}
-.embedded-checkout>header button{border:0;background:transparent;color:#d7ff55;padding:4px 0;font:700 11px Manrope}
+.embedded-checkout>header button{border:0;background:transparent;color:var(--lime);padding:4px 0;font:700 11px Manrope}
 .embedded-checkout>header div{margin-left:auto;text-align:right}
 .embedded-checkout>header b, .embedded-checkout>header small{display:block}
 .embedded-checkout>header small{color:#8ea5a9;font-size:9px;margin-top:2px}
-.checkout-loading{display:grid;min-height:340px;place-content:center;justify-items:center;gap:14px;color:#d4ff58}
+.checkout-loading{display:grid;min-height:340px;place-content:center;justify-items:center;gap:14px;color:var(--lime)}
 .checkout-loading p{margin:0;color:#9fb4b1;font:600 11px Manrope,sans-serif}
 #embeddedCheckoutStatus{color:#9fb4b1;font-size:11px;line-height:1.5;text-align:center}
 .buy-panel:has(.embedded-checkout:not([hidden]))>.close, .buy-panel:has(.embedded-checkout:not([hidden]))>.flow-progress{visibility:hidden}
@@ -587,6 +587,20 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
 .purchase-confirmation .reference{grid-column:1/-1;text-align:left;font:11px 'DM Mono';max-width:none;color:#d7e2da}
 .purchase-confirmation button{min-height:48px}
 @media(max-width:700px){
+ /* A phone has no room for a fixed 120px artwork column beside the copy: the
+    status pill, the CTR tile and Edit placement all ran off the card, and the
+    action labels compressed to three lines in 47px. Stack it instead, and let
+    the actions take a full-width row each at a real touch size. */
+ .my-globe-card{grid-template-columns:1fr;min-height:0}
+ .my-globe-card>img, .my-globe-placeholder{width:100%;height:132px;min-height:0}
+ .my-globe-card-copy{padding:14px}
+ .my-globe-card-heading{gap:10px}
+ .my-globe-actions{flex-wrap:wrap;gap:8px;margin-top:14px}
+ .my-globe-actions button{flex:1 1 calc(50% - 4px);min-height:44px;padding:10px 12px;font-size:11px;white-space:nowrap}
+ .my-globe-actions button[data-owner-action=edit]{flex-basis:100%}
+ .my-globe-metrics{gap:6px}
+ .my-globe-metrics span{padding:8px 4px}
+
  .topbar{height:76px;padding:14px 16px;gap:12px}
  .brand{gap:7px}.mark{width:36px;height:36px;font-size:13px}.brand b,.brand strong{font-size:10px}
  #claimButton{padding:12px;font-size:11px;min-height:44px}#claimButton .ico-slot{display:none}
@@ -960,8 +974,8 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
    error that appears where the person is actually looking. */
 .mode-toggle{display:inline-grid;place-items:center;min-width:34px;min-height:34px;padding:0;border:1px solid #29414b;border-radius:9px;background:#132832;color:#91a9b3}
 .mode-toggle .ico{--ico:18px}
-.mode-toggle:hover{border-color:#d4ff5870;background:#d4ff5810;color:#cfe3d9}
-.mode-toggle.active,.mode-toggle[aria-pressed=true]{border-color:#d4ff5880;background:#d4ff5814;color:var(--lime)}
+.mode-toggle:hover{border-color:#d7ff5570;background:#d7ff5510;color:#cfe3d9}
+.mode-toggle.active,.mode-toggle[aria-pressed=true]{border-color:#d7ff5580;background:#d7ff5514;color:var(--lime)}
 .shape-brush-divider{width:1px;height:24px;margin:0 2px;background:#29414b}
 #shapeBrushControls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 /* Choosing "move the globe" fades the brushes so the active mode is unambiguous. */
@@ -979,8 +993,8 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
 #nearbyPlacements .nearby-go{display:inline-flex;align-items:center;--ico:18px;color:#8ca7a2}
 
 /* "Edit design" sits in the preview row beside the kind label, still green. */
-.review-card .review-edit-design{margin:0;padding:5px 11px;border:1px solid #d4ff5859;border-radius:8px;background:#d4ff5814;color:var(--lime);font-size:11px;font-weight:700;min-height:32px;width:auto;flex:none}
-.review-card .review-edit-design:hover{border-color:#d4ff58a6;background:#d4ff5824}
+.review-card .review-edit-design{margin:0;padding:5px 11px;border:1px solid #d7ff5559;border-radius:8px;background:#d7ff5514;color:var(--lime);font-size:11px;font-weight:700;min-height:32px;width:auto;flex:none}
+.review-card .review-edit-design:hover{border-color:#d7ff55a6;background:#d7ff5524}
 .review-card>div{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .review-card>div #reviewCount{margin-left:auto}
 

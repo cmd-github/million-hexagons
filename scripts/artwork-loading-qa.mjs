@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import {createServer} from 'vite';
 import {chromium} from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 import sharp from 'sharp';
 
 const latest=JSON.parse(await fs.readFile('artifacts/artwork-snapshot/latest.json','utf8'));
@@ -9,7 +10,7 @@ const records=JSON.parse(await fs.readFile(`${latest.base}/records.json`,'utf8')
 const server=await createServer({server:{host:'127.0.0.1',port:0,watch:null,hmr:false},define:{'import.meta.env.VITE_STAGING_SANDBOX':'true','import.meta.env.VITE_STAGING_API_URL':JSON.stringify('/__qa/loading')}});
 await server.listen();const origin=`http://127.0.0.1:${server.httpServer.address().port}`;
 const png=await sharp({create:{width:128,height:64,channels:4,background:'#ff0000'}}).png().toBuffer();
-const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+const browser=withSettledConsent(await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}));
 await fs.mkdir('artifacts/artwork-loading',{recursive:true});const report=[];
 try{for(const mobile of [false,true]){
   const page=await browser.newPage({viewport:mobile?{width:390,height:844}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile,reducedMotion:mobile?'reduce':'no-preference'});

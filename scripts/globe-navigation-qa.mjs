@@ -1,7 +1,8 @@
 import {chromium} from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 const base=(process.env.SMOKE_URL||'http://127.0.0.1:4180').replace(/\/$/,'');
 import assert from 'node:assert/strict';
-const b=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+const b=withSettledConsent(await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}));
 try{
 for(const [width,height] of [[320,568],[390,844],[1024,768],[1440,900]]){
  const mobile=width<=390;

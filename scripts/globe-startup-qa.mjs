@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import {createServer} from 'vite';
 import {chromium} from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 const server=await createServer({server:{host:'127.0.0.1',port:0,watch:null},define:{'import.meta.env.VITE_STAGING_SANDBOX':'true','import.meta.env.VITE_STAGING_API_URL':JSON.stringify('/__qa/inventory')}});await server.listen();
-const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+const browser=withSettledConsent(await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}));
 try{for(const mobile of [false,true]){
  const page=await browser.newPage({viewport:mobile?{width:390,height:844}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile});const errors=[];page.on('pageerror',e=>errors.push(e.message));let release;const gate=new Promise(resolve=>release=resolve);
  await page.route('**/__qa/inventory',async route=>{await gate;await route.fulfill({json:{placements:[{placementId:'held-inventory',anchor:966630,cells:[966630],cellCount:1,title:'Saved inventory',createdAt:1}]}});});

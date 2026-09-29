@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {chromium} from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 
 const base=process.env.SMOKE_URL||'http://127.0.0.1:4180';
-const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+const browser=withSettledConsent(await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}));
 await mkdir('artifacts/regions',{recursive:true});
 const reports=[];
 try {

@@ -1,7 +1,8 @@
 import {chromium} from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});fs.mkdirSync('artifacts/activity-hud',{recursive:true});const errors=[];
+const browser=withSettledConsent(await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}));fs.mkdirSync('artifacts/activity-hud',{recursive:true});const errors=[];
 try{for(const [width,height] of [[1440,900],[390,844],[768,1024]]){
  const p=await browser.newPage({viewport:{width,height},isMobile:width<900,hasTouch:width<900});p.on('pageerror',e=>errors.push(e.message));
  await p.goto('http://127.0.0.1:4180/?geodesicQA');await p.waitForFunction(()=>window.geodesicQA);

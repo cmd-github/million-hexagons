@@ -1,14 +1,15 @@
 import { chromium } from "playwright";
+import { withSettledConsent } from './qa-consent.mjs';
 const base = (process.env.SMOKE_URL || "http://127.0.0.1:4180").replace(
   /\/$/,
   "",
 );
 import assert from "node:assert/strict";
 import fs from "node:fs";
-const browser = await chromium.launch({
+const browser = withSettledConsent(await chromium.launch({
   headless: true,
   executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
-});
+}));
 const errors = [];
 fs.mkdirSync("artifacts/globe-design", { recursive: true });
 try {

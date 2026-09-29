@@ -1,10 +1,11 @@
 import {chromium} from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 
 const origin='https://million-hexagons-staging.million-hexagons.workers.dev';
 const fixtures=JSON.parse(await fs.readFile('artifacts/editable-brands/report.json','utf8'));
-const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+const browser=withSettledConsent(await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}));
 const report=[];
 try{
   for(const mobile of [false,true]){

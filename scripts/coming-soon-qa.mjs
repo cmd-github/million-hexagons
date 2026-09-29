@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { chromium } from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 
 const executablePath = [
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'
 ].find(fs.existsSync);
-const browser = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
+const browser = withSettledConsent(await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) }));
 const baseUrl = process.env.SMOKE_URL || 'http://127.0.0.1:4190';
 const output = 'artifacts/coming-soon';
 fs.mkdirSync(output, { recursive: true });

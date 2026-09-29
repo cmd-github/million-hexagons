@@ -1,8 +1,9 @@
 import {chromium} from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 const base=process.env.SMOKE_URL||'http://127.0.0.1:4184';
-const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+const browser=withSettledConsent(await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}));
 const errors=[],reports=[];
 fs.mkdirSync('artifacts/artwork-quality',{recursive:true});
 try{

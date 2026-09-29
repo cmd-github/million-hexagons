@@ -1,10 +1,11 @@
 ﻿import {chromium} from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 const errors=[],reports=[];
 async function edgeWidth(path){const {data,info}=await sharp(path).removeAlpha().raw().toBuffer({resolveWithObject:true});const widths=[];for(let y=410;y<485;y++){let start=-1;for(let x=420;x<790;x++){const i=(y*info.width+x)*3,v=Math.min(data[i],data[i+1],data[i+2]);if(v<40)start=x;else if(v>230&&start>=0){if(x-start<20)widths.push(x-start);start=-1;}}}assert.ok(widths.length>200,'Text edge fixture was not visible');widths.sort((a,b)=>a-b);return widths[Math.floor(widths.length/2)];}
-const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+const browser=withSettledConsent(await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}));
 fs.mkdirSync('artifacts/publication-quality',{recursive:true});
 const label=process.env.QUALITY_LABEL||'after';
 try{for(const mobile of [false,true])for(const count of (process.env.QUALITY_COUNTS||'1,50,500').split(',').map(Number)){

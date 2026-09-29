@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { createServer } from "vite";
 import { chromium } from "playwright";
+import { withSettledConsent } from './qa-consent.mjs';
 
 const server = process.env.SMOKE_URL ? null : await createServer({
   server: { host: "127.0.0.1", port: 0, watch: null },
@@ -14,10 +15,10 @@ const server = process.env.SMOKE_URL ? null : await createServer({
 if (server) await server.listen();
 const url = process.env.SMOKE_URL || `http://127.0.0.1:${server.httpServer.address().port}/`;
 const chrome = "C:/Program Files/Google/Chrome/Application/chrome.exe";
-const browser = await chromium.launch({
+const browser = withSettledConsent(await chromium.launch({
   headless: true,
   ...(existsSync(chrome) ? { executablePath: chrome } : {}),
-});
+}));
 await mkdir("artifacts/checkout-reservation", { recursive: true });
 const report = [];
 try {

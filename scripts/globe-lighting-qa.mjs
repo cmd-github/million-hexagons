@@ -2,12 +2,13 @@ import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {createServer} from 'vite';
 import {chromium} from 'playwright';
+import { withSettledConsent } from './qa-consent.mjs';
 const output=`artifacts/globe-lighting/${process.env.MH_LIGHTING_LABEL||'after'}`;
 await fs.mkdir(output,{recursive:true});
 const server=process.env.MH_LIGHTING_URL?null:await createServer({server:{host:'127.0.0.1',port:0,watch:null,hmr:false}});
 if(server)await server.listen();
 const url=process.env.MH_LIGHTING_URL||`http://127.0.0.1:${server.httpServer.address().port}`;
-const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+const browser=withSettledConsent(await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'}));
 try{for(const mobile of [false,true]){
   const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile});
   const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));

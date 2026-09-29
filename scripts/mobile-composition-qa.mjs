@@ -4,13 +4,14 @@
 // and is clipped by it. Supersedes the earlier geodesicQA-projection attempt,
 // which only resolved a couple of loaded cells at overview altitude.
 import { chromium } from "playwright";
+import { withSettledConsent } from './qa-consent.mjs';
 import sharp from "sharp";
 import fs from "node:fs";
 const base = process.env.SMOKE_URL || "http://127.0.0.1:4180";
 const out = "artifacts/mobile-composition";
 const HIDE = `header.topbar,.intro,#claimFeed,#globalMetrics,.globe-controls,#toast,#hint,.buy-panel,#appLoading,#claimButton{opacity:0 !important;}`;
 fs.mkdirSync(out, { recursive: true });
-const browser = await chromium.launch({ headless: true, executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe" });
+const browser = withSettledConsent(await chromium.launch({ headless: true, executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe" }));
 const results = {};
 
 for (const [name, vw, vh] of [["390x844", 390, 844], ["320x568", 320, 568]]) {
