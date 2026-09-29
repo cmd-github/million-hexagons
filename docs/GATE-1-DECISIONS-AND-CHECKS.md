@@ -8,7 +8,7 @@ This earlier checklist is superseded for current product/commercial decisions an
 - Stripe Priority Support answered the questions about Radar pricing, billing-country enforcement, fixed regional prices and customer-facing business details. The answers and their limits are in [Stripe support questions](stripe-support-questions.md).
 - Craig accepted the residual country/privacy risk on 24 September 2026 and chose to proceed with Stripe Managed Payments using the strongest practical controls described below. This accepts that Stripe does not guarantee Radar's billing-country rule across every payment method or customer flow; it does not waive the requirement to test the exact launch configuration.
 - Tax-inclusive regional pricing is decided as GBP 1 per hexagon in the UK, EUR 1 in the eurozone and USD 1 elsewhere in the supported region. The authoritative region selection and quote path is deployed to staging (Worker `d22c0f62`, release `6121418c`).
-- The repository's accountant section still says confirmation is pending. It records a question to Change Accountants about FreeAgent and UK VAT treatment of Managed Payments payouts and self-billed invoices. This does not establish whether a reply exists outside the repository.
+- Update, 29 September: Change Accountants recommend the FreeAgent Stripe bank feed. UK VAT treatment depends on whether Stripe or Birdcage is responsible; Craig has asked Stripe to clarify UK-customer Managed Payments sales. The accountant wants the first self-billed invoice before specifying its FreeAgent treatment. See [payment accounting](stripe-managed-payments.md).
 - The Managed Payments path is implemented behind configuration but documented as disabled by default and not yet exercised against Stripe. The payment doc says activation and an eligible Product Tax Code are not configured.
 - The 24 September review reports: “Could not open secure checkout. Your design is still here.” Its cause has not been established.
 
@@ -27,12 +27,12 @@ This earlier checklist is superseded for current product/commercial decisions an
 
 ### 1. Accountant's FreeAgent and VAT treatment
 
-Check whether Change Accountants has replied to the existing questions:
+Change Accountants' reply is now recorded in [Stripe Managed Payments](stripe-managed-payments.md). The remaining questions are:
 
-1. How should income collected from the customer by Stripe/OneLink and paid out to Birdcage Tech Ltd be recorded in FreeAgent and treated on the UK VAT return?
-2. How should Stripe Managed Payments self-billed invoices be recorded?
+1. Does Stripe or Birdcage account for VAT on a UK-customer Managed Payments sale? Craig has sent this to Stripe; confirm the answer with the accountant.
+2. How should the first actual self-billed invoice, payout and fees be explained in the FreeAgent Stripe feed? Send the invoice to the accountant for instruction.
 
-If the answer has arrived, record its date, the advice or a concise faithful summary, and any conditions in [Stripe Managed Payments](stripe-managed-payments.md). Then remove the pending status and checklist item there. If no answer has arrived, this remains an external dependency; do not infer tax treatment in product code.
+The FreeAgent bank-feed advice is recorded. Do not infer UK VAT liability or first-invoice treatment in product code or accounting automation.
 
 ### 2. Residual country and privacy risk
 
@@ -52,7 +52,7 @@ Radar Plus pricing was quoted by Stripe Priority Support as USD 0.07 per screene
 
 Craig has confirmed these decisions in the linked current implementation plan. They are no longer an open decision-gathering task: fixed tax-inclusive regional pricing; Stripe Managed Payments/Link with accepted residual country/privacy risk; no Birdcage merchant-liable fallback; refund and ownership separation; dispute suspension/recovery; immediate publication followed by moderation; service-duration-based cell-use rights; England and Wales law subject to mandatory consumer rights; branded support form; and the 10–10,000 self-service range.
 
-Remaining work is to implement the decisions, record the accountant's treatment when received, configure Stripe, and obtain qualified review of final legal wording. Keep payment/refund and ownership/inventory actions explicitly separate.
+Remaining work is to implement the decisions, resolve UK VAT responsibility and first-invoice treatment with Stripe and the accountant, configure Stripe, and obtain qualified review of final legal wording. Keep payment/refund and ownership/inventory actions explicitly separate.
 
 ### 4. Stripe account and configuration
 
@@ -96,7 +96,7 @@ Classify the cause as account/configuration, Stripe session creation, applicatio
 
 ## Suggested order
 
-1. Record accountant's FreeAgent/UK VAT advice when received.
+1. Connect the FreeAgent Stripe bank feed; obtain Stripe's UK VAT answer and the accountant's first-invoice treatment.
 2. Complete account onboarding, tax-code and agreed address/privacy configuration in Stripe test mode; verify Radar's no-monthly/minimum PAYG terms first.
 3. Re-run checkout and complete payment/country/webhook/reservation/refund/dispute/publication/customer-document checks against configured test mode.
 4. Investigate the secure-checkout message fully only if it persists after setup, unless a clear cause appears sooner.

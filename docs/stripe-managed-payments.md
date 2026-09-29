@@ -269,19 +269,21 @@ Stripe support has deliberately not provided advice about the VAT treatment of t
 
 This is an accounting/tax question rather than a checkout implementation question.
 
-Change Accountants have been asked to confirm:
+Change Accountants were asked to confirm:
 
 > When Stripe/OneLink collects the customer's payment and subsequently pays Birdcage Tech Ltd under Stripe Managed Payments, how should that income be recorded in FreeAgent and treated on Birdcage Tech Ltd's UK VAT return?
 
 They have also been asked how Stripe's Managed Payments self-billed invoices should be recorded.
 
-## Until confirmed
+## Accountant reply shared by Craig on 29 September 2026
 
-Do not invent VAT treatment in the application or accounting automation.
+Change Accountants recommend connecting Stripe to FreeAgent **and completing the Stripe bank-feed setup**, so Stripe transactions and deducted fees import for explanation. See [FreeAgent's connection guide](https://support.freeagent.com/hc/en-us/articles/25387833866514-Connect-to-Stripe). Check the feed against actual Managed Payments transactions and payout currencies before relying on it for reconciliation.
 
-The answer from Change Accountants should be documented here once received.
+The accountant says UK-customer VAT treatment depends on **who is responsible for UK VAT**. If Birdcage remains responsible, explain those sales in FreeAgent with 20% VAT as normal. For sales where Stripe is responsible for VAT, the accountant says Birdcage need not account for overseas VAT; Stripe should provide a self-billed invoice. Send the **first actual self-billed invoice** to the accountant so they can show how to record it in FreeAgent.
 
-**Status: Pending accountant confirmation.**
+Craig has sent Stripe this remaining question: “When a UK-established business uses Stripe Managed Payments / OneLink for a sale to a UK customer, is Stripe the Merchant of Record and responsible for collecting and remitting UK VAT, or does the UK seller remain responsible for accounting for UK VAT on that transaction?” Record Stripe's answer and have the accountant confirm the resulting UK bookkeeping treatment before applying a VAT rule. Do not infer the answer from the Merchant of Record label alone.
+
+**Status: Accountant guidance recorded; UK VAT responsibility and first-invoice FreeAgent treatment remain open.**
 
 ---
 
@@ -390,7 +392,7 @@ Before real payments are enabled:
 * [ ] Stripe fees represented correctly in internal order data
 * [ ] Registered office/service address change completed
 * [ ] Privacy Policy / Terms / checkout wording updated for Merchant of Record model
-* [ ] Accountant confirms FreeAgent and UK VAT treatment
+* [ ] Confirm UK VAT responsibility with Stripe and accountant; have accountant review the first self-billed invoice in FreeAgent
 * [ ] Real low-value launch transactions monitored for Stripe eligibility review
 
 ---
@@ -430,7 +432,7 @@ Craig accepted the residual enforcement risk on 24 September 2026. Radar Plus is
 2. **Craig / Stripe:** finish onboarding and terms, confirm sandbox/test availability and select an eligible product tax code. Activation is not final product approval. Review business and invoice settings without substituting an inaccurate address.
 3. **Development, test mode only:** configure explicit GBP/EUR/USD prices, server-side region selection and requoting, inclusive tax behaviour, required billing-address collection where supported, a maintained tax-coverage allow-list, and existing quotes, reservations and verified webhook fulfilment. No ordinary-payment fallback.
 4. **Acceptance:** prove supported and blocked-country journeys, correct regional totals/taxes, customer-facing documents, failed/expired payment release, duplicate/delayed webhooks and successful ownership/publication. Country filtering must prevent payment, not merely prevent fulfilment after payment.
-5. **Craig / accountant, alongside development:** record Change Accountants' FreeAgent and UK VAT treatment for Stripe payouts/self-billed invoices when received. Implement the already-decided refund, dispute, publication-failure, support and ownership behavior; obtain qualified review of final customer wording and verify accurate business-address configuration.
+5. **Craig / accountant, alongside development:** connect the Stripe bank feed in FreeAgent, confirm Stripe's UK VAT responsibility answer with the accountant, and have the accountant review the first self-billed invoice and actual payout/fee entries. Implement the already-decided refund, dispute, publication-failure, support and ownership behavior; obtain qualified review of final customer wording and verify accurate business-address configuration.
 6. **Controlled live launch after gates pass:** configure live keys/webhooks and rules separately, monitor genuine initial purchases, inspect live Link/customer documents and Stripe eligibility review, then expand promotion. Test-mode success is not product approval or production verification.
 
-Regional pricing is implemented on staging. Live acceptance remains conditional on account-level testing, the accountant's treatment, implementation of the confirmed lifecycle behavior and the repository's other launch gates. Craig's product/commercial decisions do not themselves enable live payments.
+Regional pricing is implemented on staging. Live acceptance remains conditional on account-level testing, UK VAT responsibility and first-invoice accounting treatment, implementation of the confirmed lifecycle behavior and the repository's other launch gates. Craig's product/commercial decisions do not themselves enable live payments.

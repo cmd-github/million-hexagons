@@ -6,10 +6,10 @@ Passing local builds, staging tests or browser emulation does not by itself clos
 
 ## Gate 1 - commercial and regulatory decisions
 
-Owner: Craig, with qualified tax/legal advice where required. Product/commercial decisions are recorded in [the confirmed decisions and implementation plan](CRAIG-CONFIRMED-DECISIONS-AND-IMPLEMENTATION-PLAN.md); Gate 1 remains open for accountant advice, account configuration and test evidence.
+Owner: Craig, with qualified tax/legal advice where required. Product/commercial decisions are recorded in [the confirmed decisions and implementation plan](CRAIG-CONFIRMED-DECISIONS-AND-IMPLEMENTATION-PLAN.md); Gate 1 remains open for UK VAT responsibility, first-invoice accounting treatment, account configuration and test evidence.
 
 - Configure Stripe Managed Payments/Link as Merchant of Record with fixed tax-inclusive GBP 1 UK / EUR 1 eurozone / USD 1 other permitted-country prices. IP/location is a display hint; billing country is authoritative. Reject unsupported tax jurisdictions and region mismatches; do not fall back to a Birdcage merchant-liable payment.
-- Record Change Accountants' FreeAgent, UK VAT, payout and self-billed-invoice advice. Stripe Priority Support's 23-24 September answers and Craig's acceptance of residual country/privacy risk are already documented; this acceptance does not replace account/payment-method testing.
+- Follow Change Accountants' recorded advice to connect the FreeAgent Stripe bank feed. Obtain Stripe's answer on UK-customer VAT responsibility, confirm its consequence with the accountant, and have the accountant review the first self-billed invoice and actual payout/fee entries. Stripe Priority Support's 23-24 September answers and Craig's acceptance of residual country/privacy risk are documented; this acceptance does not replace account/payment-method testing.
 - Configure billing-address collection and supported-country allow-list. Enable Radar Plus only after confirming pay-as-you-go terms with no monthly/minimum commitment.
 - Verify eligible Product Tax Code, inclusive tax, country/price behavior, customer-facing Link/receipt/invoice exposure and Stripe's current account settings.
 - Implement and verify the decisions for refunds vs ownership revocation, dispute suspension/restoration/reversal, failed publication, immediate post-payment publication/moderation, required name, 10-10,000 purchase limits, explicit immediate-supply consent, seller/company contact, and service-duration-based cell-use wording.

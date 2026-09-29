@@ -13,7 +13,7 @@ These decisions supersede conflicting older wording in product notes, code comme
 - The server selects an explicit regional price. IP/location can suggest the initial display region only. If confirmed billing country and quoted region differ, reject/restart checkout at the correct fixed price.
 - Do not sell into unsupported tax jurisdictions. Craig accepts Stripe's residual country/privacy risk and wants billing-address collection, a maintained allow-list, payment-method testing and Radar Plus as the strongest practical controls.
 - Enable Radar Plus only if the account confirms the discussed pay-as-you-go price with no monthly or minimum commitment. Confirm the current account terms before enabling it.
-- Managed Payments onboarding, eligible Product Tax Code/configuration and actual Stripe test transactions are still operational Gate 1 work. Accountant advice on FreeAgent/UK VAT treatment of payouts and self-billed invoices remains an external dependency until recorded.
+- Managed Payments onboarding, eligible Product Tax Code/configuration and actual Stripe test transactions are still operational Gate 1 work. Change Accountants' FreeAgent bank-feed advice is recorded; UK VAT responsibility awaits Stripe's answer and the accountant wants the first self-billed invoice before specifying its FreeAgent treatment.
 
 ### Ownership, payment, refunds and disputes
 
@@ -70,7 +70,7 @@ Checked against `src/main.js`, `index.html`, `src/staging-client.js`, `functions
 
 ### 0. External Gate 1 configuration
 
-1. Record the accountant's actual FreeAgent, payout and UK VAT advice in `stripe-managed-payments.md`; do not leave a presumed answer or invent treatment.
+1. Follow the recorded FreeAgent bank-feed advice, confirm Stripe's answer on UK-customer VAT responsibility with the accountant, and have them review the first self-billed invoice; do not invent its accounting treatment.
 2. In Stripe, complete Managed Payments activation/terms, select the eligible Product Tax Code, confirm inclusive tax, address collection and inspect public business/invoice settings.
 3. Verify Radar Plus is genuinely PAYG with no monthly/minimum commitment; only then enable the supported-country allow-list/rule in test mode.
 4. Confirm test-mode prices, supported jurisdictions and all offered payment methods. Do not enable live payments until launch approval.

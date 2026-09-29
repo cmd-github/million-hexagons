@@ -3,6 +3,12 @@
 Status: sent by Craig on 23 September 2026; answered by Stripe Priority Support on 24 September 2026.
 Append new unresolved provider/account questions here. Record dated answers under their question, then update the [payment decision](stripe-managed-payments.md). Keep answered questions for context.
 
+## UK-customer VAT question sent by Craig (reported 29 September 2026)
+
+> When a UK-established business uses Stripe Managed Payments / OneLink for a sale to a UK customer, is Stripe the Merchant of Record and responsible for collecting and remitting UK VAT, or does the UK seller remain responsible for accounting for UK VAT on that transaction?
+
+**Status: sent; Stripe answer not yet recorded.** Change Accountants say the FreeAgent VAT treatment depends on this answer. Confirm its accounting consequence with them before configuring UK VAT treatment.
+
 ## Copy-paste reply to Stripe
 
 Hi Sandhiya,
