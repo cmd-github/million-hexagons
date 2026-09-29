@@ -1,15 +1,16 @@
 # Million Hexagons — Status
 
-Updated: 28 September 2026
+Updated: 29 September 2026
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
 ## Now
 
-- [ ] Gate 3 scale acceptance: run the canonical 1k/10k/100k/1M-cell varied-artwork matrix, including many small placements, cold/repeat preview, inspection, ten-minute navigation and publication rollover. Confirm the 6s desktop / 8s constrained-mobile preview budgets and bounded GPU use on physical iOS Safari and Android Chrome. The snapshot renderer is active on staging; synthetic million-cell tile rendering and current 25-placement live startup pass, but these do not close the full product gate.
+- [ ] Gate 1 UK-only legal and checkout completion: verify business identity and contact details, decide the 14-day cancellation treatment after publication, enforce UK-only payment eligibility, and validate the full Stripe/payment/publication/refund lifecycle before approving or deploying customer Terms. The new Terms and Privacy pages are drafts only.
 
 ## Next
 
+- [ ] Finish the Gate 3 scale matrix and physical-device checks described below; current synthetic and 25-placement results do not close that gate.
 - [ ] Gate 1 operational work: confirm Stripe's answer on responsibility for UK-customer VAT with the accountant; connect the FreeAgent Stripe bank feed and have the accountant review the first self-billed invoice. Complete Managed Payments/Product Tax Code and agreed PAYG Radar setup, then verify Stripe's full test payment/publication lifecycle. Embedded test Checkout Session creation and cleanup pass; no payment has been submitted. See [payment accounting](stripe-managed-payments.md) and [confirmed decisions](CRAIG-CONFIRMED-DECISIONS-AND-IMPLEMENTATION-PLAN.md).
 - [ ] Gate 1 implementation follow-through: required placement name; 10-10,000 per-purchase limit and large-placement contact path; immediate-supply consent; post-payment publication with moderation afterwards; refund/dispute separation; failed-publication recovery; and remaining owner/public/legal behavior in the linked plan.
 - [ ] Replace Nearby's one-time paged full-catalogue fetch with a regional placement index before large placement counts. It now gives correct neighbours and follows `nextCursor` without delaying startup, but still reads every record when opened. Compress the remaining catalogue response and exclude cell IDs from discovery summaries.
@@ -33,6 +34,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Recently done
 
+- [x] Prepared local UK-only checkout/legal staging changes: separate Terms and early-service choices are required and recorded with the order; billing address is requested; public placement reporting reaches a founder queue; optional app analytics starts off and honours the privacy choice. Added draft Terms/Privacy pages. Backend (64), deployment (9), staging build and analytics-choice browser checks pass. **Not deployed or approved for live sales.** Country restriction, verified identity/policy details, notification/abuse controls and end-to-end payment/refund acceptance remain open.
 - [x] Recorded Change Accountants' 29 September reply: connect Stripe to FreeAgent through the bank feed; UK sales carry 20% VAT in FreeAgent if Birdcage is responsible, while Stripe-responsible sales are supported by self-billed invoices. The accountant wants to review the first invoice before specifying its FreeAgent treatment. Craig has asked Stripe who accounts for UK VAT on a UK-customer Managed Payments sale; its answer remains pending.
 
 - [x] Activated snapshot artwork on staging (frontend `08018d8f`, artwork revision 154). Current 25-placement cold reveal measured 3.7s desktop / 2.9s mobile; a synthetic million-cell atlas reached meaningful preview in 1.0s / 4.2s. The branded loader stays until preview is ready. Latest activity and direct placement links work without a boot catalogue request; Nearby loads the complete catalogue on demand. Desktop/mobile snapshot lifecycle, rendering and live Nearby checks pass. Full varied-placement scale and physical-device acceptance remain open under Gate 3.

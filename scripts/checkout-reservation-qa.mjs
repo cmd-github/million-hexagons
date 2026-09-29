@@ -151,6 +151,9 @@ try {
         actionBox.y + actionBox.height <= layoutHeight,
       `Final action must be visible with the server quote: ${JSON.stringify({ mobile, layoutHeight, actionBox })}`,
     );
+    const agreement=await page.locator('#checkoutAgreements').evaluate(element=>({width:element.getBoundingClientRect().width,scrollWidth:element.scrollWidth,checks:[...element.querySelectorAll('input')].map(input=>input.getBoundingClientRect().width)}));
+    assert.ok(agreement.scrollWidth<=agreement.width+1&&agreement.checks.every(width=>width>=18&&width<=20),`Agreement text and checkboxes must fit: ${JSON.stringify(agreement)}`);
+    await page.locator('#checkoutAgreements').scrollIntoViewIfNeeded();
     await page.screenshot({
       path: `artifacts/checkout-reservation/${mobile ? "mobile" : "desktop"}-review.png`,
       animations: "disabled",

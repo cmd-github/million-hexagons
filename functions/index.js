@@ -23,6 +23,8 @@ import { extendTestReservation, releaseTestReservation, reserveTestCells } from 
 import { quoteCells } from './pricing.js';
 import Stripe from 'stripe';
 import { applyCreditsToQuote, checkoutOrderId, checkoutOwnerId, checkoutSessionParameters, paidCheckoutEmail, paidEmailOwnerId } from './payments.js';
+import { normaliseCheckoutConsent } from './legal-consent.js';
+import { normaliseContentReport } from './content-report.js';
 import {validateDestinationUrl} from './destination-validation.js';
 import { ownerIdsForIdentity } from './owner-access.js';
 import { checkoutSessionState, paymentFailure, refundState } from './payment-lifecycle.js';
@@ -152,6 +154,14 @@ export const stagingPlacements = onRequest(
     if (!stagingSandboxEnabled.value()) { response.status(404).json({ ok: false, error: 'sandbox-disabled' }); return; }
 
     const action=request.body?.action;
+    if(action==='report-placement'){
+      let report;try{report=normaliseContentReport(request.body.report);}catch(error){response.status(400).json({ok:false,error:error.code});return;}
+      if(!report){response.status(200).json({ok:true});return;}
+      const db=getFirestore(),placement=await db.collection('stagingPlacements').doc(report.placementId).get();
+      if(!placement.exists||['deleted','revoked'].includes(placement.data().status)){response.status(404).json({ok:false,error:'placement-not-found'});return;}
+      const reportId=randomUUID();await db.collection('stagingContentReports').doc(reportId).create({...report,reportId,status:'new',createdAt:FieldValue.serverTimestamp()});
+      response.status(201).json({ok:true,reportId});return;
+    }
     if(action==='public-search'){
       const query=String(request.body.query||'').trim().toLowerCase().slice(0,120);
       if(!query){response.status(200).json({ok:true,placements:[]});return;}
@@ -233,6 +243,11 @@ export const stagingPlacements = onRequest(
     const ownerIds=ownerIdsForIdentity(identity);
 
     try {
+      if(action==='admin-content-reports'){
+        if(!identity.stagingAdmin){response.status(403).json({ok:false,error:'administrator-required'});return;}
+        const snapshot=await getFirestore().collection('stagingContentReports').orderBy('createdAt','desc').limit(50).get();
+        response.status(200).json({ok:true,reports:snapshot.docs.map(document=>{const item=document.data();return{reportId:document.id,placementId:item.placementId,kind:item.kind,details:item.details,email:item.email||'',status:item.status,createdAt:item.createdAt?.toMillis?.()||null};})});return;
+      }
       if(action==='admin-payment-status'&&identity.stagingAdmin){
         const db=getFirestore(),requestedOrderId=String(request.body.orderId||''),[orders,events,refunds]=await Promise.all([requestedOrderId?db.collection('stagingOrders').where('orderId','==',requestedOrderId).limit(1).get():db.collection('stagingOrders').limit(50).get(),requestedOrderId?db.collection('stagingStripeEvents').where('orderId','==',requestedOrderId).limit(50).get():db.collection('stagingStripeEvents').limit(50).get(),requestedOrderId?db.collection('stagingRefunds').where('orderId','==',requestedOrderId).limit(50).get():db.collection('stagingRefunds').limit(50).get()]);
         response.status(200).json({ok:true,orders:orders.docs.map(document=>{const data=document.data();return{orderId:document.id,status:data.status,paymentStatus:data.paymentStatus,placementId:data.placementId,stripeCheckoutSessionId:data.stripeCheckoutSessionId,lastPaymentError:data.lastPaymentError,ownershipOutcome:data.ownershipOutcome};}),events:events.docs.map(document=>{const data=document.data();return{eventId:document.id,type:data.type,status:data.status,error:data.error};}),refunds:refunds.docs.map(document=>document.data())});return;
@@ -508,13 +523,14 @@ export const stagingCheckout=onRequest({region:'europe-west1',maxInstances:3,tim
   response.set('Cache-Control','no-store');const origin=request.get('Origin');if(!stagingOrigin(origin)){response.status(403).json({ok:false,error:'origin-not-allowed'});return;}if(origin)response.set('Access-Control-Allow-Origin',origin).set('Vary','Origin');response.set('Access-Control-Allow-Headers','authorization, content-type').set('Access-Control-Allow-Methods','POST, OPTIONS');if(request.method==='OPTIONS'){response.status(204).send('');return;}if(request.method!=='POST'){response.status(405).json({ok:false,error:'method-not-allowed'});return;}if(!stagingSandboxEnabled.value()){response.status(404).json({ok:false,error:'sandbox-disabled'});return;}
   try{
     const reservationId=String(request.body?.reservationId||''),checkoutToken=String(request.body?.checkoutToken||''),orderId=checkoutOrderId(reservationId),db=getFirestore();
+    let consent;try{consent=normaliseCheckoutConsent(request.body?.consent);}catch(error){response.status(400).json({ok:false,error:error.code});return;}
     const settled=await db.collection('stagingOrders').doc(orderId).get();
     if(settled.exists&&settled.data().status==='fulfilled'){const data=settled.data();response.status(200).json({ok:true,checkout:{orderId,placementId:data.placementId,creditsApplied:Number(data.creditsApplied||0),creditsOnly:data.paymentStatus==='credits'}});return;}
     const reservationSnapshot=await db.collection('stagingReservations').doc(reservationId).get(),reservation=reservationSnapshot.data();
     if(!reservationSnapshot.exists||reservation.status!=='active'||reservation.ownerId!==checkoutOwnerId(checkoutToken)||Number(reservation.expiresAtMs)<=Date.now()){response.status(409).json({ok:false,error:'reservation-invalid'});return;}
     const candidate={...request.body.placement,ownerId:'pending-payment'};if(!normalisePlacementClaim(candidate)||candidate.cells.map(Number).sort((a,b)=>a-b).join(',')!==decodeCells(reservation.cellsData).join(',')){response.status(400).json({ok:false,error:'invalid-placement'});return;}
     if(candidate.destinationUrl)try{candidate.destinationUrl=await validateDestinationUrl(candidate.destinationUrl);}catch(error){response.status(400).json({ok:false,error:error.code||'destination-unreachable'});return;}
-    const orderRef=db.collection('stagingOrders').doc(orderId),existing=await orderRef.get();if(existing.exists&&existing.data().checkoutUrl){response.status(200).json({ok:true,checkout:{orderId,placementId:existing.data().placementId,url:existing.data().checkoutUrl}});return;}
+    const orderRef=db.collection('stagingOrders').doc(orderId),existing=await orderRef.get();if(existing.exists&&!existing.data().consent)await orderRef.set({consent:{...consent,recordedAt:FieldValue.serverTimestamp()}},{merge:true});if(existing.exists&&existing.data().checkoutUrl){response.status(200).json({ok:true,checkout:{orderId,placementId:existing.data().placementId,url:existing.data().checkoutUrl}});return;}
     let placementId=existing.data()?.placementId,sourceReference=existing.data()?.source,placement=existing.data()?.placement,checkoutExpiresAt=existing.data()?.checkoutExpiresAt||(existing.exists?Math.floor(Number(reservation.expiresAtMs)/1000):Math.floor(Date.now()/1000)+30*60);
     if(!existing.exists){
       const source=decodeArtworkSource(candidate.sourceArtworkDataUrl||candidate.artworkDataUrl);if(!source){response.status(400).json({ok:false,error:'invalid-artwork-source'});return;}
@@ -522,7 +538,7 @@ export const stagingCheckout=onRequest({region:'europe-west1',maxInstances:3,tim
       placementId=randomUUID();const path=sourceObjectPath(placementId,1,source.extension);sourceReference={bucket:privateSourceBucket,path,mimeType:source.mimeType,extension:source.extension,size:source.bytes.length,sha256:source.sha256};
       await getStorage().bucket(privateSourceBucket).file(path).save(source.bytes,{resumable:false,contentType:source.mimeType,metadata:{cacheControl:'private,no-store',metadata:{placementId,orderId,sha256:source.sha256}}});
       placement={topologyVersion:candidate.topologyVersion,anchor:candidate.anchor,cells:candidate.cells,title:candidate.title,description:candidate.description,destinationUrl:candidate.destinationUrl,artworkDataUrl:candidate.artworkDataUrl};
-      await orderRef.set({orderId,reservationId,reservationOwnerId:reservation.ownerId,placementId,placement,source:sourceReference,quote:reservation.quote,checkoutExpiresAt,status:'checkout-creating',environment:'staging',createdAt:FieldValue.serverTimestamp()},{merge:false});
+      await orderRef.set({orderId,reservationId,reservationOwnerId:reservation.ownerId,placementId,placement,source:sourceReference,quote:reservation.quote,checkoutExpiresAt,status:'checkout-creating',environment:'staging',consent:{...consent,recordedAt:FieldValue.serverTimestamp()},createdAt:FieldValue.serverTimestamp()},{merge:false});
     }
     let verifiedEmail='',creditOwnerIds=[];const idToken=request.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];if(idToken)try{const identity=await getAuth().verifyIdToken(idToken);if(identity.email_verified){verifiedEmail=String(identity.email||'').trim().toLowerCase();creditOwnerIds=ownerIdsForIdentity(identity);}}catch{}
 

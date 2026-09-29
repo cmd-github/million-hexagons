@@ -67,7 +67,7 @@ try {
     await page.locator('#closeBuy').click();await page.locator('#claimButton').click();await page.locator('#draftNotice').waitFor({state:'visible'});await shot('draft');
     await page.locator('#toPlacement').click();await page.waitForFunction(()=>!document.querySelector('#previewPurchase').disabled);await page.locator('#companyName').fill('A little piece of our world');await shot('review');await page.locator('#previewPurchase').scrollIntoViewIfNeeded();await shot('review-total');
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
-    await page.locator('#previewPurchase').click();await page.waitForFunction(()=>!!window.__completeTestCheckout);await shot('checkout');
+    await page.locator('#acceptTerms').check();await page.locator('#startImmediately').check();await page.locator('#previewPurchase').click();await page.waitForFunction(()=>!!window.__completeTestCheckout);await shot('checkout');
     if(!process.env.QA_PENDING)records.push(checkoutPlacement);
     if(process.env.QA_PENDING){await page.evaluate(()=>{void window.__completeTestCheckout();});await page.locator('.checkout-complete').waitFor({state:'visible'});await shot('payment-wait');await page.locator('.purchase-confirmation').waitFor({state:'visible',timeout:80000});}else await page.evaluate(()=>window.__completeTestCheckout());await page.locator('.purchase-confirmation').waitFor({state:'visible'});await shot('confirmation');
     assert.equal(await page.locator('.reference').textContent(),'fresh-paid-placement');assert.equal(await page.locator('.confirmation-total').textContent(),'$10');

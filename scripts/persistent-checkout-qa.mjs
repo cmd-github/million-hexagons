@@ -19,7 +19,7 @@ try {
     const page=await browser.newPage({viewport:mobile?{width:390,height:844}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile,reducedMotion});
     const errors=[];page.on('pageerror',error=>errors.push(error.message));
     const records=[{placementId:'existing-a',anchor:966329,cells:[966329],cellCount:1,title:'Saved first placement',createdAt:1,artworkDataUrl:`${origin}/__qa/stalled.webp`,publicationStatus:'published',status:'active'},{placementId:'existing-b',anchor:966630,cells:[966630],cellCount:1,title:'Saved second placement',createdAt:2,publicationStatus:'published',status:'active'}];
-    let failList=false,checkoutPlacement=null,releaseSeen=false;
+    let failList=false,checkoutPlacement=null,checkoutConsent=null,releaseSeen=false;
     await page.route('**/__qa/stalled.webp',()=>{});
     await page.route('**/__qa/placements',async route=>{
       const body=route.request().postDataJSON();let result;
@@ -37,7 +37,7 @@ try {
       await route.fulfill({json:result});
     });
     await page.route('**/__qa/checkout',async route=>{
-      checkoutPlacement={...route.request().postDataJSON().placement,placementId:'fresh-paid-placement',createdAt:Date.now(),publicationStatus:'published',status:'active'};
+      const request=route.request().postDataJSON();checkoutConsent=request.consent;checkoutPlacement={...request.placement,placementId:'fresh-paid-placement',createdAt:Date.now(),publicationStatus:'published',status:'active'};
       checkoutPlacement.cellCount=checkoutPlacement.cells.length;
       await new Promise(resolve=>setTimeout(resolve,500));
       await route.fulfill({json:{checkout:{clientSecret:'test-secret',placementId:checkoutPlacement.placementId}}});
@@ -59,8 +59,9 @@ try {
     const existingAnchor=966630,adjacentAnchor=await page.evaluate(anchor=>window.geodesicQA.neighbours(anchor).find(id=>!window.geodesicQA.state().committed.includes(id)),existingAnchor);assert.ok(adjacentAnchor);
     await page.evaluate(id=>window.geodesicQA.focus(id),adjacentAnchor);
     await page.locator('#claimButton').click();await page.locator('#locationStep').waitFor({state:'visible'});await page.evaluate(id=>window.geodesicQA.start(id),adjacentAnchor);await page.locator('#shapeStep').waitFor({state:'visible'});await page.locator('#hexAmount').fill('5');await page.locator('#toDesign').click();await page.locator('#toPlacement').click();await page.waitForFunction(()=>!document.querySelector('#previewPurchase').disabled);
-    await page.locator('#companyName').fill('Fresh saved placement');await page.locator('#previewPurchase').click();await page.locator('.checkout-loading').waitFor({state:'visible'});
-    await page.waitForFunction(()=>!!window.__completeTestCheckout);records.push(checkoutPlacement);
+    await page.locator('#companyName').fill('Fresh saved placement');await page.locator('#previewPurchase').click();assert.match(await page.locator('#purchaseError').textContent(),/accept the Terms/);assert.equal(checkoutConsent,null);
+    await page.locator('#acceptTerms').check();await page.locator('#startImmediately').check();await page.locator('#previewPurchase').click();await page.locator('.checkout-loading').waitFor({state:'visible'});
+    await page.waitForFunction(()=>!!window.__completeTestCheckout);assert.equal(checkoutConsent.termsVersion,'uk-service-draft-2026-09-29');assert.equal(checkoutConsent.acceptedTerms,true);assert.equal(checkoutConsent.requestedImmediateService,true);records.push(checkoutPlacement);
     await page.evaluate(()=>window.__completeTestCheckout());await page.locator('.purchase-confirmation').waitFor({state:'visible'});await page.locator('.purchase-confirmation button').click();await page.waitForFunction(()=>document.querySelector('#embeddedCheckoutPanel').hidden&&!document.body.classList.contains('creating'));
     assert.equal(await page.locator('#inspectorName').textContent(),'Fresh saved placement');await page.locator('#shareCard').waitFor({state:'visible',timeout:5000});assert.equal(await page.locator('#shareCardTitle').textContent(),'Your share image');await page.locator('#closeShareCard').click();
     assert.equal(checkoutPlacement.anchor,adjacentAnchor);assert.ok(await page.evaluate(({existingAnchor,adjacentAnchor})=>window.geodesicQA.neighbours(existingAnchor).includes(adjacentAnchor),{existingAnchor,adjacentAnchor}));

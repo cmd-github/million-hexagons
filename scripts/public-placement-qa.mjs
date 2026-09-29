@@ -81,11 +81,13 @@ try {
         hasTouch: mobile,
       }),
       events = [];
+    let contentReport=null;
     let releaseCatalogue;
     const catalogueGate = new Promise((resolve) => {
       releaseCatalogue = resolve;
     });
     await page.addInitScript(() => {
+      localStorage.setItem('mh-analytics-choice-v1','allow');
       window.open=(url)=>{window.__shareDestination=url;return null;};
       Object.defineProperty(navigator,"share",{value:async data=>{window.__nativeShare=data;}});
       Object.defineProperty(navigator,"canShare",{value:()=>false});
@@ -101,6 +103,7 @@ try {
       const body = route.request().postDataJSON();
       if (body.action === "public-placement")
         return route.fulfill({ json: { placement: record } });
+      if (body.action === "report-placement") {contentReport=body.report;return route.fulfill({status:201,json:{ok:true,reportId:'test-report'}});}
       if (body.action === "public-list")
         return catalogueGate.then(() =>
           route.fulfill({ json: { placements: catalogue } }),
@@ -140,6 +143,14 @@ try {
       await page.locator("#inspectorName").textContent(),
       record.title,
     );
+    await page.locator('#reportPlacementButton').click();
+    await page.locator('#reportPlacementDialog').waitFor({state:'visible'});
+    await page.locator('#reportPlacementForm [name=kind]').selectOption('unsafe-link');
+    await page.locator('#reportPlacementForm [name=details]').fill('This website appears to be a phishing page.');
+    await page.locator('#reportPlacementForm [type=submit]').click();
+    await page.locator('#reportPlacementStatus').getByText('Thank you. Your report has been sent for review.').waitFor();
+    assert.equal(contentReport.placementId,placementId);assert.equal(contentReport.kind,'unsafe-link');
+    await page.locator('#closeReportPlacement').click();
     releaseCatalogue();
     await page.waitForFunction(
       () => document.querySelectorAll("#claimFeedItems button").length === 4,

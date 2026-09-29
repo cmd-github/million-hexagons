@@ -547,6 +547,8 @@ body:not([data-flow=design]) .draft-notice{display:none}
 #reviewStep .staging-owner-access small{margin:0}
 body[data-flow=review] .buy-panel{overflow:hidden}
 body[data-flow=review] #reviewStep{overflow-y:auto;overflow-x:hidden;padding-right:2px;scroll-padding-block:12px}
+#reviewStep .review-footer{position:sticky;bottom:0;z-index:3;padding:9px 0 3px;background:#0d1b24}
+.report-dialog{max-width:min(430px,calc(100vw - 30px));color:#edf5f2;background:#0d1b24}.report-dialog::backdrop{background:#000b}.report-dialog textarea{width:100%;box-sizing:border-box;background:#091720;color:#fff;border:1px solid #29414b;border-radius:9px;padding:10px;font:inherit}.report-dialog .honeypot{position:absolute;left:-10000px;width:1px;height:1px}.report-dialog p,.report-dialog a{font-size:12px}.report-dialog a{color:var(--lime)}#adminContentReports li{margin:12px 0;overflow-wrap:anywhere}#adminContentReports li p{margin:3px 0}
 body.creating .flow-progress button[aria-current=step]{opacity:1}
 #designStep .studio-toolbar{display:grid;grid-template-columns:1fr 1fr 32px 32px;gap:4px}
 #designStep .studio-toolbar>button{display:flex;align-items:center;justify-content:center;gap:5px;padding:6px 4px;min-width:0;min-height:44px;white-space:nowrap}

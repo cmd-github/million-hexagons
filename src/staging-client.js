@@ -52,11 +52,13 @@ export async function listPublicCatalogue(options){
   return records;
 }
 export async function getPublicPlacement(placementId,options){return(await publicRequest({action:'public-placement',placementId},options)).placement;}
+export async function reportPlacement(report){return publicRequest({action:'report-placement',report});}
+export async function getAdminContentReports(){return(await ownerRequest({action:'admin-content-reports'})).reports;}
 export async function getPublicStats(){return publicRequest({action:'public-stats'});}
 export async function searchPublicPlacements(query){return(await publicRequest({action:'public-search',query})).placements;}
 export async function trackEvent(event){return publicRequest({action:'record-event',event});}
 export async function recordPlacementEvent(placementId,type,sessionId){return(await trackEvent({placementId,type:type==='view'?'placement_viewed':'outbound_link_clicked',sessionId})).metrics;}
-export async function createStripeCheckout(placement,reservationId,checkoutToken,user){const token=await user?.getIdToken?.();const response=await fetch(import.meta.env.VITE_STAGING_CHECKOUT_URL||'https://europe-west1-million-hexagons.cloudfunctions.net/stagingCheckout',{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify({placement,reservationId,checkoutToken})});const result=await response.json().catch(()=>({}));if(!response.ok)throw Object.assign(new Error(result.error||'checkout-failed'),{code:result.error});return result.checkout;}
+export async function createStripeCheckout(placement,reservationId,checkoutToken,user,consent){const token=await user?.getIdToken?.();const response=await fetch(import.meta.env.VITE_STAGING_CHECKOUT_URL||'https://europe-west1-million-hexagons.cloudfunctions.net/stagingCheckout',{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify({placement,reservationId,checkoutToken,consent})});const result=await response.json().catch(()=>({}));if(!response.ok)throw Object.assign(new Error(result.error||'checkout-failed'),{code:result.error});return result.checkout;}
 async function ownerRequest(body) {
   const user = await currentUser(); if (!user) throw new Error('authentication-required');
   const response = await fetch(import.meta.env.VITE_STAGING_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await user.getIdToken()}` }, body: JSON.stringify(body) });

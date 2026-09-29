@@ -23,6 +23,7 @@ import {cardCopy} from './share/card-copy.js';
 import {downloadShareCard,renderShareCard} from './share/card-renderer.js';
 import {startHeroTypewriter} from './hero-typewriter.js';
 import{formatRegionalPrice,pricingForRegion,pricingRegionForCountry}from'./pricing-regions.js';
+import{TERMS_VERSION}from'../functions/legal-consent.js';
 
 // Fill every [data-icon] before the boot overlay lifts, so no button flashes empty.
 renderIcons(document);
@@ -989,7 +990,7 @@ function showFlowStep(step) {
   heading.tabIndex = -1;
   heading.focus({ preventScroll: true });
   if(step==='shape')trackEvent('cells_selected',{context:{cellCount:placementCount(),source:'studio'}});
-  if(step==='review')trackEvent('design_completed',{context:{cellCount:placementCount(),source:'studio'}});
+  if(step==='review'){document.querySelector('#acceptTerms').checked=false;document.querySelector('#startImmediately').checked=false;trackEvent('design_completed',{context:{cellCount:placementCount(),source:'studio'}});}
 }
 
 function placementCount() {
@@ -2164,6 +2165,11 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
     try{const result=await stagingClient.getAdminReviewQueue();list.innerHTML=result.placements.map(item=>`<li data-overdue="${item.review.overdue}"><span><b>${escapeAdmin(item.title)}</b><small>${item.cellCount} hexagons · ${reviewAge(item.review.ageMs)} waiting${item.review.overdue?' · overdue':''}</small></span><button type="button" data-review-placement="${escapeAdmin(item.placementId)}">Review</button></li>`).join('');status.textContent=result.pending?`${result.pending} awaiting review · ${result.overdue} beyond the 12-hour target.`:'Nothing is waiting for review.';}
     catch(error){status.textContent=`Could not load review queue: ${error.message}`;list.innerHTML='';}
   }
+  async function renderContentReports(){
+    const panel=document.querySelector('#adminContentReports'),status=panel.querySelector('[role=status]'),list=panel.querySelector('ol');status.textContent='Refreshing reports…';list.replaceChildren();
+    try{const reports=await stagingClient.getAdminContentReports();for(const report of reports){const item=document.createElement('li'),link=document.createElement('a'),details=document.createElement('p');link.href=`/placement/${report.placementId}`;link.textContent=`${report.kind} · ${report.placementId}`;details.textContent=report.details;item.append(link,details);if(report.email){const reply=document.createElement('a');reply.href=`mailto:${encodeURIComponent(report.email)}`;reply.textContent=report.email;item.append(reply);}list.append(item);}status.textContent=reports.length?`${reports.length} recent reports. Review and record any action in the placement moderation workspace.`:'No placement reports yet.';}
+    catch(error){status.textContent=`Could not load reports: ${error.message}`;}
+  }
   async function runAdminLookup(){
     const query=adminQuery.value.trim();if(!query)return;adminStatus.textContent='Looking up placements…';adminResults.innerHTML='';
     try{const result=await stagingClient.adminLookup(query);adminResults.innerHTML=result.placements.length?result.placements.map(renderAdminPlacement).join(''):'<p class="admin-empty">No placements found.</p>';adminStatus.textContent=`${result.placements.length} ${result.placements.length===1?'placement':'placements'} found.`;}
@@ -2176,8 +2182,9 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
   }
   document.querySelector('#refreshAdminMilestones').onclick=()=>void renderAdminMilestones();
   document.querySelector('#refreshAdminQueue').onclick=()=>void renderAdminQueue();
+  document.querySelector('#refreshContentReports').onclick=()=>void renderContentReports();
   adminReviewQueue.onclick=event=>{const button=event.target.closest('[data-review-placement]');if(!button)return;adminQuery.value=button.dataset.reviewPlacement;void runAdminLookup();};
-  document.querySelector('#openAdmin').onclick=()=>{accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');adminWorkspace.hidden=false;document.body.classList.add('admin-open');void renderAdminQueue();void renderAdminMilestones();adminQuery.focus();};
+  document.querySelector('#openAdmin').onclick=()=>{accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');adminWorkspace.hidden=false;document.body.classList.add('admin-open');void renderAdminQueue();void renderContentReports();void renderAdminMilestones();adminQuery.focus();};
   document.querySelector('#closeAdmin').onclick=()=>{adminWorkspace.hidden=true;document.body.classList.remove('admin-open');accountToggle.focus();};
   document.querySelector('#adminSearch').onsubmit=event=>{event.preventDefault();void runAdminLookup();};
   adminResults.onclick=async event=>{
@@ -2217,11 +2224,13 @@ async function paintPlacement() {
       catch(error){document.querySelector('#purchaseError').hidden=false;document.querySelector('#purchaseError').textContent=error.message.startsWith('Your changes were saved')?error.message:`Could not save your changes: ${error.message}`;}
       finally{publishing=false;document.querySelector('#buyPanel').inert=false;button.disabled=false;button.textContent=label;}return;
     }
+    const acceptTerms=document.querySelector('#acceptTerms'),startImmediately=document.querySelector('#startImmediately');
+    if(!acceptTerms.checked||!startImmediately.checked){const target=document.querySelector('#purchaseError');target.hidden=false;target.textContent='Read and accept the Terms, then request immediate publication to continue.';(!acceptTerms.checked?acceptTerms:startImmediately).focus();return;}
     publishing=true;
     if(!activeCheckoutReservation){publishing=false;const target=document.querySelector('#purchaseError');target.hidden=false;target.textContent='This reservation expired. Choose the location again.';return;}
     showEmbeddedCheckoutLoading();await nextPaint();
-    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),placement={topologyVersion:'geodesic-v1',anchor:selectedCell.id,anchorCentre:[...topology.centre(selectedCell.id)],cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},checkout=await stagingClient.createStripeCheckout(placement,activeCheckoutReservation.reservation.reservationId,activeCheckoutReservation.checkoutToken,stagingUser);trackEvent('checkout_started',{context:{cellCount:placement.cells.length,source:'checkout',creditsApplied:Number(checkout.creditsApplied||0)}});if(checkout.expiresAtMs){activeCheckoutReservation.reservation.expiresAtMs=checkout.expiresAtMs;showCheckoutExpiry();}if(checkout.creditsOnly)await completeCreditPurchase(checkout);else await showEmbeddedCheckout(checkout);publishing=false;return;}
-    catch(error){publishing=false;hideEmbeddedCheckout();const target=document.querySelector('#purchaseError');target.hidden=false;target.textContent=error.code==='reservation-invalid'?'This reservation expired. Choose the location again.':error.code==='destination-not-found'?'That website returned a 404. Check the address and try again.':error.code?.startsWith('destination-')?'That website could not be safely reached. Check the address and try again.':'Could not open secure checkout. Your design is still here.';return;}
+    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),placement={topologyVersion:'geodesic-v1',anchor:selectedCell.id,anchorCentre:[...topology.centre(selectedCell.id)],cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},consent={termsVersion:TERMS_VERSION,acceptedTerms:true,requestedImmediateService:true},checkout=await stagingClient.createStripeCheckout(placement,activeCheckoutReservation.reservation.reservationId,activeCheckoutReservation.checkoutToken,stagingUser,consent);trackEvent('checkout_started',{context:{cellCount:placement.cells.length,source:'checkout',creditsApplied:Number(checkout.creditsApplied||0)}});if(checkout.expiresAtMs){activeCheckoutReservation.reservation.expiresAtMs=checkout.expiresAtMs;showCheckoutExpiry();}if(checkout.creditsOnly)await completeCreditPurchase(checkout);else await showEmbeddedCheckout(checkout);publishing=false;return;}
+    catch(error){publishing=false;hideEmbeddedCheckout();const target=document.querySelector('#purchaseError');target.hidden=false;target.textContent=error.code==='checkout-consent-required'?'The Terms or immediate publication request was not recorded. Please review both choices.':error.code==='reservation-invalid'?'This reservation expired. Choose the location again.':error.code==='destination-not-found'?'That website returned a 404. Check the address and try again.':error.code?.startsWith('destination-')?'That website could not be safely reached. Check the address and try again.':'Could not open secure checkout. Your design is still here.';return;}
   }
   publishing=true;
   document.querySelector('#buyPanel').inert=true;
@@ -2528,9 +2537,21 @@ for(const event of ['pointercancel','lostpointercapture'])canvas.addEventListene
 let inspectorVersion=0;
 let inspectedId=null, inspectedCells=[], hudPinned=false, inspectedOwner=null;
 let inspectorRoute=[],inspectorRouteIndex=0,nearbyRenderedFor=null;
-const analyticsSession=(()=>{try{let value=sessionStorage.getItem('mh-analytics-session');if(!value){value=crypto.randomUUID();sessionStorage.setItem('mh-analytics-session',value);}return value;}catch{return crypto.randomUUID();}})();
+const analyticsChoiceKey='mh-analytics-choice-v1';
+let analyticsChoice=null,analyticsSession=null;
+try{analyticsChoice=localStorage.getItem(analyticsChoiceKey);}catch{}
+const analyticsPanel=document.querySelector('#analyticsChoice');analyticsPanel.hidden=analyticsChoice==='allow'||analyticsChoice==='decline';
+function analyticsSessionId(){
+  if(analyticsChoice!=='allow')return null;
+  if(!analyticsSession)try{analyticsSession=sessionStorage.getItem('mh-analytics-session')||crypto.randomUUID();sessionStorage.setItem('mh-analytics-session',analyticsSession);}catch{analyticsSession=crypto.randomUUID();}
+  return analyticsSession;
+}
+function setAnalyticsChoice(choice){analyticsChoice=choice;try{localStorage.setItem(analyticsChoiceKey,choice);}catch{}if(choice==='decline'){analyticsSession=null;try{sessionStorage.removeItem('mh-analytics-session');localStorage.removeItem('mh-link-totals-v1');}catch{}}analyticsPanel.hidden=true;}
+document.querySelector('#allowAnalytics').onclick=()=>setAnalyticsChoice('allow');
+document.querySelector('#declineAnalytics').onclick=()=>setAnalyticsChoice('decline');
+document.querySelector('#privacyChoices').onclick=()=>{analyticsPanel.hidden=false;document.querySelector('#declineAnalytics').focus();};
 function deviceClass(){return innerWidth<=700?'mobile':innerWidth<=1024?'tablet':'desktop';}
-function trackEvent(type,{placementId='',context={},unique=false}={}){if(!stagingClient)return;const sessionId=unique?`${analyticsSession}-${crypto.randomUUID().slice(0,8)}`:analyticsSession;void stagingClient.trackEvent({type,sessionId,...(placementId?{placementId}:{}),context:{deviceClass:deviceClass(),...context}}).catch(()=>{});}
+function trackEvent(type,{placementId='',context={},unique=false}={}){const id=analyticsSessionId();if(!stagingClient||!id)return;const sessionId=unique?`${id}-${crypto.randomUUID().slice(0,8)}`:id;void stagingClient.trackEvent({type,sessionId,...(placementId?{placementId}:{}),context:{deviceClass:deviceClass(),...context}}).catch(()=>{});}
 const clickStorageKey='mh-link-totals-v1';
 const sampleDescriptions=[
   'Sport, style and performance made for movement on and off the field.',
@@ -2580,7 +2601,17 @@ function renderInspectorBadges(owner,isSample){
   }
 }
 let linkClicks={};
-try{const saved=JSON.parse(localStorage.getItem(clickStorageKey)||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))linkClicks=saved;}catch{}
+try{if(analyticsChoice==='allow'){const saved=JSON.parse(localStorage.getItem(clickStorageKey)||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))linkClicks=saved;}}catch{}
+const reportDialog=document.querySelector('#reportPlacementDialog'),reportForm=document.querySelector('#reportPlacementForm');
+document.querySelector('#reportPlacementButton').onclick=()=>{reportForm.reset();document.querySelector('#reportPlacementStatus').textContent='';reportDialog.showModal();};
+document.querySelector('#closeReportPlacement').onclick=()=>reportDialog.close();
+reportForm.onsubmit=async event=>{
+  event.preventDefault();const button=reportForm.querySelector('[type=submit]'),status=document.querySelector('#reportPlacementStatus'),data=new FormData(reportForm),placementId=document.querySelector('#reportPlacementButton').dataset.placementId;
+  if(!placementId||!stagingClient)return;button.disabled=true;status.textContent='Sending report…';
+  try{await stagingClient.reportPlacement({placementId,kind:data.get('kind'),details:data.get('details'),email:data.get('email'),website:data.get('website')});status.textContent='Thank you. Your report has been sent for review.';reportForm.reset();}
+  catch{status.textContent='Could not send the report. Please try again or use the email link below.';}
+  finally{button.disabled=false;}
+};
 function ownerKey(id){const record=sessionPlacements.get(id);return record||'sample-'+sampleOwners[id-1];}
 function createHudThumbnail(source){const art=document.createElement('canvas');const scale=Math.min(1,160/Math.max(source.width,source.height));art.width=Math.max(1,Math.round(source.width*scale));art.height=Math.max(1,Math.round(source.height*scale));art.getContext('2d').drawImage(source,0,0,art.width,art.height);return art.toDataURL('image/png');}
 async function inspectPlacement(id,{keepRoute=false}={}){
@@ -2618,7 +2649,7 @@ async function prepareInspector(id,version){
   const link=document.querySelector('#inspectorVisit');link.hidden=!cell.destination;link.href=cell.destination||'#';
   const owner=sampleOwners[id-1],queue=prepared;
   inspectedCells=queue;
-  const views=document.querySelector('#inspectorInfo');views.textContent=record?.placementId?'…':record?'\u2014':'12,429';views.title=record?.placementId?'Measured placement views':record?'Views are not measured yet':'Illustrative views';
+  const views=document.querySelector('#inspectorInfo');views.textContent=record?.placementId?Number(record.metrics?.views||0).toLocaleString():record?'\u2014':'12,429';views.title=record?.placementId?'Measured placement views':record?'Views are not measured yet':'Illustrative views';
   document.querySelector('#inspectorHexagons').textContent=queue.length.toLocaleString();
   const description=record?.description||sampleDescriptions[owner-1]||'';
   document.querySelector('#inspectorDescription').textContent=description;
@@ -2626,9 +2657,10 @@ async function prepareInspector(id,version){
   renderInspectorBadges(owner,!record);
 
   renderLinkClicks();
-  if(record?.placementId&&stagingClient)void stagingClient.recordPlacementEvent(record.placementId,'view',analyticsSession).then(metrics=>{if(inspectedOwner===record){views.textContent=metrics.views.toLocaleString();const visits=document.querySelector('#inspectorClicks');visits.textContent=metrics.clicks.toLocaleString();visits.title='Measured website visits';}}).catch(()=>{views.textContent='—';});
+  const measurementId=analyticsSessionId();if(record?.placementId&&stagingClient&&measurementId)void stagingClient.recordPlacementEvent(record.placementId,'view',measurementId).then(metrics=>{if(inspectedOwner===record){views.textContent=metrics.views.toLocaleString();const visits=document.querySelector('#inspectorClicks');visits.textContent=metrics.clicks.toLocaleString();visits.title='Measured website visits';}}).catch(()=>{views.textContent='—';});
   const context=document.querySelector('#inspectorContext');context.textContent=record?'New arrival':'';context.hidden=!record;context.title=record?'Claimed in this session':'';
   const deleteButton=document.querySelector('#deleteTestPlacement');deleteButton.hidden=!record?.placementId||!stagingClient;deleteButton.dataset.placementId=record?.placementId||'';
+  const reportButton=document.querySelector('#reportPlacementButton');reportButton.hidden=!record?.placementId||!stagingClient;reportButton.dataset.placementId=record?.placementId||'';
   updateInspectorShareControl();
   clearSelectionColours();selectionModeUniform.value=0;
   document.querySelector('#inspectorStatus').textContent='';panel.hidden=false;controls.autoRotate=false;
@@ -2735,8 +2767,8 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape'){if(document
 function renderLinkClicks(){const value=linkClicks[cellForId(inspectedId).destination],sample=!sessionPlacements.has(inspectedId),visits=(Number.isSafeInteger(value)&&value>=0?value:0)+(sample?328:0);const metric=document.querySelector('#inspectorClicks');metric.textContent=visits.toLocaleString();metric.title=sample?'Illustrative visits plus your browser total':'Website visits from this browser';}
 for(const id of ['inspectorVisit','placementWebsite'])for(const type of ['click','auxclick'])document.getElementById(id).addEventListener(type,event=>{
   if(type==='auxclick'&&event.button!==1)return;
-  const record=inspectedId?sessionPlacements.get(inspectedId):null;if(record?.placementId&&stagingClient)void stagingClient.trackEvent({placementId:record.placementId,type:'outbound_link_clicked',sessionId:`${analyticsSession}-${Date.now().toString(36)}`,context:{deviceClass:deviceClass(),source:'direct'}}).then(result=>{if(inspectedOwner===record)document.querySelector('#inspectorClicks').textContent=result.metrics.clicks.toLocaleString();}).catch(()=>{});
-  const url=event.currentTarget.href;const current=linkClicks[url];linkClicks[url]=(Number.isSafeInteger(current)&&current>=0?current:0)+1;try{localStorage.setItem(clickStorageKey,JSON.stringify(linkClicks));}catch{}if(inspectedId)renderLinkClicks();
+  const record=inspectedId?sessionPlacements.get(inspectedId):null,measurementId=analyticsSessionId();if(record?.placementId&&stagingClient&&measurementId)void stagingClient.trackEvent({placementId:record.placementId,type:'outbound_link_clicked',sessionId:`${measurementId}-${Date.now().toString(36)}`,context:{deviceClass:deviceClass(),source:'direct'}}).then(result=>{if(inspectedOwner===record)document.querySelector('#inspectorClicks').textContent=result.metrics.clicks.toLocaleString();}).catch(()=>{});
+  const url=event.currentTarget.href;const current=linkClicks[url];linkClicks[url]=(Number.isSafeInteger(current)&&current>=0?current:0)+1;try{if(analyticsChoice==='allow')localStorage.setItem(clickStorageKey,JSON.stringify(linkClicks));}catch{}if(inspectedId)renderLinkClicks();
 });
 function companyEntries(){return [...bootstrap.sampleAreas.map(area=>({id:area.anchor,name:bootstrap.sampleCampaigns[area.campaign].name,sample:true})),...[...new Set(sessionPlacements.values())].map(record=>({id:record.anchor,name:record.name||'Your placement'}))];}
 function renderCompanyResults(){

@@ -63,6 +63,8 @@ try {
     await page.locator('#companyName').fill('Staging verification');
     await page.locator('#website').fill('https://example.com/');
     await screenshot(page, `${mobile ? 'mobile' : 'desktop'}-review`);
+    await page.locator('#acceptTerms').check();
+    await page.locator('#startImmediately').check();
     await page.locator('#previewPurchase').click();
     // Durable staging opens Stripe rather than publishing a session preview. Prove that the
     // secure checkout mounts, but do not submit a payment; then close the studio so its test
