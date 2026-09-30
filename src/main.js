@@ -2537,57 +2537,36 @@ for(const event of ['pointercancel','lostpointercapture'])canvas.addEventListene
 let inspectorVersion=0;
 let inspectedId=null, inspectedCells=[], hudPinned=false, inspectedOwner=null;
 let inspectorRoute=[],inspectorRouteIndex=0,nearbyRenderedFor=null;
-const analyticsChoiceKey='mh-analytics-choice-v1';
-let analyticsChoice=null,analyticsSession=null;
-try{analyticsChoice=localStorage.getItem(analyticsChoiceKey);}catch{}
-const analyticsPanel=document.querySelector('#analyticsChoice');analyticsPanel.hidden=analyticsChoice==='allow'||analyticsChoice==='decline';
-function analyticsSessionId(){
-  if(analyticsChoice!=='allow')return null;
-  if(!analyticsSession)try{analyticsSession=sessionStorage.getItem('mh-analytics-session')||crypto.randomUUID();sessionStorage.setItem('mh-analytics-session',analyticsSession);}catch{analyticsSession=crypto.randomUUID();}
-  return analyticsSession;
-}
-function setAnalyticsChoice(choice){analyticsChoice=choice;try{localStorage.setItem(analyticsChoiceKey,choice);}catch{}if(choice==='decline'){analyticsSession=null;try{sessionStorage.removeItem('mh-analytics-session');localStorage.removeItem('mh-link-totals-v1');}catch{}}analyticsPanel.hidden=true;}
-document.querySelector('#allowAnalytics').onclick=()=>setAnalyticsChoice('allow');
-document.querySelector('#declineAnalytics').onclick=()=>setAnalyticsChoice('decline');
-document.querySelector('#privacyChoices').onclick=()=>{closeLegalOverlay();analyticsPanel.hidden=false;document.querySelector('#declineAnalytics').focus();};
-
-// Terms and privacy open over the globe rather than navigating away, so nobody
-// loses their place on the map to read them. The documents stay single files;
-// this lifts their <main> out and drops the "back to Million Hexagons" link,
-// which makes no sense inside an overlay.
-const legalOverlay=document.querySelector('#legalOverlay'),legalBody=document.querySelector('#legalOverlayBody'),legalTitle=document.querySelector('#legalOverlayTitle');
-const legalCache=new Map();
-function closeLegalOverlay(){if(legalOverlay?.open)legalOverlay.close();}
-async function openLegalOverlay(href,label){
-  if(!legalOverlay)return;
-  legalTitle.textContent=label;
-  if(!legalOverlay.open)legalOverlay.showModal();
-  legalBody.scrollTop=0;
-  if(legalCache.has(href)){legalBody.replaceChildren(legalCache.get(href).cloneNode(true));return;}
-  legalBody.replaceChildren(Object.assign(document.createElement('p'),{className:'legal-loading',textContent:'Loading…'}));
-  try{
-    const response=await fetch(href,{headers:{accept:'text/html'}});
-    if(!response.ok)throw Error(String(response.status));
-    const parsed=new DOMParser().parseFromString(await response.text(),'text/html');
-    const main=parsed.querySelector('main')||parsed.body;
-    for(const back of main.querySelectorAll('a[href="/"]'))back.closest('p')?.remove();
-    const fragment=document.createElement('div');
-    fragment.append(...main.childNodes);
-    legalCache.set(href,fragment);
-    legalBody.replaceChildren(fragment.cloneNode(true));
-  }catch{
-    legalBody.replaceChildren(Object.assign(document.createElement('p'),{className:'legal-loading',textContent:'Could not load this document. '}),
-      Object.assign(document.createElement('a'),{href,target:'_blank',rel:'noopener noreferrer',textContent:'Open it in a new tab instead.'}));
+// Counting placement views and visits no longer touches the visitor's device:
+// no session id, no cookie, nothing persisted. Each event carries a token minted
+// for that request alone, purely so a retry cannot double count. That keeps the
+// measurement outside PECR's device-access rules, so it needs no consent prompt;
+// the server-side processing rests on a legitimate interest, described in the
+// privacy notice, with the opt-out below as the objection route.
+//
+// The one thing stored is that opt-out, because it is a setting the visitor
+// asked for and cannot work otherwise.
+const measurementOptOutKey='mh-no-measurement-v1';
+let measurementOptOut=false;
+try{measurementOptOut=localStorage.getItem(measurementOptOutKey)==='1';}catch{}
+function setMeasurementOptOut(optedOut){
+  measurementOptOut=optedOut;
+  try{optedOut?localStorage.setItem(measurementOptOutKey,'1'):localStorage.removeItem(measurementOptOutKey);}catch{}
+  const button=document.querySelector('#privacyChoices');
+  if(button){
+    button.setAttribute('aria-pressed',String(optedOut));
+    button.textContent=optedOut?'Counting is off for you':'Don’t count my visits';
   }
 }
-for(const button of document.querySelectorAll('[data-legal]'))
-  button.onclick=()=>void openLegalOverlay(button.dataset.legal,button.textContent.trim());
-document.querySelector('#closeLegal').onclick=closeLegalOverlay;
-// Clicking the backdrop closes it; Escape is handled by <dialog> itself.
-legalOverlay?.addEventListener('click',event=>{if(event.target===legalOverlay)closeLegalOverlay();});
+
+document.querySelector('#privacyChoices').onclick=()=>setMeasurementOptOut(!measurementOptOut);
+setMeasurementOptOut(measurementOptOut);
+
 function deviceClass(){return innerWidth<=700?'mobile':innerWidth<=1024?'tablet':'desktop';}
-function trackEvent(type,{placementId='',context={},unique=false}={}){const id=analyticsSessionId();if(!stagingClient||!id)return;const sessionId=unique?`${id}-${crypto.randomUUID().slice(0,8)}`:id;void stagingClient.trackEvent({type,sessionId,...(placementId?{placementId}:{}),context:{deviceClass:deviceClass(),...context}}).catch(()=>{});}
-const clickStorageKey='mh-link-totals-v1';
+function trackEvent(type,{placementId='',context={}}={}){
+  if(!stagingClient||measurementOptOut)return;
+  void stagingClient.trackEvent({type,eventToken:crypto.randomUUID(),...(placementId?{placementId}:{}),context:{deviceClass:deviceClass(),...context}}).catch(()=>{});
+}
 const sampleDescriptions=[
   'Sport, style and performance made for movement on and off the field.',
   'Tools and experiences designed to help people create, connect and do their best work.',
@@ -2636,7 +2615,6 @@ function renderInspectorBadges(owner,isSample){
   }
 }
 let linkClicks={};
-try{if(analyticsChoice==='allow'){const saved=JSON.parse(localStorage.getItem(clickStorageKey)||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))linkClicks=saved;}}catch{}
 const reportDialog=document.querySelector('#reportPlacementDialog'),reportForm=document.querySelector('#reportPlacementForm');
 document.querySelector('#reportPlacementButton').onclick=()=>{reportForm.reset();document.querySelector('#reportPlacementStatus').textContent='';reportDialog.showModal();};
 document.querySelector('#closeReportPlacement').onclick=()=>reportDialog.close();
@@ -2692,7 +2670,7 @@ async function prepareInspector(id,version){
   renderInspectorBadges(owner,!record);
 
   renderLinkClicks();
-  const measurementId=analyticsSessionId();if(record?.placementId&&stagingClient&&measurementId)void stagingClient.recordPlacementEvent(record.placementId,'view',measurementId).then(metrics=>{if(inspectedOwner===record){views.textContent=metrics.views.toLocaleString();const visits=document.querySelector('#inspectorClicks');visits.textContent=metrics.clicks.toLocaleString();visits.title='Measured website visits';}}).catch(()=>{views.textContent='—';});
+  if(record?.placementId&&stagingClient&&!measurementOptOut)void stagingClient.recordPlacementEvent(record.placementId,'view',crypto.randomUUID()).then(metrics=>{if(inspectedOwner===record){views.textContent=metrics.views.toLocaleString();const visits=document.querySelector('#inspectorClicks');visits.textContent=metrics.clicks.toLocaleString();visits.title='Measured website visits';}}).catch(()=>{views.textContent='—';});
   const context=document.querySelector('#inspectorContext');context.textContent=record?'New arrival':'';context.hidden=!record;context.title=record?'Claimed in this session':'';
   const deleteButton=document.querySelector('#deleteTestPlacement');deleteButton.hidden=!record?.placementId||!stagingClient;deleteButton.dataset.placementId=record?.placementId||'';
   const reportButton=document.querySelector('#reportPlacementButton');reportButton.hidden=!record?.placementId||!stagingClient;reportButton.dataset.placementId=record?.placementId||'';
@@ -2802,8 +2780,8 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape'){if(document
 function renderLinkClicks(){const value=linkClicks[cellForId(inspectedId).destination],sample=!sessionPlacements.has(inspectedId),visits=(Number.isSafeInteger(value)&&value>=0?value:0)+(sample?328:0);const metric=document.querySelector('#inspectorClicks');metric.textContent=visits.toLocaleString();metric.title=sample?'Illustrative visits plus your browser total':'Website visits from this browser';}
 for(const id of ['inspectorVisit','placementWebsite'])for(const type of ['click','auxclick'])document.getElementById(id).addEventListener(type,event=>{
   if(type==='auxclick'&&event.button!==1)return;
-  const record=inspectedId?sessionPlacements.get(inspectedId):null,measurementId=analyticsSessionId();if(record?.placementId&&stagingClient&&measurementId)void stagingClient.trackEvent({placementId:record.placementId,type:'outbound_link_clicked',sessionId:`${measurementId}-${Date.now().toString(36)}`,context:{deviceClass:deviceClass(),source:'direct'}}).then(result=>{if(inspectedOwner===record)document.querySelector('#inspectorClicks').textContent=result.metrics.clicks.toLocaleString();}).catch(()=>{});
-  const url=event.currentTarget.href;const current=linkClicks[url];linkClicks[url]=(Number.isSafeInteger(current)&&current>=0?current:0)+1;try{if(analyticsChoice==='allow')localStorage.setItem(clickStorageKey,JSON.stringify(linkClicks));}catch{}if(inspectedId)renderLinkClicks();
+  const record=inspectedId?sessionPlacements.get(inspectedId):null;if(record?.placementId&&stagingClient&&!measurementOptOut)void stagingClient.trackEvent({placementId:record.placementId,type:'outbound_link_clicked',eventToken:crypto.randomUUID(),context:{deviceClass:deviceClass(),source:'direct'}}).then(result=>{if(inspectedOwner===record)document.querySelector('#inspectorClicks').textContent=result.metrics.clicks.toLocaleString();}).catch(()=>{});
+  const url=event.currentTarget.href;const current=linkClicks[url];linkClicks[url]=(Number.isSafeInteger(current)&&current>=0?current:0)+1;if(inspectedId)renderLinkClicks();
 });
 function companyEntries(){return [...bootstrap.sampleAreas.map(area=>({id:area.anchor,name:bootstrap.sampleCampaigns[area.campaign].name,sample:true})),...[...new Set(sessionPlacements.values())].map(record=>({id:record.anchor,name:record.name||'Your placement'}))];}
 function renderCompanyResults(){

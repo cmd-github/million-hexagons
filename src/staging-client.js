@@ -57,7 +57,7 @@ export async function getAdminContentReports(){return(await ownerRequest({action
 export async function getPublicStats(){return publicRequest({action:'public-stats'});}
 export async function searchPublicPlacements(query){return(await publicRequest({action:'public-search',query})).placements;}
 export async function trackEvent(event){return publicRequest({action:'record-event',event});}
-export async function recordPlacementEvent(placementId,type,sessionId){return(await trackEvent({placementId,type:type==='view'?'placement_viewed':'outbound_link_clicked',sessionId})).metrics;}
+export async function recordPlacementEvent(placementId,type,eventToken){return(await trackEvent({placementId,type:type==='view'?'placement_viewed':'outbound_link_clicked',eventToken})).metrics;}
 export async function createStripeCheckout(placement,reservationId,checkoutToken,user,consent){const token=await user?.getIdToken?.();const response=await fetch(import.meta.env.VITE_STAGING_CHECKOUT_URL||'https://europe-west1-million-hexagons.cloudfunctions.net/stagingCheckout',{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify({placement,reservationId,checkoutToken,consent})});const result=await response.json().catch(()=>({}));if(!response.ok)throw Object.assign(new Error(result.error||'checkout-failed'),{code:result.error});return result.checkout;}
 async function ownerRequest(body) {
   const user = await currentUser(); if (!user) throw new Error('authentication-required');

@@ -28,7 +28,7 @@ import { normaliseContentReport } from './content-report.js';
 import {validateDestinationUrl} from './destination-validation.js';
 import { ownerIdsForIdentity } from './owner-access.js';
 import { checkoutSessionState, paymentFailure, refundState } from './payment-lifecycle.js';
-import { metricField, normaliseAnalyticsEvent, publicGlobalStats, publicMetrics } from './analytics.js';
+import {metricField, normaliseAnalyticsEvent, publicGlobalStats, publicMetrics, eventRateKey, overEventLimit, EVENT_WINDOW_MS } from './analytics.js';
 
 initializeApp();
 const stagingSandboxEnabled = defineBoolean('MH_STAGING_SANDBOX', { default: false });
@@ -206,7 +206,31 @@ export const stagingPlacements = onRequest(
     if(action==='record-event'){
       const event=normaliseAnalyticsEvent(request.body.event);if(!event){response.status(400).json({ok:false,error:'invalid-event'});return;}
       const db=getFirestore();if(event.placementId){const placement=await db.collection('stagingPlacements').doc(event.placementId).get();if(!placement.exists||['deleted','revoked'].includes(placement.data().status)){response.status(404).json({ok:false,error:'placement-not-found'});return;}}
-      const eventId=createHash('sha256').update(`${event.placementId||'global'}:${event.type}:${event.sessionId}`).digest('hex'),eventRef=db.collection('stagingAnalyticsEvents').doc(eventId),aggregateRef=db.collection('stagingAnalyticsAggregates').doc('global'),metric=metricField(event.type),metricsRef=event.placementId?db.collection('stagingPlacementMetrics').doc(event.placementId):null;let duplicate=false;
+      // Counting stores nothing on the device, so the per-visitor cap is gone.
+      // Hold one network address to a sane number of events per placement per
+      // hour instead, or the public endpoint would let anyone inflate a view
+      // count. The address is hashed with a rotating window and never stored.
+      {
+        const forwarded=String(request.get('x-forwarded-for')||'').split(',')[0].trim();
+        const address=forwarded||request.ip||'';
+        if(address){
+          const nowMs=Date.now();
+          const digest=createHash('sha256').update(`${address}:${event.placementId||'global'}:${event.type}`).digest('hex');
+          const key=eventRateKey(digest,nowMs);
+          if(key){
+            const limitRef=db.collection('stagingAnalyticsRateLimits').doc(key);
+            const allowed=await db.runTransaction(async transaction=>{
+              const snapshot=await transaction.get(limitRef);
+              const count=Number(snapshot.data()?.count||0);
+              if(overEventLimit(count))return false;
+              transaction.set(limitRef,{count:count+1,expiresAt:new Date(nowMs+EVENT_WINDOW_MS*2)},{merge:true});
+              return true;
+            });
+            if(!allowed){response.status(200).json({ok:true,duplicate:true});return;}
+          }
+        }
+      }
+      const eventId=createHash('sha256').update(`${event.placementId||'global'}:${event.type}:${event.eventToken}`).digest('hex'),eventRef=db.collection('stagingAnalyticsEvents').doc(eventId),aggregateRef=db.collection('stagingAnalyticsAggregates').doc('global'),metric=metricField(event.type),metricsRef=event.placementId?db.collection('stagingPlacementMetrics').doc(event.placementId):null;let duplicate=false;
       await db.runTransaction(async transaction=>{if((await transaction.get(eventRef)).exists){duplicate=true;return;}transaction.create(eventRef,{eventId,type:event.type,...(event.placementId?{placementId:event.placementId}:{}),...(event.context?{context:event.context}:{}),occurredAt:FieldValue.serverTimestamp()});transaction.set(aggregateRef,{[event.type]:FieldValue.increment(1),...(metric?{[metric]:FieldValue.increment(1)}:{}),updatedAt:FieldValue.serverTimestamp()},{merge:true});if(metric)transaction.set(metricsRef,{placementId:event.placementId,[metric]:FieldValue.increment(1),updatedAt:FieldValue.serverTimestamp()},{merge:true});});
       const metrics=metricsRef?await metricsRef.get():null;response.status(200).json({ok:true,duplicate,...(metrics?{metrics:publicMetrics(metrics.data())}:{})});return;
     }
