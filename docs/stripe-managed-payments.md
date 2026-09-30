@@ -27,6 +27,7 @@ This is an accepted platform risk.
 * **17 September 2026, Jordan/Jack chat:** Jack described the product as likely eligible, confirmed UK tax-covered checkout/standard receipts do not display Birdcage's address/VAT number, and described `LINK.COM* [statement descriptor]` and Link transaction support. He could not confirm country enforcement, warned that Radar country data was not necessarily the tax-jurisdiction source of truth, and escalated both enforcement and product eligibility. His suggestion to build a pre-session country check was provisional.
 * **Later Sandhiya Priority Support email, supplied 22 September:** explicitly recommends `:billing_address_country:` with Radar for Fraud Teams and confirms product alignment, but no definitive pre-launch approval. This is the later support guidance we follow; preserve Jack's uncertainty as the reason to validate the actual integration, not as a competing implementation instruction.
 * **Sandhiya follow-up, supplied 24 September:** confirms Radar Plus pay-as-you-go pricing and explicit regional prices, but says the country rule is only an additional control. Missing billing country, saved Link/wallet data, changes at payment time and some Link flows prevent Stripe from guaranteeing universal enforcement.
+* **Karthik, Lead Stripe Support Team, reply shared 30 September:** confirms that Stripe handles UK VAT for UK-customer transactions successfully routed through Managed Payments within its supported scope; Birdcage does not account for UK VAT on those specific customer sales. Outside Managed Payments tax coverage, seller tax responsibility remains. This does not establish account activation, transaction coverage or FreeAgent treatment of Stripe's self-billed invoice and payouts.
 * None of the exchanges demonstrates our configuration working or guarantees that business details can never appear on every customer surface. Inspect checkout, receipts, invoices, confirmations and the Link customer account where available. Test purchases do not appear in the Link app, so that surface needs a genuine live-purchase check ([Stripe testing guidance](https://docs.stripe.com/payments/managed-payments/update-checkout#link)).
 
 ---
@@ -281,9 +282,9 @@ Change Accountants recommend connecting Stripe to FreeAgent **and completing the
 
 The accountant says UK-customer VAT treatment depends on **who is responsible for UK VAT**. If Birdcage remains responsible, explain those sales in FreeAgent with 20% VAT as normal. For sales where Stripe is responsible for VAT, the accountant says Birdcage need not account for overseas VAT; Stripe should provide a self-billed invoice. Send the **first actual self-billed invoice** to the accountant so they can show how to record it in FreeAgent.
 
-Craig has sent Stripe this remaining question: “When a UK-established business uses Stripe Managed Payments / OneLink for a sale to a UK customer, is Stripe the Merchant of Record and responsible for collecting and remitting UK VAT, or does the UK seller remain responsible for accounting for UK VAT on that transaction?” Record Stripe's answer and have the accountant confirm the resulting UK bookkeeping treatment before applying a VAT rule. Do not infer the answer from the Merchant of Record label alone.
+Stripe's Karthik answered the UK-customer question in the reply shared on 30 September: on a sale successfully routed through Managed Payments within its supported scope, Stripe is Merchant of Record and handles UK VAT calculation, collection, filing and remittance; Birdcage does not account for UK VAT on that specific customer transaction. Outside that coverage, the seller remains responsible. Stripe's [tax-compliance documentation](https://docs.stripe.com/payments/managed-payments/tax-compliance) confirms that domestic digital-product sales in the UK are covered and that unsupported transactions leave indirect-tax compliance with the seller. Confirm the actual transaction's Managed Payments status and send the first self-billed invoice to Change Accountants for FreeAgent treatment. This provider answer does not determine the VAT treatment of the separate Stripe-to-Birdcage payment.
 
-**Status: Accountant guidance recorded; UK VAT responsibility and first-invoice FreeAgent treatment remain open.**
+**Status: Stripe's conditional UK-customer VAT responsibility answer recorded; first-invoice and payout/fee treatment in FreeAgent remain open with Change Accountants.**
 
 ---
 
@@ -392,7 +393,7 @@ Before real payments are enabled:
 * [ ] Stripe fees represented correctly in internal order data
 * [ ] Registered office/service address change completed
 * [ ] Privacy Policy / Terms / checkout wording updated for Merchant of Record model
-* [ ] Confirm UK VAT responsibility with Stripe and accountant; have accountant review the first self-billed invoice in FreeAgent
+* [ ] Give Stripe's conditional UK VAT answer to Change Accountants; have them review the first self-billed invoice, payout and fees in FreeAgent
 * [ ] Real low-value launch transactions monitored for Stripe eligibility review
 
 ---

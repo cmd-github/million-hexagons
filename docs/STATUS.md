@@ -1,6 +1,6 @@
 # Million Hexagons — Status
 
-Updated: 29 September 2026
+Updated: 30 September 2026
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
@@ -11,7 +11,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 ## Next
 
 - [ ] Finish the Gate 3 scale matrix and physical-device checks described below; current synthetic and 25-placement results do not close that gate.
-- [ ] Gate 1 operational work: confirm Stripe's answer on responsibility for UK-customer VAT with the accountant; connect the FreeAgent Stripe bank feed and have the accountant review the first self-billed invoice. Complete Managed Payments/Product Tax Code and agreed PAYG Radar setup, then verify Stripe's full test payment/publication lifecycle. Embedded test Checkout Session creation and cleanup pass; no payment has been submitted. See [payment accounting](stripe-managed-payments.md) and [confirmed decisions](CRAIG-CONFIRMED-DECISIONS-AND-IMPLEMENTATION-PLAN.md).
+- [ ] Gate 1 operational work: give Change Accountants Stripe's conditional UK-customer VAT answer; connect the FreeAgent Stripe bank feed and have them review the first self-billed invoice, payout and fees. Complete Managed Payments/Product Tax Code and agreed PAYG Radar setup, then verify Stripe's full test payment/publication lifecycle. Embedded test Checkout Session creation and cleanup pass; no payment has been submitted. See [payment accounting](stripe-managed-payments.md) and [confirmed decisions](CRAIG-CONFIRMED-DECISIONS-AND-IMPLEMENTATION-PLAN.md).
 - [ ] Gate 1 implementation follow-through: required placement name; 10-10,000 per-purchase limit and large-placement contact path; immediate-supply consent; post-payment publication with moderation afterwards; refund/dispute separation; failed-publication recovery; and remaining owner/public/legal behavior in the linked plan.
 - [ ] Replace Nearby's one-time paged full-catalogue fetch with a regional placement index before large placement counts. It now gives correct neighbours and follows `nextCursor` without delaying startup, but still reads every record when opened. Compress the remaining catalogue response and exclude cell IDs from discovery summaries.
 
@@ -49,7 +49,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
   **Settling the measurement consent in the browser journeys surfaced two real defects that had been hiding behind it.** The banner is pinned bottom-left at z-index 30 and intercepts pointer events, so journeys that happened to click before it rendered passed and the rest failed intermittently -- it was breaking `test:visual`, `test:my-globe`, `test:craig-review`, `test:public-placement` and `test:mobile-composition` non-deterministically, on unmodified code as well as changed. `scripts/qa-consent.mjs` now records a decision before each page loads, wired into every browser suite except `analytics-choice-qa`, which tests the prompt itself. With that race gone the suites reach further and two genuine faults fail honestly: Review overflows its panel by 129-141px at 320x568 (`#checkoutAgreements` 137px and `.review-footer` 131px are the bulk of it), and `.legal-nav` at z-index 8 overlaps the activity feed at z-index 7 by 178x15px, intercepting clicks on the feed's own summary. Both are open, both pre-date this work, and `test:mobile-composition` and `test:public-placement` fail on them until they are fixed. Everything else passes: the launch gate and thirteen browser suites.
 
 - [x] Prepared local UK-only checkout/legal staging changes: separate Terms and early-service choices are required and recorded with the order; billing address is requested; public placement reporting reaches a founder queue; optional app analytics starts off and honours the privacy choice. Added draft Terms/Privacy pages. Backend (64), deployment (9), staging build and analytics-choice browser checks pass. **Not deployed or approved for live sales.** Country restriction, verified identity/policy details, notification/abuse controls and end-to-end payment/refund acceptance remain open.
-- [x] Recorded Change Accountants' 29 September reply: connect Stripe to FreeAgent through the bank feed; UK sales carry 20% VAT in FreeAgent if Birdcage is responsible, while Stripe-responsible sales are supported by self-billed invoices. The accountant wants to review the first invoice before specifying its FreeAgent treatment. Craig has asked Stripe who accounts for UK VAT on a UK-customer Managed Payments sale; its answer remains pending.
+- [x] Recorded Stripe Lead Support's UK VAT reply shared on 30 September: Stripe handles UK VAT on UK-customer sales successfully routed through Managed Payments within its supported scope; seller liability remains outside that scope. Change Accountants' 29 September advice is to connect the FreeAgent bank feed and send them the first self-billed invoice before setting its accounting treatment. No account configuration or actual covered transaction was verified by this reply.
 
 - [x] Activated snapshot artwork on staging (frontend `08018d8f`, artwork revision 154). Current 25-placement cold reveal measured 3.7s desktop / 2.9s mobile; a synthetic million-cell atlas reached meaningful preview in 1.0s / 4.2s. The branded loader stays until preview is ready. Latest activity and direct placement links work without a boot catalogue request; Nearby loads the complete catalogue on demand. Desktop/mobile snapshot lifecycle, rendering and live Nearby checks pass. Full varied-placement scale and physical-device acceptance remain open under Gate 3.
 
@@ -185,7 +185,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 ## Blocked / Needs Craig
 
 - [ ] Configure/confirm the $10 Cloudflare budget alert.
-- [ ] Obtain Stripe's answer on UK-customer VAT responsibility, confirm its accounting consequence with Change Accountants, and send them the first self-billed invoice for FreeAgent treatment.
+- [ ] Send Stripe's conditional UK VAT answer to Change Accountants, confirm its accounting consequence, and send them the first self-billed invoice for FreeAgent treatment.
 - [ ] Complete Stripe account onboarding, eligible tax-code selection and PAYG Radar terms/configuration in the Dashboard; activation and test mode are not yet evidenced in the repo.
 - [ ] Obtain qualified review of final Terms/cancellation wording and required Birdcage Tech Ltd identity/contact disclosures before launch.
 - [ ] Recruit 5-10 first-time participants and provide physical iOS/Android access for observed acceptance.

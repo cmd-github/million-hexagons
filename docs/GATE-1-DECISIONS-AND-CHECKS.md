@@ -8,7 +8,7 @@ This earlier checklist is superseded for current product/commercial decisions an
 - Stripe Priority Support answered the questions about Radar pricing, billing-country enforcement, fixed regional prices and customer-facing business details. The answers and their limits are in [Stripe support questions](stripe-support-questions.md).
 - Craig accepted the residual country/privacy risk on 24 September 2026 and chose to proceed with Stripe Managed Payments using the strongest practical controls described below. This accepts that Stripe does not guarantee Radar's billing-country rule across every payment method or customer flow; it does not waive the requirement to test the exact launch configuration.
 - Tax-inclusive regional pricing is decided as GBP 1 per hexagon in the UK, EUR 1 in the eurozone and USD 1 elsewhere in the supported region. The authoritative region selection and quote path is deployed to staging (Worker `d22c0f62`, release `6121418c`).
-- Update, 29 September: Change Accountants recommend the FreeAgent Stripe bank feed. UK VAT treatment depends on whether Stripe or Birdcage is responsible; Craig has asked Stripe to clarify UK-customer Managed Payments sales. The accountant wants the first self-billed invoice before specifying its FreeAgent treatment. See [payment accounting](stripe-managed-payments.md).
+- Update, 30 September: Stripe's Karthik confirmed that Stripe handles UK VAT for UK-customer sales successfully routed through Managed Payments within its supported scope; seller liability remains outside that scope. Change Accountants recommend the FreeAgent Stripe bank feed and need the first self-billed invoice to specify its FreeAgent treatment. See [payment accounting](stripe-managed-payments.md).
 - The Managed Payments path is implemented behind configuration but documented as disabled by default and not yet exercised against Stripe. The payment doc says activation and an eligible Product Tax Code are not configured.
 - The 24 September review reports: “Could not open secure checkout. Your design is still here.” Its cause has not been established.
 
@@ -29,7 +29,7 @@ This earlier checklist is superseded for current product/commercial decisions an
 
 Change Accountants' reply is now recorded in [Stripe Managed Payments](stripe-managed-payments.md). The remaining questions are:
 
-1. Does Stripe or Birdcage account for VAT on a UK-customer Managed Payments sale? Craig has sent this to Stripe; confirm the answer with the accountant.
+1. Give Change Accountants Stripe's conditional answer on UK-customer VAT and confirm how to classify transactions that actually fall within Managed Payments tax coverage.
 2. How should the first actual self-billed invoice, payout and fees be explained in the FreeAgent Stripe feed? Send the invoice to the accountant for instruction.
 
 The FreeAgent bank-feed advice is recorded. Do not infer UK VAT liability or first-invoice treatment in product code or accounting automation.
@@ -52,7 +52,7 @@ Radar Plus pricing was quoted by Stripe Priority Support as USD 0.07 per screene
 
 Craig has confirmed these decisions in the linked current implementation plan. They are no longer an open decision-gathering task: fixed tax-inclusive regional pricing; Stripe Managed Payments/Link with accepted residual country/privacy risk; no Birdcage merchant-liable fallback; refund and ownership separation; dispute suspension/recovery; immediate publication followed by moderation; service-duration-based cell-use rights; England and Wales law subject to mandatory consumer rights; branded support form; and the 10–10,000 self-service range.
 
-Remaining work is to implement the decisions, resolve UK VAT responsibility and first-invoice treatment with Stripe and the accountant, configure Stripe, and obtain qualified review of final legal wording. Keep payment/refund and ownership/inventory actions explicitly separate.
+Remaining work is to implement the decisions, confirm the consequence of Stripe's UK VAT answer and first-invoice treatment with the accountant, configure Stripe, and obtain qualified review of final legal wording. Keep payment/refund and ownership/inventory actions explicitly separate.
 
 ### 4. Stripe account and configuration
 
