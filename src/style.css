@@ -133,7 +133,6 @@ h2:focus{outline:none}
 .intro .eyebrow{font-size:9px;line-height:1.6;max-width:240px}
 .intro>p:not(.eyebrow){color:#aebdc0;font-size:14px;line-height:1.8}
 .intro .facts{margin:24px 0}
-.legal-nav{position:fixed;z-index:8;left:16px;bottom:12px;display:flex;gap:13px;align-items:center;flex-wrap:wrap;padding:6px 9px;border-radius:8px;background:#0d1b24c9;font-size:11px}.legal-nav a,.legal-nav button,.analytics-choice a{color:var(--lime);text-decoration:underline}.legal-nav button{border:0;background:none;padding:0;cursor:pointer;font:inherit}.analytics-choice{position:fixed;z-index:30;left:16px;bottom:44px;width:min(400px,calc(100vw - 32px));padding:16px;border-radius:14px;background:#0d1b24;color:#e7f1ee}.analytics-choice p{margin:0 0 12px;font-size:12px;line-height:1.5}.analytics-choice>div{display:flex;gap:8px;flex-wrap:wrap}.analytics-choice button{min-height:44px;padding:8px 13px;border:1px solid #d7ff5555;border-radius:9px;background:#d7ff5510;color:#e7f1ee;cursor:pointer}.analytics-choice #allowAnalytics{background:var(--lime);color:#08161d;font-weight:700}.analytics-choice[hidden]{display:none}
 .intro .secondary{width:auto;padding:13px 24px}
 .activity{position:fixed;z-index:4;padding:18px;border-radius:20px;top:auto;bottom:70px;right:32px;width:240px;background:rgba(8,22,34,.65)}
 .activity .text-button{padding-top:10px}

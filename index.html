@@ -53,7 +53,7 @@
       <p class="price-line"><b id="regionalUnitPrice">$1 per hexagon &middot; Pay Once. Change anytime.</b></p>
       <div class="facts"><span><b>1,000,000</b> hexagons</span><span><b>Yours</b> to create</span></div>
     </aside>
-    <nav class="legal-nav" aria-label="Legal information"><a href="/terms/uk-service-draft-2026-09-29.html" target="_blank" rel="noopener">Terms</a> <a href="/privacy.html" target="_blank" rel="noopener">Privacy</a> <button type="button" id="privacyChoices">Privacy choices</button></nav>
+    
     <section id="analyticsChoice" class="analytics-choice glass" aria-label="Optional measurement" hidden><p>May we count visits and interactions to understand how placements are used? Optional measurement is off until you agree. <a href="/privacy.html" target="_blank" rel="noopener">Privacy details</a></p><div><button type="button" id="declineAnalytics">No thanks</button><button type="button" id="allowAnalytics">Allow measurement</button></div></section>
 
     <div id="hint" hidden></div><div id="globalMetrics" aria-label="Live global metrics"><span id="globalMetricText">Loading live totals…</span></div>
@@ -71,6 +71,12 @@
           <div id="accountSignedOut"><b>Access your placements</b><p>We’ll email you a secure link. No password needed.</p><label for="accountEmail">Email</label><input id="accountEmail" type="email" autocomplete="email" placeholder="you@example.com"><button type="button" id="sendAccountLink"><span class="link-label">Email me a sign-in link</span><svg class="link-tick" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path class="link-hex" d="M13.5 5.5H34.5L45 24L34.5 42.5H13.5L3 24Z"/><path class="link-check" d="M15 24.5L21.5 31L33 18.5"/></svg></button></div>
           <div id="accountSignedIn" hidden><b>Your account</b><small id="accountIdentity"></small><div class="account-summary"><span><strong id="accountPlacementCount">0</strong> placements</span><span><strong id="accountCreditCount">0</strong> credits</span></div><button type="button" id="openMyGlobe">Open My Globe</button><button type="button" id="openAdmin" hidden>Content controls</button><button type="button" id="accountSignOut">Sign out</button></div>
           <small id="accountStatus" role="status"></small>
+          <div class="account-legal">
+            <b>Legal &amp; privacy</b>
+            <button type="button" data-legal="/terms/uk-service-draft-2026-09-29.html">Terms</button>
+            <button type="button" data-legal="/privacy.html">Privacy</button>
+            <button type="button" id="privacyChoices">Privacy choices</button>
+          </div>
         </section>
       </div>
       <button id="zoomIn" data-icon="zoom-in" aria-label="Zoom in"></button><button id="zoomOut" data-icon="zoom-out" aria-label="Zoom out"></button><button id="homeView" data-icon="home" aria-label="Re-centre globe"></button>
@@ -113,6 +119,10 @@
       </section>
       <section id="adminContentReports" class="admin-milestones" aria-labelledby="adminContentReportsTitle"><header><div><small>CONTENT SAFETY</small><h3 id="adminContentReportsTitle">Placement reports</h3></div><button type="button" id="refreshContentReports">Refresh</button></header><p role="status">Open founder controls to load reports.</p><ol></ol></section>
     </section>
+    <dialog id="legalOverlay" class="legal-overlay" aria-labelledby="legalOverlayTitle">
+      <header><h2 id="legalOverlayTitle">Legal</h2><button type="button" id="closeLegal" data-icon="close" aria-label="Close"></button></header>
+      <div id="legalOverlayBody" tabindex="0"><p class="legal-loading">Loading…</p></div>
+    </dialog>
     <div class="cell-tooltip glass" id="cellTooltip"><strong id="cellNumber"></strong><b id="cellOwner">Available</b><small id="cellDestination" hidden></small><button type="button" id="claimCell" hidden>Claim this space</button></div>
 
     <aside id="placementInspector" class="glass" hidden aria-label="Placement details">

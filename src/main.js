@@ -2549,7 +2549,42 @@ function analyticsSessionId(){
 function setAnalyticsChoice(choice){analyticsChoice=choice;try{localStorage.setItem(analyticsChoiceKey,choice);}catch{}if(choice==='decline'){analyticsSession=null;try{sessionStorage.removeItem('mh-analytics-session');localStorage.removeItem('mh-link-totals-v1');}catch{}}analyticsPanel.hidden=true;}
 document.querySelector('#allowAnalytics').onclick=()=>setAnalyticsChoice('allow');
 document.querySelector('#declineAnalytics').onclick=()=>setAnalyticsChoice('decline');
-document.querySelector('#privacyChoices').onclick=()=>{analyticsPanel.hidden=false;document.querySelector('#declineAnalytics').focus();};
+document.querySelector('#privacyChoices').onclick=()=>{closeLegalOverlay();analyticsPanel.hidden=false;document.querySelector('#declineAnalytics').focus();};
+
+// Terms and privacy open over the globe rather than navigating away, so nobody
+// loses their place on the map to read them. The documents stay single files;
+// this lifts their <main> out and drops the "back to Million Hexagons" link,
+// which makes no sense inside an overlay.
+const legalOverlay=document.querySelector('#legalOverlay'),legalBody=document.querySelector('#legalOverlayBody'),legalTitle=document.querySelector('#legalOverlayTitle');
+const legalCache=new Map();
+function closeLegalOverlay(){if(legalOverlay?.open)legalOverlay.close();}
+async function openLegalOverlay(href,label){
+  if(!legalOverlay)return;
+  legalTitle.textContent=label;
+  if(!legalOverlay.open)legalOverlay.showModal();
+  legalBody.scrollTop=0;
+  if(legalCache.has(href)){legalBody.replaceChildren(legalCache.get(href).cloneNode(true));return;}
+  legalBody.replaceChildren(Object.assign(document.createElement('p'),{className:'legal-loading',textContent:'Loading…'}));
+  try{
+    const response=await fetch(href,{headers:{accept:'text/html'}});
+    if(!response.ok)throw Error(String(response.status));
+    const parsed=new DOMParser().parseFromString(await response.text(),'text/html');
+    const main=parsed.querySelector('main')||parsed.body;
+    for(const back of main.querySelectorAll('a[href="/"]'))back.closest('p')?.remove();
+    const fragment=document.createElement('div');
+    fragment.append(...main.childNodes);
+    legalCache.set(href,fragment);
+    legalBody.replaceChildren(fragment.cloneNode(true));
+  }catch{
+    legalBody.replaceChildren(Object.assign(document.createElement('p'),{className:'legal-loading',textContent:'Could not load this document. '}),
+      Object.assign(document.createElement('a'),{href,target:'_blank',rel:'noopener noreferrer',textContent:'Open it in a new tab instead.'}));
+  }
+}
+for(const button of document.querySelectorAll('[data-legal]'))
+  button.onclick=()=>void openLegalOverlay(button.dataset.legal,button.textContent.trim());
+document.querySelector('#closeLegal').onclick=closeLegalOverlay;
+// Clicking the backdrop closes it; Escape is handled by <dialog> itself.
+legalOverlay?.addEventListener('click',event=>{if(event.target===legalOverlay)closeLegalOverlay();});
 function deviceClass(){return innerWidth<=700?'mobile':innerWidth<=1024?'tablet':'desktop';}
 function trackEvent(type,{placementId='',context={},unique=false}={}){const id=analyticsSessionId();if(!stagingClient||!id)return;const sessionId=unique?`${id}-${crypto.randomUUID().slice(0,8)}`:id;void stagingClient.trackEvent({type,sessionId,...(placementId?{placementId}:{}),context:{deviceClass:deviceClass(),...context}}).catch(()=>{});}
 const clickStorageKey='mh-link-totals-v1';

@@ -240,6 +240,34 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:var(--lime);
  #sendAccountLink .link-label,#sendAccountLink[data-sent] .link-tick,#sendAccountLink[data-sent] .link-hex,#sendAccountLink[data-sent] .link-check{transition:none;animation:none}
  #sendAccountLink[data-sent] .link-hex,#sendAccountLink[data-sent] .link-check{stroke-dashoffset:0}
 }
+/* Legal sits with the account key rather than as three links pinned over the
+   globe, where they covered the activity feed. Small, quiet, and one tap from
+   anywhere without taking a control-rail slot. */
+.account-legal{margin-top:12px;padding-top:11px;border-top:1px solid #ffffff14;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline}
+.account-legal b{flex-basis:100%;color:#8fa5a4;font:600 8px 'DM Mono',monospace;letter-spacing:.11em;text-transform:uppercase}
+#accountPanel .account-legal button{width:auto;margin:0;padding:3px 0;min-height:24px;border:0;border-radius:0;background:none;color:#a9bcba;font:500 10px Manrope,sans-serif;text-decoration:underline;text-underline-offset:3px}
+#accountPanel .account-legal button:hover{color:var(--lime)}
+
+.legal-overlay{width:min(560px,calc(100vw - 32px));max-height:min(78dvh,680px);padding:0;border:1px solid #d7ff5540;border-radius:16px;background:#07161f;color:#dfeae6;box-shadow:0 30px 90px #000c;overflow:hidden}
+.legal-overlay::backdrop{background:rgba(3,8,12,.72);backdrop-filter:blur(3px)}
+.legal-overlay header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #ffffff14;position:sticky;top:0;background:#07161f}
+.legal-overlay h2{margin:0;font-size:15px;color:#f2f8f5}
+#closeLegal{display:grid;place-items:center;width:36px;height:36px;min-height:36px;padding:0;border:1px solid #ffffff22;border-radius:50%;background:#ffffff08;color:#dfeae6}
+#closeLegal:hover{border-color:#d7ff5577;color:var(--lime)}
+#closeLegal .ico{--ico:16px}
+#legalOverlayBody{padding:16px 18px 22px;overflow-y:auto;max-height:calc(min(78dvh,680px) - 66px);font-size:12px;line-height:1.6}
+#legalOverlayBody h1{font-size:17px;margin:0 0 10px}
+#legalOverlayBody h2{font-size:13px;margin:18px 0 6px;color:#f2f8f5}
+#legalOverlayBody p, #legalOverlayBody li{font-size:12px;line-height:1.6;color:#c6d6d1}
+#legalOverlayBody a{color:var(--lime)}
+#legalOverlayBody aside{padding:11px 12px;border:1px solid #d7ff5544;border-radius:10px;background:#d7ff5510;margin:12px 0}
+#legalOverlayBody table{width:100%;border-collapse:collapse;font-size:11px}
+#legalOverlayBody th,#legalOverlayBody td{border:1px solid #ffffff1a;padding:6px 8px;text-align:left;vertical-align:top}
+.legal-loading{color:#8fa5a4}
+@media(max-width:700px){
+ .legal-overlay{width:calc(100vw - 24px);max-height:82dvh}
+ #legalOverlayBody{max-height:calc(82dvh - 66px)}
+}
 #accountStatus, #accountIdentity{display:block;margin-top:9px;color:#91a7a6;font-size:9px;line-height:1.45;overflow-wrap:anywhere}
 .account-summary{display:grid;grid-template-columns:1fr;gap:8px;margin:13px 0}
 .account-summary.has-credits{grid-template-columns:1fr 1fr}
