@@ -328,6 +328,28 @@ function updatePersistentArtwork(time) {
 }
 const previewPlacementLayers = new THREE.Group();
 globe.add(previewPlacementLayers);
+// The close-up grid draws the selection, but it fades out once hexagons are only
+// a pixel or two across, which made the selection vanish at middle zoom levels.
+// This lime footprint fades in exactly as the grid fades out, so the area being
+// claimed stays visible at every zoom.
+const selectionOverlayLayer=new THREE.Group();
+globe.add(selectionOverlayLayer);
+const selectionOverlayArt=Object.assign(document.createElement('canvas'),{width:2,height:2});
+{const context=selectionOverlayArt.getContext('2d');context.fillStyle='#d7ff55';context.fillRect(0,0,2,2);}
+let selectionOverlay=null,selectionOverlayCells=null,selectionOverlayBuiltAt=0;
+function updateSelectionOverlay(time){
+  const cells=document.body.classList.contains('creating')&&topology&&selectedCell?selectedCells:null;
+  const strength=cells?.length?1-(cellDetail?.material.uniforms.visibility.value||0):0;
+  if(strength<.01){if(selectionOverlay)selectionOverlay.visible=false;return;}
+  // Rebuilding covers up to 10,000 cells, so a brush stroke rebuilds at most five times a second.
+  if(cells!==selectionOverlayCells&&time-selectionOverlayBuiltAt>200){
+    if(selectionOverlay){selectionOverlayLayer.remove(selectionOverlay);selectionOverlay.geometry.dispose();selectionOverlay.material.map?.dispose();selectionOverlay.material.dispose();selectionOverlay=null;}
+    try{selectionOverlay=addHighResolutionPlacement('#d7ff55','span',selectionOverlayLayer,{cells,anchor:selectedCell,artwork:selectionOverlayArt})||null;}catch{selectionOverlay=null;}
+    if(selectionOverlay)selectionOverlay.renderOrder=5;
+    selectionOverlayCells=cells;selectionOverlayBuiltAt=time;
+  }
+  if(selectionOverlay){selectionOverlay.visible=true;selectionOverlay.material.opacity=.55*strength;}
+}
 let selecting = false;
 let selectedUV = null;
 let selectedCell = null;
@@ -395,6 +417,7 @@ canvas.addEventListener('pointerup', async event => {
 for(const event of ['pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>explorationStart=null);
 
 function writeCellColour(data, cell, colour, selected = true) {
+  if(data===selectionColourData)selectionColoursClear=false;
   const offset = (cell.id - 1) * 4;
   if (!selected) {
     data[offset + 3] = 0;
@@ -407,10 +430,16 @@ function writeCellColour(data, cell, colour, selected = true) {
   data[offset + 3] = 255;
 }
 
+// The selection texture is 4MB, and re-uploading it stalls the main thread for
+// tens to hundreds of milliseconds. Closing the inspector on every drag and
+// every tour stop clears it, so only do the work when something is actually lit.
+let selectionColoursClear=false;
 function clearSelectionColours() {
   selectedCellColours.clear();
+  if(selectionColoursClear)return;
   selectionColourData.fill(0);
   selectionColourTexture.needsUpdate = true;
+  selectionColoursClear=true;
 }
 
 function renderProposedCell(cell) {
@@ -1040,7 +1069,6 @@ function updateTotals() {
   document.querySelector('#reviewCount').textContent = countText;
   document.querySelector('#reviewPrice').textContent = priceText;
   document.querySelector('#toPlacement').disabled = !ownerEdit&&count<MIN_PURCHASE_CELLS;
-  const minus=document.querySelector('[data-step-size="-1"]');if(minus)minus.disabled=!ownerEdit&&count<=MIN_PURCHASE_CELLS;
   document.querySelector('#toDesign').disabled = false;
   if(count>MIN_PURCHASE_CELLS)showMinimumNotice(false);
   updateLogoGuidance();
@@ -2366,15 +2394,25 @@ let lastTopologyTrim=0,topologyTrimReady=false;
 let twinklePreview=null,twinkleLoad=null;
 const twinklesAllowed=!millionFixture&&!matchMedia('(prefers-reduced-motion: reduce)').matches;
 // Idle frame pacing. Each frame costs several milliseconds of GPU on integrated
-// graphics, and the idle drift moves the globe about a tenth of a pixel per
-// frame, so while nobody is touching anything it is drawn at 30fps, and at 15fps
-// when the view is not moving at all (only slow twinkle fades remain). The scene
-// still updates every frame, so rotation speed is unchanged. Any input, camera
-// flight, tour or zoom puts it straight back to the display's full rate.
-const IDLE_FRAME_MS=1000/30,STILL_FRAME_MS=1000/15,ACTIVE_AFTER_INPUT_MS=2500;
+// graphics, so a frame is drawn only when it would look different: whenever the
+// surface under the camera has moved a third of a pixel or more since the last
+// drawn frame, and otherwise at 15fps for slow twinkle fades. Fast motion, such
+// as the drift once zoomed in, therefore runs at the display's full rate, while
+// the slow overview drift skips frames nobody could see. The scene still updates
+// every frame, so speeds are unchanged, and any input, camera flight, tour or
+// zoom draws every frame.
+const STILL_FRAME_MS=1000/15,ACTIVE_AFTER_INPUT_MS=2500,MOTION_PIXELS=1/3;
 let renderedFrames=0,lastRenderAt=-Infinity,lastInputAt=performance.now();
-const lastView=new THREE.Matrix4(),currentView=new THREE.Matrix4();
+const lastView=new THREE.Matrix4(),currentView=new THREE.Matrix4(),probe=new THREE.Vector3(),lastProbe=new THREE.Vector3();
 for(const type of ['pointerdown','pointermove','pointerup','wheel','keydown','touchstart','touchmove'])addEventListener(type,()=>{lastInputAt=performance.now();},{capture:true,passive:true});
+function screenMotionSinceLastFrame(){
+  camera.updateMatrixWorld();globe.updateMatrixWorld();
+  currentView.multiplyMatrices(camera.matrixWorldInverse,globe.matrixWorld);
+  probe.copy(camera.position);globe.worldToLocal(probe).setLength(radius);
+  lastProbe.copy(probe).applyMatrix4(lastView);probe.applyMatrix4(currentView);
+  const pixelsPerUnit=canvas.clientHeight/2/Math.tan(THREE.MathUtils.degToRad(camera.fov/2))/Math.max(1e-6,-probe.z);
+  return Math.hypot(probe.x-lastProbe.x,probe.y-lastProbe.y)*pixelsPerUnit;
+}
 function animate() {
   requestAnimationFrame(animate);
   controls.rotateSpeed=.42*Math.min(1,Math.max(.045,(camera.position.length()-radius)/4));
@@ -2406,6 +2444,7 @@ function animate() {
   if(topology){
     cellDetail.update(camera,canvas.clientHeight,performance.now(),cameraFlight.active);
     if(!cameraFlight.active)updatePersistentArtwork(performance.now());
+    updateSelectionOverlay(performance.now());
     if(topologyTrimReady&&performance.now()-lastTopologyTrim>2000){
       lastTopologyTrim=performance.now();
       const pinned=[...(logoCells||[]),...selectedCells,...inspectedCells];
@@ -2414,10 +2453,8 @@ function animate() {
     }
   }
   const now=performance.now(),busy=now-lastInputAt<ACTIVE_AFTER_INPUT_MS||cameraFlight.active||demoTour.active||zoom.active||cameraDistanceTarget!==null;
-  camera.updateMatrixWorld();globe.updateMatrixWorld();
-  currentView.multiplyMatrices(camera.matrixWorldInverse.copy(camera.matrixWorld).invert(),globe.matrixWorld);
-  const still=currentView.equals(lastView);
-  if(!busy&&now-lastRenderAt<(still?STILL_FRAME_MS:IDLE_FRAME_MS)-4)return;
+  const moved=screenMotionSinceLastFrame();
+  if(!busy&&moved<MOTION_PIXELS&&now-lastRenderAt<STILL_FRAME_MS-4)return;
   lastView.copy(currentView);lastRenderAt=now;
   renderer.render(scene, camera);renderedFrames++;
 }

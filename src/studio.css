@@ -1139,3 +1139,6 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
 /* One row however many share routes this browser offers. */
 .share-destinations{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:1fr}
 .share-destinations button[hidden]{display:none}
+/* The divider is also a span, so the phone rule that stretches the brush label
+   used to turn it into a grey block between Large and Delete. */
+#shapeStep .shape-brushes>.shape-brush-divider{flex:none;width:1px;height:24px;margin:0 2px}

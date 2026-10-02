@@ -45,5 +45,11 @@ try {
   await page.evaluate(() => window.performanceQA.focus([0.3, 0.4, 0.86], 0.4));
   await page.waitForTimeout(3000);
   await measure('zoomed-in-still');
+  // Resume the drift while zoomed in: the surface now moves pixels per frame, so
+  // pacing must hand back the full rate rather than stutter.
+  if (await page.locator('#rotationToggle').getAttribute('aria-pressed') === 'false') await page.evaluate(() => document.querySelector('#rotationToggle').click());
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(3500);
+  await measure('zoomed-in-drifting');
 } finally { await browser.close(); }
 console.log(JSON.stringify(report));

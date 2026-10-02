@@ -108,7 +108,10 @@ try {
     await page.locator("#hexAmount").press("Tab");
     assert.equal(await page.locator("#hexAmount").inputValue(), "10", "the count never drops below the 10-hexagon minimum");
     assert.equal(await page.locator("#shapeCountError").isVisible(), true);
-    assert.equal(await page.locator('[data-step-size="-1"]').isDisabled(), true);
+    await page.locator("#hexAmount").fill("10");
+    await page.locator('[data-step-size="-1"]').click();
+    assert.equal(await page.locator("#hexAmount").inputValue(), "10", "minus stops at the minimum");
+    assert.equal(await page.locator("#shapeCountError").isVisible(), true, "and says why");
     assert.equal(await page.locator("#designStep").isHidden(), true);
     await page.locator("#hexAmount").fill("10");
     await page.locator("#hexAmount").press("Enter");

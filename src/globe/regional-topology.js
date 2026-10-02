@@ -95,9 +95,18 @@ export class RegionalTopology extends SphericalTopology {
     // Padding exceeds the maximum canonical centre-to-corner/neighbor distance.
     return bounds.flatMap(({direction: centre, angle}, i) => dot(p, centre) >= Math.cos(Math.min(Math.PI, cap + angle + .012)) ? [i] : []);
   }
+  // Called for every pending placement on every frame, so neither half may scale
+  // with placement size: a placement's regions are worked out once per cell list,
+  // and the regions in view once per camera position.
   cellsIntersectCap(ids, direction, cap) {
-    const regions=new Set(this.regionsForCap(direction,cap));
-    return ids.some(id=>regions.has(this.regionOf(id)));
+    let own=this.regionSets?.get(ids);
+    if(!own){
+      own=new Set();for(const id of ids)own.add(this.regionOf(id));
+      (this.regionSets??=new WeakMap()).set(ids,own);
+    }
+    const key=`${direction[0]},${direction[1]},${direction[2]},${cap}`;
+    if(this.capKey!==key){this.capKey=key;this.capRegions=this.regionsForCap(direction,cap);}
+    return this.capRegions.some(region=>own.has(region));
   }
   hasCap(direction, cap) { return this.regionsForCap(direction, cap).every(i => this.regions.has(i)); }
   async ensureCap(direction, cap, priority = 0) { const regions=this.regionsForCap(direction,cap).sort((a,b)=>dot(direction,bounds[b].direction)-dot(direction,bounds[a].direction));await Promise.all(regions.map(i => this.loadRegion(i,priority))); }
