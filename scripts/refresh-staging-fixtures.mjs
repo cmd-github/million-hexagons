@@ -12,11 +12,11 @@
 // website on the version the catalogue serves. Artwork, cells, ownership and
 // version history are untouched, and the already-generated share images keep
 // their old wording until the placement is next published.
-import { execFileSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 
 const apply = process.argv.includes('--apply');
 const base = 'https://firestore.googleapis.com/v1/projects/million-hexagons/databases/(default)/documents';
-const token = execFileSync(process.platform === 'win32' ? 'gcloud.cmd' : 'gcloud', ['auth', 'print-access-token'], { encoding: 'utf8', shell: process.platform === 'win32' }).trim();
+const token = execSync('gcloud auth print-access-token', { encoding: 'utf8' }).trim();
 
 const updates = {
   '11bb45a7-848f-9afd-bb05-1ab161832882': ['Daybreak', 'Small-batch coffee, roasted at sunrise and on your doorstep by the weekend.', 'https://en.wikipedia.org/wiki/Coffee_roasting'],
