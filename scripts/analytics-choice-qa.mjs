@@ -43,28 +43,15 @@ try {
   }));
   assert.equal(stored.session.length, 0, `nothing in sessionStorage, found ${stored.session.join(', ')}`);
   assert.equal(stored.cookie, '', 'no cookies');
-  assert.deepEqual(stored.local.filter(k => k !== 'mh-no-measurement-v1'), [], `only the opt-out may be stored, found ${stored.local.join(', ')}`);
+  assert.deepEqual(stored.local, [], `nothing may be stored for measurement, found ${stored.local.join(', ')}`);
 
   // Each event carries its own token, so nothing links two events together.
   assert.equal(tokens.size, events, 'every event carries a distinct token');
 
-  // Opting out stops counting, and survives a reload.
+  // The objection route is email in the privacy notice; there is no in-app toggle.
   await page.waitForFunction(() => typeof document.querySelector('#toggleAccount')?.onclick === 'function', null, { timeout: 90000 });
   await page.locator('#toggleAccount').click();
   await page.locator('#accountPanel').waitFor({ state: 'visible' });
-  await page.locator('#privacyChoices').click();
-  assert.equal(await page.locator('#privacyChoices').getAttribute('aria-pressed'), 'true');
-  const countedAtOptOut = events;
-  await page.reload();
-  await page.locator('#appLoading').waitFor({ state: 'hidden', timeout: 90000 });
-  await page.waitForTimeout(2000);
-  assert.equal(events, countedAtOptOut, `opting out stops counting, ${events - countedAtOptOut} events slipped through`);
-  await page.locator('#toggleAccount').click();
-  await page.locator('#accountPanel').waitFor({ state: 'visible' });
-  assert.equal(await page.locator('#privacyChoices').getAttribute('aria-pressed'), 'true', 'the objection persists across a reload');
-
-  // And it can be withdrawn.
-  await page.locator('#privacyChoices').click();
-  assert.equal(await page.locator('#privacyChoices').getAttribute('aria-pressed'), 'false');
-  console.log(JSON.stringify({ noPrompt: true, countsWithoutConsent: countedBefore, noDeviceIdentifiers: true, distinctTokenPerEvent: true, optOutHolds: true }));
+  assert.equal(await page.locator('#privacyChoices').count(), 0, 'no "Don’t count my visits" toggle');
+  console.log(JSON.stringify({ noPrompt: true, countsWithoutConsent: countedBefore, noDeviceIdentifiers: true, distinctTokenPerEvent: true, noToggle: true }));
 } finally { await page.close(); await browser.close(); await server.close(); }

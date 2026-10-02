@@ -22,4 +22,6 @@ export async function renderShareCard(record,ratio='4x5'){
 
 function wrap(c,text,x,y,maxWidth,lineHeight){const words=text.split(' '),lines=[];let line='';for(const word of words){const test=line?`${line} ${word}`:word;if(c.measureText(test).width>maxWidth&&line){lines.push(line);line=word;}else line=test;}lines.push(line);lines.slice(0,3).forEach((value,index)=>c.fillText(value,x,y+index*lineHeight));}
 
+/** The share card as a PNG file, for the system share sheet. */
+export async function shareCardFile(record,ratio){const canvas=await renderShareCard(record,ratio),blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));return new File([blob],`million-hexagons-${record.anchor||record.hexId}-${ratio}.png`,{type:'image/png'});}
 export async function downloadShareCard(record,ratio){const canvas=await renderShareCard(record,ratio),blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`million-hexagons-${record.anchor||record.hexId}-${ratio}.png`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);}

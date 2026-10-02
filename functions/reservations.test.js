@@ -12,10 +12,10 @@ test('atomically reserves and releases the 10,000-cell self-service maximum',asy
   const db=new MemoryFirestore(),cells=Array.from({length:10_000},(_,index)=>index+100_001);
   const reserved=await reserveTestCells(db,{ownerId:'owner',topologyVersion:'geodesic-v1',cells},1000,900_000,'large');
   assert.equal(reserved.cellCount,10_000);
-  await assert.rejects(reserveTestCells(db,{ownerId:'other',topologyVersion:'geodesic-v1',cells:[105_000]},1001,900_000,'conflict'),error=>error.code==='cells-unavailable');
+  await assert.rejects(reserveTestCells(db,{ownerId:'other',topologyVersion:'geodesic-v1',cells:Array.from({length:10},(_,index)=>index+105_000)},1001,900_000,'conflict'),error=>error.code==='cells-unavailable');
   const released=await releaseTestReservation(db,'large','owner',2000);
   assert.equal(released.releasedCells,10_000);
-  assert.equal((await reserveTestCells(db,{ownerId:'other',topologyVersion:'geodesic-v1',cells:[105_000]},2001,900_000,'reuse')).status,'active');
+  assert.equal((await reserveTestCells(db,{ownerId:'other',topologyVersion:'geodesic-v1',cells:Array.from({length:10},(_,index)=>index+105_000)},2001,900_000,'reuse')).status,'active');
 });
 
 test('a reservation above the self-service maximum is refused outright',()=>{
@@ -23,15 +23,20 @@ test('a reservation above the self-service maximum is refused outright',()=>{
   assert.equal(normaliseReservation({ownerId:'owner',topologyVersion:'geodesic-v1',cells:Array.from({length:10_000},(_,index)=>index+1)})?.cells.length,10_000);
 });
 
+test('a reservation below the 10-hexagon minimum is refused',()=>{
+  assert.equal(normaliseReservation({ownerId:'owner',topologyVersion:'geodesic-v1',cells:Array.from({length:9},(_,index)=>index+1)}),null);
+  assert.equal(normaliseReservation({ownerId:'owner',topologyVersion:'geodesic-v1',cells:Array.from({length:10},(_,index)=>index+1)})?.cells.length,10);
+});
+
 test('rejects early expiry and makes repeated expiry idempotent',async()=>{
-  const db=new MemoryFirestore();await reserveTestCells(db,{ownerId:'owner',topologyVersion:'geodesic-v1',cells:[42]},1000,100,'expiry');
+  const db=new MemoryFirestore();await reserveTestCells(db,{ownerId:'owner',topologyVersion:'geodesic-v1',cells:Array.from({length:10},(_,index)=>index+42)},1000,100,'expiry');
   await assert.rejects(releaseTestReservation(db,'expiry','owner',1099,{expiredOnly:true}),error=>error.code==='reservation-not-expired');
   assert.equal((await releaseTestReservation(db,'expiry','owner',1100,{expiredOnly:true})).status,'expired');
   assert.equal((await releaseTestReservation(db,'expiry','owner',1101,{expiredOnly:true})).releasedCells,0);
 });
 
 test('extends an active reservation once without permitting indefinite renewal',async()=>{
-  const db=new MemoryFirestore();await reserveTestCells(db,{ownerId:'owner',topologyVersion:'geodesic-v1',cells:[42]},1000,1_200_000,'extend');
+  const db=new MemoryFirestore();await reserveTestCells(db,{ownerId:'owner',topologyVersion:'geodesic-v1',cells:Array.from({length:10},(_,index)=>index+42)},1000,1_200_000,'extend');
   const extended=await extendTestReservation(db,'extend','owner',2000);assert.equal(extended.expiresAtMs,1_801_000);assert.equal(extended.extended,true);
   await assert.rejects(extendTestReservation(db,'extend','owner',3000),error=>error.code==='reservation-already-extended');
 });

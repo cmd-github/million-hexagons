@@ -222,23 +222,23 @@ body[data-flow=design] #toolHint{display:block;font-size:11px;color:var(--lime);
 #accountPanel label{display:block;margin-bottom:5px;font-size:10px;color:#a9bcba}
 #accountPanel input{width:100%;padding:10px;border:1px solid #ffffff22;border-radius:9px;background:#162b36;color:white;font-size:12px}
 #accountPanel button{width:100%;height:auto;margin-top:9px;padding:10px;border:1px solid #d7ff5544;border-radius:9px;background:#d7ff5510;color:var(--lime);font-size:10px;font-weight:700}
-#sendAccountLink{position:relative;overflow:hidden}
-#sendAccountLink .link-label{display:block;transition:opacity .16s ease,transform .16s ease}
-#sendAccountLink .link-tick{position:absolute;inset:0;margin:auto;width:26px;height:26px;opacity:0;fill:none;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
-#sendAccountLink .link-hex{stroke:var(--lime);stroke-width:3;stroke-dasharray:128;stroke-dashoffset:128}
-#sendAccountLink .link-check{stroke:var(--lime);stroke-width:4;stroke-dasharray:28;stroke-dashoffset:28}
-#sendAccountLink[data-sent]{border-color:#d7ff5599;background:#d7ff5522}
-#sendAccountLink[data-sent] .link-label{opacity:0;transform:scale(.9)}
-#sendAccountLink[data-sent] .link-tick{opacity:1;animation:sign-in-tick-settle .5s .62s ease-out both}
-#sendAccountLink[data-sent] .link-hex{animation:sign-in-hex-draw .44s .1s ease-out forwards}
-#sendAccountLink[data-sent] .link-check{animation:sign-in-check-draw .26s .5s ease-out forwards}
-#sendAccountLink[disabled]{opacity:1;cursor:default}
+.tick-button{position:relative;overflow:hidden}
+.tick-button .link-label{display:block;transition:opacity .16s ease,transform .16s ease}
+.tick-button .link-tick{position:absolute;inset:0;margin:auto;width:26px;height:26px;opacity:0;fill:none;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.tick-button .link-hex{stroke:var(--lime);stroke-width:3;stroke-dasharray:128;stroke-dashoffset:128}
+.tick-button .link-check{stroke:var(--lime);stroke-width:4;stroke-dasharray:28;stroke-dashoffset:28}
+.tick-button[data-sent]{border-color:#d7ff5599;background:#d7ff5522}
+.tick-button[data-sent] .link-label{opacity:0;transform:scale(.9)}
+.tick-button[data-sent] .link-tick{opacity:1;animation:sign-in-tick-settle .5s .62s ease-out both}
+.tick-button[data-sent] .link-hex{animation:sign-in-hex-draw .44s .1s ease-out forwards}
+.tick-button[data-sent] .link-check{animation:sign-in-check-draw .26s .5s ease-out forwards}
+.tick-button[disabled]{opacity:1;cursor:default}
 @keyframes sign-in-hex-draw{from{stroke-dashoffset:128}to{stroke-dashoffset:0}}
 @keyframes sign-in-check-draw{from{stroke-dashoffset:28}to{stroke-dashoffset:0}}
 @keyframes sign-in-tick-settle{0%{transform:scale(1)}40%{transform:scale(1.14)}100%{transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){
- #sendAccountLink .link-label,#sendAccountLink[data-sent] .link-tick,#sendAccountLink[data-sent] .link-hex,#sendAccountLink[data-sent] .link-check{transition:none;animation:none}
- #sendAccountLink[data-sent] .link-hex,#sendAccountLink[data-sent] .link-check{stroke-dashoffset:0}
+ .tick-button .link-label,.tick-button[data-sent] .link-tick,.tick-button[data-sent] .link-hex,.tick-button[data-sent] .link-check{transition:none;animation:none}
+ .tick-button[data-sent] .link-hex,.tick-button[data-sent] .link-check{stroke-dashoffset:0}
 }
 /* Legal sits with the account key rather than as three links pinned over the
    globe, where they covered the activity feed. Small, quiet, and one tap from
@@ -775,7 +775,7 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
  body:not(.creating) #placementInspector #pinInspector{top:6px;right:6px}
  body:not(.creating) #placementInspector .hud-pages{margin-top:0}
  body:not(.creating) #placementInspector .hud-stats{margin:0 0 8px;gap:6px}
- body:not(.creating) #placementInspector .hud-stats>div{flex-direction:row;align-items:baseline;gap:5px}
+ body:not(.creating) #placementInspector .hud-stats>div{flex-direction:row;align-items:baseline;justify-content:center;gap:5px}
  body:not(.creating) #placementInspector .hud-stats strong{font-size:13px}
  body:not(.creating) #placementInspector .hud-stats span{font-size:9px}
  body:not(.creating) #placementInspector #inspectorContext{margin:0 0 8px;font-size:9px}
@@ -1031,3 +1031,111 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
 /* The phone studio panel has a strict height budget, so the format/size hint is desktop-only.
    The rejection message itself still appears at the button on every screen. */
 @media(max-width:700px){.add-image-hint{display:none}}
+
+/* Every dialog gets a corner close, so leaving never depends on finding Cancel. */
+.studio-dialog{position:relative}
+.studio-dialog .dialog-close{position:absolute;top:12px;right:12px;display:grid;place-items:center;width:36px;height:36px;min-height:0;padding:0;border:1px solid #ffffff22;border-radius:50%;background:#ffffff08;color:#c9d8d5;cursor:pointer}
+.studio-dialog .dialog-close:hover{color:#fff;border-color:#ffffff55}
+.studio-dialog .dialog-close .ico{--ico:16px}
+.studio-dialog h2{padding-right:40px}
+/* Reporting stays available without competing with Visit website. */
+#placementInspector .hud-report{display:block;margin:8px 0 0 auto;padding:2px 0;min-height:0;border:0;background:none;color:#7f9794;font-size:10px;font-weight:400;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+#placementInspector .hud-report:hover{color:#c9d8d5}
+#placementInspector .hud-report[hidden]{display:none}
+.dialog-actions .tick-button[data-sent]{border:1px solid #d7ff5599;background:#d7ff5522}
+
+/* Nearby entry: label and arrow sit together in the middle, sharing one centre line. */
+#placementInspector #showNearby{justify-content:center;gap:6px;text-align:center}
+#placementInspector #showNearby .nearby-label{flex:none;line-height:1}
+#placementInspector #showNearby .hud-nav-icon,#placementInspector #backNearby .hud-nav-icon{line-height:0}
+#placementInspector #showNearby .hud-nav-icon svg,#placementInspector #backNearby .hud-nav-icon svg{display:block}
+#placementInspector #showNearby .nearby-chevron .ico{--ico:16px}
+/* Nearby view: a small Back pill and a quiet section label, so neither competes with
+   the placement name above. */
+#placementInspector .nearby-heading{gap:10px;margin:0 0 8px}
+#placementInspector #backNearby{gap:4px;padding:4px 10px 4px 6px;min-height:28px;border-radius:999px;font-size:11px}
+#placementInspector #backNearby span:last-child{font-size:11px;line-height:1}
+#placementInspector #backNearby .hud-nav-icon{--ico:14px}
+#placementInspector .nearby-heading h3{font:600 10px 'DM Mono',ui-monospace,monospace;color:#8ca7a2;text-transform:uppercase;letter-spacing:.08em}
+
+/* Control-rail tooltip: one floating label beside whichever control is hovered. */
+.rail-tip{position:fixed;z-index:60;padding:6px 10px;border:1px solid #d7ff5533;border-radius:8px;background:#07161fee;color:#e8f2ee;font:600 11px Manrope,system-ui,sans-serif;white-space:nowrap;pointer-events:none;box-shadow:0 8px 24px #0007}
+.rail-tip[hidden]{display:none}
+/* Views, Visits and Hexagons: three equal columns, each number centred over its word. */
+#placementInspector .hud-stats>div{align-items:center;text-align:center}
+
+/* Add image always spans the image panel, with its icon and label centred together. */
+#designStep #logoPositionControls #logoControls .add-image{display:flex;flex:1 1 100%;width:100%;box-sizing:border-box;justify-content:center;gap:8px}
+/* The rail's Move globe control is named by its tooltip; its studio text label would spill out. */
+.globe-controls>#panEditor>span{display:none}
+
+/* Review: name, description and website are what the buyer is really deciding,
+   so they get the clearest labels. Everything after them is quieter. */
+#reviewStep>label{color:#eef6f3;font-size:13px;font-weight:600;letter-spacing:0}
+#reviewStep>label .optional{float:none;margin-left:6px;color:#6f878c;font-size:10px;font-weight:400}
+#reviewStep>label input,#reviewStep>label textarea{margin-top:6px}
+.checkout-email-field{margin-top:12px}
+.checkout-email-field label{margin:0 0 6px;color:#a9bcba;font-size:11px}
+.checkout-email-field label .optional{float:none;margin-left:6px;color:#6f878c;font-size:10px}
+.checkout-email{position:relative}
+.checkout-email input{width:100%;box-sizing:border-box}
+.checkout-email input[readonly]{padding-right:76px;color:#c9d8d5;background:#0a1820}
+.checkout-email #reviewSignOut{position:absolute;top:50%;right:8px;transform:translateY(-50%);width:auto;min-height:0;margin:0;padding:4px 8px;border:1px solid #ffffff22;border-radius:7px;background:#ffffff08;color:#c9d8d5;font-size:10px;font-weight:600;cursor:pointer}
+.checkout-email #reviewSignOut:hover{color:#fff;border-color:#ffffff55}
+.checkout-email #reviewSignOut[hidden]{display:none}
+#reviewStep .checkout-agreements{margin:12px 0 4px}
+#reviewStep .checkout-agreements label{margin:0;font-size:10px;color:#9fb4b1;align-items:center}
+#reviewStep .checkout-agreements input{width:18px;height:18px;margin:0}
+#reviewStep .checkout-agreements a{color:var(--lime)}
+#reviewStep .review-price{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 10px}
+#reviewStep .review-price .credit-balance{flex-basis:100%}
+.reservation-note{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:7px;min-height:14px}
+.reservation-note #serverQuoteStatus{display:block;margin:0;color:#7f9794;font-size:10px;text-align:center}
+.reservation-note #extendReservation{display:inline;margin:0}
+.owner-editing #stagingOwnerAccess,.owner-editing #checkoutAgreements,.owner-editing .reservation-note{display:none!important}
+/* Inputs inherit from their label, so pin them to the sizes they had before the labels grew. */
+#reviewStep>label input,#reviewStep>label textarea,.checkout-email input{font-size:12px;font-weight:400}
+@media(max-width:700px){#reviewStep>label input,#reviewStep>label textarea,.checkout-email input{font-size:10px}}
+.checkout-email input{margin-top:0}
+/* The live counter only needs enough backing to stay legible over bright artwork:
+   a soft text shadow and a faint wash, not a frosted slab. */
+#globalMetrics:before{inset:2px -6px;background:#0819232e;filter:blur(10px);backdrop-filter:none}
+#globalMetrics{text-shadow:0 1px 6px #050b14cc}
+
+/* Next placement: a hexagon sitting on the HUD's right border. */
+#placementInspector .hud-next{position:absolute;top:50%;right:-30px;z-index:3;display:grid;place-items:center;width:44px;height:48px;margin:0;padding:0;border:0;background:none;color:var(--lime);cursor:pointer;transform:translateY(-50%)}
+#placementInspector .hud-next[hidden]{display:none}
+#placementInspector .hud-next .hud-next-hex{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+#placementInspector .hud-next .hud-next-hex polygon{fill:#0b2029;stroke:#d7ff5580;stroke-width:1.5;stroke-linejoin:round;transition:fill .15s,stroke .15s}
+#placementInspector .hud-next:hover .hud-next-hex polygon,#placementInspector .hud-next:focus-visible .hud-next-hex polygon{fill:#12303a;stroke:var(--lime)}
+#placementInspector .hud-next:focus-visible{outline:none}
+#placementInspector .hud-next .hud-nav-icon{position:relative;--ico:18px}
+#placementInspector .hud-next:disabled{cursor:progress;opacity:.7}
+@media(max-width:700px){
+ /* On a phone the HUD meets the screen edge, so the hexagon sits on its top border instead. */
+ body:not(.creating) #placementInspector .hud-next{top:-24px;right:56px;transform:none;width:40px;height:44px}
+}
+/* The share image is the point of this card, so it gets room to be read:
+   as wide as the screen allows, capped so the actions still fit underneath. */
+@media(min-width:701px){.share-card{width:min(820px,calc(100vw - 48px),calc((100vh - 300px) * 1.91 + 66px))}}
+#placementInspector #backNearby>span{display:inline-flex;align-items:center;height:16px}
+#placementInspector #reportPlacementButton.hud-report{width:auto;min-height:0;margin:8px 0 0 auto;padding:2px 0;border:0;background:none;box-shadow:none;font-size:10px}
+/* Manrope's glyphs sit low in their line box; drop the arrows to meet the text's centre. */
+#placementInspector #showNearby .hud-nav-icon,#placementInspector #backNearby .hud-nav-icon{transform:translateY(1.5px)}
+@media(max-width:700px){
+ #reviewStep>label{font-size:11px;margin-top:4px}
+ #reviewStep>label .optional{font-size:9px}
+ #reviewStep>label input,#reviewStep>label textarea{margin-top:3px}
+ .checkout-email-field{margin-top:4px}
+ .checkout-email-field label{margin-bottom:3px;font-size:10px}
+ #reviewStep .checkout-agreements{margin:6px 0 2px}
+ .reservation-note{margin-top:4px}
+}
+@media(max-width:700px) and (max-height:640px){
+ .checkout-email-field label .optional{display:none}
+ #reviewStep>label input{height:34px;padding:6px 10px}
+ #reviewStep textarea{height:48px;min-height:48px}
+}
+/* One row however many share routes this browser offers. */
+.share-destinations{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:1fr}
+.share-destinations button[hidden]{display:none}

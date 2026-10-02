@@ -144,6 +144,8 @@ try {
       await page.locator("#inspectorName").textContent(),
       record.title,
     );
+    await page.waitForTimeout(400);
+    await page.screenshot({path:`artifacts/public-placement/${mobile?'mobile':'desktop'}-hud.png`});
     await page.locator('#reportPlacementButton').click();
     await page.locator('#reportPlacementDialog').waitFor({state:'visible'});
     await page.locator('#reportPlacementForm [name=kind]').selectOption('unsafe-link');
@@ -151,7 +153,10 @@ try {
     await page.locator('#reportPlacementForm [type=submit]').click();
     await page.locator('#reportPlacementStatus').getByText('Thank you. Your report has been sent for review.').waitFor();
     assert.equal(contentReport.placementId,placementId);assert.equal(contentReport.kind,'unsafe-link');
-    await page.locator('#closeReportPlacement').click();
+    // Sending plays the hexagon tick on the button, then the dialog closes by itself.
+    assert.equal(await page.locator('#reportPlacementForm [type=submit]').getAttribute('data-sent'),'true');
+    await page.locator('#reportPlacementDialog').waitFor({state:'hidden',timeout:4000});
+    assert.equal(await page.locator('#reportPlacementDialog').evaluate(dialog=>dialog.textContent.includes('support@birdcagetech.com')),false);
     releaseCatalogue();
     await page.waitForFunction(
       () => document.querySelectorAll("#claimFeedItems button").length === 4,

@@ -57,6 +57,8 @@ export const ICONS = {
 
   // Shared chrome.
   close: `<path d="m6.4 6.4 11.2 11.2M17.6 6.4 6.4 17.6"/>`,
+  // Arrow lifting out of an open tray: the system share sheet.
+  share: `<path d="M12 3.4v11"/><path d="m8 7.2 4-3.8 4 3.8"/><path d="M7.4 10.6H5.8v9.2h12.4v-9.2h-1.6"/>`,
   'arrow-right': `<path d="M3.6 12h16.2"/><path d="m13.8 6.2 6 5.8-6 5.8"/>`,
   'arrow-left': `<path d="M20.4 12H4.2"/><path d="m10.2 6.2-6 5.8 6 5.8"/>`,
   plus: `<path d="M12 5.4v13.2M5.4 12h13.2"/>`,

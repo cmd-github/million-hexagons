@@ -112,6 +112,8 @@ npm run test:streaming
 npm run test:performance
 ```
 
+GPU load on this Windows machine: with the development server running, `node scripts/gpu-load-qa.mjs` opens a visible Chrome window and samples Windows' 3D-engine utilisation alongside displayed and rendered frame rates, on the rotating overview and zoomed in. The figure covers the whole machine, so close other GPU-heavy apps and compare runs on the same machine only. A locked screen throttles Chrome and reads as near-zero. Baseline on the Intel HD Graphics 630 (2 October 2026): 79% overview and 76% zoomed at 60 rendered fps; with idle frame pacing, 47% at 30fps and 35-41% at 15-22fps.
+
 `npm run build:artwork-million` creates the optional, ignored million-cell stress catalogue and can be expensive. Run it only when a fully occupied rendering fixture is required. Inspect performance screenshots and report local/emulated results as such.
 
 ## Coming-soon site

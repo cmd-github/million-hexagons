@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applyCreditsToQuote, checkoutLineItem, checkoutOrderId, checkoutOwnerId, checkoutSessionParameters, paidCheckoutEmail, paidEmailOwnerId } from './payments.js';
+import { applyCreditsToQuote, checkoutBuyerEmail, checkoutLineItem, checkoutOrderId, checkoutOwnerId, checkoutSessionParameters, paidCheckoutEmail, paidEmailOwnerId } from './payments.js';
 
 test('builds Stripe line items only from a consistent server quote',()=>{
   const item=checkoutLineItem({currency:'usd',unitAmountMinor:100,cellCount:15,totalAmountMinor:1500});
@@ -50,4 +50,10 @@ test('a part-credited checkout charges the uncovered cells and still names the f
   assert.match(params.line_items[0].price_data.product_data.description,/100 cells · 40 covered by credits/);
   assert.equal(params.metadata.creditsApplied,'40');
   assert.equal(params.payment_intent_data.metadata.creditsApplied,'40');
+});
+
+test('a typed buyer email is cleaned for Stripe, and anything implausible is left for Stripe to ask',()=>{
+  assert.equal(checkoutBuyerEmail('  New.Buyer@Example.com '),'new.buyer@example.com');
+  assert.equal(checkoutBuyerEmail('not-an-email'),'');
+  assert.equal(checkoutBuyerEmail(undefined),'');
 });

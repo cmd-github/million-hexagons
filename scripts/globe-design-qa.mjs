@@ -105,8 +105,10 @@ try {
     );
     assert.equal(await page.locator("#hexAmount").inputValue(), "10");
     await page.locator("#hexAmount").fill("4");
-    await page.locator("#toDesign").click();
+    await page.locator("#hexAmount").press("Tab");
+    assert.equal(await page.locator("#hexAmount").inputValue(), "10", "the count never drops below the 10-hexagon minimum");
     assert.equal(await page.locator("#shapeCountError").isVisible(), true);
+    assert.equal(await page.locator('[data-step-size="-1"]').isDisabled(), true);
     assert.equal(await page.locator("#designStep").isHidden(), true);
     await page.locator("#hexAmount").fill("10");
     await page.locator("#hexAmount").press("Enter");

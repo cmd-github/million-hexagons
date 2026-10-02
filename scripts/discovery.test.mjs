@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { closestPlacements, milestoneStatus, newestPlacements, recommendedMilestones } from '../src/placements/discovery.js';
+import { closestPlacements, milestoneStatus, newestPlacements, nextUnseenPlacement, recommendedMilestones } from '../src/placements/discovery.js';
 
 const records = [
   { placementId: 'current', anchor: 1, publicationStatus: 'published', createdAt: 10 },
@@ -18,6 +18,18 @@ test('activity contains only real live placements in newest-first order', () => 
 
 test('nearby excludes the current and non-live placements and sorts geographically', () => {
   assert.deepEqual(closestPlacements(records, records[0], id => centres.get(id)).map(item => item.placementId), ['near', 'far']);
+});
+
+test('next hops to the nearest unseen placement and loops once all have been seen', () => {
+  const centreFor = id => centres.get(id);
+  let step = nextUnseenPlacement(records, records[0], centreFor);
+  assert.equal(step.next.placementId, 'near');
+  step = nextUnseenPlacement(records, step.next, centreFor, step.seen);
+  assert.equal(step.next.placementId, 'far', 'skips the placement already shown');
+  step = nextUnseenPlacement(records, step.next, centreFor, step.seen);
+  assert.equal(step.next.placementId, 'near', 'starts again from the nearest once everything is seen');
+  assert.deepEqual([...step.seen], ['far']);
+  assert.equal(nextUnseenPlacement([records[0]], records[0], centreFor).next, null);
 });
 
 test('milestone catalogue reports progress and recommends the next target per metric', () => {

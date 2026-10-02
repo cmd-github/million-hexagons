@@ -55,7 +55,7 @@ try {
     await screenshot(page, `${mobile ? 'mobile' : 'desktop'}-design`);
     await page.locator('#toPlacement').click();
     await page.locator('#reviewStep').waitFor({state:'visible',timeout:90000});
-    assert.equal(await page.locator('#reviewKind').textContent(),'Preview');assert.equal(await page.locator('#stagingOwnerAccess').isHidden(),true);
+    assert.equal(await page.locator('#reviewKind').textContent(),'Preview');assert.equal(await page.locator('#stagingOwnerAccess').isVisible(),true,'Review always asks for an email');
     await page.locator('#reviewEditDesign').click();
     assert.equal(await page.locator('#hexAmount').inputValue(), count);
     assert.equal(await page.locator('#logoOrientation').inputValue(), '37');
@@ -64,8 +64,8 @@ try {
     await page.locator('#companyName').fill('Staging verification');
     await page.locator('#website').fill('https://example.com/');
     await screenshot(page, `${mobile ? 'mobile' : 'desktop'}-review`);
+    await page.locator('#checkoutEmail').fill('staging-verification@example.com');
     await page.locator('#acceptTerms').check();
-    await page.locator('#startImmediately').check();
     await page.locator('#previewPurchase').click();
     // Durable staging opens Stripe rather than publishing a session preview. Prove that the
     // secure checkout mounts, but do not submit a payment; then close the studio so its test

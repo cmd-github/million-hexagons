@@ -13,14 +13,14 @@ import { createCameraFlight, placementPose } from './globe/camera-flight.js';
 import { rotatedImageBox, containRotatedImage } from './placements/artwork-fit.js';
 import { createDemoTour } from './globe/demo-tour.js';
 import { footprintBounds, centre } from './placements/geometry.js';
-import { closestPlacements, milestoneStatus, newestPlacements, recommendedMilestones } from './placements/discovery.js';
+import { closestPlacements, milestoneStatus, newestPlacements, nextUnseenPlacement, recommendedMilestones } from './placements/discovery.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import './style.css';
 import './studio.css';
 import { icon, renderIcons, setIcon } from './icons.js';
 import {cardCopy} from './share/card-copy.js';
-import {downloadShareCard,renderShareCard} from './share/card-renderer.js';
+import {downloadShareCard,renderShareCard,shareCardFile} from './share/card-renderer.js';
 import {startHeroTypewriter} from './hero-typewriter.js';
 import{formatRegionalPrice,pricingForRegion,pricingRegionForCountry}from'./pricing-regions.js';
 import{TERMS_VERSION}from'../functions/legal-consent.js';
@@ -68,7 +68,9 @@ const completeLoadingCount=async()=>{
   loadingCount.classList.add('complete');
   const message=document.querySelector('#loadingMessage');
   if(message)message.textContent=`${CELL_COUNT.toLocaleString('en-GB')} Hexagons Loaded`;
-  await new Promise(resolve=>setTimeout(resolve,900));
+  // The working hexagon becomes the finished hexagon-and-tick, then the globe opens.
+  loading.classList.add('loaded');
+  await new Promise(resolve=>setTimeout(resolve,reducedMotion()?700:1200));
 };
 showLoadedHexagons(0);advanceLoadingCount(850000);
 // A span image is fitted to the footprint it was placed on. Painting more cells afterwards used
@@ -78,7 +80,7 @@ showLoadedHexagons(0);advanceLoadingCount(850000);
 let spanFootprintIds=null,spanCellsSource=null,spanCellsCache=null;
 let openingEditor=false,studioHistoryActive=false,studioHistoryPosition=0,handlingStudioHistory=false;
 function showLoading(){
-  loading.dataset.context='editor';loading.hidden=false;
+  loading.dataset.context='editor';loading.classList.remove('loaded');loading.hidden=false;
   loading.setAttribute('aria-label','Preparing your editor');
   loading.querySelector('svg').style.display='';
   document.querySelector('#loadingError').hidden=true;document.querySelector('#loadingRetry').hidden=true;
@@ -105,9 +107,13 @@ let topology = null, topologyPromise = null, cellDetail = null;
 const bootstrap = await fetchRuntimeJson('topology/bootstrap.json');
 const millionFixture = import.meta.env.DEV && new URLSearchParams(location.search).has('millionLogos');
 const snapshotEnabled=import.meta.env.VITE_ARTWORK_SNAPSHOTS==='true';
-// Self-service purchases stop at 10,000 hexagons; anything larger is arranged
-// with support. Enforced here and again at quote, reservation and creation.
+// Self-service purchases run from 10 to 10,000 hexagons; anything larger is
+// arranged with support. Enforced here and again at quote and reservation.
+const MIN_PURCHASE_CELLS=10;
 const MAX_PURCHASE_CELLS=10000;
+// The count never drops below the minimum: the minus button stops there and the
+// delete brush refuses a stroke that would go under it, saying why.
+function showMinimumNotice(show){const error=document.querySelector('#shapeCountError');if(error)error.hidden=!show;}
 const SUPPORT_EMAIL='millionhexagons@birdcagetech.com';
 function showPurchaseLimitNotice(show){
   const notice=document.querySelector('#shapeLimitNotice');
@@ -418,6 +424,9 @@ function renderProposedCell(cell) {
 function clearProposedCell() {
   if(!proposedCellId)return;
   proposedCellId=null;
+  // Once the starting spot is confirmed, the same colour buffer holds the user's
+  // selection, so dragging the globe in Shape or Design must leave it alone.
+  if(document.body.classList.contains('creating')&&!document.body.classList.contains('choosing-start'))return;
   clearSelectionColours();
   if(!document.body.classList.contains('creating'))selectionModeUniform.value=0;
 }
@@ -990,7 +999,7 @@ function showFlowStep(step) {
   heading.tabIndex = -1;
   heading.focus({ preventScroll: true });
   if(step==='shape')trackEvent('cells_selected',{context:{cellCount:placementCount(),source:'studio'}});
-  if(step==='review'){document.querySelector('#acceptTerms').checked=false;document.querySelector('#startImmediately').checked=false;trackEvent('design_completed',{context:{cellCount:placementCount(),source:'studio'}});}
+  if(step==='review'){document.querySelector('#acceptTerms').checked=false;trackEvent('design_completed',{context:{cellCount:placementCount(),source:'studio'}});}
 }
 
 function placementCount() {
@@ -1030,9 +1039,10 @@ function updateTotals() {
   document.querySelector('#placePrice').textContent = priceText;
   document.querySelector('#reviewCount').textContent = countText;
   document.querySelector('#reviewPrice').textContent = priceText;
-  document.querySelector('#toPlacement').disabled = !ownerEdit&&count<5;
+  document.querySelector('#toPlacement').disabled = !ownerEdit&&count<MIN_PURCHASE_CELLS;
+  const minus=document.querySelector('[data-step-size="-1"]');if(minus)minus.disabled=!ownerEdit&&count<=MIN_PURCHASE_CELLS;
   document.querySelector('#toDesign').disabled = false;
-  if(count>=5)document.querySelector('#shapeCountError').hidden=true;
+  if(count>MIN_PURCHASE_CELLS)showMinimumNotice(false);
   updateLogoGuidance();
 }
 
@@ -1261,7 +1271,7 @@ function enterShapeStep(){
   showFlowStep('shape');selectionModeUniform.value=1;selectedCell=cellForId(designAnchor);selectedCells=previewCells();clearPlacementPreview();logoEditorMode='hex';refreshSelection(selectedCells);controls.enableRotate=false;updateTotals();applyShapeMode();
 }
 function enterDesignStep(){
-  if(!ownerEdit&&placementCount()<5){document.querySelector('#shapeCountError').hidden=false;document.querySelector('#hexAmount').focus();return;}
+  if(!ownerEdit&&placementCount()<MIN_PURCHASE_CELLS){showMinimumNotice(true);document.querySelector('#hexAmount').focus();return;}
   document.querySelector('#shapeCountError').hidden=true;showPurchaseLimitNotice(false);
   document.body.classList.remove('choosing-start');selectionModeUniform.value=0;clearSelectionColours();showFlowStep('design');setDesignSurface('globe');setEditorMode('move',false);drawDesignPreview();updateTotals();
   if(innerWidth<=700){
@@ -1459,11 +1469,11 @@ document.querySelector('#toReview').addEventListener('click', async event => {
   addHighResolutionPlacement(document.querySelector('#brushColor').value, document.querySelector('#logoTreatment').value, previewPlacementLayers);
   button.textContent=original;button.disabled=false;
 });
-document.querySelectorAll('[data-add-size]').forEach(button=>button.addEventListener('click',()=>{const wanted=Math.max(1,placementCount())+Number(button.dataset.addSize);showPurchaseLimitNotice(wanted>MAX_PURCHASE_CELLS);amountInput.value=Math.min(MAX_PURCHASE_CELLS,wanted);if(placementCount()>=5)void resizeDesign();else updateTotals();}));
-document.querySelectorAll('[data-step-size]').forEach(button=>button.addEventListener('click',()=>{const stepped=placementCount()+Number(button.dataset.stepSize);showPurchaseLimitNotice(stepped>MAX_PURCHASE_CELLS);amountInput.value=Math.max(1,Math.min(MAX_PURCHASE_CELLS,stepped));if(placementCount()>=5)void resizeDesign();else updateTotals();}));
+document.querySelectorAll('[data-add-size]').forEach(button=>button.addEventListener('click',()=>{const wanted=Math.max(1,placementCount())+Number(button.dataset.addSize);showPurchaseLimitNotice(wanted>MAX_PURCHASE_CELLS);amountInput.value=Math.min(MAX_PURCHASE_CELLS,wanted);if(placementCount()>=MIN_PURCHASE_CELLS)void resizeDesign();else updateTotals();}));
+document.querySelectorAll('[data-step-size]').forEach(button=>button.addEventListener('click',()=>{const stepped=placementCount()+Number(button.dataset.stepSize);showPurchaseLimitNotice(stepped>MAX_PURCHASE_CELLS);showMinimumNotice(stepped<MIN_PURCHASE_CELLS);amountInput.value=Math.max(MIN_PURCHASE_CELLS,Math.min(MAX_PURCHASE_CELLS,stepped));if(placementCount()>=MIN_PURCHASE_CELLS)void resizeDesign();else updateTotals();}));
 const requestedAmount=()=>Math.max(0,Math.floor(Number(amountInput.value))||0);
-amountInput.addEventListener('change',()=>{showPurchaseLimitNotice(requestedAmount()>MAX_PURCHASE_CELLS);amountInput.value=Math.max(1,placementCount());if(placementCount()>=5)void resizeDesign();else updateTotals();});
-amountInput.addEventListener('input',()=>{showPurchaseLimitNotice(requestedAmount()>MAX_PURCHASE_CELLS);if(placementCount()>=5)void resizeDesign();else updateTotals();});
+amountInput.addEventListener('change',()=>{showPurchaseLimitNotice(requestedAmount()>MAX_PURCHASE_CELLS);showMinimumNotice(requestedAmount()<MIN_PURCHASE_CELLS);amountInput.value=Math.max(MIN_PURCHASE_CELLS,placementCount());if(placementCount()>=MIN_PURCHASE_CELLS)void resizeDesign();else updateTotals();});
+amountInput.addEventListener('input',()=>{showPurchaseLimitNotice(requestedAmount()>MAX_PURCHASE_CELLS);if(requestedAmount()>=MIN_PURCHASE_CELLS)showMinimumNotice(false);if(placementCount()>=MIN_PURCHASE_CELLS)void resizeDesign();else updateTotals();});
 document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
 document.querySelectorAll('[name="logoTreatmentChoice"]').forEach(input=>input.addEventListener('change',()=>{document.querySelector('#logoTreatment').value=input.value;drawDesignPreview();}));
 document.querySelectorAll('[data-treatment]').forEach((button) => button.addEventListener('click', () => { document.querySelector('#logoTreatment').value = button.dataset.treatment; document.querySelector('#logoTreatment').addEventListener('change',()=>drawDesignPreview());
@@ -1851,7 +1861,7 @@ function addHighResolutionPlacement(color, treatment, targetLayer = placementLay
 }
 
 let publishing=false;
-let stagingClient=null,stagingUser=null,activeCheckoutReservation=null,checkoutExpiryTimer=null,embeddedCheckoutInstance=null;
+let stagingClient=null,stagingUser=null,stagingAdministrator=false,activeCheckoutReservation=null,checkoutExpiryTimer=null,embeddedCheckoutInstance=null;
 void initialiseRegionalPricing();
 let restoredStagingOwner=null,restoringStagingOwner=null;
 let stagingInventoryPromise=null;
@@ -2104,10 +2114,14 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!myGlobe.hidden){closeMyGlobe();accountToggle.focus();}});
   const reflectStagingUser=async user=>{
     stagingUser=user;
-    access.hidden=!user;status.textContent=user?`Signed in as ${user.email}.`:'';status.hidden=!user;document.querySelector('#reviewSignOut').hidden=!user;
-    document.querySelector('#accountSignedOut').hidden=Boolean(user);document.querySelector('#accountSignedIn').hidden=!user;accountToggle.classList.toggle('signed-in',Boolean(user));accountToggle.title=user?'Your account':'Owner sign in';accountToggle.setAttribute('aria-label',user?'Open your account':'Owner sign in');accountStatus.textContent='';
-    if(user){document.querySelector('#accountIdentity').textContent=user.email||'Signed-in owner';try{const summary=await stagingClient.getAccountSummary();document.querySelector('#accountPlacementCount').textContent=summary.placements;document.querySelector('#accountCreditCount').textContent=summary.credits;applyCreditBalance(summary.credits);document.querySelector('#openAdmin').hidden=!summary.administrator;}catch(error){accountStatus.textContent='Account details could not be refreshed.';}}
-    else {applyCreditBalance(0);closeMyGlobe();}
+    // Review always asks for an email. Signed in, it is the account's address,
+    // fixed, with Log out beside it as the way to buy under a different one.
+    access.hidden=false;status.textContent='';status.hidden=true;document.querySelector('#reviewSignOut').hidden=!user;
+    const checkoutEmail=document.querySelector('#checkoutEmail');
+    if(user){checkoutEmail.value=user.email||'';checkoutEmail.readOnly=true;}else if(checkoutEmail.readOnly){checkoutEmail.value='';checkoutEmail.readOnly=false;}
+    document.querySelector('#accountSignedOut').hidden=Boolean(user);document.querySelector('#accountSignedIn').hidden=!user;accountToggle.classList.toggle('signed-in',Boolean(user));accountToggle.setAttribute('aria-label',user?'Open your account':'Owner sign in');accountStatus.textContent='';
+    if(user){document.querySelector('#accountIdentity').textContent=user.email||'Signed-in owner';try{const summary=await stagingClient.getAccountSummary();document.querySelector('#accountPlacementCount').textContent=summary.placements;document.querySelector('#accountCreditCount').textContent=summary.credits;applyCreditBalance(summary.credits);document.querySelector('#openAdmin').hidden=!summary.administrator;stagingAdministrator=summary.administrator===true;syncDeleteTestButton();}catch(error){accountStatus.textContent='Account details could not be refreshed.';}}
+    else {applyCreditBalance(0);closeMyGlobe();stagingAdministrator=false;syncDeleteTestButton();}
     if(!user||restoredStagingOwner===user.uid||restoringStagingOwner===user.uid)return;
     restoringStagingOwner=user.uid;
     try{const records=await restoreTestPlacements();restoredStagingOwner=user.uid;if(records.length){const live=records.filter(record=>record.publicationStatus==='published').length;status.textContent=`Signed in as ${user.email}. Loaded ${records.length} saved test ${records.length===1?'placement':'placements'}${live===records.length?'':` · ${live} live`}.`;}}
@@ -2132,7 +2146,7 @@ if(import.meta.env.VITE_STAGING_SANDBOX){
   document.querySelector('#sendOwnerLink').onclick=event=>sendLink(document.querySelector('#stagingOwnerEmail').value,event.currentTarget,status);
   document.querySelector('#sendAccountLink').onclick=event=>sendLink(document.querySelector('#accountEmail').value,event.currentTarget,accountStatus);
   document.querySelector('#accountSignOut').onclick=async event=>{event.currentTarget.disabled=true;try{closeMyGlobe();await stagingClient.signOutOwner();await reflectStagingUser(null);accountPanel.hidden=true;accountToggle.setAttribute('aria-expanded','false');}finally{event.currentTarget.disabled=false;}};
-  document.querySelector('#reviewSignOut').onclick=async event=>{event.currentTarget.disabled=true;try{closeMyGlobe();await stagingClient.signOutOwner();await reflectStagingUser(null);}finally{event.currentTarget.disabled=false;}};
+  document.querySelector('#reviewSignOut').onclick=async event=>{event.currentTarget.disabled=true;try{closeMyGlobe();await stagingClient.signOutOwner();await reflectStagingUser(null);const email=document.querySelector('#checkoutEmail');email.value='';email.readOnly=false;email.focus();}finally{event.currentTarget.disabled=false;}};
   const adminCreditForm=document.querySelector('#adminCreditForm'),adminCreditStatus=document.querySelector('#adminCreditStatus');
   const adminCreditHint=adminCreditStatus.textContent;
   adminCreditForm.addEventListener('submit',async event=>{
@@ -2224,13 +2238,15 @@ async function paintPlacement() {
       catch(error){document.querySelector('#purchaseError').hidden=false;document.querySelector('#purchaseError').textContent=error.message.startsWith('Your changes were saved')?error.message:`Could not save your changes: ${error.message}`;}
       finally{publishing=false;document.querySelector('#buyPanel').inert=false;button.disabled=false;button.textContent=label;}return;
     }
-    const acceptTerms=document.querySelector('#acceptTerms'),startImmediately=document.querySelector('#startImmediately');
-    if(!acceptTerms.checked||!startImmediately.checked){const target=document.querySelector('#purchaseError');target.hidden=false;target.textContent='Read and accept the Terms, then request immediate publication to continue.';(!acceptTerms.checked?acceptTerms:startImmediately).focus();return;}
+    // One box covers both the Terms and the request to publish straight away.
+    const acceptTerms=document.querySelector('#acceptTerms'),emailField=document.querySelector('#checkoutEmail'),buyerEmail=emailField.value.trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail)){const target=document.querySelector('#purchaseError');target.hidden=false;target.textContent='Enter the email address for your receipt.';emailField.focus();return;}
+    if(!acceptTerms.checked){const target=document.querySelector('#purchaseError');target.hidden=false;target.textContent='Tick the box to accept the Terms and continue.';acceptTerms.focus();return;}
     publishing=true;
     if(!activeCheckoutReservation){publishing=false;const target=document.querySelector('#purchaseError');target.hidden=false;target.textContent='This reservation expired. Choose the location again.';return;}
     showEmbeddedCheckoutLoading();await nextPaint();
-    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),placement={topologyVersion:'geodesic-v1',anchor:selectedCell.id,anchorCentre:[...topology.centre(selectedCell.id)],cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},consent={termsVersion:TERMS_VERSION,acceptedTerms:true,requestedImmediateService:true},checkout=await stagingClient.createStripeCheckout(placement,activeCheckoutReservation.reservation.reservationId,activeCheckoutReservation.checkoutToken,stagingUser,consent);trackEvent('checkout_started',{context:{cellCount:placement.cells.length,source:'checkout',creditsApplied:Number(checkout.creditsApplied||0)}});if(checkout.expiresAtMs){activeCheckoutReservation.reservation.expiresAtMs=checkout.expiresAtMs;showCheckoutExpiry();}if(checkout.creditsOnly)await completeCreditPurchase(checkout);else await showEmbeddedCheckout(checkout);publishing=false;return;}
-    catch(error){publishing=false;hideEmbeddedCheckout();const target=document.querySelector('#purchaseError');target.hidden=false;target.textContent=error.code==='checkout-consent-required'?'The Terms or immediate publication request was not recorded. Please review both choices.':error.code==='reservation-invalid'?'This reservation expired. Choose the location again.':error.code==='destination-not-found'?'That website returned a 404. Check the address and try again.':error.code?.startsWith('destination-')?'That website could not be safely reached. Check the address and try again.':'Could not open secure checkout. Your design is still here.';return;}
+    try{const sourceCanvas=draftArtwork||renderArtwork(previewCells()),placement={topologyVersion:'geodesic-v1',anchor:selectedCell.id,anchorCentre:[...topology.centre(selectedCell.id)],cells:selectedCells.map(cell=>cell.id),title:document.querySelector('#companyName').value.trim()||'Untitled placement',description:document.querySelector('#companyDescription').value.trim(),destinationUrl:website,artworkDataUrl:persistentArtwork(sourceCanvas),sourceArtworkDataUrl:publicationArtwork(sourceCanvas)},consent={termsVersion:TERMS_VERSION,acceptedTerms:true,requestedImmediateService:true},checkout=await stagingClient.createStripeCheckout(placement,activeCheckoutReservation.reservation.reservationId,activeCheckoutReservation.checkoutToken,stagingUser,consent,buyerEmail);trackEvent('checkout_started',{context:{cellCount:placement.cells.length,source:'checkout',creditsApplied:Number(checkout.creditsApplied||0)}});if(checkout.expiresAtMs){activeCheckoutReservation.reservation.expiresAtMs=checkout.expiresAtMs;showCheckoutExpiry();}if(checkout.creditsOnly)await completeCreditPurchase(checkout);else await showEmbeddedCheckout(checkout);publishing=false;return;}
+    catch(error){publishing=false;hideEmbeddedCheckout();const target=document.querySelector('#purchaseError');target.hidden=false;target.textContent=error.code==='checkout-consent-required'?'Your acceptance of the Terms was not recorded. Please tick the box again.':error.code==='reservation-invalid'?'This reservation expired. Choose the location again.':error.code==='destination-not-found'?'That website returned a 404. Check the address and try again.':error.code?.startsWith('destination-')?'That website could not be safely reached. Check the address and try again.':'Could not open secure checkout. Your design is still here.';return;}
   }
   publishing=true;
   document.querySelector('#buyPanel').inert=true;
@@ -2344,11 +2360,21 @@ function updateRotationControl(){
   setIcon(rotationToggle,rotating?'rotate-pause':'rotate-start');
   rotationToggle.setAttribute('aria-pressed',String(rotating));
   const next=rotating?'Pause globe rotation':'Rotate globe';
-  rotationToggle.setAttribute('aria-label',next);rotationToggle.title=next;
+  rotationToggle.setAttribute('aria-label',next);
 }
 let lastTopologyTrim=0,topologyTrimReady=false;
 let twinklePreview=null,twinkleLoad=null;
 const twinklesAllowed=!millionFixture&&!matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Idle frame pacing. Each frame costs several milliseconds of GPU on integrated
+// graphics, and the idle drift moves the globe about a tenth of a pixel per
+// frame, so while nobody is touching anything it is drawn at 30fps, and at 15fps
+// when the view is not moving at all (only slow twinkle fades remain). The scene
+// still updates every frame, so rotation speed is unchanged. Any input, camera
+// flight, tour or zoom puts it straight back to the display's full rate.
+const IDLE_FRAME_MS=1000/30,STILL_FRAME_MS=1000/15,ACTIVE_AFTER_INPUT_MS=2500;
+let renderedFrames=0,lastRenderAt=-Infinity,lastInputAt=performance.now();
+const lastView=new THREE.Matrix4(),currentView=new THREE.Matrix4();
+for(const type of ['pointerdown','pointermove','pointerup','wheel','keydown','touchstart','touchmove'])addEventListener(type,()=>{lastInputAt=performance.now();},{capture:true,passive:true});
 function animate() {
   requestAnimationFrame(animate);
   controls.rotateSpeed=.42*Math.min(1,Math.max(.045,(camera.position.length()-radius)/4));
@@ -2387,7 +2413,13 @@ function animate() {
       topology.trim(pinned);
     }
   }
-  renderer.render(scene, camera);
+  const now=performance.now(),busy=now-lastInputAt<ACTIVE_AFTER_INPUT_MS||cameraFlight.active||demoTour.active||zoom.active||cameraDistanceTarget!==null;
+  camera.updateMatrixWorld();globe.updateMatrixWorld();
+  currentView.multiplyMatrices(camera.matrixWorldInverse.copy(camera.matrixWorld).invert(),globe.matrixWorld);
+  const still=currentView.equals(lastView);
+  if(!busy&&now-lastRenderAt<(still?STILL_FRAME_MS:IDLE_FRAME_MS)-4)return;
+  lastView.copy(currentView);lastRenderAt=now;
+  renderer.render(scene, camera);renderedFrames++;
 }
 animate();
 await nextPaint();
@@ -2416,7 +2448,7 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('geodesicQA'
     screen(id) { const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return {x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2}; },
   };
 }
-if(import.meta.env.DEV)window.performanceQA={screen(id){const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return{x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2};},tiles:artworkTiles.stats,focus(direction,altitude){zoom.cancel();controls.autoRotate=false;cameraDistanceTarget=null;globe.rotation.set(0,0,0);camera.position.set(...direction).normalize().multiplyScalar(radius+altitude);controls.update();},state(){return{tiles:{...artworkTiles.stats},topologyLoaded:!!topology,topologyTiming:topology?.loadTiming,regions:topology?{...topology.stats,retained:topology.regions.size}:null,detailVertices:cellDetail?.stats.vertices||0,grid:cellDetail?{...cellDetail.stats}:null,detailOpacity:cellDetail?.material.uniforms.visibility.value||0,inventoryLoaded:stagingInventoryLoaded,drawCalls:renderer.info.render.calls,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,camera:camera.position.toArray(),retainedPlacements:placementLayers.children.length};},placementLayerState(){return placementLayers.children.map(child=>({placementId:child.userData?.placementId||null,visible:child.visible}));}};
+if(import.meta.env.DEV)window.performanceQA={screen(id){const p=pointForCell({id}).applyMatrix4(globe.matrixWorld).project(camera),r=canvas.getBoundingClientRect();return{x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2};},tiles:artworkTiles.stats,focus(direction,altitude){zoom.cancel();controls.autoRotate=false;cameraDistanceTarget=null;globe.rotation.set(0,0,0);camera.position.set(...direction).normalize().multiplyScalar(radius+altitude);controls.update();},state(){return{tiles:{...artworkTiles.stats},topologyLoaded:!!topology,topologyTiming:topology?.loadTiming,regions:topology?{...topology.stats,retained:topology.regions.size}:null,detailVertices:cellDetail?.stats.vertices||0,grid:cellDetail?{...cellDetail.stats}:null,detailOpacity:cellDetail?.material.uniforms.visibility.value||0,inventoryLoaded:stagingInventoryLoaded,drawCalls:renderer.info.render.calls,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,camera:camera.position.toArray(),retainedPlacements:placementLayers.children.length,renderedFrames,pixelRatio:renderer.getPixelRatio()};},debug:{scene,renderer,globe,camera},placementLayerState(){return placementLayers.children.map(child=>({placementId:child.userData?.placementId||null,visible:child.visible}));}};
 
 // Globe and canvas share the source footprint, original image and per-cell edits.
 function syncGlobeDesign(){
@@ -2424,11 +2456,12 @@ function syncGlobeDesign(){
   selectedCell=cellForId(designAnchor);
   selectedCells=previewCells();
   // Blank cells still need to read as the footprint being designed. Keep the
-  // lime outline/faint fill until an image or per-cell treatment replaces it.
+  // lime outline/faint fill on every unpainted cell, image or not: the artwork
+  // draws over it, so it only shows where the image leaves claimed cells uncovered.
   selectionColourData.fill(0);
-  if(!uploadedLogo)for(const cell of selectedCells)if(!cell.color&&!cell.transparent)writeCellColour(selectionColourData,cell,'#d7ff55');
+  for(const cell of selectedCells)if(!cell.color&&!cell.transparent)writeCellColour(selectionColourData,cell,'#d7ff55');
   selectionColourTexture.needsUpdate=true;
-  selectionModeUniform.value=!uploadedLogo&&selectedCells.some(cell=>!cell.color&&!cell.transparent)?1:0;
+  selectionModeUniform.value=selectedCells.some(cell=>!cell.color&&!cell.transparent)?1:0;
   const owned=ownerEdit?new Set(ownerEdit.record.cells):null,blocked=selectedCells.some(c=>occupiedCells[c.id-1]&&!owned?.has(c.id));
   document.querySelector('#toPlacement').disabled=blocked||!selectedCells.length;
   if(blocked)document.querySelector('#toolHint').textContent='This size overlaps purchased hexagons. Reduce the count or move the design.';
@@ -2440,7 +2473,7 @@ function syncGlobeDesign(){
 function setDesignSurface(surface){
   designSurface=surface;document.body.dataset.surface=surface;
   controls.enableRotate=logoEditorMode==='pan';
-  document.querySelector('#toPlacement').textContent='Keep this space \u2192';
+  document.querySelector('#toPlacement').textContent='Claim this space \u2192';
   resize();drawDesignPreview();
 }
 document.querySelector('#editThisSpace').onclick=()=>{
@@ -2483,6 +2516,7 @@ function applyGlobeCell(id,stroke){
       // adding cells behind you.
       if(!next.has(id))return;
       const candidate=new Map(next),removed=[];for(const n of brush)if(candidate.delete(n))removed.push(n);
+      if(!ownerEdit&&candidate.size<MIN_PURCHASE_CELLS){showMinimumNotice(true);return;}
       if(candidate.size&&topology.isConnected([...candidate.values()])){
         next.clear();for(const [key,value] of candidate)next.set(key,value);
         if(!next.has(designAnchor))designAnchor=next.keys().next().value;
@@ -2498,7 +2532,7 @@ function applyGlobeCell(id,stroke){
     }
   }else if(logoEditorMode==='remove'){
     for(const n of brush)next.delete(n);
-    if(next.size<5||!topology.isConnected([...next.values()]))return;
+    if(next.size<MIN_PURCHASE_CELLS||!topology.isConnected([...next.values()]))return;
   }else if(logoEditorMode==='paint'){
     let pending=brush.filter(n=>!occupiedCells[n-1]&&!next.has(n));
     if(!next.size&&pending.includes(id)){designAnchor=id;next.set(id,{id});pending=pending.filter(n=>n!==id);}
@@ -2542,29 +2576,51 @@ let inspectorRoute=[],inspectorRouteIndex=0,nearbyRenderedFor=null;
 // for that request alone, purely so a retry cannot double count. That keeps the
 // measurement outside PECR's device-access rules, so it needs no consent prompt;
 // the server-side processing rests on a legitimate interest, described in the
-// privacy notice, with the opt-out below as the objection route.
-//
-// The one thing stored is that opt-out, because it is a setting the visitor
-// asked for and cannot work otherwise.
-const measurementOptOutKey='mh-no-measurement-v1';
-let measurementOptOut=false;
-try{measurementOptOut=localStorage.getItem(measurementOptOutKey)==='1';}catch{}
-function setMeasurementOptOut(optedOut){
-  measurementOptOut=optedOut;
-  try{optedOut?localStorage.setItem(measurementOptOutKey,'1'):localStorage.removeItem(measurementOptOutKey);}catch{}
-  const button=document.querySelector('#privacyChoices');
-  if(button){
-    button.setAttribute('aria-pressed',String(optedOut));
-    button.textContent=optedOut?'Counting is off for you':'Don’t count my visits';
+// privacy notice, which gives an email route for objecting.
+
+// Terms and privacy open over the globe rather than navigating away, so nobody
+// loses their place on the map to read them. The documents stay single files;
+// this lifts their <main> out and drops the "back to Million Hexagons" link,
+// which makes no sense inside an overlay.
+const legalOverlay=document.querySelector('#legalOverlay'),legalBody=document.querySelector('#legalOverlayBody'),legalTitle=document.querySelector('#legalOverlayTitle');
+const legalCache=new Map();
+function closeLegalOverlay(){if(legalOverlay?.open)legalOverlay.close();}
+async function openLegalOverlay(href,label){
+  if(!legalOverlay)return;
+  legalTitle.textContent=label;
+  if(!legalOverlay.open)legalOverlay.showModal();
+  legalBody.scrollTop=0;
+  const [path,hash]=href.split('#');
+  const show=fragment=>{legalBody.replaceChildren(fragment.cloneNode(true));if(hash)legalBody.querySelector(`#${CSS.escape(hash)}`)?.scrollIntoView({block:'start'});};
+  if(legalCache.has(path)){show(legalCache.get(path));return;}
+  legalBody.replaceChildren(Object.assign(document.createElement('p'),{className:'legal-loading',textContent:'Loading…'}));
+  try{
+    const response=await fetch(path,{headers:{accept:'text/html'}});
+    if(!response.ok)throw Error(String(response.status));
+    const parsed=new DOMParser().parseFromString(await response.text(),'text/html');
+    const main=parsed.querySelector('main')||parsed.body;
+    for(const back of main.querySelectorAll('a[href="/"]'))back.closest('p')?.remove();
+    const fragment=document.createElement('div');
+    fragment.append(...main.childNodes);
+    legalCache.set(path,fragment);
+    show(fragment);
+  }catch{
+    legalBody.replaceChildren(Object.assign(document.createElement('p'),{className:'legal-loading',textContent:'Could not load this document. '}),
+      Object.assign(document.createElement('a'),{href,target:'_blank',rel:'noopener noreferrer',textContent:'Open it in a new tab instead.'}));
   }
 }
+for(const button of document.querySelectorAll('[data-legal]'))
+  button.onclick=event=>{event.preventDefault();void openLegalOverlay(button.dataset.legal,button.dataset.legalTitle||button.textContent.trim());};
+document.querySelector('#closeLegal').onclick=closeLegalOverlay;
+// Clicking the backdrop closes it; Escape is handled by <dialog> itself.
+legalOverlay?.addEventListener('click',event=>{if(event.target===legalOverlay)closeLegalOverlay();});
 
-document.querySelector('#privacyChoices').onclick=()=>setMeasurementOptOut(!measurementOptOut);
-setMeasurementOptOut(measurementOptOut);
-
+// Deleting a placement from the globe is a founder tool for clearing test data,
+// so only an administrator account ever sees it.
+function syncDeleteTestButton(){const button=document.querySelector('#deleteTestPlacement');button.hidden=!button.dataset.placementId||!stagingClient||!stagingAdministrator;}
 function deviceClass(){return innerWidth<=700?'mobile':innerWidth<=1024?'tablet':'desktop';}
 function trackEvent(type,{placementId='',context={}}={}){
-  if(!stagingClient||measurementOptOut)return;
+  if(!stagingClient)return;
   void stagingClient.trackEvent({type,eventToken:crypto.randomUUID(),...(placementId?{placementId}:{}),context:{deviceClass:deviceClass(),...context}}).catch(()=>{});
 }
 const sampleDescriptions=[
@@ -2616,13 +2672,16 @@ function renderInspectorBadges(owner,isSample){
 }
 let linkClicks={};
 const reportDialog=document.querySelector('#reportPlacementDialog'),reportForm=document.querySelector('#reportPlacementForm');
-document.querySelector('#reportPlacementButton').onclick=()=>{reportForm.reset();document.querySelector('#reportPlacementStatus').textContent='';reportDialog.showModal();};
-document.querySelector('#closeReportPlacement').onclick=()=>reportDialog.close();
+document.querySelector('#reportPlacementButton').onclick=()=>{reportForm.reset();document.querySelector('#reportPlacementStatus').textContent='';delete reportForm.querySelector('[type=submit]').dataset.sent;reportDialog.showModal();};
+for(const id of ['closeReportPlacement','dismissReportPlacement'])document.getElementById(id).onclick=()=>reportDialog.close();
 reportForm.onsubmit=async event=>{
   event.preventDefault();const button=reportForm.querySelector('[type=submit]'),status=document.querySelector('#reportPlacementStatus'),data=new FormData(reportForm),placementId=document.querySelector('#reportPlacementButton').dataset.placementId;
   if(!placementId||!stagingClient)return;button.disabled=true;status.textContent='Sending report…';
-  try{await stagingClient.reportPlacement({placementId,kind:data.get('kind'),details:data.get('details'),email:data.get('email'),website:data.get('website')});status.textContent='Thank you. Your report has been sent for review.';reportForm.reset();}
-  catch{status.textContent='Could not send the report. Please try again or use the email link below.';}
+  try{await stagingClient.reportPlacement({placementId,kind:data.get('kind'),details:data.get('details'),email:data.get('email'),website:data.get('website')});status.textContent='Thank you. Your report has been sent for review.';
+    // The same hexagon tick as the sign-in link confirms it, then the dialog gets out of the way.
+    button.dataset.sent='true';await new Promise(resolve=>setTimeout(resolve,reducedMotion()?800:1500));
+    if(reportDialog.open)reportDialog.close();reportForm.reset();delete button.dataset.sent;status.textContent='';}
+  catch{status.textContent='Could not send the report. Please try again.';}
   finally{button.disabled=false;}
 };
 function ownerKey(id){const record=sessionPlacements.get(id);return record||'sample-'+sampleOwners[id-1];}
@@ -2670,11 +2729,12 @@ async function prepareInspector(id,version){
   renderInspectorBadges(owner,!record);
 
   renderLinkClicks();
-  if(record?.placementId&&stagingClient&&!measurementOptOut)void stagingClient.recordPlacementEvent(record.placementId,'view',crypto.randomUUID()).then(metrics=>{if(inspectedOwner===record){views.textContent=metrics.views.toLocaleString();const visits=document.querySelector('#inspectorClicks');visits.textContent=metrics.clicks.toLocaleString();visits.title='Measured website visits';}}).catch(()=>{views.textContent='—';});
+  if(record?.placementId&&stagingClient)void stagingClient.recordPlacementEvent(record.placementId,'view',crypto.randomUUID()).then(metrics=>{if(inspectedOwner===record){views.textContent=metrics.views.toLocaleString();const visits=document.querySelector('#inspectorClicks');visits.textContent=metrics.clicks.toLocaleString();visits.title='Measured website visits';}}).catch(()=>{views.textContent='—';});
   const context=document.querySelector('#inspectorContext');context.textContent=record?'New arrival':'';context.hidden=!record;context.title=record?'Claimed in this session':'';
-  const deleteButton=document.querySelector('#deleteTestPlacement');deleteButton.hidden=!record?.placementId||!stagingClient;deleteButton.dataset.placementId=record?.placementId||'';
+  document.querySelector('#deleteTestPlacement').dataset.placementId=record?.placementId||'';syncDeleteTestButton();
   const reportButton=document.querySelector('#reportPlacementButton');reportButton.hidden=!record?.placementId||!stagingClient;reportButton.dataset.placementId=record?.placementId||'';
   updateInspectorShareControl();
+  document.querySelector('#nextPlacement').hidden=!stagingClient;
   clearSelectionColours();selectionModeUniform.value=0;
   document.querySelector('#inspectorStatus').textContent='';panel.hidden=false;controls.autoRotate=false;
   void renderNearbyPlacements();
@@ -2702,10 +2762,9 @@ async function resetInspectorRoute(id){
 // Opening the inspector already renders this panel, so clicking "Nearby" must not repeat the
 // cell fetch and flash "Finding nearby placements…" over an answer we already have.
 function setNearbyCount(count){
-  const badge=document.querySelector('#nearbyCount'),entry=document.querySelector('#showNearby');
-  if(!badge||!entry)return;
+  const entry=document.querySelector('#showNearby');
+  if(!entry)return;
   const known=Number.isInteger(count);
-  badge.hidden=!count;badge.textContent=count?String(count):'';
   entry.disabled=known&&count===0;
   entry.setAttribute('aria-label',count?`Nearby placements, ${count}`:'Nearby placements');
 }
@@ -2769,6 +2828,25 @@ function showNearby(open,focus=false){
   if(focus)document.getElementById(open?'backNearby':'showNearby').focus();
 }
 document.querySelector('#showNearby').onclick=()=>showNearby(true,true);
+// Next: hop to the nearest live placement not yet shown this session, looping
+// once every one has been seen. Works from a sample placement too, measured
+// from wherever the inspected hexagon is.
+let seenNextPlacements=new Set(),nextPlacementBusy=false;
+document.querySelector('#nextPlacement').onclick=async event=>{
+  if(nextPlacementBusy||!inspectedId)return;nextPlacementBusy=true;const button=event.currentTarget;button.disabled=true;
+  try{
+    if(snapshotEnabled)await ensureSnapshotNearbyCatalogue();
+    const record=sessionPlacements.get(inspectedId),selected=record?.placementId?publicPlacementRecords.get(record.placementId)||record:{anchor:inspectedId,placementId:null};
+    const records=[...publicPlacementRecords.values()],centreFor=cellId=>{const item=records.find(entry=>entry.anchor===cellId),centre=item?.anchorCentre;return Array.isArray(centre)&&centre.length===3&&centre.every(Number.isFinite)?centre:topology.centre(cellId);};
+    await topology.ensureCells([...new Set([selected,...records].filter(item=>!(Array.isArray(item.anchorCentre)&&item.anchorCentre.length===3)).map(item=>item.anchor))]);
+    const step=nextUnseenPlacement(records,selected,centreFor,seenNextPlacements);seenNextPlacements=step.seen;
+    if(!step.next){document.querySelector('#inspectorStatus').textContent='No other live placements yet.';return;}
+    seenNextPlacements.add(step.next.placementId);
+    await applyPersistentPlacements([step.next]);
+    if(await inspectPlacement(step.next.anchor))viewInspectedPlacement();
+  }catch{document.querySelector('#inspectorStatus').textContent='Could not load the next placement. Try again.';}
+  finally{nextPlacementBusy=false;button.disabled=false;}
+};
 document.querySelector('#backNearby').onclick=()=>showNearby(false,true);
 document.querySelector('#pinInspector').onclick=event=>{hudPinned=!hudPinned;event.currentTarget.setAttribute('aria-checked',String(hudPinned));};
 document.addEventListener('pointerdown',event=>{
@@ -2780,7 +2858,7 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape'){if(document
 function renderLinkClicks(){const value=linkClicks[cellForId(inspectedId).destination],sample=!sessionPlacements.has(inspectedId),visits=(Number.isSafeInteger(value)&&value>=0?value:0)+(sample?328:0);const metric=document.querySelector('#inspectorClicks');metric.textContent=visits.toLocaleString();metric.title=sample?'Illustrative visits plus your browser total':'Website visits from this browser';}
 for(const id of ['inspectorVisit','placementWebsite'])for(const type of ['click','auxclick'])document.getElementById(id).addEventListener(type,event=>{
   if(type==='auxclick'&&event.button!==1)return;
-  const record=inspectedId?sessionPlacements.get(inspectedId):null;if(record?.placementId&&stagingClient&&!measurementOptOut)void stagingClient.trackEvent({placementId:record.placementId,type:'outbound_link_clicked',eventToken:crypto.randomUUID(),context:{deviceClass:deviceClass(),source:'direct'}}).then(result=>{if(inspectedOwner===record)document.querySelector('#inspectorClicks').textContent=result.metrics.clicks.toLocaleString();}).catch(()=>{});
+  const record=inspectedId?sessionPlacements.get(inspectedId):null;if(record?.placementId&&stagingClient)void stagingClient.trackEvent({placementId:record.placementId,type:'outbound_link_clicked',eventToken:crypto.randomUUID(),context:{deviceClass:deviceClass(),source:'direct'}}).then(result=>{if(inspectedOwner===record)document.querySelector('#inspectorClicks').textContent=result.metrics.clicks.toLocaleString();}).catch(()=>{});
   const url=event.currentTarget.href;const current=linkClicks[url];linkClicks[url]=(Number.isSafeInteger(current)&&current>=0?current:0)+1;if(inspectedId)renderLinkClicks();
 });
 function companyEntries(){return [...bootstrap.sampleAreas.map(area=>({id:area.anchor,name:bootstrap.sampleCampaigns[area.campaign].name,sample:true})),...[...new Set(sessionPlacements.values())].map(record=>({id:record.anchor,name:record.name||'Your placement'}))];}
@@ -2840,7 +2918,7 @@ function viewInspectedPlacement(onComplete=()=>{}){
 let activeShare=null;
 function placementIdFromLocation(){return location.pathname.match(/^\/placement\/([0-9a-f-]{36})\/?$/i)?.[1]||location.hash.match(/^#placement=([0-9a-f-]{36})$/i)?.[1]||'';}
 function placementShareUrl(record,id){const url=new URL(location.href);if(record?.placementId){url.pathname=`/placement/${record.placementId}`;url.search='';url.hash='';}else{url.pathname='/';url.hash=`cell=${id}`;}return url.href;}
-function updateInspectorShareControl(){const button=document.querySelector('#inspectorShare'),record=sessionPlacements.get(inspectedId),owner=record?.placementId&&ownedPlacementIds.has(record.placementId);button.classList.toggle('owner-share',Boolean(owner));button.setAttribute('aria-label',owner?'Share your placement':'Share placement');button.title=owner?'Share your placement':'Share placement';}
+function updateInspectorShareControl(){const button=document.querySelector('#inspectorShare'),record=sessionPlacements.get(inspectedId),owner=record?.placementId&&ownedPlacementIds.has(record.placementId);button.classList.toggle('owner-share',Boolean(owner));button.setAttribute('aria-label',owner?'Share your placement':'Share placement');button.title=owner?'Share a link to your placement on the globe':'Share a link to this placement on the globe';}
 function closeShareCard(){document.querySelector('#shareCard').hidden=true;document.body.classList.remove('sharing-placement');activeShare=null;document.querySelector('#inspectorShare').focus();}
 // Credits are granted by the founder and spend one-for-one against hexagons.
 // An account with no balance never sees any of this, so nothing about credits
@@ -2876,6 +2954,22 @@ document.querySelector('#closeShareCard').onclick=closeShareCard;
 document.querySelector('#inspectorShare').onclick=async()=>{const record=sessionPlacements.get(inspectedId),url=placementShareUrl(record,inspectedId);if(!record?.placementId){try{await navigator.clipboard.writeText(url);document.querySelector('#inspectorStatus').textContent='Copied ✓';}catch{document.querySelector('#inspectorStatus').textContent=url;}return;}await openShareCard(record);};
 async function downloadActiveShare(button,message='Image downloaded ✓ Add it to your post, then paste the copied placement link where links are supported.'){if(!activeShare)return;button.disabled=true;document.querySelector('#shareCardStatus').textContent='Preparing your image…';try{await downloadShareCard(activeShare.record,SHARE_FORMAT);document.querySelector('#shareCardStatus').textContent=message;trackEvent('placement_shared',{placementId:activeShare.record.placementId,context:{source:'share'},unique:true});}finally{button.disabled=false;}}
 document.querySelector('#downloadSharePlacement').onclick=event=>void downloadActiveShare(event.currentTarget,'Image downloaded ✓');
+// X, LinkedIn and Facebook only take a link and draw its preview themselves. The
+// system share sheet is the one route that can carry the image file as well, so
+// it appears wherever the browser can share files (phones, Chrome and Edge on Windows).
+{
+  const nativeShare=document.querySelector('#nativeSharePlacement');
+  try{nativeShare.hidden=!(navigator.canShare&&navigator.canShare({files:[new File([''],'probe.png',{type:'image/png'})]}));}catch{nativeShare.hidden=true;}
+  nativeShare.onclick=async()=>{
+    if(!activeShare)return;const status=document.querySelector('#shareCardStatus');nativeShare.disabled=true;status.textContent='Preparing your image…';
+    try{
+      const file=await shareCardFile(activeShare.record,SHARE_FORMAT),copy=cardCopy(activeShare.record,SHARE_FORMAT);
+      await navigator.share({files:[file],title:'Million Hexagons',text:`${copy.shareText} ${activeShare.url}`});
+      status.textContent='Shared ✓';trackEvent('placement_shared',{placementId:activeShare.record.placementId,context:{source:'native'}});
+    }catch(error){status.textContent=error?.name==='AbortError'?'':'Could not open sharing. Download the image instead.';}
+    finally{nativeShare.disabled=false;}
+  };
+}
 document.querySelector('#copySharePlacement').onclick=async()=>{trackEvent('placement_shared',{placementId:activeShare.record.placementId,context:{source:'share'},unique:true});try{await navigator.clipboard.writeText(activeShare.url);document.querySelector('#shareCardStatus').textContent='Share link copied ✓';}catch{document.querySelector('#shareCardStatus').textContent=activeShare.url;}};
 document.querySelector('.share-destinations').onclick=event=>{const button=event.target.closest('[data-share-destination]');if(!button||!activeShare)return;const copy=cardCopy(activeShare.record,SHARE_FORMAT),text=encodeURIComponent(`${copy.shareText} ${activeShare.url}`),url=encodeURIComponent(activeShare.url),destinations={x:`https://twitter.com/intent/tweet?text=${text}`,facebook:`https://www.facebook.com/sharer/sharer.php?u=${url}`,linkedin:`https://www.linkedin.com/sharing/share-offsite/?url=${url}`},names={x:'X',linkedin:'LinkedIn',facebook:'Facebook'};document.querySelector('#shareCardStatus').textContent=`Opening ${names[button.dataset.shareDestination]}…`;window.open(destinations[button.dataset.shareDestination],'mh-share','noopener,noreferrer,width=720,height=640');trackEvent('placement_shared',{placementId:activeShare.record.placementId,context:{source:button.dataset.shareDestination},unique:true});};
 document.querySelector('#deleteTestPlacement').onclick=async event=>{const placementId=event.currentTarget.dataset.placementId;if(!placementId||!stagingClient)return;event.currentTarget.disabled=true;try{await stagingClient.deleteTestClaim(placementId);location.reload();}catch(error){document.querySelector('#inspectorStatus').textContent='Could not delete this test placement.';event.currentTarget.disabled=false;}};
@@ -2960,6 +3054,36 @@ for(const [id,name,label] of [['moveImageMode','image','Image'],['paintCells','p
   button.innerHTML=`${icon(name)}<span>${label}</span>`;
   button.setAttribute('aria-label',label);
   button.title=label;
+}
+
+// Rail tooltips. The rail is icons only, so every control names itself on hover or
+// keyboard focus, read from its accessible name so labels that change with state
+// (rotation, tour, signed in) stay right. Native titles are dropped from the rail
+// because they arrive late and would double up with this one.
+{
+  const rail=document.querySelector('.globe-controls'),tip=document.createElement('div');
+  tip.className='rail-tip';tip.setAttribute('aria-hidden','true');tip.hidden=true;document.body.append(tip);
+  const railButtons=()=>[...rail.querySelectorAll(':scope>button,:scope>.hex-search>button,:scope>.account-access>button')];
+  for(const button of railButtons())button.removeAttribute('title');
+  let tipFor=null;
+  const hideTip=()=>{tip.hidden=true;tipFor=null;};
+  const showTip=button=>{
+    const text=button.dataset.tip||button.getAttribute('aria-label');
+    if(!text||button.getAttribute('aria-expanded')==='true'){hideTip();return;}
+    tipFor=button;tip.textContent=text;tip.hidden=false;
+    const box=button.getBoundingClientRect(),width=tip.offsetWidth,height=tip.offsetHeight;
+    // Prefer the side facing the middle of the screen, so the tip never runs off an edge.
+    const left=box.left+box.width/2>innerWidth/2?box.left-width-10:box.right+10;
+    tip.style.left=`${Math.max(8,Math.min(innerWidth-width-8,left))}px`;
+    tip.style.top=`${Math.max(8,box.top+box.height/2-height/2)}px`;
+  };
+  const target=event=>event.target.closest?.('button');
+  rail.addEventListener('pointerover',event=>{const button=target(event);if(event.pointerType==='touch'||!button||!railButtons().includes(button)){if(!button)hideTip();return;}if(button!==tipFor)showTip(button);});
+  rail.addEventListener('pointerleave',hideTip);
+  rail.addEventListener('focusin',event=>{const button=target(event);if(button&&railButtons().includes(button)&&button.matches(':focus-visible'))showTip(button);});
+  rail.addEventListener('focusout',hideTip);
+  rail.addEventListener('click',hideTip);
+  addEventListener('scroll',hideTip,true);
 }
 
 let globalMetricExamples=['Loading live totals…'];

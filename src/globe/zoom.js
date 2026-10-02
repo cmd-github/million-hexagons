@@ -13,5 +13,5 @@ export function smoothZoom(canvas,camera,controls,radius,onChange=()=>{}) {
     event.stopImmediatePropagation();event.preventDefault();
   },{capture:true,passive:false});
   const end=event=>{pointers.delete(event.pointerId);pinch=null;};canvas.addEventListener('pointerup',end,{capture:true});canvas.addEventListener('pointercancel',end,{capture:true});
-  return {change,cancel(){target=null;},update(){const now=performance.now(),dt=Math.min(.1,(now-lastTime)/1000);lastTime=now;if(target===null)return;const current=camera.position.length(),next=target+(current-target)*Math.exp(-14*dt);camera.position.setLength(next);if(Math.abs(next-target)<.0001)target=null;}};
+  return {change,get active(){return target!==null;},cancel(){target=null;},update(){const now=performance.now(),dt=Math.min(.1,(now-lastTime)/1000);lastTime=now;if(target===null)return;const current=camera.position.length(),next=target+(current-target)*Math.exp(-14*dt);camera.position.setLength(next);if(Math.abs(next-target)<.0001)target=null;}};
 }

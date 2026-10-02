@@ -25,6 +25,23 @@ export function closestPlacements(records, selected, centreFor, limit = 3) {
     .map(item => item.record);
 }
 
+// "Next" walks the globe: always the nearest live placement not yet shown this
+// session, so each hop stays short. Once everything has been seen the walk
+// starts again from wherever the visitor is, so pressing it keeps looping.
+export function nextUnseenPlacement(records, selected, centreFor, seen = new Set()) {
+  if (!selected) return { next: null, seen: new Set(seen) };
+  const visited = new Set(seen);
+  if (selected.placementId) visited.add(selected.placementId);
+  const ordered = closestPlacements(records, selected, centreFor, Infinity);
+  let next = ordered.find(record => !visited.has(record.placementId)) || null;
+  if (!next && ordered.length) {
+    visited.clear();
+    if (selected.placementId) visited.add(selected.placementId);
+    next = ordered[0];
+  }
+  return { next, seen: visited };
+}
+
 export const milestoneCatalogue = Object.freeze([
   { id: 'placements-10', metric: 'placements', target: 10, label: '10 live placements' },
   { id: 'placements-50', metric: 'placements', target: 50, label: '50 live placements' },

@@ -22,7 +22,7 @@ import { decodeArtworkSource, designObjectPath, publicationObjects, sourceObject
 import { extendTestReservation, releaseTestReservation, reserveTestCells } from './reservations.js';
 import { quoteCells } from './pricing.js';
 import Stripe from 'stripe';
-import { applyCreditsToQuote, checkoutOrderId, checkoutOwnerId, checkoutSessionParameters, paidCheckoutEmail, paidEmailOwnerId } from './payments.js';
+import { applyCreditsToQuote, checkoutBuyerEmail, checkoutOrderId, checkoutOwnerId, checkoutSessionParameters, paidCheckoutEmail, paidEmailOwnerId } from './payments.js';
 import { normaliseCheckoutConsent } from './legal-consent.js';
 import { normaliseContentReport } from './content-report.js';
 import {validateDestinationUrl} from './destination-validation.js';
@@ -522,6 +522,9 @@ async function closeUnpaidOrder(db,session,status,details={}){
   const orderId=String(session?.metadata?.orderId||'');if(!orderId)return null;
   const orderRef=db.collection('stagingOrders').doc(orderId),snapshot=await orderRef.get();if(!snapshot.exists)return null;const order=snapshot.data();
   if(order.status==='fulfilled'||['refunded','partially-refunded'].includes(order.paymentStatus))return{orderId,status:order.status,releasedCells:0};
+  // A session replaced because the buyer changed their email is expired on
+  // purpose; closing it must not release the reservation the new one relies on.
+  if(session?.id&&(order.supersededSessionIds||[]).includes(session.id))return{orderId,status:order.status,releasedCells:0,superseded:true};
   let releasedCells=0;
   if(order.reservationId&&order.reservationOwnerId)try{releasedCells=(await releaseTestReservation(db,order.reservationId,order.reservationOwnerId,Date.now())).releasedCells||0;}catch(error){if(error.code!=='reservation-not-found')throw error;}
   // Credits were spent when the session was created, so an order that never
@@ -591,8 +594,18 @@ export const stagingCheckout=onRequest({region:'europe-west1',maxInstances:3,tim
       response.status(201).json({ok:true,checkout:{orderId,placementId,creditsApplied,creditsOnly:true}});return;
     }
 
-    const managedPayments=stripeManagedPaymentsEnabled.value(),stripe=new Stripe(stripeSecretKey.value(),{apiVersion:'2025-03-31.basil'}),session=await stripe.checkout.sessions.create(checkoutSessionParameters({quote:applied.quote,orderId,reservationId,placementId,checkoutExpiresAt,verifiedEmail,managedPayments,taxCode:stripeProductTaxCode.value(),creditsApplied,placementCells:reservation.quote.cellCount}),{idempotencyKey:orderId});
-    await Promise.all([orderRef.set({stripeCheckoutSessionId:session.id,status:'checkout-open',paymentStatus:'unpaid',creditsApplied,updatedAt:FieldValue.serverTimestamp()},{merge:true}),db.collection('stagingReservations').doc(reservationId).set({expiresAtMs:Number(session.expires_at)*1000,checkoutSessionId:session.id},{merge:true})]);response.status(201).json({ok:true,checkout:{orderId,placementId,clientSecret:session.client_secret,creditsApplied,expiresAtMs:Number(session.expires_at)*1000}});
+    // The buyer gives an email on Review. A verified signed-in address wins over
+    // anything typed. One Stripe session exists per order and email: if the
+    // buyer goes back and changes the address, the old session is retired first.
+    const buyerEmail=checkoutBuyerEmail(verifiedEmail||request.body?.buyerEmail),emailKey=createHash('sha256').update(buyerEmail).digest('hex').slice(0,16);
+    const managedPayments=stripeManagedPaymentsEnabled.value(),stripe=new Stripe(stripeSecretKey.value(),{apiVersion:'2025-03-31.basil'});
+    const previousSessionId=existing.data()?.stripeCheckoutSessionId;
+    if(previousSessionId&&existing.data()?.checkoutEmailKey!==emailKey){
+      await orderRef.set({supersededSessionIds:FieldValue.arrayUnion(previousSessionId)},{merge:true});
+      await stripe.checkout.sessions.expire(previousSessionId).catch(error=>logger.warn('Could not expire superseded checkout session',{orderId,error:error.message}));
+    }
+    const session=await stripe.checkout.sessions.create(checkoutSessionParameters({quote:applied.quote,orderId,reservationId,placementId,checkoutExpiresAt,verifiedEmail:buyerEmail,managedPayments,taxCode:stripeProductTaxCode.value(),creditsApplied,placementCells:reservation.quote.cellCount}),{idempotencyKey:`${orderId}-${emailKey}`});
+    await Promise.all([orderRef.set({stripeCheckoutSessionId:session.id,checkoutEmailKey:emailKey,status:'checkout-open',paymentStatus:'unpaid',creditsApplied,updatedAt:FieldValue.serverTimestamp()},{merge:true}),db.collection('stagingReservations').doc(reservationId).set({expiresAtMs:Number(session.expires_at)*1000,checkoutSessionId:session.id},{merge:true})]);response.status(201).json({ok:true,checkout:{orderId,placementId,clientSecret:session.client_secret,creditsApplied,expiresAtMs:Number(session.expires_at)*1000}});
   }catch(error){logger.error('Could not create Stripe checkout',error);response.status(500).json({ok:false,error:'checkout-failed'});}
 });
 
