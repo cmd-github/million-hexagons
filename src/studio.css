@@ -1149,3 +1149,54 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
 #placementInspector #inspectorDescription,body:not(.creating) #placementInspector #inspectorDescription{display:block;-webkit-line-clamp:unset;overflow:visible}
 /* Nearby sits on the action row beside Visit website and Copy link. */
 #placementInspector .hud-actions #showNearby,body:not(.creating) #placementInspector .hud-actions #showNearby{flex:none;width:auto;margin:0;padding-left:14px;padding-right:14px}
+
+/* ---- 3 October menu review fixes (no sizing changes) ---- */
+/* Search: the phone rail rule for round icon buttons also caught the buttons
+   inside the search panel, rendering the submit arrow and every result blank.
+   Put back what those buttons already were on desktop. */
+body:not(.creating) .globe-controls #hexSearchPanel button{position:static;width:auto;height:auto;border-radius:0;backdrop-filter:none;display:block;line-height:normal;font-size:12px}
+body:not(.creating) .globe-controls #hexSearchPanel button:after{content:none}
+body:not(.creating) .globe-controls #hexSearchPanel span button{display:grid;place-items:center;flex:0 0 42px;width:42px;border:1px solid var(--lime);border-radius:0 9px 9px 0;background:var(--lime);color:#07121c}
+/* Results are a list of places, not headings: plain text rows with a divider.
+   The old rule used an invalid font shorthand, so they inherited the rail's
+   large lime icon text. */
+#companyResults button{font-family:inherit;font-weight:500;font-size:12px;color:#e7efea;border:0;border-bottom:1px solid #ffffff20;background:none}
+#companyResults button:hover,#companyResults button:focus-visible{color:var(--lime)}
+#hexSearchStatus:empty{display:none}
+/* Account: "Legal & privacy" is a quiet section label, as intended; a general
+   account-panel rule for <b> was inflating it into the loudest text there. */
+#accountPanel .account-legal b{display:block;font:600 8px 'DM Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:#8fa5a4}
+/* Rail: rotation running is a state, not a selection, so it does not get the
+   lime "active" treatment; its icon already shows pause or play. */
+.globe-controls #rotationToggle[aria-pressed=true]{background:transparent;color:inherit}
+body:not(.creating) .globe-controls #rotationToggle[aria-pressed=true]{background:rgba(8,22,34,.72)}
+/* Placement details: the "New arrival" line is forced visible by an older
+   rule, leaving an empty row when it is hidden. */
+#placementInspector #inspectorContext[hidden]{display:none!important}
+/* Nearby matches Visit website's weight on the shared action row. */
+#placementInspector .hud-actions #showNearby{font-weight:400}
+/* Shape key: hexagon swatches, so they read as a legend, not as tickboxes. */
+.availability-key i{border:0;border-radius:0;clip-path:polygon(25% 3%,75% 3%,100% 50%,75% 97%,25% 97%,0 50%)}
+.availability-key .available{background:#90d3dc66}
+.availability-key .purchased{background:#48636a}
+.availability-key .chosen{background:var(--lime)}
+/* Design: the bare "1" after the brushes was the brush's hexagon count with no label. */
+#designStep #areaBrushValue{display:none}
+/* Image tab: zoom, rotate, layout and reset do nothing until there is an image. */
+#designStep #logoPositionControls:has(#removeImage[hidden])>label,
+#designStep #logoPositionControls:has(#removeImage[hidden])>.image-actions,
+#designStep #logoPositionControls:has(#removeImage[hidden])>#logoOptions{display:none}
+/* Layout choice: radio and label sit together on the left, not dot-left label-centre. */
+#logoOptions.image-layout-choice label{justify-content:flex-start;text-align:left}
+/* Undo and redo stay legible when there is nothing to undo. */
+#designStep .studio-toolbar #undoPaint:disabled,#designStep .studio-toolbar #redoPaint:disabled{opacity:.55}
+/* Activity: fade the last row so a cut-off item reads as "more below". */
+#claimFeedItems{-webkit-mask-image:linear-gradient(#000 82%,transparent);mask-image:linear-gradient(#000 82%,transparent)}
+/* Shape at 320px: the "Selection brush" label pushed Move off the card. The
+   brush buttons explain themselves, so the label goes on very narrow screens. */
+@media(max-width:360px){
+ #shapeStep .shape-brushes>span:first-child{display:none}
+ #shapeStep .shape-brushes{justify-content:space-between}
+}
+/* Touch screens have no hover, so a tooltip there only lingers after a tap. */
+@media(hover:none){.rail-tip{display:none!important}}

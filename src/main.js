@@ -337,18 +337,26 @@ globe.add(selectionOverlayLayer);
 const selectionOverlayArt=Object.assign(document.createElement('canvas'),{width:2,height:2});
 {const context=selectionOverlayArt.getContext('2d');context.fillStyle='#d7ff55';context.fillRect(0,0,2,2);}
 let selectionOverlay=null,selectionOverlayCells=null,selectionOverlayBuiltAt=0;
+let proposedOverlayCells=null,proposedOverlayId=null;
 function updateSelectionOverlay(time){
-  const cells=document.body.classList.contains('creating')&&topology&&selectedCell?selectedCells:null;
-  const strength=cells?.length?1-(cellDetail?.material.uniforms.visibility.value||0):0;
+  // A proposed starting hexagon is shown solidly at every zoom: it is the one
+  // thing the visitor is being asked to look at.
+  const choosing=!document.body.classList.contains('creating')||document.body.classList.contains('choosing-start');
+  if(proposedCellId&&topology&&choosing){
+    if(proposedOverlayId!==proposedCellId){proposedOverlayId=proposedCellId;try{proposedOverlayCells=topology.cells([{id:proposedCellId}],proposedCellId);}catch{proposedOverlayCells=null;}}
+  }else proposedOverlayId=proposedOverlayCells=null;
+  const proposing=Boolean(proposedOverlayCells);
+  const cells=proposing?proposedOverlayCells:document.body.classList.contains('creating')&&topology&&selectedCell?selectedCells:null;
+  const strength=proposing?1:cells?.length?1-(cellDetail?.material.uniforms.visibility.value||0):0;
   if(strength<.01){if(selectionOverlay)selectionOverlay.visible=false;return;}
   // Rebuilding covers up to 10,000 cells, so a brush stroke rebuilds at most five times a second.
-  if(cells!==selectionOverlayCells&&time-selectionOverlayBuiltAt>200){
+  if(cells!==selectionOverlayCells&&(proposing||time-selectionOverlayBuiltAt>200)){
     if(selectionOverlay){selectionOverlayLayer.remove(selectionOverlay);selectionOverlay.geometry.dispose();selectionOverlay.material.map?.dispose();selectionOverlay.material.dispose();selectionOverlay=null;}
-    try{selectionOverlay=addHighResolutionPlacement('#d7ff55','span',selectionOverlayLayer,{cells,anchor:selectedCell,artwork:selectionOverlayArt})||null;}catch{selectionOverlay=null;}
+    try{selectionOverlay=addHighResolutionPlacement('#d7ff55','span',selectionOverlayLayer,{cells,anchor:proposing?cells[0]:selectedCell,artwork:selectionOverlayArt})||null;}catch{selectionOverlay=null;}
     if(selectionOverlay)selectionOverlay.renderOrder=5;
     selectionOverlayCells=cells;selectionOverlayBuiltAt=time;
   }
-  if(selectionOverlay){selectionOverlay.visible=true;selectionOverlay.material.opacity=.55*strength;}
+  if(selectionOverlay){selectionOverlay.visible=true;selectionOverlay.material.opacity=(proposing?.75:.55)*strength;}
 }
 let selecting = false;
 let selectedUV = null;
@@ -1351,7 +1359,7 @@ function setEditorMode(mode, zoomToCells=true) {
   document.querySelector('#logoPositionControls').hidden=mode!=='move';
   document.querySelector('#logoOptions').hidden=!uploadedLogo;
   document.querySelector('#logoPositionControls').classList.toggle('empty',mode==='move'&&!uploadedLogo);
-  const hint=mode==='move'?(uploadedLogo?'Drag on the globe to position your image':'Add an image to your selection'):mode==='remove'?'Delete hexagons':mode==='relocate'?'Click an available hexagon to move the whole design':mode==='paint'?'Choose a colour, then paint or add hexagons':'Drag to move the globe';
+  const hint=mode==='move'?(uploadedLogo?'Drag on the globe to position your image':'Add an image to your selection'):mode==='remove'?'Erase hexagons':mode==='relocate'?'Click an available hexagon to move the whole design':mode==='paint'?'Choose a colour, then paint or add hexagons':'Drag to move the globe';
   document.querySelector('#toolHint').textContent=hint;
   document.querySelector('#logoFootprintHelp').textContent=hint;
   document.querySelector('#designCanvas').style.cursor=['move','pan'].includes(mode)?'grab':'crosshair';
@@ -2632,7 +2640,7 @@ let inspectorRoute=[],inspectorRouteIndex=0,nearbyRenderedFor=null;
 // this lifts their <main> out and drops the "back to Million Hexagons" link,
 // which makes no sense inside an overlay.
 const legalOverlay=document.querySelector('#legalOverlay'),legalBody=document.querySelector('#legalOverlayBody'),legalTitle=document.querySelector('#legalOverlayTitle');
-const legalCache=new Map();
+const legalCache=new Map(),fragmentTitles=new Map();
 function closeLegalOverlay(){if(legalOverlay?.open)legalOverlay.close();}
 async function openLegalOverlay(href,label){
   if(!legalOverlay)return;
@@ -2640,7 +2648,7 @@ async function openLegalOverlay(href,label){
   if(!legalOverlay.open)legalOverlay.showModal();
   legalBody.scrollTop=0;
   const [path,hash]=href.split('#');
-  const show=fragment=>{legalBody.replaceChildren(fragment.cloneNode(true));if(hash)legalBody.querySelector(`#${CSS.escape(hash)}`)?.scrollIntoView({block:'start'});};
+  const show=fragment=>{if(fragmentTitles.has(path))legalTitle.textContent=fragmentTitles.get(path);legalBody.replaceChildren(fragment.cloneNode(true));if(hash)legalBody.querySelector(`#${CSS.escape(hash)}`)?.scrollIntoView({block:'start'});};
   if(legalCache.has(path)){show(legalCache.get(path));return;}
   legalBody.replaceChildren(Object.assign(document.createElement('p'),{className:'legal-loading',textContent:'Loading…'}));
   try{
@@ -2649,6 +2657,7 @@ async function openLegalOverlay(href,label){
     const parsed=new DOMParser().parseFromString(await response.text(),'text/html');
     const main=parsed.querySelector('main')||parsed.body;
     for(const back of main.querySelectorAll('a[href="/"]'))back.closest('p')?.remove();
+    const heading=main.querySelector('h1');if(heading){fragmentTitles.set(path,heading.textContent.trim());heading.remove();}
     const fragment=document.createElement('div');
     fragment.append(...main.childNodes);
     legalCache.set(path,fragment);
@@ -2917,11 +2926,13 @@ function companyEntries(){return [...bootstrap.sampleAreas.map(area=>({id:area.a
 function renderCompanyResults(){
   const target=document.querySelector('#companyResults'),query=hexSearchInput.value.trim().toLowerCase();target.replaceChildren();
   if(!query||/^#?\d+$/.test(query))return;
-  if(snapshotEnabled){void import('./staging-client.js').then(client=>client.searchPublicPlacements(query)).then(records=>{if(hexSearchInput.value.trim().toLowerCase()!==query)return;for(const record of records){const button=document.createElement('button');button.type='button';button.textContent=record.title;button.onclick=()=>location.assign(`/placement/${record.placementId}`);target.append(button);}anchorHexSearch();}).catch(()=>{hexSearchStatus.textContent='Search is temporarily unavailable.';});return;}
+  const noMatches=()=>{if(!target.childElementCount&&hexSearchInput.value.trim().toLowerCase()===query)hexSearchStatus.textContent=`No placements start with “${hexSearchInput.value.trim()}”. Try a hexagon number such as #1234.`;};
+  if(snapshotEnabled){void import('./staging-client.js').then(client=>client.searchPublicPlacements(query)).then(records=>{if(hexSearchInput.value.trim().toLowerCase()!==query)return;for(const record of records){const button=document.createElement('button');button.type='button';button.textContent=record.title;button.onclick=()=>location.assign(`/placement/${record.placementId}`);target.append(button);}noMatches();anchorHexSearch();}).catch(()=>{hexSearchStatus.textContent='Search is temporarily unavailable.';});return;}
   for(const entry of companyEntries().filter((entry,index,all)=>all.findIndex(other=>other.name===entry.name)===index&&entry.name.toLowerCase().includes(query)).slice(0,8)){
     const button=document.createElement('button');button.type='button';button.textContent=entry.name;
     button.onclick=async()=>{if(await inspectPlacement(entry.id))viewInspectedPlacement();showHexSearch(false);};target.append(button);
   }
+  if(!snapshotEnabled)noMatches();
   anchorHexSearch();
 }
 hexSearchInput.addEventListener('input',()=>{hexSearchInput.removeAttribute('aria-invalid');hexSearchStatus.textContent='';renderCompanyResults();});
@@ -3100,7 +3111,7 @@ document.querySelector('#logoOrientation').addEventListener('input',event=>{
 
 // Icons keep the tool rail compact; accessible names and active-mode feedback remain.
 // Studio tools share the icon set; label and title stay beside the drawing.
-for(const [id,name,label] of [['moveImageMode','image','Image'],['paintCells','paint','Colour'],['removeHexMode','remove','Delete'],['panEditor','pan','Move globe']]){
+for(const [id,name,label] of [['moveImageMode','image','Image'],['paintCells','paint','Colour'],['removeHexMode','erase','Erase'],['panEditor','pan','Move globe']]){
   const button=document.querySelector(`#${id}`);
   if(!button)continue;
   button.innerHTML=`${icon(name)}<span>${label}</span>`;
