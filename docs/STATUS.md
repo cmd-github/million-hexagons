@@ -1,6 +1,6 @@
 # Million Hexagons — Status
 
-Updated: 2 October 2026
+Updated: 3 October 2026
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
@@ -39,6 +39,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Revisit advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Placement HUD (3 October): the description is shown in full on every screen size (phones clipped it to one or two lines), Nearby is a short button on the action row with Visit website and Copy link, and the Next hexagon is hidden during the tour. Deployed as Worker `ceeb3c72`; verified live on desktop and phone, and the composition, navigation and public-placement journeys pass.
 
 - [x] Android emulator pass and a staging renderer fix (3 October). **The jerkiness Craig saw on 2 October was the legacy renderer:** both 2 October builds were made without `MH_ARTWORK_SNAPSHOTS=true`, so staging stopped using snapshot artwork and loaded every placement's image and about 130 topology regions before reveal (13-30s). The flag now lives in `.env.staging.local`, the stale snapshot was recompiled, and staging boots in 3.2-3.6s again (see [STAGING](STAGING.md) for the outage while that was found). **Headed emulator** (`Pixel_8a_API_35`, Android 15, Chrome, 411x812 at DPR 2.625, live staging, portrait): Browse, placement details, Next, Nearby, Location, Shape, Design, Review, the Terms overlay and Android Back all work. The emulator's translated GPU manages about 14fps at rest and 58-59fps once in the studio; Chrome showed "isn't responding" while the old legacy build was loading, not with the snapshot build. Fixed from the pass: Shape now frames the selection above the phone sheet (the starting spot was hidden behind it), the starting-spot prompt says to tap once hexagons are visible, "New arrival" is only for placements from the last three days, the Next hexagon lost a square background on phones, and the globe draws at most 10fps behind the loading screen. The browser journeys affected and the launch gate pass. Not re-checked on the emulator after the fixes; screenshots are in `artifacts/android-emulator/2026-10-03/`. This is emulator evidence, not a physical device or iOS.
 
