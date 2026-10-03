@@ -2453,6 +2453,10 @@ function animate() {
     }
   }
   const now=performance.now(),busy=now-lastInputAt<ACTIVE_AFTER_INPUT_MS||cameraFlight.active||demoTour.active||zoom.active||cameraDistanceTarget!==null;
+  // Behind the loading screen nobody can see the globe, but on a weak GPU every
+  // full-rate frame competes with the browser itself. Draw just enough to keep
+  // textures uploading so the reveal does not stall.
+  if(document.body.classList.contains('booting')&&now-lastRenderAt<100)return;
   const moved=screenMotionSinceLastFrame();
   if(!busy&&moved<MOTION_PIXELS&&now-lastRenderAt<STILL_FRAME_MS-4)return;
   lastView.copy(currentView);lastRenderAt=now;
