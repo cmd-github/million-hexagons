@@ -2434,6 +2434,7 @@ function animate() {
   zoom.update();
   demoTour.update(performance.now());
   updateRotationControl();
+  syncNextPlacementButton();
   artworkTiles.update(camera,canvas.clientHeight*renderer.getPixelRatio(),performance.now());
   snapshotRuntime?.update(camera,canvas.clientHeight*renderer.getPixelRatio(),performance.now());
   // Wait for the authoritative inventory and first paint before loading the
@@ -2783,7 +2784,7 @@ async function prepareInspector(id,version){
   document.querySelector('#deleteTestPlacement').dataset.placementId=record?.placementId||'';syncDeleteTestButton();
   const reportButton=document.querySelector('#reportPlacementButton');reportButton.hidden=!record?.placementId||!stagingClient;reportButton.dataset.placementId=record?.placementId||'';
   updateInspectorShareControl();
-  document.querySelector('#nextPlacement').hidden=!stagingClient;
+  syncNextPlacementButton();
   clearSelectionColours();selectionModeUniform.value=0;
   document.querySelector('#inspectorStatus').textContent='';panel.hidden=false;controls.autoRotate=false;
   void renderNearbyPlacements();
@@ -2881,6 +2882,8 @@ document.querySelector('#showNearby').onclick=()=>showNearby(true,true);
 // once every one has been seen. Works from a sample placement too, measured
 // from wherever the inspected hexagon is.
 let seenNextPlacements=new Set(),nextPlacementBusy=false;
+// The tour already moves from placement to placement, so Next would only fight it.
+function syncNextPlacementButton(){const button=document.querySelector('#nextPlacement'),hide=!stagingClient||demoTour.active;if(button.hidden!==hide)button.hidden=hide;}
 document.querySelector('#nextPlacement').onclick=async event=>{
   if(nextPlacementBusy||!inspectedId)return;nextPlacementBusy=true;const button=event.currentTarget;button.disabled=true;
   try{
