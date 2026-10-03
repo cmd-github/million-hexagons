@@ -1142,3 +1142,5 @@ body.creating .flow-progress button[aria-current=step]{opacity:1}
 /* The divider is also a span, so the phone rule that stretches the brush label
    used to turn it into a grey block between Large and Delete. */
 #shapeStep .shape-brushes>.shape-brush-divider{flex:none;width:1px;height:24px;margin:0 2px}
+/* Phone button styles were painting a square behind the Next hexagon. */
+#placementInspector button.hud-next{background:none!important;border:0!important;box-shadow:none!important}

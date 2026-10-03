@@ -10,6 +10,10 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Next
 
+- [ ] **Keep the artwork snapshot current, and never let a stale one block startup.** The snapshot client refuses any change older than five minutes that is not yet compiled in, and waits on "catching up" forever; nothing compiles new snapshots automatically (`scripts/artwork-compiler-worker.mjs` is meant to run under a service manager, and does not). On 3 October a deletion from 2 October left every snapshot build unable to boot until `scripts/publish-artwork-snapshot.mjs` was run by hand. Needs a scheduled compiler and a client fallback to the legacy renderer when the feed stays invalid.
+- [ ] Phone input sizes: Review's name, description and website fields render at 10px and the email field at 16px. Under 16px iOS Safari zooms the page on focus; making them all 16px needs the description box and the 320x568 fit revisited together.
+- [ ] Renamed throwaway placements now clash with their artwork (Blue Hour Studio shows the green slug, Harbour Lights the diamond). Give them neutral artwork or names that fit what is drawn.
+- [ ] Design shows the image zoom/rotate sliders and Reset before any image is added; hide them until there is an image.
 - [ ] Send placement reports to `millionhexagons@birdcagetech.com`. Reports are only stored in `stagingContentReports` today; nothing emails anyone. Needs a sending service (Resend or Postmark suggested) and a verified sending domain ([2 October review](craig-review-02-10.md) #7).
 - [ ] Two or three share-image designs in the same branding, with left/right arrows on the share card; share and download use the one showing. The link preview platforms read is still one image ([2 October review](craig-review-02-10.md) #13).
 - [ ] Finish the Gate 3 scale matrix and physical-device checks described below; current synthetic and 25-placement results do not close that gate.

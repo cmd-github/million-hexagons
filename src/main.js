@@ -392,6 +392,7 @@ let requestedAnchor = null, proposedCellId = null;
 let pinnedCell = null;
 let designSurface = "canvas", exactGlobeArea = false;
 let designStartingSpotConfirmed = false;
+const STARTING_SPOT_ZOOM='Zoom in to select a starting position.',STARTING_SPOT_TAP='Tap an available hexagon to start from.';
 const recentColours=[];
 let hoverTimer, globeStroke = null, shapeClickTimer = null, flightVersion=0;
 const deletedCellFlashes=new Map();
@@ -1297,6 +1298,8 @@ function enterShapeStep(){
   document.querySelector('#sizeControls').hidden=false;document.querySelector('#shapeBrushControls').hidden=false;document.querySelector('#shapeStatus').hidden=true;document.querySelector('#shapeStatus').textContent='';document.querySelector('#shapeCountError').hidden=true;
   shapeEraseMode=false;shapeMoveMode=false;
   showFlowStep('shape');selectionModeUniform.value=1;selectedCell=cellForId(designAnchor);selectedCells=previewCells();clearPlacementPreview();logoEditorMode='hex';refreshSelection(selectedCells);controls.enableRotate=false;updateTotals();applyShapeMode();
+  // On a phone the sheet covers the lower half, where the starting spot often is.
+  if(innerWidth<=700)requestAnimationFrame(()=>{resize();focusSelection();});
 }
 function enterDesignStep(){
   if(!ownerEdit&&placementCount()<MIN_PURCHASE_CELLS){showMinimumNotice(true);document.querySelector('#hexAmount').focus();return;}
@@ -2445,6 +2448,10 @@ function animate() {
     cellDetail.update(camera,canvas.clientHeight,performance.now(),cameraFlight.active);
     if(!cameraFlight.active)updatePersistentArtwork(performance.now());
     updateSelectionOverlay(performance.now());
+    if(document.body.classList.contains('choosing-start')&&!proposedCellId){
+      const status=document.querySelector('#startingSpotStatus'),wanted=individualHexagonsVisible()?STARTING_SPOT_TAP:STARTING_SPOT_ZOOM;
+      if((status.textContent===STARTING_SPOT_TAP||status.textContent===STARTING_SPOT_ZOOM)&&status.textContent!==wanted)status.textContent=wanted;
+    }
     if(topologyTrimReady&&performance.now()-lastTopologyTrim>2000){
       lastTopologyTrim=performance.now();
       const pinned=[...(logoCells||[]),...selectedCells,...inspectedCells];
@@ -2771,7 +2778,8 @@ async function prepareInspector(id,version){
 
   renderLinkClicks();
   if(record?.placementId&&stagingClient)void stagingClient.recordPlacementEvent(record.placementId,'view',crypto.randomUUID()).then(metrics=>{if(inspectedOwner===record){views.textContent=metrics.views.toLocaleString();const visits=document.querySelector('#inspectorClicks');visits.textContent=metrics.clicks.toLocaleString();visits.title='Measured website visits';}}).catch(()=>{views.textContent='—';});
-  const context=document.querySelector('#inspectorContext');context.textContent=record?'New arrival':'';context.hidden=!record;context.title=record?'Claimed in this session':'';
+  const recent=Boolean(record&&Date.now()-Number(record.createdAt||0)<3*24*60*60*1000);
+  const context=document.querySelector('#inspectorContext');context.textContent=recent?'New arrival':'';context.hidden=!recent;context.title=recent?'Claimed in the last three days':'';
   document.querySelector('#deleteTestPlacement').dataset.placementId=record?.placementId||'';syncDeleteTestButton();
   const reportButton=document.querySelector('#reportPlacementButton');reportButton.hidden=!record?.placementId||!stagingClient;reportButton.dataset.placementId=record?.placementId||'';
   updateInspectorShareControl();
