@@ -2,6 +2,8 @@
 
 Review only: no code was changed for this. Every menu and panel state was captured at desktop (1440x900), phone (390x844) and small phone (320x568) against the current build with live staging placements, and measured for tap-target size, text size, clipping and overflow. Screenshots are in `artifacts/menu-review-2026-10-03/` (`<size>-<state>.png`) with the measurements in `audit.json` there. The share card and phone Review were not captured in this run; the share card was reviewed from `artifacts/public-placement/desktop.png` and phone Review from the 3 October emulator pass.
 
+**Update, 3 October:** the items that need no resizing are fixed and deployed (Worker `dcff92c3`): phone search, search list and empty state, legal label, rotate highlight, HUD empty row, legal overlay title, proposed-hexagon highlight, key swatches, 320px brush row, image controls before an image, stray brush count, Erase naming, disabled undo/redo, activity fade. Sizing changes, the shared bottom bar, Move globe placement, rail grouping, phone activity line, HUD close/keep-open and the Colour tool row are still open.
+
 Priorities: **P1** broken or misleading, fix before user testing. **P2** inconsistent or hard to use. **P3** polish.
 
 ## Summary
