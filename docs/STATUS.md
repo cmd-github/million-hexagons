@@ -10,7 +10,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Next
 
-- [ ] **Keep the artwork snapshot current, and never let a stale one block startup.** Built, not yet live (12 October): the client now draws uncompiled changes over the snapshot however old they are, still bounded by the 32-change/100k-cell caps (`src/globe/snapshot-runtime.js`), and `.github/workflows/artwork-compiler.yml` runs `scripts/publish-artwork-snapshot.mjs` every 15 minutes on a Windows runner. To finish: push, add the three repository secrets (see Blocked), redeploy staging with the client change, and confirm a scheduled run publishes. A full compile takes over 10 minutes, which is why the client change, not the schedule, is what prevents outages. Not done: falling back to the legacy renderer when the caps are exceeded (`snapshotEnabled` is a build-time constant branched on throughout `main.js`); the 15-minute compiler should keep the feed well inside the caps.
+- [ ] **Confirm the scheduled artwork compiler works.** The stale-snapshot client fix is live (Worker `b7c4fdc9`, 12 October) and `.github/workflows/artwork-compiler.yml` is pushed with its three secrets, but it has not yet run on GitHub's Windows runner. Check the first run in the Actions tab (or start it with Run workflow): it should either say "Artwork release is current." or publish a new snapshot. Not done: a legacy-renderer fallback when the 32-change/100k-cell caps are exceeded (`snapshotEnabled` is a build-time constant branched on throughout `main.js`); the 15-minute compiler should keep the feed well inside the caps.
 - [ ] Phone input sizes: Review's name, description and website fields render at 10px and the email field at 16px. Under 16px iOS Safari zooms the page on focus; making them all 16px needs the description box and the 320x568 fit revisited together.
 - [ ] Renamed throwaway placements now clash with their artwork (Blue Hour Studio shows the green slug, Harbour Lights the diamond). Give them neutral artwork or names that fit what is drawn.
 - [ ] Design shows the image zoom/rotate sliders and Reset before any image is added; hide them until there is an image.
@@ -206,7 +206,6 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Blocked / Needs Craig
 
-- [ ] Add GitHub repository secrets `CLOUDFLARE_ACCOUNT_ID`, `MH_R2_ACCESS_KEY_ID` and `MH_R2_SECRET_ACCESS_KEY` (values from `.env.staging.local`; the compiler uses the R2 secret as its backend key when `MH_STAGING_QA_KEY` is unset) so the scheduled artwork compiler can run.
 - [ ] Configure/confirm the $10 Cloudflare budget alert.
 - [ ] Send Stripe's conditional UK VAT answer to Change Accountants, confirm its accounting consequence, and send them the first self-billed invoice for FreeAgent treatment.
 - [ ] Complete Stripe account onboarding, eligible tax-code selection and PAYG Radar terms/configuration in the Dashboard; activation and test mode are not yet evidenced in the repo.
