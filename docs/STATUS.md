@@ -1,6 +1,6 @@
 # Million Hexagons — Status
 
-Updated: 3 October 2026
+Updated: 12 October 2026
 North star: [Product direction](09-09-26-PRODUCT-DIRECTION.md).
 Operational checklist only; update after meaningful verified work: Next → Now → Done.
 
@@ -10,7 +10,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Next
 
-- [ ] **Keep the artwork snapshot current, and never let a stale one block startup.** The snapshot client refuses any change older than five minutes that is not yet compiled in, and waits on "catching up" forever; nothing compiles new snapshots automatically (`scripts/artwork-compiler-worker.mjs` is meant to run under a service manager, and does not). On 3 October a deletion from 2 October left every snapshot build unable to boot until `scripts/publish-artwork-snapshot.mjs` was run by hand. Needs a scheduled compiler and a client fallback to the legacy renderer when the feed stays invalid.
+- [ ] **Keep the artwork snapshot current, and never let a stale one block startup.** Built, not yet live (12 October): the client now draws uncompiled changes over the snapshot however old they are, still bounded by the 32-change/100k-cell caps (`src/globe/snapshot-runtime.js`), and `.github/workflows/artwork-compiler.yml` runs `scripts/publish-artwork-snapshot.mjs` every 15 minutes on a Windows runner. To finish: push, add the three repository secrets (see Blocked), redeploy staging with the client change, and confirm a scheduled run publishes. A full compile takes over 10 minutes, which is why the client change, not the schedule, is what prevents outages. Not done: falling back to the legacy renderer when the caps are exceeded (`snapshotEnabled` is a build-time constant branched on throughout `main.js`); the 15-minute compiler should keep the feed well inside the caps.
 - [ ] Phone input sizes: Review's name, description and website fields render at 10px and the email field at 16px. Under 16px iOS Safari zooms the page on focus; making them all 16px needs the description box and the 320x568 fit revisited together.
 - [ ] Renamed throwaway placements now clash with their artwork (Blue Hour Studio shows the green slug, Harbour Lights the diamond). Give them neutral artwork or names that fit what is drawn.
 - [ ] Design shows the image zoom/rotate sliders and Reset before any image is added; hide them until there is an image.
@@ -39,6 +39,8 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 - [ ] Revisit advertiser dashboards and speculative studio-layout changes only from observed user/device evidence.
 
 ## Recently done
+
+- [x] Staging outage fixed (12 October): the globe stuck on "Could not load the artwork" from about 7 October 17:51 UTC, because placement "normancito" (published 7 October) was never compiled and the client rejects uncompiled changes older than five minutes. Ran `scripts/publish-artwork-snapshot.mjs` by hand (snapshot revision 157 → 159); verified live at 1440x900 and 390x844, loading in 3-4 s with no console errors. Same cause as 3 October; the lasting fix is the Next item below.
 
 - [x] Fixed the [menu review](ui-menu-review-2026-10-03.md) issues that need no resizing (3 October), at Craig's direction to leave sizes alone for now: phone search (blank button and results), search list rows and empty state, the loud "Legal & privacy" label, the rotate button's selected look, the HUD's empty row, the duplicate legal overlay title, a solid highlight on the proposed starting hexagon, hexagon key swatches, the 320px Shape brush overflow, image controls hidden until there is an image, the stray brush count, one name (Erase) for the erase tool, legible disabled undo/redo, a fade on the cut-off activity item, and no rail tooltips on touch screens. Deployed as Worker `dcff92c3` and verified live; the launch gate and nine browser journeys pass. Still open from the review: all sizing (44px targets, 11-12px text floor, the 7px phone step labels), the shared bottom bar and one place for Move globe (awaiting Craig), rail grouping, the phone activity line, a HUD close button and keep-open label, and the Colour tool row styles.
 
@@ -204,6 +206,7 @@ Operational checklist only; update after meaningful verified work: Next → Now 
 
 ## Blocked / Needs Craig
 
+- [ ] Add GitHub repository secrets `CLOUDFLARE_ACCOUNT_ID`, `MH_R2_ACCESS_KEY_ID` and `MH_R2_SECRET_ACCESS_KEY` (values from `.env.staging.local`; the compiler uses the R2 secret as its backend key when `MH_STAGING_QA_KEY` is unset) so the scheduled artwork compiler can run.
 - [ ] Configure/confirm the $10 Cloudflare budget alert.
 - [ ] Send Stripe's conditional UK VAT answer to Change Accountants, confirm its accounting consequence, and send them the first self-billed invoice for FreeAgent treatment.
 - [ ] Complete Stripe account onboarding, eligible tax-code selection and PAYG Radar terms/configuration in the Dashboard; activation and test mode are not yet evidenced in the repo.

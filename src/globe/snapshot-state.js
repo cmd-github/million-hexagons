@@ -1,6 +1,6 @@
 // Snapshot activation must be decided against a complete change feed, never a
 // truncated catalogue. This contract is independent of the eventual job runner.
-export function reconcileSnapshot(snapshot,feed,{maxDeltas=32,maxAgeMs=300000,now=Date.now()}={}){
+export function reconcileSnapshot(snapshot,feed,{maxDeltas=32,maxAgeMs=Infinity,now=Date.now()}={}){
   if(!snapshot||!feed||!Number.isSafeInteger(snapshot.revision)||!Number.isSafeInteger(feed.revision)||feed.revision<snapshot.revision||snapshot.revision!==feed.baseRevision||feed.complete!==true||!Array.isArray(feed.changes))return{usable:false,reason:'incomplete-change-feed'};
   if(feed.overflow)return{usable:false,reason:'snapshot-rebuild-required'};
   const latest=new Map();

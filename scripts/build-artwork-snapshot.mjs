@@ -70,7 +70,7 @@ for(const [key,tile] of [...tiles].sort((a,b)=>a[1].level-b[1].level)){
   tileCandidates.set(key,candidates.filter(record=>sources.has(record.placementId)&&overlaps(record,tile)));
 }
 const server=await createServer({server:{host:'127.0.0.1',port:0,watch:null}});await server.listen();
-const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+const browser=await chromium.launch({headless:true,executablePath:process.env.MH_CHROME_PATH||'C:/Program Files/Google/Chrome/Application/chrome.exe'});
 const hashes=[];
 try{
   const page=await browser.newPage();page.on('pageerror',e=>console.error(e.message));

@@ -2,13 +2,15 @@ import {ArtworkTiles} from './tiles.js';
 import {decodeOccupancy,SnapshotOwners} from './snapshot-index.js';
 import {fetchGzipUrl} from '../runtime-assets.js';
 
-export function validateSnapshotFeed(feed,now=Date.now()){
+// Uncompiled changes are drawn over the snapshot however old they are; only the
+// delta caps bound the work, so a late compiler never takes the globe down.
+export function validateSnapshotFeed(feed){
   if(!feed?.active||!feed.complete||feed.overflow||feed.baseRevision!==feed.active.revision)return false;
   if(!Number.isSafeInteger(feed.revision)||feed.revision<feed.baseRevision)return false;
   if(!Array.isArray(feed.changes)||feed.changes.length>32)return false;
   let cells=0;
   for(const change of feed.changes){
-    if(!change.record||!Array.isArray(change.record.cells)||change.record.cells.some(id=>!Number.isInteger(id)||id<1||id>1000000)||!Number.isFinite(change.changedAt)||now-change.changedAt>300000)return false;
+    if(!change.record||!Array.isArray(change.record.cells)||change.record.cells.some(id=>!Number.isInteger(id)||id<1||id>1000000)||!Number.isFinite(change.changedAt))return false;
     cells+=change.record.cells.length;
   }
   return cells<=100000;

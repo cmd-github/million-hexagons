@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import {validateSnapshotFeed,canActivateSnapshot} from '../src/globe/snapshot-runtime.js';
 const feed=changes=>({active:{revision:10},baseRevision:10,revision:11,complete:true,overflow:false,changes});
 const change=(cells=[1])=>({changedAt:900,record:{placementId:'p',cells}});
-test('runtime rejects partial, overflowing, expired and geometry-heavy change feeds',()=>{
+test('runtime rejects partial, overflowing and geometry-heavy change feeds but keeps old ones',()=>{
   assert.equal(validateSnapshotFeed(feed([change()]),1000),true);
   assert.equal(validateSnapshotFeed({...feed([]),complete:false},1000),false);
   assert.equal(validateSnapshotFeed({...feed([]),overflow:true},1000),false);
-  assert.equal(validateSnapshotFeed(feed([change()]),400000),false);
+  assert.equal(validateSnapshotFeed(feed([change()]),9*24*3600*1000),true);
+  assert.equal(validateSnapshotFeed(feed([{...change(),changedAt:undefined}]),1000),false);
   assert.equal(validateSnapshotFeed(feed(Array.from({length:33},()=>change())),1000),false);
   assert.equal(validateSnapshotFeed(feed([change(Array.from({length:100001},(_,i)=>i+1))]),1000),false);
 });

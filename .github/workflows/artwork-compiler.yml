@@ -1,0 +1,32 @@
+name: Staging artwork compiler
+# Compiles new placements into the staging artwork snapshot. The script exits
+# immediately when nothing is pending; backend leases serialise overlapping runs.
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: artwork-compiler
+  cancel-in-progress: false
+jobs:
+  compile:
+    # The snapshot baker drives the Chrome that GitHub's Windows images install.
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      MH_ASSET_ORIGIN: https://assets-staging.millionhexagons.com
+      MH_R2_BUCKET: million-hexagons-staging-public
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      MH_R2_ACCESS_KEY_ID: ${{ secrets.MH_R2_ACCESS_KEY_ID }}
+      MH_R2_SECRET_ACCESS_KEY: ${{ secrets.MH_R2_SECRET_ACCESS_KEY }}
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node scripts/publish-artwork-snapshot.mjs
