@@ -1847,10 +1847,11 @@ function renderArtwork(cells) {
     for(const layer of layers){if (layer.treatment === 'repeat') {
       cells.forEach((cell) => { const p = point(cell); context.save(); polygonPath(context,cell,bounds,px,py); context.clip(); drawRotated(p.x-unit*.525,p.y-unit*.525,unit*1.05,unit*1.05,layer); context.restore(); });
     } else {
-      // Fit across the complete selection bounds, then clip to its exact shape.
-      // An inscribed rectangle can collapse to a nearly invisible sliver for
-      // concave or hand-drawn selections.
-      drawRotated((sourceBounds.left-bounds.left)*px,(sourceBounds.top-bounds.top)*py,sourceBounds.width*px,sourceBounds.height*py,layer);
+      // Keep the complete rotated source inside the actual footprint rather
+      // than fitting its bounding box and clipping away the outer corners.
+      const source=layer.crop||layer.image,rotation=Number(layer.rotation)||0,rotated=rotatedImageBox(source.width,source.height,rotation);
+      const safe=largestLogoRect(sourceCells,sourceBounds,rotated.width/rotated.height,sourceBounds.width*px,sourceBounds.height*py);
+      drawRotated((sourceBounds.left-bounds.left)*px+safe.x,(sourceBounds.top-bounds.top)*py+safe.y,safe.width,safe.height,layer);
     }}
     context.restore();
   }
@@ -1977,9 +1978,10 @@ async function applyPersistentPlacements(records,{focus=false}={}){
   }
   if(snapshotEnabled){
     for(const record of records){
-      const value={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor,cells:record.cells,logo:record.thumbnailDataUrl||record.artworkDataUrl,publicationStatus:record.publicationStatus,status:record.status,moderationStatus:record.moderationStatus};
+      let metrics=record.metrics;
       // Retain inspected records only; authoritative occupancy is separate.
-      for(const [id,old] of sessionPlacements)if(old.placementId===record.placementId)sessionPlacements.delete(id);
+      for(const [id,old] of sessionPlacements)if(old.placementId===record.placementId){metrics??=old.metrics;sessionPlacements.delete(id);}
+      const value={placementId:record.placementId,website:record.destinationUrl,name:record.title,description:record.description,createdAt:record.createdAt||Date.now(),count:record.cellCount,anchor:record.anchor,cells:record.cells,logo:record.thumbnailDataUrl||record.artworkDataUrl,publicationStatus:record.publicationStatus,status:record.status,moderationStatus:record.moderationStatus,metrics};
       record.cells.forEach(id=>sessionPlacements.set(id,value));
       while(new Set(sessionPlacements.values()).size>8){const oldest=sessionPlacements.values().next().value;oldest.cells.forEach(id=>{if(sessionPlacements.get(id)===oldest)sessionPlacements.delete(id);});}
     }
@@ -2627,7 +2629,8 @@ canvas.addEventListener('pointerup',()=>{
 for(const event of ['pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>globeStroke=null);
 let inspectorVersion=0;
 let inspectedId=null, inspectedCells=[], hudPinned=false, inspectedOwner=null;
-let inspectorRoute=[],inspectorRouteIndex=0,nearbyRenderedFor=null;
+const viewedPlacements=new Set();
+let nearbyRenderedFor=null;
 // Counting placement views and visits no longer touches the visitor's device:
 // no session id, no cookie, nothing persisted. Each event carries a token minted
 // for that request alone, purely so a retry cannot double count. That keeps the
@@ -2742,19 +2745,33 @@ reportForm.onsubmit=async event=>{
   catch{status.textContent='Could not send the report. Please try again.';}
   finally{button.disabled=false;}
 };
-function ownerKey(id){const record=sessionPlacements.get(id);return record||'sample-'+sampleOwners[id-1];}
+// Durable placements are identified by placementId: their records are rebuilt
+// whenever details are fetched, so the record object itself is not stable.
+function ownerKey(id){const record=sessionPlacements.get(id);return record?.placementId?`placement-${record.placementId}`:record||'sample-'+sampleOwners[id-1];}
 function createHudThumbnail(source){const art=document.createElement('canvas');const scale=Math.min(1,160/Math.max(source.width,source.height));art.width=Math.max(1,Math.round(source.width*scale));art.height=Math.max(1,Math.round(source.height*scale));art.getContext('2d').drawImage(source,0,0,art.width,art.height);return art.toDataURL('image/png');}
-async function inspectPlacement(id,{keepRoute=false}={}){
+async function inspectPlacement(id,{placementId=null}={}){
   const version=++inspectorVersion;
   try {
-    const opened=await prepareInspector(id,version);
-    if(opened&&!keepRoute)await resetInspectorRoute(id);
+    const opened=await prepareInspector(id,version,placementId);
     return opened;
   }
   catch(error){console.error('Could not load placement inspector',error);if(version===inspectorVersion){hexSearchStatus.textContent='Could not load this placement. Try again.';document.querySelector('#inspectorStatus').textContent='Could not load this placement. Try again.';}return false;}
 }
-async function prepareInspector(id,version){
-  if(snapshotEnabled){await prepareLocation(id);const owner=await snapshotRuntime?.owner(regionForPoint(topology.centre(id)),id)||sessionPlacements.get(id)?.placementId;if(owner){const client=await import('./staging-client.js');await applyPersistentPlacements([await client.getPublicPlacement(owner)]);}else return false;}
+// Placement details, Views/Visits included, are often fetched ahead for Next
+// and Nearby so the HUD opens complete. The counts only need to be current to
+// within a minute; the view this visit records refreshes them anyway.
+const placementDetails=new Map();
+function publicPlacementDetails(placementId){
+  const cached=placementDetails.get(placementId);
+  if(cached&&performance.now()-cached.at<60000)return cached.promise;
+  const promise=import('./staging-client.js').then(client=>client.getPublicPlacement(placementId));
+  placementDetails.set(placementId,{at:performance.now(),promise});
+  promise.catch(()=>{if(placementDetails.get(placementId)?.promise===promise)placementDetails.delete(placementId);});
+  return promise;
+}
+// A caller that already knows the placement (Next, Nearby) skips the owner lookup.
+async function prepareInspector(id,version,placementId=null){
+  if(snapshotEnabled){await prepareLocation(id);const owner=placementId||await snapshotRuntime?.owner(regionForPoint(topology.centre(id)),id)||sessionPlacements.get(id)?.placementId;if(owner){await applyPersistentPlacements([await publicPlacementDetails(owner)]);}else return false;}
   const recordForGeometry=sessionPlacements.get(id);
   await prepareLocation(id);
   const ownerForGeometry=sampleOwners[id-1];
@@ -2787,7 +2804,10 @@ async function prepareInspector(id,version){
   renderInspectorBadges(owner,!record);
 
   renderLinkClicks();
-  if(record?.placementId&&stagingClient)void stagingClient.recordPlacementEvent(record.placementId,'view',crypto.randomUUID()).then(metrics=>{if(inspectedOwner===record){views.textContent=metrics.views.toLocaleString();const visits=document.querySelector('#inspectorClicks');visits.textContent=metrics.clicks.toLocaleString();visits.title='Measured website visits';}}).catch(()=>{views.textContent='—';});
+  if(record?.placementId&&record.metrics){const visits=document.querySelector('#inspectorClicks');visits.textContent=Number(record.metrics.clicks||0).toLocaleString();visits.title='Measured website visits';}
+  // One view per placement per visit. Held in memory only, so nothing is stored
+  // on the device; a reload is a new visit.
+  if(record?.placementId&&stagingClient&&!viewedPlacements.has(record.placementId)){viewedPlacements.add(record.placementId);void stagingClient.recordPlacementEvent(record.placementId,'view',crypto.randomUUID()).then(metrics=>{record.metrics=metrics;placementDetails.get(record.placementId)?.promise.then(details=>{details.metrics=metrics;},()=>{});if(inspectedOwner===`placement-${record.placementId}`){views.textContent=metrics.views.toLocaleString();const visits=document.querySelector('#inspectorClicks');visits.textContent=metrics.clicks.toLocaleString();visits.title='Measured website visits';}}).catch(()=>{viewedPlacements.delete(record.placementId);views.textContent='—';});}
   const recent=Boolean(record&&Date.now()-Number(record.createdAt||0)<3*24*60*60*1000);
   const context=document.querySelector('#inspectorContext');context.textContent=recent?'New arrival':'';context.hidden=!recent;context.title=recent?'Claimed in the last three days':'';
   document.querySelector('#deleteTestPlacement').dataset.placementId=record?.placementId||'';syncDeleteTestButton();
@@ -2797,26 +2817,10 @@ async function prepareInspector(id,version){
   clearSelectionColours();selectionModeUniform.value=0;
   document.querySelector('#inspectorStatus').textContent='';panel.hidden=false;controls.autoRotate=false;
   void renderNearbyPlacements();
+  scheduleWarm();
   await topology.ensureCells(prepared);
   if(version!==inspectorVersion)return false;
   return true;
-}
-async function resetInspectorRoute(id){
-  const live=[...new Set(sessionPlacements.values())].filter(record=>record?.placementId).map(record=>({id:record.anchor,record,key:`live-${record.placementId}`}));
-  const samples=[];
-  const sampleOwnersSeen=new Set();
-  for(const area of bootstrap.sampleAreas||[]){const owner=sampleOwners[area.anchor-1];if(!owner||sampleOwnersSeen.has(owner))continue;sampleOwnersSeen.add(owner);samples.push({id:area.anchor,record:null,key:`sample-${owner}`});}
-  const currentRecord=sessionPlacements.get(id),currentKey=currentRecord?.placementId?`live-${currentRecord.placementId}`:`sample-${sampleOwners[id-1]}`;
-  const candidates=[...live,...samples].filter((item,index,list)=>list.findIndex(other=>other.key===item.key)===index);
-  if(!candidates.some(item=>item.key===currentKey))candidates.unshift({id,record:currentRecord?.placementId?currentRecord:null,key:currentKey||`cell-${id}`});
-  await topology.ensureCells([...new Set(candidates.map(item=>item.id))]);
-  const origin=topology.centre(id);
-  inspectorRoute=candidates.sort((a,b)=>{
-    if(a.key===currentKey)return -1;if(b.key===currentKey)return 1;
-    const distance=item=>1-topology.centre(item.id).reduce((sum,value,index)=>sum+value*origin[index],0);
-    return distance(a)-distance(b)||a.key.localeCompare(b.key);
-  });
-  inspectorRouteIndex=Math.max(0,inspectorRoute.findIndex(item=>item.key===currentKey));
 }
 // Opening the inspector already renders this panel, so clicking "Nearby" must not repeat the
 // cell fetch and flash "Finding nearby placements…" over an answer we already have.
@@ -2868,14 +2872,14 @@ async function renderNearbyPlacements(full=false){
   }
   if(inspectedId!==targetId)return;nearby.replaceChildren();
   const areas=closestPlacements(records,selectedRecord,cellId=>centres.get(cellId)||topology.centre(cellId));
-  for(const area of areas){const button=document.createElement('button');const image=document.createElement('img'),source=area.thumbnailDataUrl||area.artworkDataUrl;image.alt='';image.hidden=!source;if(source)image.src=source;const name=document.createElement('span');name.textContent=area.title||'Untitled placement';const arrow=document.createElement('span');arrow.className='nearby-go';arrow.innerHTML=icon('arrow-right');arrow.setAttribute('aria-hidden','true');button.append(image,name,arrow);button.onclick=async()=>{await applyPersistentPlacements([area]);if(await inspectPlacement(area.anchor))viewInspectedPlacement();};nearby.append(button);}
+  for(const area of areas){const button=document.createElement('button');const image=document.createElement('img'),source=area.thumbnailDataUrl||area.artworkDataUrl;image.alt='';image.hidden=!source;if(source)image.src=source;const name=document.createElement('span');name.textContent=area.title||'Untitled placement';const arrow=document.createElement('span');arrow.className='nearby-go';arrow.innerHTML=icon('arrow-right');arrow.setAttribute('aria-hidden','true');button.append(image,name,arrow);button.onclick=async()=>{await applyPersistentPlacements([area]);if(await inspectPlacement(area.anchor,{placementId:area.placementId}))viewInspectedPlacement();};nearby.append(button);}
   if(!areas.length){const empty=document.createElement('p');empty.className='nearby-empty';empty.textContent=selectedRecord?'No other live placements yet.':'Nearby is available for live placements.';nearby.append(empty);}
   setNearbyCount(areas.length);
   nearbyRenderedFor=targetId;
 }
 function closeInspector(force=false){
   if(hudPinned&&!force)return;
-  inspectorVersion++;
+  inspectorVersion++;cancelWarm();
   document.querySelector('#placementInspector').hidden=true;document.body.classList.remove('inspecting');resize();
   if(!document.body.classList.contains('creating')){clearSelectionColours();selectionModeUniform.value=0;}
 }
@@ -2893,21 +2897,61 @@ document.querySelector('#showNearby').onclick=()=>showNearby(true,true);
 let seenNextPlacements=new Set(),nextPlacementBusy=false;
 // The tour already moves from placement to placement, so Next would only fight it.
 function syncNextPlacementButton(){const button=document.querySelector('#nextPlacement'),hide=!stagingClient||demoTour.active;if(button.hidden!==hide)button.hidden=hide;}
+// The catalogue records around a placement, with a position for each.
+async function placementNeighbourhood(id){
+  if(snapshotEnabled)await ensureSnapshotNearbyCatalogue();
+  const record=sessionPlacements.get(id),selected=record?.placementId?publicPlacementRecords.get(record.placementId)||record:{anchor:id,placementId:null};
+  const records=[...publicPlacementRecords.values()],centreFor=cellId=>{const item=records.find(entry=>entry.anchor===cellId),centre=item?.anchorCentre;return Array.isArray(centre)&&centre.length===3&&centre.every(Number.isFinite)?centre:topology.centre(cellId);};
+  await topology.ensureCells([...new Set([selected,...records].filter(item=>!(Array.isArray(item.anchorCentre)&&item.anchorCentre.length===3)).map(item=>item.anchor))]);
+  return {selected,records,centreFor};
+}
 document.querySelector('#nextPlacement').onclick=async event=>{
   if(nextPlacementBusy||!inspectedId)return;nextPlacementBusy=true;const button=event.currentTarget;button.disabled=true;
   try{
-    if(snapshotEnabled)await ensureSnapshotNearbyCatalogue();
-    const record=sessionPlacements.get(inspectedId),selected=record?.placementId?publicPlacementRecords.get(record.placementId)||record:{anchor:inspectedId,placementId:null};
-    const records=[...publicPlacementRecords.values()],centreFor=cellId=>{const item=records.find(entry=>entry.anchor===cellId),centre=item?.anchorCentre;return Array.isArray(centre)&&centre.length===3&&centre.every(Number.isFinite)?centre:topology.centre(cellId);};
-    await topology.ensureCells([...new Set([selected,...records].filter(item=>!(Array.isArray(item.anchorCentre)&&item.anchorCentre.length===3)).map(item=>item.anchor))]);
+    const {selected,records,centreFor}=await placementNeighbourhood(inspectedId);
     const step=nextUnseenPlacement(records,selected,centreFor,seenNextPlacements);seenNextPlacements=step.seen;
     if(!step.next){document.querySelector('#inspectorStatus').textContent='No other live placements yet.';return;}
     seenNextPlacements.add(step.next.placementId);
     await applyPersistentPlacements([step.next]);
-    if(await inspectPlacement(step.next.anchor))viewInspectedPlacement();
+    if(await inspectPlacement(step.next.anchor,{placementId:step.next.placementId}))viewInspectedPlacement();
   }catch{document.querySelector('#inspectorStatus').textContent='Could not load the next placement. Try again.';}
   finally{nextPlacementBusy=false;button.disabled=false;}
 };
+// While a placement is open, fetch what Next will need: its details, its map
+// regions and the artwork around where the camera will land. Then do the same
+// for Nearby. Waits until the camera settles so it never competes with a
+// flight in progress, and stops when the HUD closes or moves on.
+let warmTimer=0,warmAbort=null;
+function cancelWarm(){clearTimeout(warmTimer);warmAbort?.abort();warmAbort=null;}
+function scheduleWarm(){
+  cancelWarm();
+  if(!snapshotEnabled||!stagingClient)return;
+  const target=inspectedId;
+  const attempt=()=>{
+    if(inspectedId!==target||document.querySelector('#placementInspector').hidden)return;
+    if(cameraFlight.active||demoTour.active){warmTimer=setTimeout(attempt,300);return;}
+    const abort=warmAbort=new AbortController();
+    void warmAround(target,abort.signal).catch(()=>{});
+  };
+  warmTimer=setTimeout(attempt,400);
+}
+async function warmAround(id,signal){
+  const {selected,records,centreFor}=await placementNeighbourhood(id);
+  if(signal.aborted)return;
+  const {next}=nextUnseenPlacement(records,selected,centreFor,seenNextPlacements);
+  if(next)await warmPlacement(next,signal);
+  for(const area of closestPlacements(records,selected,centreFor))if(!signal.aborted&&area.placementId!==next?.placementId)await warmPlacement(area,signal);
+}
+async function warmPlacement(record,signal){
+  const details=publicPlacementDetails(record.placementId).catch(()=>null);
+  await topology.ensureCells(record.cells);
+  if(signal.aborted)return;
+  const angle=placementAngle(record.anchor,record.cells),{pose,direction,cap}=flightTarget(record.anchor,angle);
+  // A stand-in camera and globe at the landing pose work out what will be on screen.
+  const view=camera.clone();view.position.copy(pose.position);view.lookAt(0,0,0);view.updateMatrixWorld();
+  const landing=new THREE.Object3D();landing.quaternion.copy(pose.quaternion);landing.updateMatrixWorld(true);
+  await Promise.all([details,topology.ensureCap(direction,cap,-1).catch(()=>{}),snapshotRuntime?.current?.tiles.prefetch(landing,view,canvas.clientHeight*renderer.getPixelRatio(),signal)]);
+}
 document.querySelector('#backNearby').onclick=()=>showNearby(false,true);
 document.querySelector('#pinInspector').onclick=event=>{hudPinned=!hudPinned;event.currentTarget.setAttribute('aria-checked',String(hudPinned));};
 document.addEventListener('pointerdown',event=>{
@@ -2919,7 +2963,7 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape'){if(document
 function renderLinkClicks(){const value=linkClicks[cellForId(inspectedId).destination],sample=!sessionPlacements.has(inspectedId),visits=(Number.isSafeInteger(value)&&value>=0?value:0)+(sample?328:0);const metric=document.querySelector('#inspectorClicks');metric.textContent=visits.toLocaleString();metric.title=sample?'Illustrative visits plus your browser total':'Website visits from this browser';}
 for(const id of ['inspectorVisit','placementWebsite'])for(const type of ['click','auxclick'])document.getElementById(id).addEventListener(type,event=>{
   if(type==='auxclick'&&event.button!==1)return;
-  const record=inspectedId?sessionPlacements.get(inspectedId):null;if(record?.placementId&&stagingClient)void stagingClient.trackEvent({placementId:record.placementId,type:'outbound_link_clicked',eventToken:crypto.randomUUID(),context:{deviceClass:deviceClass(),source:'direct'}}).then(result=>{if(inspectedOwner===record)document.querySelector('#inspectorClicks').textContent=result.metrics.clicks.toLocaleString();}).catch(()=>{});
+  const record=inspectedId?sessionPlacements.get(inspectedId):null;if(record?.placementId&&stagingClient)void stagingClient.trackEvent({placementId:record.placementId,type:'outbound_link_clicked',eventToken:crypto.randomUUID(),context:{deviceClass:deviceClass(),source:'direct'}}).then(result=>{if(inspectedOwner===`placement-${record.placementId}`)document.querySelector('#inspectorClicks').textContent=result.metrics.clicks.toLocaleString();}).catch(()=>{});
   const url=event.currentTarget.href;const current=linkClicks[url];linkClicks[url]=(Number.isSafeInteger(current)&&current>=0?current:0)+1;if(inspectedId)renderLinkClicks();
 });
 function companyEntries(){return [...bootstrap.sampleAreas.map(area=>({id:area.anchor,name:bootstrap.sampleCampaigns[area.campaign].name,sample:true})),...[...new Set(sessionPlacements.values())].map(record=>({id:record.anchor,name:record.name||'Your placement'}))];}
@@ -2963,19 +3007,27 @@ function renderClaimFeed(){
 renderClaimFeed();
 setInterval(renderClaimFeed,60000);
 
-function flyToCell(id,angle,duration=1500,onComplete=()=>{},onCancel=()=>{}){
-  zoom.cancel();cameraDistanceTarget=null;
+// Where flyToCell will leave the camera and which geometry it needs around it.
+function flightTarget(id,angle){
   const pose=placementPose(topology.frame(id),camera,radius,angle);
   if(innerWidth<=700&&document.body.dataset.flow==='design')pose.position.setLength(Math.max(controls.minDistance,distanceForArc(radius*angle*1.3)));
   const direction=pose.position.clone().applyQuaternion(pose.quaternion.clone().invert()).normalize();
   const cap=Math.min(.32,Math.max(.055,(pose.position.length()-radius)/radius*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*Math.max(camera.aspect,1)*1.9));
-  void topology.ensureCap(direction.toArray(),cap+.025).catch(()=>{});
+  return {pose,direction:direction.toArray(),cap:cap+.025};
+}
+function flyToCell(id,angle,duration=1500,onComplete=()=>{},onCancel=()=>{}){
+  zoom.cancel();cameraDistanceTarget=null;
+  const {pose,direction,cap}=flightTarget(id,angle);
+  void topology.ensureCap(direction,cap).catch(()=>{});
   cameraFlight.start({...pose,duration,onComplete,onCancel});
 }
+function placementAngle(anchor,cells){
+  const n=topology.centre(anchor);let dot=1;
+  for(const id of cells){const p=topology.centre(id);dot=Math.min(dot,n[0]*p[0]+n[1]*p[1]+n[2]*p[2]);}
+  return Math.acos(Math.max(-1,dot))+.004;
+}
 function viewInspectedPlacement(onComplete=()=>{}){
-  const n=topology.centre(inspectedId);let dot=1;
-  for(const id of inspectedCells){const p=topology.centre(id);dot=Math.min(dot,n[0]*p[0]+n[1]*p[1]+n[2]*p[2]);}
-  flyToCell(inspectedId,Math.acos(Math.max(-1,dot))+.004,1500,onComplete);
+  flyToCell(inspectedId,placementAngle(inspectedId,inspectedCells),1500,onComplete);
 }
 
 let activeShare=null;

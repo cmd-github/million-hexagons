@@ -15,11 +15,27 @@ export default defineConfig(({mode,command})=>({
   // once. Now a duplicate run fails loudly instead. Scripts that create their
   // own server pass port 0 and are unaffected.
   server: { strictPort: true, watch: { ignored: ['**/public/artwork/**','**/artifacts/**'] } },
-  build: { target: 'es2022', copyPublicDir: false },
+  build: {
+    target: 'es2022',
+    copyPublicDir: false,
+    rollupOptions: { output: { manualChunks(id) {
+      if(id.includes('/node_modules/three/build/'))return 'three-core';
+      if(id.includes('/node_modules/three/examples/'))return 'three-controls';
+    } } },
+  },
   plugins: [{
     name: 'runtime-public-assets',
     configResolved(value) { config=value; },
     configureServer(server) {
+      // The deployed Worker supplies this edge hint. Mirror its no-country
+      // response locally so development and browser QA do not emit a 404.
+      server.middlewares.use((req,res,next)=>{
+        let pathname;
+        try{pathname=new URL(req.url,'http://localhost').pathname;}catch{return next();}
+        if(req.method!=='GET'||pathname!=='/api/location')return next();
+        const body=JSON.stringify({country:''});
+        res.statusCode=200;res.setHeader('Content-Type','application/json');res.setHeader('Cache-Control','no-store');res.setHeader('Content-Length',Buffer.byteLength(body));res.end(body);
+      });
       // Artwork generation is intentionally unwatched. Serve its current files
       // directly instead of Vite's startup-only public-file index/HTML fallback.
       const root=path.resolve(server.config.publicDir,'artwork');

@@ -100,11 +100,23 @@ export class ArtworkTiles {
     for(let j=0;j<segments;j++)for(let i=0;i<segments;i++){const a=j*(segments+1)+i,b=a+segments+1;indices.push(a,b,a+1,b,b+1,a+1);}
     const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));geometry.setIndex(indices);geometry.computeBoundingSphere();return geometry;
   }
+  branches() {
+    return this.tree?{has:key=>{const [f,l,x,y]=key.split('/').map(Number);return hasChildren(this.tree,f,l,x,y)||this.detailBranches.has(key);}}:this.detailBranches;
+  }
+  // Warm the browser cache with the tiles a future camera pose will select, so
+  // arriving there reads local files instead of downloading. Nothing reaches
+  // the GPU cache. Tiles are immutable, so the HTTP cache serves them later.
+  async prefetch(globe,camera,height,signal) {
+    await this.ready;if(!this.manifest||!this.tree)return;
+    const selection=selectBudgetedArtworkTiles(globe,camera,this.radius,height,this.manifest,this.branches(),Math.max(6,this.maxTiles-6-this.concurrency));
+    const keys=selection.filter(tile=>!this.cache.get(tile.key)?.ready&&hasNode(this.tree,tile.face,tile.level,tile.x,tile.y)).map(tile=>tile.key);
+    for(let i=0;i<keys.length&&!signal?.aborted;i+=2)await Promise.all(keys.slice(i,i+2).map(key=>fetch(`${this.base}/${key}.webp`,{signal,priority:'low'}).then(response=>response.ok?response.blob():null).catch(()=>null)));
+  }
   update(camera,height,time) {
     if(!this.manifest)return;
     this.epoch++;
     if(time-this.lastSelection>=60){
-      const branches=this.tree?{has:key=>{const [f,l,x,y]=key.split('/').map(Number);return hasChildren(this.tree,f,l,x,y)||this.detailBranches.has(key);}}:this.detailBranches;
+      const branches=this.branches();
       this.selection=selectBudgetedArtworkTiles(this.globe,camera,this.radius,height,this.manifest,branches,Math.max(6,this.maxTiles-6-this.concurrency));
       this.capacity=this.maxTiles;
       this.lastSelection=time;
